@@ -1,0 +1,30 @@
+{% load static %}
+<header class="topbar">
+  <a href="{% url 'ana_sayfa' %}" class="topbar-brand"><img class="topbar-logo" src="{% static 'images/geek_logo_blue.png' %}" alt="Geek"></a>
+  <div class="topbar-user">
+    <div class="who">
+      <b>{% if personel %}{{ personel.ad_soyad }}{% else %}{{ request.user.username }}{% endif %}</b>
+      <div class="role">{% if personel %}{{ personel.get_rol_display }}{% else %}Profil tanımsız{% endif %}</div>
+    </div>
+    <form method="post" action="{% url 'ana_sayfa' %}">
+      {% csrf_token %}<input type="hidden" name="islem" value="cikis">
+      <button type="submit" class="btn btn-ghost btn-mini">Çıkış</button>
+    </form>
+  </div>
+</header>
+{% if personel %}
+<nav class="subnav">
+  {% if personel.rol == 'Personel' %}
+    <a href="{% url 'ana_sayfa' %}" class="{% if aktif == 'home' %}aktif{% endif %}">Panelim</a>
+    <a href="{% url 'kalibrasyon' %}" class="{% if aktif == 'kalibrasyon' %}aktif{% endif %}">Kalibrasyon</a>
+    <a href="{% url 'zayi' %}" class="{% if aktif == 'zayi' %}aktif{% endif %}">Zayi</a>
+  {% else %}
+    <a href="{% url 'ana_sayfa' %}" class="{% if aktif == 'home' %}aktif{% endif %}">Vardiya</a>
+    <a href="{% url 'puantaj' %}" class="{% if aktif == 'puantaj' %}aktif{% endif %}">Puantaj</a>
+    <a href="{% url 'mola' %}" class="{% if aktif == 'mola' %}aktif{% endif %}">Mola</a>
+    <a href="{% url 'kalibrasyon' %}" class="{% if aktif == 'kalibrasyon' %}aktif{% endif %}">Kalibrasyon</a>
+    <a href="{% url 'zayi' %}" class="{% if aktif == 'zayi' %}aktif{% endif %}">Zayi</a>
+    {% if personel.rol == 'Genel Müdür' or personel.rol == 'Müdür' or personel.rol == 'Operatör' %}<a href="{% url 'ekip' %}" class="{% if aktif == 'ekip' %}aktif{% endif %}">Ekip</a>{% endif %}
+  {% endif %}
+</nav>
+{% endif %}

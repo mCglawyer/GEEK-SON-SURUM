@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ baslik }} · Geek Panel{% endblock %}
+
+{% block body %}
+<header class="topbar">
+  <a href="{% url 'ana_sayfa' %}"><img class="topbar-logo" src="{% static 'images/geek_logo_blue.png' %}" alt="Geek"></a>
+  <a class="btn btn-ghost" href="{% url 'ana_sayfa' %}">Girişe dön</a>
+</header>
+
+<div class="container reading">
+  <h1>{{ baslik }}</h1>
+  <p class="updated">Son güncelleme: {{ guncelleme }}</p>
+  <div class="note">{{ not }}</div>
+
+  {% for b in bolumler %}
+    <section class="legal-sec">
+      <h3>{{ b.baslik }}</h3>
+      {% for p in b.paragraflar %}<p>{{ p }}</p>{% endfor %}
+    </section>
+  {% endfor %}
+
+  <footer class="legal"><p class="powered">Powered by <b>Emir Gögebakan</b></p></footer>
+</div>
+{% endblock %}

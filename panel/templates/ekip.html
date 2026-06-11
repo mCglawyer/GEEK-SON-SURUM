@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Ekip · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head"><div><h2>Ekip Yönetimi</h2></div></div>
+
+  <!-- YÖNETİCİLER -->
+  <div class="card staff-card">
+    <h3>Yöneticiler</h3>
+    <ul class="staff-list">
+      {% for y in yoneticiler %}
+      <li class="sef-row">
+        <span class="staff-ad">{{ y.ad_soyad }} <em>· {{ y.get_rol_display }}</em></span>
+        <span class="staff-kod">{% if y.user %}kullanıcı: <code>{{ y.user.username }}</code>{% endif %}</span>
+        <div class="sef-aks">
+          <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="yonetici_sifre_yenile"><input type="hidden" name="personel_id" value="{{ y.id }}"><button class="btn btn-ghost btn-mini">Şifre yenile</button></form>
+          <form method="post" onsubmit="return confirm('{{ y.ad_soyad }} çıkarılsın mı?');">{% csrf_token %}<input type="hidden" name="islem" value="yonetici_cikar"><input type="hidden" name="personel_id" value="{{ y.id }}"><button class="btn btn-danger btn-mini">Çıkar</button></form>
+        </div>
+      </li>
+      {% empty %}
+      <li><span class="staff-ad" style="color:var(--muted)">Henüz başka yönetici yok.</span></li>
+      {% endfor %}
+    </ul>
+    <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="yonetici_ekle">
+      <input class="input" type="text" name="ad_soyad" placeholder="Yönetici ad soyad" required>
+      <select name="rol" class="sube-sec" required>
+        {% for r in yonetici_rolleri %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-primary">Yönetici ekle</button>
+    </form>
+    <p class="grid-not">İsim + rol girince kullanıcı adı ve şifre otomatik üretilir ve yukarıdaki yeşil mesajda <b>bir kez</b> gösterilir — not alıp kişiye iletin. Şifreyi sonra "Şifre yenile" ile değiştirebilirsiniz.</p>
+  </div>
+
+  <!-- ŞEFLER -->
+  <div class="card staff-card">
+    <h3>Şefler</h3>
+    <ul class="staff-list">
+      {% for s in sefler %}
+      <li class="sef-row">
+        <form method="post" class="sef-form">{% csrf_token %}<input type="hidden" name="islem" value="sef_degistir"><input type="hidden" name="sef_id" value="{{ s.id }}">
+          <input class="input" type="text" name="yeni_ad_soyad" value="{{ s.ad_soyad }}">
+          <select name="yeni_sube_id" class="sube-sec">{% for sb in subeler %}<option value="{{ sb.id }}"{% if s.sube_id == sb.id %} selected{% endif %}>{{ sb.ad }}</option>{% endfor %}</select>
+          <span class="staff-kod">kod: <code>{{ s.giris_kodu }}</code></span>
+          <button class="btn btn-ghost btn-mini">Güncelle</button>
+        </form>
+        <form method="post" onsubmit="return confirm('{{ s.ad_soyad }} silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="sef_cikar"><input type="hidden" name="sef_id" value="{{ s.id }}"><button class="btn btn-danger btn-mini">Çıkar</button></form>
+      </li>
+      {% empty %}
+      <li><span class="staff-ad" style="color:var(--muted)">Henüz şef yok.</span></li>
+      {% endfor %}
+    </ul>
+    <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="sef_ekle">
+      <input class="input" type="text" name="ad_soyad" placeholder="Yeni şef ad soyad" required>
+      <select name="sef_sube_id" class="sube-sec" required>{% for sb in subeler %}<option value="{{ sb.id }}">{{ sb.ad }}</option>{% endfor %}</select>
+      <button class="btn btn-primary">Şef ekle</button>
+    </form>
+    <p class="grid-not">Şefe otomatik 6 haneli giriş kodu atanır (şef de personel gibi kodla girer). Şef, kendi şubesine personel ekler.</p>
+  </div>
+</div>
+{% endblock %}

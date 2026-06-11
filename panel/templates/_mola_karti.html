@@ -1,0 +1,50 @@
+<div class="card mola-card">
+  {% if aktif_mola %}
+    <div class="mola-head"><span class="badge badge-wait">{{ aktif_mola.mola_tipi }} · sürüyor</span></div>
+    <div class="timer" id="timer" data-start="{{ start_iso }}" data-hedef="{{ hedef_dk }}">00:00</div>
+    <p class="timer-sub" id="timerSub">Hedef: {{ hedef_dk }} dk</p>
+    <form method="post" action="{% url 'ana_sayfa' %}">
+      {% csrf_token %}
+      <input type="hidden" name="islem" value="mola_toggle">
+      <button type="submit" class="btn btn-danger btn-block">Molayı bitir</button>
+    </form>
+  {% else %}
+    <div class="mola-head"><h3>Mola</h3></div>
+    <div class="mola-stats">
+      <div class="stat"><span class="stat-num">{{ kullanilan_dk }}</span><span class="stat-lbl">bugün kullanılan dk</span></div>
+      <div class="stat"><span class="stat-num">{{ kalan_hak }}</span><span class="stat-lbl">kalan hak (dk)</span></div>
+    </div>
+    <div class="progress"><i style="width: {% widthratio kullanilan_dk gunluk_hak 100 %}%"></i></div>
+    <form method="post" action="{% url 'ana_sayfa' %}">
+      {% csrf_token %}
+      <input type="hidden" name="islem" value="mola_toggle">
+      <button type="submit" class="btn btn-primary btn-block"{% if kalan_hak == 0 %} disabled{% endif %}>
+        {% if bugun_biten_sayi == 0 %}1. molaya başla{% else %}2. molaya başla{% endif %}
+      </button>
+    </form>
+  {% endif %}
+</div>
+<script>
+(function(){
+  var el = document.getElementById('timer');
+  if (!el || !el.dataset.start) return;
+  var start = new Date(el.dataset.start);
+  var hedef = parseInt(el.dataset.hedef || '0', 10) * 60;
+  var sub = document.getElementById('timerSub');
+  function iki(n){ return (n<10?'0':'') + n; }
+  function tick(){
+    var gecen = Math.max(0, Math.floor((Date.now() - start.getTime())/1000));
+    el.textContent = iki(Math.floor(gecen/60)) + ':' + iki(gecen%60);
+    var kalan = hedef - gecen;
+    if (kalan >= 0){
+      el.classList.remove('asildi');
+      sub.textContent = 'Kalan: ' + Math.ceil(kalan/60) + ' dk';
+    } else {
+      el.classList.add('asildi');
+      var fazla = -kalan;
+      sub.textContent = 'Limit aşıldı: +' + iki(Math.floor(fazla/60)) + ':' + iki(fazla%60);
+    }
+  }
+  tick(); setInterval(tick, 1000);
+})();
+</script>

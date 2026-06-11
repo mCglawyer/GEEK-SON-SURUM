@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Vardiya · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+
+  {% if not subeler %}
+    <div class="card welcome"><h2>Şube yok</h2><p>Önce admin panelinden en az bir şube ekleyin.</p></div>
+  {% else %}
+    <div class="plan-head">
+      <div><h2>Vardiya Yönetimi</h2><span class="plan-aralik">{{ haftabasi|date:"d.m" }} – {{ haftasonu|date:"d.m.Y" }}</span></div>
+      <div class="yon-secimler">
+        <select class="sube-sec" onchange="location.href='?sube_id='+this.value+'&hafta={{ secili }}'">
+          {% for s in subeler %}<option value="{{ s.id }}"{% if sel_sube and s.id == sel_sube.id %} selected{% endif %}>{{ s.ad }}{% if s.depo_mu %} (depo){% endif %}</option>{% endfor %}
+        </select>
+        <div class="hafta-toggle">
+          <a href="?sube_id={{ sel_sube.id }}&hafta=bu" class="{% if secili == 'bu' %}aktif{% endif %}">Bu hafta</a>
+          <a href="?sube_id={{ sel_sube.id }}&hafta=gelecek" class="{% if secili == 'gelecek' %}aktif{% endif %}">Gelecek</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card durum-card">
+      <div class="durum-row"><span>{{ sel_sube.ad }} · durum:</span> <span class="badge {{ durum_sinif }}">{{ hafta_durum }}</span></div>
+      {% if onay_bekleyen %}
+      <div class="onay-aksiyon">
+        <form method="post" action="?sube_id={{ sel_sube.id }}&hafta={{ secili }}">{% csrf_token %}<input type="hidden" name="islem" value="plan_onayla"><button class="btn btn-primary">Onayla</button></form>
+        <form method="post" action="?sube_id={{ sel_sube.id }}&hafta={{ secili }}" class="red-form">{% csrf_token %}<input type="hidden" name="islem" value="plan_reddet"><input class="input" type="text" name="red_notu" placeholder="Red nedeni (şefe gider)"><button class="btn btn-danger">Reddet</button></form>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if rows %}
+    <div class="card grid-card">
+      <div class="grid-wrap"><table class="vgrid">
+        <thead><tr><th class="sticky">Personel</th>{% for g in gun_basliklari %}<th>{{ g.gun_adi|slice:":3" }}<span>{{ g.tarih|date:"d.m" }}</span></th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in rows %}
+          <tr><th class="sticky">{{ row.personel.ad_soyad }}</th>
+            {% for h in row.hucreler %}
+            <td><form method="post" action="?sube_id={{ sel_sube.id }}&hafta={{ secili }}">{% csrf_token %}
+              <input type="hidden" name="islem" value="vardiya_kaydet">
+              <input type="hidden" name="target_personel_id" value="{{ row.personel.id }}">
+              <input type="hidden" name="vardiya_tarihi" value="{{ h.tarih|date:'Y-m-d' }}">
+              <select name="vardiya_tipi" onchange="this.form.submit()" class="cell-sel{% if h.vardiya %} dolu{% endif %}">
+                <option value="">—</option>
+                {% for val, label in vardiya_tipleri %}<option value="{{ val }}"{% if h.vardiya and h.vardiya.vardiya_tipi == val %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                {% if h.vardiya %}<option value="Sil">✕ Sil</option>{% endif %}
+              </select></form></td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      <p class="grid-not">Hücreyi değiştirince kaydedilir ve anında puantaja yansır. "Onayla" tüm bekleyenleri onaylar; "Reddet" şefe geri gönderir.</p>
+    </div>
+    {% else %}
+    <div class="card"><p style="margin:0;color:var(--muted)">Bu şubede personel yok.</p></div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

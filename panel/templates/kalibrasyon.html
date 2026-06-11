@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Kalibrasyon · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Kalibrasyon</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% endif %}</span></div>
+    {% if is_yon %}
+    <div class="yon-secimler">
+      <select class="sube-sec" onchange="location.href='?sube_id='+this.value+'&kalibrasyon_tarih={{ secili_tarih }}'">
+        {% for s in subeler %}<option value="{{ s.id }}"{% if sel_sube and s.id == sel_sube.id %} selected{% endif %}>{{ s.ad }}{% if s.depo_mu %} (depo){% endif %}</option>{% endfor %}
+      </select>
+      <input type="date" class="ay-sec" value="{{ secili_tarih }}" min="{{ en_eski_tarih }}" max="{{ bugun }}"
+             onchange="location.href='?sube_id={{ sel_sube.id }}&kalibrasyon_tarih='+this.value">
+    </div>
+    {% endif %}
+  </div>
+
+  {% if ekleyebilir %}
+  <!-- Anlık kamera (personel / şef) -->
+  <div class="card kal-cam">
+    <div class="kal-video-wrap">
+      <video id="kamera" autoplay playsinline muted></video>
+    </div>
+    <canvas id="tuval" hidden></canvas>
+    <div id="kamera-hata" class="kal-hata" hidden></div>
+    <form method="post" id="kal-form">{% csrf_token %}
+      <input type="hidden" name="islem" value="kalibrasyon_yukle">
+      <input type="hidden" name="foto_data" id="foto_data">
+      <button type="button" id="cek-btn" class="btn btn-primary kal-cek">📸 Çek ve Yükle</button>
+    </form>
+    <p class="grid-not">Görüntü yalnızca <b>o an kameradan</b> alınır; galeriden yükleme yoktur. Telefonda kamerayı açmak için izin verin (telefonda kameranın çalışması için sitenin HTTPS olması gerekir; bilgisayarda localhost'ta çalışır).</p>
+  </div>
+  {% endif %}
+
+  <!-- Görüntüler -->
+  <div class="card">
+    <div class="hafta-head">
+      <h3>{% if ekleyebilir %}Bugün Yüklenenler{% else %}{{ secili_tarih }} Görüntüleri{% endif %}</h3>
+      <span class="hafta-aralik">{{ gorseller|length }} görüntü</span>
+    </div>
+    {% if gorseller %}
+    <div class="kal-galeri">
+      {% for g in gorseller %}
+      <figure class="kal-item">
+        <a href="{{ g.foto.url }}" target="_blank"><img src="{{ g.foto.url }}" alt="Kalibrasyon görüntüsü" loading="lazy"></a>
+        <figcaption>{{ g.giren_ad|default:"—" }}<span>{{ g.olusturma|date:"d.m.Y H:i" }}</span></figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="margin:0;color:var(--muted)">{% if ekleyebilir %}Bugün henüz görüntü yüklemediniz.{% else %}Bu gün için kalibrasyon görüntüsü yok.{% endif %}</p>
+    {% endif %}
+  </div>
+
+  {% if is_yon %}<p class="grid-not">Görüntüler {{ saklama_gun }} gün saklanır; tarih seçiciyle son {{ saklama_gun }} gün içinde gezebilirsiniz. Görüntüye tıklayınca tam boy açılır.</p>{% endif %}
+</div>
+
+{% if ekleyebilir %}
+<script>
+(function () {
+  var video = document.getElementById('kamera');
+  var hata = document.getElementById('kamera-hata');
+  var btn = document.getElementById('cek-btn');
+  var foto = document.getElementById('foto_data');
+  var form = document.getElementById('kal-form');
+  var stream = null;
+  function hataGoster(msg) { hata.hidden = false; hata.textContent = msg; btn.disabled = true; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    hataGoster('Bu cihaz/tarayıcı canlı kamerayı desteklemiyor.'); return;
+  }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+    .then(function (s) { stream = s; video.srcObject = s; })
+    .catch(function () { hataGoster('Kameraya erişilemedi. İzin verin (telefonda HTTPS gerekir).'); });
+  btn.addEventListener('click', function () {
+    if (!stream || !video.videoWidth) { return; }
+    var maxw = 1024, scale = Math.min(1, maxw / video.videoWidth);
+    var cw = Math.round(video.videoWidth * scale), ch = Math.round(video.videoHeight * scale);
+    var cv = document.getElementById('tuval'); cv.width = cw; cv.height = ch;
+    cv.getContext('2d').drawImage(video, 0, 0, cw, ch);
+    foto.value = cv.toDataURL('image/jpeg', 0.7);
+    btn.disabled = true; btn.textContent = 'Yükleniyor...';
+    stream.getTracks().forEach(function (t) { t.stop(); });
+    form.submit();
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

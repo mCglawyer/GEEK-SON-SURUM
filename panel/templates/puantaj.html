@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Puantaj · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Puantaj</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% endif %}</span></div>
+    <div class="yon-secimler">
+      {% if is_yon %}
+      <select class="sube-sec" onchange="location.href='?sube_id='+this.value+'&puantaj_ay={{ selected_ay_str }}'">
+        {% for s in subeler %}<option value="{{ s.id }}"{% if sel_sube and s.id == sel_sube.id %} selected{% endif %}>{{ s.ad }}{% if s.depo_mu %} (depo){% endif %}</option>{% endfor %}
+      </select>
+      {% endif %}
+      <input type="month" class="ay-sec" value="{{ selected_ay_str }}" onchange="location.href='?{% if is_yon %}sube_id={{ sel_sube.id }}&{% endif %}puantaj_ay='+this.value">
+      <a class="btn btn-ghost btn-mini" href="{% url 'puantaj_excel_export' %}?{% if is_yon %}sube_id={{ sel_sube.id }}&{% endif %}puantaj_ay={{ selected_ay_str }}">Excel'e aktar</a>
+    </div>
+  </div>
+
+  <div class="card">
+    {% if puantaj_listesi %}
+    <div class="puantaj-list">
+      {% for r in puantaj_listesi %}
+      <div class="pz-row">
+        <div class="pz-ad">{{ r.personel.ad_soyad }}
+          {% if r.manuel %}<span class="badge badge-wait">manuel</span>{% else %}<span class="badge badge-info">otomatik</span>{% endif %}
+        </div>
+        <form method="post" action="?{% if is_yon %}sube_id={{ sel_sube.id }}&{% endif %}puantaj_ay={{ selected_ay_str }}" class="pz-form">
+          {% csrf_token %}<input type="hidden" name="islem" value="puantaj_kaydet"><input type="hidden" name="target_personel_id" value="{{ r.personel.id }}">
+          <label>Çalışılan<input type="number" min="0" name="calisilan_gun" value="{{ r.calisilan }}"></label>
+          <label>Eksik<input type="number" min="0" name="eksik_gun" value="{{ r.eksik }}"></label>
+          <label>İzinli<input type="number" min="0" name="izinli_gun" value="{{ r.izinli }}"></label>
+          <label>Raporlu<input type="number" min="0" name="raporlu_gun" value="{{ r.raporlu }}"></label>
+          <span class="pz-hak">Hakediş <b>{{ r.hakedis }}</b></span>
+          <button type="submit" class="btn btn-primary btn-mini">Kaydet</button>
+        </form>
+        {% if r.manuel %}
+        <form method="post" action="?{% if is_yon %}sube_id={{ sel_sube.id }}&{% endif %}puantaj_ay={{ selected_ay_str }}" class="pz-sifirla">
+          {% csrf_token %}<input type="hidden" name="islem" value="puantaj_sifirla"><input type="hidden" name="target_personel_id" value="{{ r.personel.id }}">
+          <button type="submit" class="btn btn-ghost btn-mini">Otomatiğe döndür</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <p class="grid-not">Vardiyadan otomatik hesaplanır; elle kaydedince "manuel" olur. Hakediş = Çalışılan + İzinli + Raporlu.</p>
+    {% else %}
+    <p style="margin:0;color:var(--muted)">Bu şubede personel yok.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

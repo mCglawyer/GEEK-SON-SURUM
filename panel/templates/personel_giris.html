@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Giriş · Geek Panel{% endblock %}
+
+{% block body %}
+<div class="login-wrap">
+
+  <aside class="brand-panel">
+    <figure class="brand-photo">
+      <img src="{% static 'images/geek_life.jpg' %}" alt="Geek Coffee & Eatery">
+    </figure>
+    <div class="brand-copy">
+      <h1>Ekibini tek panelden<br>yönet.</h1>
+      <p>Vardiya planı, mola takibi ve aylık puantaj — hepsi bir arada,
+         her cihazdan erişilebilir.</p>
+    </div>
+    <div class="brand-foot">Geek Coffee &amp; Eatery · Personel Yönetim Sistemi</div>
+  </aside>
+
+  <main class="form-panel">
+    <div class="form-center">
+      <div class="form-inner">
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-error">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+
+        {% with mod=request.GET.mod %}
+        <!-- PERSONEL: kod girişi -->
+        <div class="auth-pane{% if mod == 'yonetici' %} hidden{% endif %}" id="pane-kod">
+          <span class="eyebrow">Personel / Şef girişi</span>
+          <h2>Giriş kodunu yaz</h2>
+          <form method="post" action="{% url 'ana_sayfa' %}">
+            {% csrf_token %}
+            <input type="hidden" name="islem" value="kod_giris">
+            <div class="field">
+              <label for="kod">6 haneli giriş kodun</label>
+              <input class="input code-input" type="text" id="kod" name="kod"
+                     inputmode="numeric" pattern="[0-9]*" maxlength="6"
+                     placeholder="••••••" autocomplete="one-time-code" autofocus required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Giriş yap</button>
+          </form>
+          <button type="button" class="linkbtn" data-target="pane-sifre">Üst yönetici misin? Şifreyle gir →</button>
+        </div>
+
+        <!-- YÖNETİM: kullanıcı adı + şifre -->
+        <div class="auth-pane{% if mod != 'yonetici' %} hidden{% endif %}" id="pane-sifre">
+          <span class="eyebrow">Yönetici girişi</span>
+          <h2>Hesabına giriş yap</h2>
+          <form method="post" action="{% url 'ana_sayfa' %}">
+            {% csrf_token %}
+            <input type="hidden" name="islem" value="sifre_giris">
+            <div class="field">
+              <label for="kullanici_adi">Kullanıcı adı</label>
+              <input class="input" type="text" id="kullanici_adi" name="kullanici_adi"
+                     placeholder="kullanıcı adın" autocomplete="username" required>
+            </div>
+            <div class="field">
+              <label for="sifre">Şifre</label>
+              <div class="pw-wrap">
+                <input class="input" type="password" id="sifre" name="sifre"
+                       placeholder="••••••••" autocomplete="current-password" required>
+                <button type="button" class="pw-toggle" id="pwToggle">Göster</button>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Giriş yap</button>
+          </form>
+          <button type="button" class="linkbtn" data-target="pane-kod">← Personel giriş koduyla gir</button>
+        </div>
+        {% endwith %}
+
+        <footer class="legal">
+          <nav>
+            <a href="{% url 'kvkk' %}">KVKK Aydınlatma Metni</a><span class="sep">·</span>
+            <a href="{% url 'kullanim_kosullari' %}">Kullanım Koşulları</a><span class="sep">·</span>
+            <a href="{% url 'gizlilik' %}">Gizlilik Politikası</a>
+          </nav>
+          <p class="powered">Powered by <b>Emir Gögebakan</b></p>
+        </footer>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<script>
+  document.querySelectorAll('.linkbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.auth-pane').forEach(p => p.classList.add('hidden'));
+      var el = document.getElementById(b.dataset.target);
+      el.classList.remove('hidden');
+      var first = el.querySelector('input'); if (first) first.focus();
+    });
+  });
+  var t = document.getElementById('pwToggle'), p = document.getElementById('sifre');
+  if (t && p) t.addEventListener('click', function(){
+    var show = p.type === 'password';
+    p.type = show ? 'text' : 'password';
+    t.textContent = show ? 'Gizle' : 'Göster';
+  });
+</script>
+{% endblock %}

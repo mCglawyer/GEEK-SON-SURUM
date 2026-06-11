@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Zayi · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Zayi</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% endif %}</span></div>
+    <div class="yon-secimler">
+      {% if is_yon %}
+      <select class="sube-sec" onchange="location.href='?sube_id='+this.value+'&zayi_ay={{ selected_ay_str }}'">
+        {% for s in subeler %}<option value="{{ s.id }}"{% if sel_sube and s.id == sel_sube.id %} selected{% endif %}>{{ s.ad }}{% if s.depo_mu %} (depo){% endif %}</option>{% endfor %}
+      </select>
+      <input type="month" class="ay-sec" value="{{ selected_ay_str }}" onchange="location.href='?sube_id={{ sel_sube.id }}&zayi_ay='+this.value">
+      <a class="btn btn-ghost btn-mini" href="{% url 'zayi_excel_export' %}?sube_id={{ sel_sube.id }}&zayi_ay={{ selected_ay_str }}">Excel'e aktar</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if ekleyebilir %}
+  <!-- Giriş formu (personel / şef) -->
+  <div class="card">
+    <form method="post" class="zayi-form">{% csrf_token %}<input type="hidden" name="islem" value="zayi_ekle">
+      <label class="zf-urun">Ürün adı<input class="input" type="text" name="urun_adi" placeholder="Örn. Süt, Bardak, Espresso shot" required></label>
+      <label class="zf-miktar">Miktar<input class="input" type="number" name="miktar" min="0" step="0.01" placeholder="0" required></label>
+      <label class="zf-birim">Birim
+        <select name="birim" class="sube-sec">{% for v, l in birimler %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select>
+      </label>
+      <button type="submit" class="btn btn-primary">Zayi ekle</button>
+    </form>
+    <p class="grid-not">Girdiğin zayi şubene ({% if sel_sube %}{{ sel_sube.ad }}{% else %}—{% endif %}) işlenir; kim ve ne zaman girdiği otomatik kaydedilir.</p>
+  </div>
+  {% endif %}
+
+  {% if is_yon and grafik %}
+  <!-- Aylık ürün grafiği (yönetim) -->
+  <div class="card">
+    <div class="hafta-head"><h3>Aylık Zayi Grafiği</h3><span class="hafta-aralik">ürünlere göre toplam</span></div>
+    <div class="chart">
+      {% for b in grafik %}
+      <div class="chart-col">
+        <div class="chart-val">{{ b.toplam|floatformat:"-2" }}</div>
+        <div class="chart-track"><div class="chart-bar" style="height: {{ b.yuzde }}%"></div></div>
+        <div class="chart-lbl">{{ b.urun }}<br><span>{{ b.birim }}</span></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% elif is_yon %}
+  <div class="card"><p style="margin:0;color:var(--muted)">Bu ay bu şubede zayi kaydı yok.</p></div>
+  {% endif %}
+
+  <!-- Liste -->
+  <div class="card">
+    <div class="hafta-head"><h3>{% if is_yon %}Zayi Kayıtları{% else %}Bu Ay Girilenler{% endif %}</h3><span class="hafta-aralik">{{ kayitlar|length }} kayıt</span></div>
+    {% if kayitlar %}
+    <ul class="zayi-list">
+      {% for z in kayitlar %}
+      <li class="zayi-row">
+        <div class="zr-urun">{{ z.urun_adi }}</div>
+        <div class="zr-miktar">{{ z.miktar|floatformat:"-2" }} <span>{{ z.birim }}</span></div>
+        <div class="zr-meta">{{ z.giren_ad|default:"—" }} · {{ z.olusturma|date:"d.m.Y H:i" }}
+          {% if z.duzenlenebilir %}
+          <details class="zr-edit">
+            <summary>Düzenle</summary>
+            <div class="zr-edit-body">
+              <form method="post" class="zayi-form">{% csrf_token %}<input type="hidden" name="islem" value="zayi_duzenle"><input type="hidden" name="zayi_id" value="{{ z.id }}">
+                <label class="zf-urun">Ürün<input class="input" type="text" name="urun_adi" value="{{ z.urun_adi }}" required></label>
+                <label class="zf-miktar">Miktar<input class="input" type="number" name="miktar" min="0" step="0.01" value="{{ z.miktar|floatformat:'-2' }}" required></label>
+                <label class="zf-birim">Birim<select name="birim" class="sube-sec">{% for v, l in birimler %}<option value="{{ v }}"{% if z.birim == v %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+                <button type="submit" class="btn btn-primary btn-mini">Kaydet</button>
+              </form>
+              <form method="post" onsubmit="return confirm('Bu kayıt silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="zayi_sil"><input type="hidden" name="zayi_id" value="{{ z.id }}"><button type="submit" class="btn btn-danger btn-mini">Sil</button></form>
+            </div>
+          </details>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p style="margin:0;color:var(--muted)">Bu ay için kayıt yok.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Şef Paneli · Geek Panel{% endblock %}
+
+{% block body %}
+{% include '_nav.html' %}
+
+<div class="container">
+
+  {% if messages %}
+    {% for message in messages %}<div class="alert alert-success">{{ message }}</div>{% endfor %}
+  {% endif %}
+
+  {% if not sube %}
+    <div class="card welcome"><h2>Şube tanımlı değil</h2>
+      <p>Hesabınıza bir şube atanmamış. Lütfen yöneticinize başvurun.</p></div>
+  {% else %}
+
+    {% include '_mola_karti.html' %}
+
+    <!-- Başlık + hafta seçimi -->
+    <div class="plan-head">
+      <div>
+        <h2>Vardiya Planı</h2>
+        <span class="plan-aralik">{{ haftabasi|date:"d.m" }} – {{ haftasonu|date:"d.m.Y" }}</span>
+      </div>
+      <div class="hafta-toggle">
+        <a href="?hafta=bu" class="{% if secili == 'bu' %}aktif{% endif %}">Bu hafta</a>
+        <a href="?hafta=gelecek" class="{% if secili == 'gelecek' %}aktif{% endif %}">Gelecek hafta</a>
+      </div>
+    </div>
+
+    <!-- Durum + onaya gönder -->
+    <div class="card durum-card">
+      <div class="durum-row">
+        <span>Durum:</span> <span class="badge {{ durum_sinif }}">{{ hafta_durum }}</span>
+      </div>
+      {% if red_notu %}<div class="alert alert-error">Yönetici red notu: {{ red_notu }}</div>{% endif %}
+      {% if onaya_gonderilebilir %}
+        <form method="post" action="{% url 'ana_sayfa' %}?hafta={{ secili }}">
+          {% csrf_token %}<input type="hidden" name="islem" value="onaya_gonder">
+          <button type="submit" class="btn btn-primary">Onaya gönder</button>
+        </form>
+      {% endif %}
+    </div>
+
+    <!-- Vardiya tablosu -->
+    {% if rows %}
+    <div class="card grid-card">
+      <div class="grid-wrap">
+        <table class="vgrid">
+          <thead>
+            <tr>
+              <th class="sticky">Personel</th>
+              {% for g in gun_basliklari %}<th>{{ g.gun_adi|slice:":3" }}<span>{{ g.tarih|date:"d.m" }}</span></th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <th class="sticky">{{ row.personel.ad_soyad }}</th>
+              {% for h in row.hucreler %}
+              <td>
+                <form method="post" action="{% url 'ana_sayfa' %}?hafta={{ secili }}">
+                  {% csrf_token %}
+                  <input type="hidden" name="islem" value="vardiya_kaydet">
+                  <input type="hidden" name="target_personel_id" value="{{ row.personel.id }}">
+                  <input type="hidden" name="vardiya_tarihi" value="{{ h.tarih|date:'Y-m-d' }}">
+                  <select name="vardiya_tipi" onchange="this.form.submit()"
+                          class="cell-sel{% if h.vardiya %} dolu{% endif %}">
+                    <option value="">—</option>
+                    {% for val, label in vardiya_tipleri %}
+                      <option value="{{ val }}"{% if h.vardiya and h.vardiya.vardiya_tipi == val %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                    {% if h.vardiya %}<option value="Sil">✕ Sil</option>{% endif %}
+                  </select>
+                </form>
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="grid-not">Bir hücreyi değiştirince otomatik kaydedilir. Kaydedilen vardiyalar "Taslak" olur; "Onaya gönder" ile yöneticiye iletirsin.</p>
+    </div>
+    {% else %}
+    <div class="card"><p style="margin:0;color:var(--muted)">Bu şubede henüz personel yok. Aşağıdan ekleyebilirsin.</p></div>
+    {% endif %}
+
+    <!-- Personel yönetimi -->
+    <div class="card staff-card">
+      <h3>Şube Personeli</h3>
+      <ul class="staff-list">
+        {% for p in personeller %}
+        <li>
+          <span class="staff-ad">{{ p.ad_soyad }}{% if p.id == personel.id %} <em>(sen)</em>{% endif %}</span>
+          <span class="staff-kod">{% if p.rol == 'Personel' %}kod: <code>{{ p.giris_kodu }}</code>{% else %}{{ p.get_rol_display }}{% endif %}</span>
+          {% if p.rol == 'Personel' and p.id != personel.id %}
+          <form method="post" action="{% url 'ana_sayfa' %}?hafta={{ secili }}" onsubmit="return confirm('{{ p.ad_soyad }} şubeden çıkarılsın mı?');">
+            {% csrf_token %}<input type="hidden" name="islem" value="personel_cikar">
+            <input type="hidden" name="personel_id" value="{{ p.id }}">
+            <button type="submit" class="btn btn-ghost btn-mini">Çıkar</button>
+          </form>
+          {% else %}<span></span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      <form method="post" action="{% url 'ana_sayfa' %}?hafta={{ secili }}" class="staff-ekle">
+        {% csrf_token %}<input type="hidden" name="islem" value="personel_ekle">
+        <input class="input" type="text" name="ad_soyad" placeholder="Yeni personel ad soyad" required>
+        <button type="submit" class="btn btn-primary">Ekle</button>
+      </form>
+      <p class="grid-not">Yeni personele otomatik 6 haneli giriş kodu atanır; kodu yukarıdaki listede görürsün.</p>
+    </div>
+
+  {% endif %}
+</div>
+{% endblock %}

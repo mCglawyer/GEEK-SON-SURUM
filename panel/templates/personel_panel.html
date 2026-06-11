@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Panel · Geek Panel{% endblock %}
+
+{% block body %}
+{% include '_nav.html' %}
+
+<div class="container">
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-success">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+
+  {% if yonetici_bekliyor %}
+    <div class="card welcome">
+      <h2>Merhaba 👋</h2>
+      <p>Yönetici paneli bir sonraki adımda burada olacak. Şimdilik personel
+         tarafını kuruyoruz.</p>
+    </div>
+  {% else %}
+
+    {% include '_mola_karti.html' %}
+
+    <!-- VARDİYALARIM -->
+    <div class="card hafta-card">
+      <div class="hafta-head">
+        <h3>Vardiyalarım</h3>
+        <span class="hafta-aralik">{{ haftabasi|date:"d.m" }} – {{ haftasonu|date:"d.m" }}</span>
+      </div>
+      <ul class="hafta">
+        {% for g in hafta %}
+          <li class="hafta-row{% if g.bugun %} bugun{% endif %}">
+            <div class="hafta-gun"><b>{{ g.gun_adi }}</b><span>{{ g.tarih|date:"d.m" }}</span></div>
+            {% if g.vardiya %}
+              {% with t=g.vardiya.vardiya_tipi %}
+              <span class="badge {% if t == 'İzinli' %}badge-info{% elif t == 'Raporlu' %}badge-wait{% elif t == 'Devamsız' %}badge-no{% else %}badge-work{% endif %}">{{ t }}</span>
+              {% endwith %}
+            {% else %}
+              <span class="hafta-bos">—</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="hafta-not">Yalnızca onaylanmış vardiyalar gösterilir.</p>
+    </div>
+
+  {% endif %}
+</div>
+
+{% endblock %}
