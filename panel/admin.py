@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Zayi, Kalibrasyon
+from .models import (Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Zayi, Kalibrasyon, SevkiyatTalep, SevkiyatKalem)
 
 
 @admin.register(Sube)
@@ -68,3 +68,17 @@ class KalibrasyonAdmin(admin.ModelAdmin):
     list_filter = ('sube', 'olusturma')
     search_fields = ('giren_ad',)
     readonly_fields = ('olusturma',)
+
+
+class SevkiyatKalemInline(admin.TabularInline):
+    model = SevkiyatKalem
+    extra = 0
+
+
+@admin.register(SevkiyatTalep)
+class SevkiyatTalepAdmin(admin.ModelAdmin):
+    list_display = ('id', 'sube', 'olusturan_ad', 'durum', 'olusturma', 'teslim_tarih')
+    list_filter = ('durum', 'sube', 'olusturma')
+    search_fields = ('olusturan_ad', 'satin_alan_ad', 'teslim_eden_ad')
+    readonly_fields = ('olusturma',)
+    inlines = [SevkiyatKalemInline]

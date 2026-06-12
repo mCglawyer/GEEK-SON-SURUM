@@ -17,6 +17,7 @@ from django.contrib.auth import authenticate, login as auth_login, logout as aut
 from django.contrib.auth.models import User
 
 from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Birim, Kalibrasyon,
+                     SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -26,6 +27,8 @@ KILIT_DK = 10
 MODEL_BACKEND = 'django.contrib.auth.backends.ModelBackend'
 GUN_ADLARI = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
 UST_YONETIM = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR]
+# Şifreyle giren, şubeye bağlı olmayan ofis/birim rolleri (Ekip'ten açılır)
+OFIS_ROLLERI = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.SATIN_ALMA, Rol.SEVKIYAT]
 CALISMA_TIPLERI = [VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI]
 
 
@@ -145,6 +148,8 @@ def ana_sayfa(request):
         return render(request, 'personel_panel.html', {'personel': None, 'yonetici_bekliyor': True, 'aktif': 'home'})
     if personel.rol in UST_YONETIM:
         return _yonetici_vardiya(request, personel)
+    if personel.rol in (Rol.SATIN_ALMA, Rol.SEVKIYAT):
+        return redirect('sevkiyat')
     if personel.rol == Rol.SEF:
         return _sef_home(request, personel)
     return _personel_home(request, personel)
@@ -438,7 +443,7 @@ def ekip_sayfa(request):
         if islem == 'yonetici_ekle':
             ad = request.POST.get('ad_soyad', '').strip()
             rol = request.POST.get('rol', '')
-            if ad and rol in [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR]:
+            if ad and rol in OFIS_ROLLERI:
                 uname = _kullanici_adi_uret(ad)
                 sifre = _yeni_sifre()
                 u = User.objects.create(username=uname)
@@ -451,7 +456,7 @@ def ekip_sayfa(request):
             return redirect('ekip')
 
         if islem == 'yonetici_sifre_yenile':
-            s = Personel.objects.filter(id=request.POST.get('personel_id'), rol__in=UST_YONETIM).select_related('user').first()
+            s = Personel.objects.filter(id=request.POST.get('personel_id'), rol__in=OFIS_ROLLERI).select_related('user').first()
             if s and s.user:
                 sifre = _yeni_sifre()
                 s.user.set_password(sifre)
@@ -460,7 +465,7 @@ def ekip_sayfa(request):
             return redirect('ekip')
 
         if islem == 'yonetici_cikar':
-            s = Personel.objects.filter(id=request.POST.get('personel_id'), rol__in=UST_YONETIM).select_related('user').first()
+            s = Personel.objects.filter(id=request.POST.get('personel_id'), rol__in=OFIS_ROLLERI).select_related('user').first()
             if s and s.id == personel.id:
                 messages.error(request, "Kendi hesabınızı buradan çıkaramazsınız.")
             elif s:
@@ -498,12 +503,12 @@ def ekip_sayfa(request):
                 messages.success(request, "Şef bilgileri güncellendi.")
             return redirect('ekip')
 
-    yoneticiler = list(Personel.objects.filter(rol__in=UST_YONETIM).select_related('user').order_by('ad_soyad'))
+    yoneticiler = list(Personel.objects.filter(rol__in=OFIS_ROLLERI).select_related('user').order_by('ad_soyad'))
     sefler = list(Personel.objects.filter(rol=Rol.SEF).select_related('sube').order_by('ad_soyad'))
     return render(request, 'ekip.html', {
         'personel': personel, 'aktif': 'ekip', 'subeler': subeler,
         'yoneticiler': yoneticiler, 'sefler': sefler,
-        'yonetici_rolleri': [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR],
+        'yonetici_rolleri': OFIS_ROLLERI,
     })
 
 
@@ -810,6 +815,75 @@ def kalibrasyon_sayfa(request):
         'subeler': subeler, 'sel_sube': sel_sube, 'gorseller': gorseller,
         'secili_tarih': ref.strftime('%Y-%m-%d'), 'en_eski_tarih': en_eski.strftime('%Y-%m-%d'),
         'bugun': today.strftime('%Y-%m-%d'), 'saklama_gun': KALIBRASYON_GUN,
+    })
+
+
+# =========================================================================
+# SEVKİYAT ( /sevkiyat/ ) — şef talep oluşturur; diğerleri görüntüler (Adım 1)
+# =========================================================================
+def sevkiyat_sayfa(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    rol = personel.rol
+    is_sef = rol == Rol.SEF
+    is_satinalma = rol == Rol.SATIN_ALMA
+    is_sevkiyat = rol == Rol.SEVKIYAT
+    is_yon = rol in UST_YONETIM
+    if not (is_sef or is_satinalma or is_sevkiyat or is_yon):
+        return redirect('ana_sayfa')
+
+    if request.method == 'POST' and is_sef:
+        if not personel.sube:
+            messages.error(request, "Şubeniz tanımlı değil. Yöneticinize başvurun.")
+            return redirect('sevkiyat')
+        if request.POST.get('islem') == 'talep_olustur':
+            urunler = request.POST.getlist('urun_adi')
+            istenenler = request.POST.getlist('istenen')
+            birimler = request.POST.getlist('birim')
+            not_metni = request.POST.get('not_metni', '').strip()[:300]
+            kalemler = []
+            for u, i, b in zip(urunler, istenenler, birimler):
+                u = u.strip()
+                if not u:
+                    continue
+                try:
+                    iv = int(i)
+                except (TypeError, ValueError):
+                    continue
+                if iv <= 0:
+                    continue
+                bb = b if b in [SevkiyatBirim.ADET, SevkiyatBirim.KOLI] else SevkiyatBirim.ADET
+                kalemler.append((u, iv, bb))
+            if kalemler:
+                talep = SevkiyatTalep.objects.create(
+                    sube=personel.sube, olusturan=personel, olusturan_ad=personel.ad_soyad, not_metni=not_metni)
+                for u, iv, bb in kalemler:
+                    SevkiyatKalem.objects.create(talep=talep, urun_adi=u, istenen=iv, birim=bb)
+                messages.success(request, f"Sevkiyat talebi oluşturuldu ({len(kalemler)} kalem).")
+            else:
+                messages.error(request, "En az bir geçerli ürün satırı girin.")
+        return redirect('sevkiyat')
+
+    if is_sef:
+        talepler = SevkiyatTalep.objects.filter(sube=personel.sube)
+    elif is_satinalma:
+        talepler = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.TALEP)
+    elif is_sevkiyat:
+        talepler = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.SEVKIYATTA)
+    else:
+        talepler = SevkiyatTalep.objects.all()
+    talepler = list(talepler.select_related('sube').prefetch_related('kalemler')[:100])
+    urun_oneri = list(SevkiyatKalem.objects.values_list('urun_adi', flat=True).distinct().order_by('urun_adi'))
+
+    return render(request, 'sevkiyat.html', {
+        'personel': personel, 'aktif': 'sevkiyat',
+        'is_sef': is_sef, 'is_satinalma': is_satinalma, 'is_sevkiyat': is_sevkiyat, 'is_yon': is_yon,
+        'talepler': talepler, 'urun_oneri': urun_oneri, 'birimler': SevkiyatBirim.choices,
     })
 
 

@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Sevkiyat · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Sevkiyat</h2>
+      <span class="plan-aralik">
+        {% if is_sef %}{{ personel.sube.ad }} · talepleriniz
+        {% elif is_satinalma %}Bekleyen talepler
+        {% elif is_sevkiyat %}Teslim bekleyenler
+        {% else %}Tüm sevkiyatlar{% endif %}
+      </span>
+    </div>
+  </div>
+
+  {% if is_sef %}
+  <div class="card">
+    <h3 style="margin:0 0 .8rem">Yeni Sevkiyat Talebi</h3>
+    <form method="post" id="talep-form">{% csrf_token %}
+      <input type="hidden" name="islem" value="talep_olustur">
+      <div id="kalemler">
+        <div class="sv-kalem">
+          <input class="input sv-urun" type="text" name="urun_adi" list="urun_oneri" placeholder="Ürün adı" autocomplete="off">
+          <input class="input sv-miktar" type="number" name="istenen" min="1" placeholder="Adet">
+          <select name="birim" class="sube-sec">{% for v, l in birimler %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select>
+          <button type="button" class="btn btn-ghost btn-mini sv-sil">✕</button>
+        </div>
+      </div>
+      <datalist id="urun_oneri">{% for u in urun_oneri %}<option value="{{ u }}"></option>{% endfor %}</datalist>
+      <div class="sv-form-alt">
+        <button type="button" class="btn btn-ghost btn-mini" id="sv-ekle">+ Satır ekle</button>
+        <input class="input sv-not" type="text" name="not_metni" placeholder="Not (opsiyonel)" maxlength="300">
+        <button type="submit" class="btn btn-primary">Talebi gönder</button>
+      </div>
+    </form>
+    <p class="grid-not">Birden çok ürün ekleyebilirsin. Ürün adını yazmaya başlayınca daha önce kullanılan ürünler önerilir.</p>
+  </div>
+  {% endif %}
+
+  {% if is_satinalma or is_sevkiyat %}
+  <p class="grid-not">Bu kayıtları işleme alma (karşılanan adet / teslim) bir sonraki adımda eklenecek.</p>
+  {% endif %}
+
+  {% for t in talepler %}
+  <div class="card sv-talep">
+    <div class="sv-head">
+      <div><b>{{ t.sube.ad }}</b> · #{{ t.id }}<div class="sv-meta">{{ t.olusturan_ad|default:"—" }} · {{ t.olusturma|date:"d.m.Y H:i" }}</div></div>
+      {% if t.durum == 'Talep' %}<span class="badge badge-wait">Talep</span>
+      {% elif t.durum == 'Sevkiyatta' %}<span class="badge badge-info">Sevkiyatta</span>
+      {% else %}<span class="badge badge-ok">Teslim Edildi</span>{% endif %}
+    </div>
+    <ul class="sv-kalemler">
+      {% for k in t.kalemler.all %}
+      <li>
+        <span class="sv-urun-ad">{{ k.urun_adi }}</span>
+        <span class="sv-adet">İstenen: <b>{{ k.istenen }}</b> {{ k.birim }}{% if k.verilen != None %} · Verilen: <b>{{ k.verilen }}</b> {{ k.birim }}{% endif %}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if t.not_metni %}<div class="sv-not">Not: {{ t.not_metni }}</div>{% endif %}
+  </div>
+  {% empty %}
+  <div class="card"><p style="margin:0;color:var(--muted)">Henüz kayıt yok.</p></div>
+  {% endfor %}
+</div>
+
+{% if is_sef %}
+<script>
+(function () {
+  var kapsa = document.getElementById('kalemler');
+  var ekle = document.getElementById('sv-ekle');
+  if (!kapsa || !ekle) return;
+  function bagla(row) {
+    var sil = row.querySelector('.sv-sil');
+    if (sil) sil.addEventListener('click', function () {
+      if (kapsa.querySelectorAll('.sv-kalem').length > 1) row.remove();
+    });
+  }
+  kapsa.querySelectorAll('.sv-kalem').forEach(bagla);
+  ekle.addEventListener('click', function () {
+    var ilk = kapsa.querySelector('.sv-kalem');
+    var yeni = ilk.cloneNode(true);
+    yeni.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    kapsa.appendChild(yeni);
+    bagla(yeni);
+    yeni.querySelector('.sv-urun').focus();
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

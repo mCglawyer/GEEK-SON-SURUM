@@ -10,6 +10,8 @@ class Rol(models.TextChoices):
     GENEL_MUDUR = 'Genel Müdür', 'Genel Müdür (Tam Yetkili)'
     MUDUR = 'Müdür', 'Bölge Müdürü (Tam Yetkili)'
     OPERATOR = 'Operatör', 'Operatör (Tam Yetkili)'
+    SATIN_ALMA = 'Satın Alma', 'Satın Alma'
+    SEVKIYAT = 'Sevkiyat', 'Sevkiyat'
     SEF = 'Şef', 'Şube Şefi'
     PERSONEL = 'Personel', 'Personel'
 
@@ -211,3 +213,51 @@ class Kalibrasyon(models.Model):
 
     def __str__(self):
         return f"{self.sube} - {self.giren_ad} - {self.olusturma:%d.%m.%Y %H:%M}"
+
+
+class SevkiyatBirim(models.TextChoices):
+    ADET = 'adet', 'adet'
+    KOLI = 'koli', 'koli'
+
+
+class SevkiyatDurumu(models.TextChoices):
+    TALEP = 'Talep', 'Talep (Satın Alma bekliyor)'
+    SEVKIYATTA = 'Sevkiyatta', 'Sevkiyatta (Teslim bekliyor)'
+    TESLIM = 'Teslim Edildi', 'Teslim Edildi'
+
+
+class SevkiyatTalep(models.Model):
+    """Şube şefinin oluşturduğu, çok kalemli sevkiyat talebi."""
+    sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='sevkiyat_talepleri', verbose_name="Şube")
+    olusturan = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='sevkiyat_talepleri', verbose_name="Oluşturan")
+    olusturan_ad = models.CharField(max_length=100, blank=True)
+    durum = models.CharField(max_length=20, choices=SevkiyatDurumu.choices,
+                             default=SevkiyatDurumu.TALEP, verbose_name="Durum")
+    not_metni = models.CharField(max_length=300, blank=True, verbose_name="Not")
+    satin_alan_ad = models.CharField(max_length=100, blank=True)
+    teslim_eden_ad = models.CharField(max_length=100, blank=True)
+    olusturma = models.DateTimeField(auto_now_add=True, verbose_name="Talep Tarihi")
+    satin_alma_tarih = models.DateTimeField(null=True, blank=True, verbose_name="Satın Alma Tarihi")
+    teslim_tarih = models.DateTimeField(null=True, blank=True, verbose_name="Teslim Tarihi")
+
+    class Meta:
+        verbose_name = "Sevkiyat Talebi"
+        verbose_name_plural = "Sevkiyat Talepleri"
+        ordering = ['-olusturma']
+
+    def __str__(self):
+        return f"#{self.id} {self.sube} - {self.durum}"
+
+
+class SevkiyatKalem(models.Model):
+    """Bir sevkiyat talebindeki tek ürün satırı."""
+    talep = models.ForeignKey(SevkiyatTalep, on_delete=models.CASCADE, related_name='kalemler')
+    urun_adi = models.CharField(max_length=120, verbose_name="Ürün Adı")
+    istenen = models.PositiveIntegerField(verbose_name="İstenen")
+    verilen = models.PositiveIntegerField(null=True, blank=True, verbose_name="Verilen")
+    birim = models.CharField(max_length=10, choices=SevkiyatBirim.choices,
+                             default=SevkiyatBirim.ADET, verbose_name="Birim")
+
+    def __str__(self):
+        return f"{self.urun_adi} {self.istenen} {self.birim}"
