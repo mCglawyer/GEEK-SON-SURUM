@@ -41,10 +41,6 @@
   </div>
   {% endif %}
 
-  {% if is_satinalma or is_sevkiyat %}
-  <p class="grid-not">Bu kayıtları işleme alma (karşılanan adet / teslim) bir sonraki adımda eklenecek.</p>
-  {% endif %}
-
   {% for t in talepler %}
   <div class="card sv-talep">
     <div class="sv-head">
@@ -53,6 +49,23 @@
       {% elif t.durum == 'Sevkiyatta' %}<span class="badge badge-info">Sevkiyatta</span>
       {% else %}<span class="badge badge-ok">Teslim Edildi</span>{% endif %}
     </div>
+
+    {% if is_satinalma and t.durum == 'Talep' %}
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="islem" value="satinalma_tamamla">
+      <input type="hidden" name="talep_id" value="{{ t.id }}">
+      <ul class="sv-kalemler">
+        {% for k in t.kalemler.all %}
+        <li class="sv-kalem-edit">
+          <span class="sv-urun-ad">{{ k.urun_adi }}</span>
+          <span class="sv-adet">İstenen: <b>{{ k.istenen }}</b> {{ k.birim }}</span>
+          <label class="sv-verilen">Verilen<input type="number" name="verilen_{{ k.id }}" min="0" value="{{ k.istenen }}"></label>
+        </li>
+        {% endfor %}
+      </ul>
+      <button type="submit" class="btn btn-primary btn-mini">Sevkiyata ilet</button>
+    </form>
+    {% else %}
     <ul class="sv-kalemler">
       {% for k in t.kalemler.all %}
       <li>
@@ -61,6 +74,22 @@
       </li>
       {% endfor %}
     </ul>
+    {% if is_sevkiyat and t.durum == 'Sevkiyatta' %}
+    <form method="post" onsubmit="return confirm('#{{ t.id }} teslim edildi olarak işaretlensin mi?');">{% csrf_token %}
+      <input type="hidden" name="islem" value="teslim_et">
+      <input type="hidden" name="talep_id" value="{{ t.id }}">
+      <button type="submit" class="btn btn-primary btn-mini">Teslim edildi</button>
+    </form>
+    {% endif %}
+    {% endif %}
+
+    {% if t.satin_alan_ad or t.teslim_eden_ad %}
+    <div class="sv-meta sv-altbilgi">
+      {% if t.satin_alan_ad %}Satın alma: {{ t.satin_alan_ad }} · {{ t.satin_alma_tarih|date:"d.m.Y H:i" }}{% endif %}
+      {% if t.teslim_eden_ad %}<br>Teslim: {{ t.teslim_eden_ad }} · {{ t.teslim_tarih|date:"d.m.Y H:i" }}{% endif %}
+    </div>
+    {% endif %}
+
     {% if t.not_metni %}<div class="sv-not">Not: {{ t.not_metni }}</div>{% endif %}
   </div>
   {% empty %}

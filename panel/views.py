@@ -837,11 +837,13 @@ def sevkiyat_sayfa(request):
     if not (is_sef or is_satinalma or is_sevkiyat or is_yon):
         return redirect('ana_sayfa')
 
-    if request.method == 'POST' and is_sef:
-        if not personel.sube:
-            messages.error(request, "Şubeniz tanımlı değil. Yöneticinize başvurun.")
-            return redirect('sevkiyat')
-        if request.POST.get('islem') == 'talep_olustur':
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+
+        if is_sef and islem == 'talep_olustur':
+            if not personel.sube:
+                messages.error(request, "Şubeniz tanımlı değil. Yöneticinize başvurun.")
+                return redirect('sevkiyat')
             urunler = request.POST.getlist('urun_adi')
             istenenler = request.POST.getlist('istenen')
             birimler = request.POST.getlist('birim')
@@ -867,6 +869,38 @@ def sevkiyat_sayfa(request):
                 messages.success(request, f"Sevkiyat talebi oluşturuldu ({len(kalemler)} kalem).")
             else:
                 messages.error(request, "En az bir geçerli ürün satırı girin.")
+            return redirect('sevkiyat')
+
+        if is_satinalma and islem == 'satinalma_tamamla':
+            talep = SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'),
+                                                 durum=SevkiyatDurumu.TALEP).first()
+            if talep:
+                for k in talep.kalemler.all():
+                    raw = request.POST.get(f'verilen_{k.id}', '')
+                    try:
+                        v = max(0, int(raw))
+                    except (TypeError, ValueError):
+                        v = k.istenen
+                    k.verilen = v
+                    k.save()
+                talep.durum = SevkiyatDurumu.SEVKIYATTA
+                talep.satin_alan_ad = personel.ad_soyad
+                talep.satin_alma_tarih = timezone.now()
+                talep.save()
+                messages.success(request, f"#{talep.id} satın alma tamamlandı, sevkiyata iletildi.")
+            return redirect('sevkiyat')
+
+        if is_sevkiyat and islem == 'teslim_et':
+            talep = SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'),
+                                                 durum=SevkiyatDurumu.SEVKIYATTA).first()
+            if talep:
+                talep.durum = SevkiyatDurumu.TESLIM
+                talep.teslim_eden_ad = personel.ad_soyad
+                talep.teslim_tarih = timezone.now()
+                talep.save()
+                messages.success(request, f"#{talep.id} teslim edildi olarak işaretlendi.")
+            return redirect('sevkiyat')
+
         return redirect('sevkiyat')
 
     if is_sef:

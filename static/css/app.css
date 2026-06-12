@@ -349,3 +349,10 @@ a { color:var(--brand); text-decoration:none; }
 .sv-adet { font-size:.85rem; color:var(--muted); }
 .sv-adet b { color:var(--ink); }
 .sv-not { margin-top:.6rem; font-size:.82rem; color:var(--muted); background:var(--brand-050); padding:.45rem .7rem; border-radius:8px; }
+
+/* Sevkiyat - satın alma verilen girişi */
+.sv-kalem-edit { align-items:center; }
+.sv-verilen { display:flex; align-items:center; gap:.4rem; font-size:.82rem; color:var(--muted); }
+.sv-verilen input { width:80px; min-height:42px; padding:.4rem .5rem; border:1px solid var(--line); border-radius:8px; font:inherit; text-align:center; }
+.sv-altbilgi { margin-top:.6rem; padding-top:.5rem; border-top:1px dashed var(--line); line-height:1.5; }
+.sv-talep form .btn { margin-top:.4rem; }
