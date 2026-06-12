@@ -41,6 +41,41 @@
   </div>
   {% endif %}
 
+  {% if is_yon %}
+  <form method="get" class="card sv-filtre">
+    <label>Şube
+      <select name="sube" class="sube-sec" onchange="this.form.submit()">
+        {% for s in subeler %}<option value="{{ s.id }}" {% if s.id == sel_id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Ay
+      <input type="month" name="ay" value="{{ ay }}" class="input" onchange="this.form.submit()">
+    </label>
+    <button type="submit" class="btn btn-primary btn-mini">Göster</button>
+  </form>
+
+  <div class="card">
+    <h3 style="margin:0 0 .2rem">İstenen vs Verilen</h3>
+    <p class="grid-not" style="margin-top:0">Teslim edilen sevkiyatlar · teslim tarihine göre</p>
+    {% if grafik %}
+    <div class="sv-chart">
+      {% for g in grafik %}
+      <div class="sv-cg">
+        <div class="sv-bars">
+          <div class="sv-bar sv-bar-i" style="height:{{ g.ih }}%"><span>{{ g.istenen }}</span></div>
+          <div class="sv-bar sv-bar-v" style="height:{{ g.vh }}%"><span>{{ g.verilen }}</span></div>
+        </div>
+        <div class="sv-cg-lbl">{{ g.urun }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="sv-legend"><span class="lg lg-i"></span> İstenen <span class="lg lg-v"></span> Verilen</div>
+    {% else %}
+    <p style="margin:0;color:var(--muted)">Bu ay teslim edilen sevkiyat yok.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {% for t in talepler %}
   <div class="card sv-talep">
     <div class="sv-head">
@@ -81,6 +116,13 @@
       <button type="submit" class="btn btn-primary btn-mini">Teslim edildi</button>
     </form>
     {% endif %}
+    {% endif %}
+
+    {% if t.durum != 'Talep' %}
+    <div class="sv-belgeler">
+      <a class="btn btn-ghost btn-mini" href="{% url 'sevkiyat_belge' t.id 'yukleme' %}" target="_blank" rel="noopener">Yükleme belgesi (PDF)</a>
+      {% if t.durum == 'Teslim Edildi' %}<a class="btn btn-ghost btn-mini" href="{% url 'sevkiyat_belge' t.id 'fis' %}" target="_blank" rel="noopener">Teslim fişi (PDF)</a>{% endif %}
+    </div>
     {% endif %}
 
     {% if t.satin_alan_ad or t.teslim_eden_ad %}

@@ -903,22 +903,95 @@ def sevkiyat_sayfa(request):
 
         return redirect('sevkiyat')
 
-    if is_sef:
-        talepler = SevkiyatTalep.objects.filter(sube=personel.sube)
-    elif is_satinalma:
-        talepler = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.TALEP)
-    elif is_sevkiyat:
-        talepler = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.SEVKIYATTA)
-    else:
-        talepler = SevkiyatTalep.objects.all()
-    talepler = list(talepler.select_related('sube').prefetch_related('kalemler')[:100])
-    urun_oneri = list(SevkiyatKalem.objects.values_list('urun_adi', flat=True).distinct().order_by('urun_adi'))
-
-    return render(request, 'sevkiyat.html', {
+    ctx = {
         'personel': personel, 'aktif': 'sevkiyat',
         'is_sef': is_sef, 'is_satinalma': is_satinalma, 'is_sevkiyat': is_sevkiyat, 'is_yon': is_yon,
-        'talepler': talepler, 'urun_oneri': urun_oneri, 'birimler': SevkiyatBirim.choices,
-    })
+        'birimler': SevkiyatBirim.choices,
+    }
+
+    if is_yon:
+        subeler = list(Sube.objects.order_by('ad'))
+        sel_id = request.GET.get('sube')
+        try:
+            sel_id = int(sel_id) if sel_id else (subeler[0].id if subeler else None)
+        except (TypeError, ValueError):
+            sel_id = subeler[0].id if subeler else None
+        ay = request.GET.get('ay') or timezone.localdate().strftime('%Y-%m')
+        try:
+            yil, ayno = int(ay[:4]), int(ay[5:7])
+        except (ValueError, IndexError):
+            bugun = timezone.localdate()
+            yil, ayno, ay = bugun.year, bugun.month, bugun.strftime('%Y-%m')
+
+        if sel_id:
+            talepler = list(SevkiyatTalep.objects
+                            .filter(sube_id=sel_id, olusturma__year=yil, olusturma__month=ayno)
+                            .select_related('sube').prefetch_related('kalemler')[:200])
+            teslimler = (SevkiyatTalep.objects
+                         .filter(sube_id=sel_id, durum=SevkiyatDurumu.TESLIM,
+                                 teslim_tarih__year=yil, teslim_tarih__month=ayno)
+                         .prefetch_related('kalemler'))
+        else:
+            talepler, teslimler = [], []
+
+        agg = {}
+        for t in teslimler:
+            for k in t.kalemler.all():
+                a = agg.setdefault(k.urun_adi, [0, 0])
+                a[0] += k.istenen
+                a[1] += (k.verilen or 0)
+        maxv = max((max(v[0], v[1]) for v in agg.values()), default=0)
+        grafik = []
+        for u in sorted(agg):
+            i, v = agg[u]
+            grafik.append({'urun': u, 'istenen': i, 'verilen': v,
+                           'ih': int(round(i / maxv * 100)) if maxv else 0,
+                           'vh': int(round(v / maxv * 100)) if maxv else 0})
+        ctx.update({'subeler': subeler, 'sel_id': sel_id, 'ay': ay,
+                    'grafik': grafik, 'maxv': maxv, 'talepler': talepler})
+    else:
+        if is_sef:
+            talepler = SevkiyatTalep.objects.filter(sube=personel.sube)
+            ctx['urun_oneri'] = list(SevkiyatKalem.objects.values_list('urun_adi', flat=True)
+                                     .distinct().order_by('urun_adi'))
+        elif is_satinalma:
+            talepler = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.TALEP)
+        else:
+            talepler = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.SEVKIYATTA)
+        ctx['talepler'] = list(talepler.select_related('sube').prefetch_related('kalemler')[:100])
+
+    return render(request, 'sevkiyat.html', ctx)
+
+
+# =========================================================================
+# SEVKİYAT BELGE İNDİRME (PDF) — yükleme belgesi & teslim fişi
+# =========================================================================
+def sevkiyat_belge(request, talep_id, tip):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    if tip not in ('yukleme', 'fis'):
+        return redirect('sevkiyat')
+    talep = (SevkiyatTalep.objects.filter(id=talep_id)
+             .select_related('sube').prefetch_related('kalemler').first())
+    if talep is None:
+        return redirect('sevkiyat')
+    rol = personel.rol
+    yetkili = rol in OFIS_ROLLERI or (rol == Rol.SEF and personel.sube_id == talep.sube_id)
+    if not yetkili:
+        return redirect('ana_sayfa')
+    if tip == 'yukleme' and talep.durum == SevkiyatDurumu.TALEP:
+        return redirect('sevkiyat')
+    if tip == 'fis' and talep.durum != SevkiyatDurumu.TESLIM:
+        return redirect('sevkiyat')
+    from .sevkiyat_pdf import sevkiyat_pdf_bytes
+    pdf = sevkiyat_pdf_bytes(talep, tip)
+    adi = 'yukleme_belgesi' if tip == 'yukleme' else 'teslim_fisi'
+    resp = HttpResponse(pdf, content_type='application/pdf')
+    resp['Content-Disposition'] = 'inline; filename="sevkiyat_%s_%s.pdf"' % (talep.id, adi)
+    return resp
 
 
 # =========================================================================
