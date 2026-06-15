@@ -71,6 +71,12 @@
   {% endif %}
 
   {% if is_satinalma %}
+  <div class="sv-portal-bar">
+    <a class="btn btn-primary btn-mini" href="https://bayi.smartdonusum.com/accounting/" target="_blank" rel="noopener">Smart Fatura Portalı ↗</a>
+  </div>
+  {% endif %}
+
+  {% if is_satinalma or is_yon %}
   <form method="get" class="card sv-filtre">
     <label>Şube
       <select name="sube" class="sube-sec" onchange="this.form.submit()">
@@ -165,6 +171,15 @@
       </li>
       {% endfor %}
     </ul>
+    {% if not is_sef %}{% if t.durum == 'Sevkiyatta' or t.durum == 'Onay Bekliyor' or t.durum == 'Onaylandı' %}
+    <div class="sv-belgeler">
+      <a class="btn btn-ghost btn-mini" href="{% url 'sevkiyat_belge' t.id 'yukleme' %}" target="_blank" rel="noopener">Yükleme belgesi (PDF)</a>
+      {% if t.durum == 'Onaylandı' %}
+      <a class="btn btn-ghost btn-mini" href="{% url 'sevkiyat_belge' t.id 'fis' %}" target="_blank" rel="noopener">Teslim fişi (PDF)</a>
+      <a class="btn btn-ghost btn-mini sv-excel-btn" href="{% url 'sevkiyat_excel' t.id %}">Fatura Excel ↓</a>
+      {% endif %}
+    </div>
+    {% endif %}{% endif %}
     {% if t.red_notu %}<div class="sv-not sv-red">İade notu: {{ t.red_notu }}</div>{% endif %}
     {% if t.not_metni %}<div class="sv-not">Not: {{ t.not_metni }}</div>{% endif %}
     {% if is_sef and t.hareketler.all %}

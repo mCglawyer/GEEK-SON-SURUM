@@ -1044,9 +1044,15 @@ def sevkiyat_sayfa(request):
                        .select_related('sube').prefetch_related('kalemler')[:100])
         for t in onaylar:
             t.mode = 'cikis'
+        onaylanan = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.ONAYLANDI)
+        if sel_id:
+            onaylanan = onaylanan.filter(sube_id=sel_id)
+        onaylanan = list(onaylanan.select_related('sube').prefetch_related('kalemler')[:30])
+        for t in onaylanan:
+            t.mode = 'read'
         ctx['subeler'] = subeler
         ctx['sel_id'] = sel_id
-        ctx['talepler'] = onaylar + bekleyen
+        ctx['talepler'] = onaylar + bekleyen + onaylanan
     elif is_sevkiyat:
         svt = list(SevkiyatTalep.objects.filter(durum__in=[SevkiyatDurumu.SEVKIYATTA, SevkiyatDurumu.REDDEDILDI])
                    .select_related('sube').prefetch_related('kalemler')[:100])
@@ -1058,10 +1064,21 @@ def sevkiyat_sayfa(request):
                 k.sv_def_birim = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
         ctx['talepler'] = svt
     else:
-        allt = list(SevkiyatTalep.objects.all()
-                    .select_related('sube').prefetch_related('kalemler')[:150])
+        subeler = list(Sube.objects.order_by('ad'))
+        sel_id = request.GET.get('sube')
+        try:
+            sel_id = int(sel_id) if sel_id else None
+        except (TypeError, ValueError):
+            sel_id = None
+        qs = SevkiyatTalep.objects.all()
+        if sel_id:
+            qs = qs.filter(sube_id=sel_id)
+        allt = list(qs.select_related('sube').prefetch_related('kalemler')[:200])
         for t in allt:
             t.mode = 'cikis' if (cikis_yetkili and t.durum == SevkiyatDurumu.ONAY_BEKLIYOR) else 'read'
+        ctx['subeler'] = subeler
+        ctx['sel_id'] = sel_id
+        ctx['gecmis'] = True
         ctx['talepler'] = allt
 
     return render(request, 'sevkiyat.html', ctx)
@@ -1086,15 +1103,37 @@ def sevkiyat_belge(request, talep_id, tip):
     yetkili = rol in OFIS_ROLLERI or (rol == Rol.SEF and personel.sube_id == talep.sube_id)
     if not yetkili:
         return redirect('ana_sayfa')
-    if tip == 'yukleme' and talep.durum == SevkiyatDurumu.TALEP:
+    if tip == 'yukleme' and talep.durum not in (SevkiyatDurumu.SEVKIYATTA,
+                                                SevkiyatDurumu.ONAY_BEKLIYOR, SevkiyatDurumu.ONAYLANDI):
         return redirect('sevkiyat')
-    if tip == 'fis' and talep.durum != SevkiyatDurumu.TESLIM:
+    if tip == 'fis' and talep.durum != SevkiyatDurumu.ONAYLANDI:
         return redirect('sevkiyat')
     from .sevkiyat_pdf import sevkiyat_pdf_bytes
     pdf = sevkiyat_pdf_bytes(talep, tip)
     adi = 'yukleme_belgesi' if tip == 'yukleme' else 'teslim_fisi'
     resp = HttpResponse(pdf, content_type='application/pdf')
     resp['Content-Disposition'] = 'inline; filename="sevkiyat_%s_%s.pdf"' % (talep.id, adi)
+    return resp
+
+
+def sevkiyat_excel(request, talep_id):
+    """Onaylanan siparişi orijinal talep formu şablonuna doldurup indirir."""
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    talep = (SevkiyatTalep.objects.filter(id=talep_id, durum=SevkiyatDurumu.ONAYLANDI)
+             .select_related('sube').prefetch_related('kalemler').first())
+    if talep is None:
+        return redirect('sevkiyat')
+    if personel.rol not in OFIS_ROLLERI:
+        return redirect('ana_sayfa')
+    from .sevkiyat_excel import siparis_excel_bytes
+    data = siparis_excel_bytes(talep)
+    resp = HttpResponse(data, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    resp['Content-Disposition'] = 'attachment; filename="siparis_%s_%s.xlsx"' % (
+        talep.id, talep.olusturma.strftime('%Y%m%d'))
     return resp
 
 

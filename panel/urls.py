@@ -11,6 +11,7 @@ urlpatterns = [
     path('zayi/excel/', views.zayi_excel_export, name='zayi_excel_export'),
     path('sevkiyat/', views.sevkiyat_sayfa, name='sevkiyat'),
     path('sevkiyat/<int:talep_id>/belge/<str:tip>/', views.sevkiyat_belge, name='sevkiyat_belge'),
+    path('sevkiyat/<int:talep_id>/excel/', views.sevkiyat_excel, name='sevkiyat_excel'),
     path('kalibrasyon/', views.kalibrasyon_sayfa, name='kalibrasyon'),
     path('kvkk/', views.kvkk, name='kvkk'),
     path('kullanim-kosullari/', views.kullanim_kosullari, name='kullanim_kosullari'),

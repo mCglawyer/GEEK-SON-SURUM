@@ -79,6 +79,9 @@ def sevkiyat_pdf_bytes(talep, tip):
     if tip == 'fis' and talep.sevkiyat_tarih:
         bilgi.append(['Sevkiyat:', talep.sevkiyatci_ad or '—', 'Tarih:',
                       talep.sevkiyat_tarih.strftime('%d.%m.%Y %H:%M')])
+    if tip == 'fis' and talep.onay_tarih:
+        bilgi.append(['Onaylayan:', talep.onaylayan_ad or '—', 'Tarih:',
+                      talep.onay_tarih.strftime('%d.%m.%Y %H:%M')])
     bt = Table(bilgi, colWidths=[28 * mm, 56 * mm, 28 * mm, 56 * mm])
     bt.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 9),
