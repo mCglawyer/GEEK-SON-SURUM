@@ -18,6 +18,7 @@ from django.contrib.auth.models import User
 
 from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Birim, Kalibrasyon,
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
+                     SevkiyatForm, Urun, SiparisHareket,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -824,8 +825,28 @@ def kalibrasyon_sayfa(request):
 
 
 # =========================================================================
-# SEVKİYAT ( /sevkiyat/ ) — şef talep oluşturur; diğerleri görüntüler (Adım 1)
+# SEVKİYAT ( /sevkiyat/ ) — katalog tabanlı sipariş sistemi
 # =========================================================================
+def _katalog_gruplu():
+    """Aktif ürünleri form -> kategori olarak gruplar."""
+    form_map = {}
+    for u in Urun.objects.filter(aktif=True).order_by('form', 'sira', 'ad'):
+        form_map.setdefault(u.form, {}).setdefault(u.kategori, []).append(u)
+    sonuc = []
+    for form_kod, etiket in SevkiyatForm.choices:
+        if form_kod in form_map:
+            kats = [{'ad': k, 'urunler': v} for k, v in form_map[form_kod].items()]
+            sonuc.append({'kod': form_kod, 'etiket': etiket, 'kategoriler': kats})
+    return sonuc
+
+
+def _birim_secenek(urun):
+    secs = [urun.birim]
+    if urun.birim != SevkiyatBirim.KOLI:
+        secs.append(SevkiyatBirim.KOLI)
+    return secs
+
+
 def sevkiyat_sayfa(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -842,128 +863,89 @@ def sevkiyat_sayfa(request):
     if not (is_sef or is_satinalma or is_sevkiyat or is_yon):
         return redirect('ana_sayfa')
 
-    if request.method == 'POST':
-        islem = request.POST.get('islem')
-
-        if is_sef and islem == 'talep_olustur':
-            if not personel.sube:
-                messages.error(request, "Şubeniz tanımlı değil. Yöneticinize başvurun.")
-                return redirect('sevkiyat')
-            urunler = request.POST.getlist('urun_adi')
-            istenenler = request.POST.getlist('istenen')
-            birimler = request.POST.getlist('birim')
-            not_metni = request.POST.get('not_metni', '').strip()[:300]
-            kalemler = []
-            for u, i, b in zip(urunler, istenenler, birimler):
-                u = u.strip()
-                if not u:
-                    continue
-                try:
-                    iv = int(i)
-                except (TypeError, ValueError):
-                    continue
-                if iv <= 0:
-                    continue
-                bb = b if b in [SevkiyatBirim.ADET, SevkiyatBirim.KOLI] else SevkiyatBirim.ADET
-                kalemler.append((u, iv, bb))
-            if kalemler:
-                talep = SevkiyatTalep.objects.create(
-                    sube=personel.sube, olusturan=personel, olusturan_ad=personel.ad_soyad, not_metni=not_metni)
-                for u, iv, bb in kalemler:
-                    SevkiyatKalem.objects.create(talep=talep, urun_adi=u, istenen=iv, birim=bb)
-                messages.success(request, f"Sevkiyat talebi oluşturuldu ({len(kalemler)} kalem).")
-            else:
-                messages.error(request, "En az bir geçerli ürün satırı girin.")
+    if request.method == 'POST' and is_sef and request.POST.get('islem') == 'siparis_olustur':
+        if not personel.sube:
+            messages.error(request, "Şubeniz tanımlı değil. Yöneticinize başvurun.")
             return redirect('sevkiyat')
-
-        if is_satinalma and islem == 'satinalma_tamamla':
-            talep = SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'),
-                                                 durum=SevkiyatDurumu.TALEP).first()
-            if talep:
-                for k in talep.kalemler.all():
-                    raw = request.POST.get(f'verilen_{k.id}', '')
-                    try:
-                        v = max(0, int(raw))
-                    except (TypeError, ValueError):
-                        v = k.istenen
-                    k.verilen = v
-                    k.save()
-                talep.durum = SevkiyatDurumu.SEVKIYATTA
-                talep.satin_alan_ad = personel.ad_soyad
-                talep.satin_alma_tarih = timezone.now()
-                talep.save()
-                messages.success(request, f"#{talep.id} satın alma tamamlandı, sevkiyata iletildi.")
-            return redirect('sevkiyat')
-
-        if is_sevkiyat and islem == 'teslim_et':
-            talep = SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'),
-                                                 durum=SevkiyatDurumu.SEVKIYATTA).first()
-            if talep:
-                talep.durum = SevkiyatDurumu.TESLIM
-                talep.teslim_eden_ad = personel.ad_soyad
-                talep.teslim_tarih = timezone.now()
-                talep.save()
-                messages.success(request, f"#{talep.id} teslim edildi olarak işaretlendi.")
-            return redirect('sevkiyat')
-
+        not_metni = request.POST.get('not_metni', '').strip()[:400]
+        secilen = []
+        for u in Urun.objects.filter(aktif=True):
+            raw = request.POST.get('miktar_%s' % u.id, '').strip().replace(',', '.')
+            if not raw:
+                continue
+            try:
+                miktar = Decimal(raw)
+            except Exception:
+                continue
+            if miktar <= 0:
+                continue
+            birim = request.POST.get('birim_%s' % u.id, u.birim)
+            if birim not in _birim_secenek(u):
+                birim = u.birim
+            secilen.append((u, miktar, birim))
+        # Listede olmayan (özel) ürünler
+        ek_urunler = request.POST.getlist('ek_urun')
+        ek_miktarlar = request.POST.getlist('ek_miktar')
+        ek_birimler = request.POST.getlist('ek_birim')
+        gecerli_birimler = [b for b, _ in SevkiyatBirim.choices]
+        ekstra = []
+        for ad, mik, bir in zip(ek_urunler, ek_miktarlar, ek_birimler):
+            ad = ad.strip()[:160]
+            if not ad:
+                continue
+            try:
+                miktar = Decimal((mik or '').strip().replace(',', '.'))
+            except Exception:
+                continue
+            if miktar <= 0:
+                continue
+            bir = bir if bir in gecerli_birimler else SevkiyatBirim.ADET
+            ekstra.append((ad, miktar, bir))
+        if secilen or ekstra:
+            talep = SevkiyatTalep.objects.create(
+                sube=personel.sube, olusturan=personel,
+                olusturan_ad=personel.ad_soyad, not_metni=not_metni)
+            for u, miktar, birim in secilen:
+                SevkiyatKalem.objects.create(
+                    talep=talep, urun=u, urun_ad=u.ad, kategori=u.kategori, form=u.form,
+                    koli_icerigi=u.koli_icerigi, istenen_miktar=miktar, istenen_birim=birim)
+            for ad, miktar, bir in ekstra:
+                SevkiyatKalem.objects.create(
+                    talep=talep, urun=None, urun_ad=ad, kategori='DİĞER', form='',
+                    koli_icerigi=1, istenen_miktar=miktar, istenen_birim=bir)
+            SiparisHareket.objects.create(talep=talep, mesaj="Sipariş oluşturuldu",
+                                          yapan_ad=personel.ad_soyad)
+            messages.success(request, "Sipariş oluşturuldu (#%s, %s kalem)." % (
+                talep.id, len(secilen) + len(ekstra)))
+        else:
+            messages.error(request, "En az bir ürüne miktar girin.")
         return redirect('sevkiyat')
 
     ctx = {
         'personel': personel, 'aktif': 'sevkiyat',
         'is_sef': is_sef, 'is_satinalma': is_satinalma, 'is_sevkiyat': is_sevkiyat, 'is_yon': is_yon,
-        'birimler': SevkiyatBirim.choices,
     }
 
-    if is_yon:
-        subeler = list(Sube.objects.order_by('ad'))
-        sel_id = request.GET.get('sube')
-        try:
-            sel_id = int(sel_id) if sel_id else (subeler[0].id if subeler else None)
-        except (TypeError, ValueError):
-            sel_id = subeler[0].id if subeler else None
-        ay = request.GET.get('ay') or timezone.localdate().strftime('%Y-%m')
-        try:
-            yil, ayno = int(ay[:4]), int(ay[5:7])
-        except (ValueError, IndexError):
-            bugun = timezone.localdate()
-            yil, ayno, ay = bugun.year, bugun.month, bugun.strftime('%Y-%m')
-
-        if sel_id:
-            talepler = list(SevkiyatTalep.objects
-                            .filter(sube_id=sel_id, olusturma__year=yil, olusturma__month=ayno)
-                            .select_related('sube').prefetch_related('kalemler')[:200])
-            teslimler = (SevkiyatTalep.objects
-                         .filter(sube_id=sel_id, durum=SevkiyatDurumu.TESLIM,
-                                 teslim_tarih__year=yil, teslim_tarih__month=ayno)
-                         .prefetch_related('kalemler'))
-        else:
-            talepler, teslimler = [], []
-
-        agg = {}
-        for t in teslimler:
-            for k in t.kalemler.all():
-                a = agg.setdefault(k.urun_adi, [0, 0])
-                a[0] += k.istenen
-                a[1] += (k.verilen or 0)
-        maxv = max((max(v[0], v[1]) for v in agg.values()), default=0)
-        grafik = []
-        for u in sorted(agg):
-            i, v = agg[u]
-            grafik.append({'urun': u, 'istenen': i, 'verilen': v,
-                           'ih': int(round(i / maxv * 100)) if maxv else 0,
-                           'vh': int(round(v / maxv * 100)) if maxv else 0})
-        ctx.update({'subeler': subeler, 'sel_id': sel_id, 'ay': ay,
-                    'grafik': grafik, 'maxv': maxv, 'talepler': talepler})
+    if is_sef:
+        katalog = _katalog_gruplu()
+        for f in katalog:
+            for kat in f['kategoriler']:
+                kat['urunler'] = [{'u': u, 'birimler': _birim_secenek(u)} for u in kat['urunler']]
+        ctx['katalog'] = katalog
+        ctx['tum_birimler'] = [b for b, _ in SevkiyatBirim.choices]
+        ctx['ek_oneri'] = list(SevkiyatKalem.objects.filter(urun__isnull=True)
+                               .values_list('urun_ad', flat=True).distinct().order_by('urun_ad')[:200])
+        ctx['talepler'] = list(SevkiyatTalep.objects.filter(sube=personel.sube)
+                               .prefetch_related('kalemler', 'hareketler')[:50])
+    elif is_satinalma:
+        ctx['talepler'] = list(SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.TALEP)
+                               .select_related('sube').prefetch_related('kalemler')[:100])
+    elif is_sevkiyat:
+        ctx['talepler'] = list(SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.SEVKIYATTA)
+                               .select_related('sube').prefetch_related('kalemler')[:100])
     else:
-        if is_sef:
-            talepler = SevkiyatTalep.objects.filter(sube=personel.sube)
-            ctx['urun_oneri'] = list(SevkiyatKalem.objects.values_list('urun_adi', flat=True)
-                                     .distinct().order_by('urun_adi'))
-        elif is_satinalma:
-            talepler = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.TALEP)
-        else:
-            talepler = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.SEVKIYATTA)
-        ctx['talepler'] = list(talepler.select_related('sube').prefetch_related('kalemler')[:100])
+        ctx['talepler'] = list(SevkiyatTalep.objects.all()
+                               .select_related('sube').prefetch_related('kalemler')[:100])
 
     return render(request, 'sevkiyat.html', ctx)
 

@@ -374,3 +374,37 @@ a { color:var(--brand); text-decoration:none; }
 .sv-legend .lg-i { background:var(--brand); }
 .sv-legend .lg-v { background:#7C9AF5; margin-left:.8rem; }
 .sv-belgeler { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.6rem; }
+
+/* ---- Sevkiyat katalog (Aşama 1) ---- */
+.sv-tablar { display:flex; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap; }
+.sv-tab { border:1px solid var(--line); background:#fff; color:var(--muted); padding:.5rem 1.1rem;
+  border-radius:999px; font:inherit; font-weight:600; cursor:pointer; }
+.sv-tab.aktif { background:var(--brand); color:#fff; border-color:var(--brand); }
+.sv-kat { border:1px solid var(--line); border-radius:12px; margin-bottom:.7rem; overflow:hidden; }
+.sv-kat > summary { cursor:pointer; padding:.7rem 1rem; font-weight:600; background:var(--brand-050);
+  list-style:none; user-select:none; }
+.sv-kat > summary::-webkit-details-marker { display:none; }
+.sv-kat > summary::before { content:"▸ "; color:var(--brand); }
+.sv-kat[open] > summary::before { content:"▾ "; }
+.sv-urunler { padding:.4rem .8rem .8rem; }
+.sv-urow { display:flex; align-items:center; gap:.6rem; padding:.4rem 0; border-bottom:1px solid var(--line); }
+.sv-urow:last-child { border-bottom:none; }
+.sv-uad { flex:1; font-size:.9rem; display:flex; flex-direction:column; }
+.sv-koli { font-size:.72rem; color:var(--muted); }
+.sv-urow .sv-miktar { width:90px; min-height:44px; text-align:center; }
+.sv-urow .sv-birim { min-height:44px; min-width:88px; }
+.sv-gonder { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin-top:1rem;
+  border-top:1px solid var(--line); padding-top:1rem; }
+.sv-gonder .sv-not-input { flex:1; min-width:200px; min-height:46px; }
+.sv-gonder .btn-primary { min-height:46px; }
+.sv-hareketler { margin-top:.7rem; border-top:1px dashed var(--line); padding-top:.5rem; }
+.sv-hrow { display:flex; justify-content:space-between; gap:.8rem; font-size:.82rem; padding:.2rem 0; color:var(--ink); }
+
+/* Sevkiyat - listede olmayan ürün satırları */
+.sv-ek-kat > summary { background:var(--brand-100); }
+.sv-ek-row { display:flex; align-items:center; gap:.6rem; padding:.4rem 0; border-bottom:1px solid var(--line); }
+.sv-ek-row:last-child { border-bottom:none; }
+.sv-ek-row .sv-ek-ad { flex:1; min-width:120px; min-height:44px; }
+.sv-ek-row .sv-miktar { width:90px; min-height:44px; text-align:center; }
+.sv-ek-row .sv-birim { min-height:44px; min-width:88px; }
+.sv-ek-row .sv-ek-sil { min-height:44px; }

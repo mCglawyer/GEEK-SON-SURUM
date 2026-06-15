@@ -38,6 +38,13 @@ def _fonts():
     return _FONTS_OK
 
 
+def _say(d):
+    if d is None:
+        return '—'
+    d = float(d)
+    return str(int(d)) if d == int(d) else ('%.2f' % d)
+
+
 def sevkiyat_pdf_bytes(talep, tip):
     """tip: 'yukleme' (Yükleme Belgesi) veya 'fis' (Teslim Fişi)."""
     ok = _fonts()
@@ -69,9 +76,9 @@ def sevkiyat_pdf_bytes(talep, tip):
     if talep.satin_alma_tarih:
         bilgi.append(['Satın Alma:', talep.satin_alan_ad or '—', 'Tarih:',
                       talep.satin_alma_tarih.strftime('%d.%m.%Y %H:%M')])
-    if tip == 'fis' and talep.teslim_tarih:
-        bilgi.append(['Teslim Eden:', talep.teslim_eden_ad or '—', 'Tarih:',
-                      talep.teslim_tarih.strftime('%d.%m.%Y %H:%M')])
+    if tip == 'fis' and talep.sevkiyat_tarih:
+        bilgi.append(['Sevkiyat:', talep.sevkiyatci_ad or '—', 'Tarih:',
+                      talep.sevkiyat_tarih.strftime('%d.%m.%Y %H:%M')])
     bt = Table(bilgi, colWidths=[28 * mm, 56 * mm, 28 * mm, 56 * mm])
     bt.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 9),
@@ -82,10 +89,12 @@ def sevkiyat_pdf_bytes(talep, tip):
     el.append(bt)
     el.append(Spacer(1, 6 * mm))
 
-    rows = [['#', 'Ürün', 'İstenen', 'Verilen', 'Birim']]
+    rows = [['#', 'Ürün', 'İstenen', 'Son', 'Birim']]
     for i, k in enumerate(talep.kalemler.all(), 1):
-        verilen = '—' if k.verilen is None else str(k.verilen)
-        rows.append([str(i), k.urun_adi, str(k.istenen), verilen, k.birim])
+        son = k.sevkiyat_miktar if k.sevkiyat_miktar is not None else (
+            k.satinalma_miktar if k.satinalma_miktar is not None else k.istenen_miktar)
+        bir = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
+        rows.append([str(i), k.urun_ad, _say(k.istenen_miktar), _say(son), bir])
     kt = Table(rows, colWidths=[12 * mm, 84 * mm, 26 * mm, 26 * mm, 22 * mm], repeatRows=1)
     kt.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 10),

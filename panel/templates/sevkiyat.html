@@ -6,159 +6,133 @@
 <div class="container">
   {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
 
-  <div class="plan-head">
-    <div><h2>Sevkiyat</h2>
-      <span class="plan-aralik">
-        {% if is_sef %}{{ personel.sube.ad }} · talepleriniz
-        {% elif is_satinalma %}Bekleyen talepler
-        {% elif is_sevkiyat %}Teslim bekleyenler
-        {% else %}Tüm sevkiyatlar{% endif %}
-      </span>
-    </div>
-  </div>
+  <div class="plan-head"><div><h2>Sevkiyat</h2>
+    <span class="plan-aralik">
+      {% if is_sef %}{{ personel.sube.ad }} · sipariş oluştur
+      {% elif is_satinalma %}Bekleyen siparişler
+      {% elif is_sevkiyat %}Sevkiyattakiler
+      {% else %}Tüm siparişler{% endif %}
+    </span>
+  </div></div>
 
   {% if is_sef %}
-  <div class="card">
-    <h3 style="margin:0 0 .8rem">Yeni Sevkiyat Talebi</h3>
-    <form method="post" id="talep-form">{% csrf_token %}
-      <input type="hidden" name="islem" value="talep_olustur">
-      <div id="kalemler">
-        <div class="sv-kalem">
-          <input class="input sv-urun" type="text" name="urun_adi" list="urun_oneri" placeholder="Ürün adı" autocomplete="off">
-          <input class="input sv-miktar" type="number" name="istenen" min="1" placeholder="Adet">
-          <select name="birim" class="sube-sec">{% for v, l in birimler %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select>
-          <button type="button" class="btn btn-ghost btn-mini sv-sil">✕</button>
-        </div>
+    {% if katalog %}
+    <form method="post" class="card sv-katalog">{% csrf_token %}
+      <input type="hidden" name="islem" value="siparis_olustur">
+      <div class="sv-tablar">
+        {% for f in katalog %}
+        <button type="button" class="sv-tab{% if forloop.first %} aktif{% endif %}" data-form="{{ f.kod }}">{{ f.etiket }}</button>
+        {% endfor %}
       </div>
-      <datalist id="urun_oneri">{% for u in urun_oneri %}<option value="{{ u }}"></option>{% endfor %}</datalist>
-      <div class="sv-form-alt">
-        <button type="button" class="btn btn-ghost btn-mini" id="sv-ekle">+ Satır ekle</button>
-        <input class="input sv-not" type="text" name="not_metni" placeholder="Not (opsiyonel)" maxlength="300">
-        <button type="submit" class="btn btn-primary">Talebi gönder</button>
-      </div>
-    </form>
-  </div>
-  {% endif %}
-
-  {% if is_yon %}
-  <form method="get" class="card sv-filtre">
-    <label>Şube
-      <select name="sube" class="sube-sec" onchange="this.form.submit()">
-        {% for s in subeler %}<option value="{{ s.id }}" {% if s.id == sel_id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
-      </select>
-    </label>
-    <label>Ay
-      <input type="month" name="ay" value="{{ ay }}" class="input" onchange="this.form.submit()">
-    </label>
-    <button type="submit" class="btn btn-primary btn-mini">Göster</button>
-  </form>
-
-  <div class="card">
-    <h3 style="margin:0 0 .2rem">İstenen vs Verilen</h3>
-    <p class="grid-not" style="margin-top:0">Teslim edilen sevkiyatlar · teslim tarihine göre</p>
-    {% if grafik %}
-    <div class="sv-chart">
-      {% for g in grafik %}
-      <div class="sv-cg">
-        <div class="sv-bars">
-          <div class="sv-bar sv-bar-i" style="height:{{ g.ih }}%"><span>{{ g.istenen }}</span></div>
-          <div class="sv-bar sv-bar-v" style="height:{{ g.vh }}%"><span>{{ g.verilen }}</span></div>
-        </div>
-        <div class="sv-cg-lbl">{{ g.urun }}</div>
+      {% for f in katalog %}
+      <div class="sv-formblok" data-form="{{ f.kod }}"{% if not forloop.first %} hidden{% endif %}>
+        {% for kat in f.kategoriler %}
+        <details class="sv-kat" open>
+          <summary>{{ kat.ad }}</summary>
+          <div class="sv-urunler">
+            {% for row in kat.urunler %}
+            <div class="sv-urow">
+              <div class="sv-uad">{{ row.u.ad }}<span class="sv-koli">1 koli = {{ row.u.koli_icerigi }} {{ row.u.birim }}</span></div>
+              <input class="input sv-miktar" type="number" name="miktar_{{ row.u.id }}" min="0" step="any" placeholder="0">
+              <select class="sube-sec sv-birim" name="birim_{{ row.u.id }}">
+                {% for b in row.birimler %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+              </select>
+            </div>
+            {% endfor %}
+          </div>
+        </details>
+        {% endfor %}
       </div>
       {% endfor %}
-    </div>
-    <div class="sv-legend"><span class="lg lg-i"></span> İstenen <span class="lg lg-v"></span> Verilen</div>
+      <details class="sv-kat sv-ek-kat" open>
+        <summary>Listede olmayan ürün</summary>
+        <div class="sv-urunler" id="ek-kalemler">
+          <div class="sv-ek-row">
+            <input class="input sv-ek-ad" type="text" name="ek_urun" list="ek-oneri" placeholder="Ürün adı" autocomplete="off">
+            <input class="input sv-miktar" type="number" name="ek_miktar" min="0" step="any" placeholder="0">
+            <select class="sube-sec sv-birim" name="ek_birim">{% for b in tum_birimler %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select>
+            <button type="button" class="btn btn-ghost btn-mini sv-ek-sil">✕</button>
+          </div>
+        </div>
+        <datalist id="ek-oneri">{% for ad in ek_oneri %}<option value="{{ ad }}"></option>{% endfor %}</datalist>
+        <button type="button" class="btn btn-ghost btn-mini" id="ek-ekle">+ Satır ekle</button>
+      </details>
+
+      <div class="sv-gonder">
+        <input class="input sv-not-input" type="text" name="not_metni" placeholder="Sipariş notu (opsiyonel)" maxlength="400">
+        <button type="submit" class="btn btn-primary">Siparişi gönder</button>
+      </div>
+    </form>
     {% else %}
-    <p style="margin:0;color:var(--muted)">Bu ay teslim edilen sevkiyat yok.</p>
+    <div class="card"><p style="margin:0;color:var(--muted)">Ürün kataloğu henüz yüklenmemiş.</p></div>
     {% endif %}
-  </div>
   {% endif %}
 
   {% for t in talepler %}
   <div class="card sv-talep">
     <div class="sv-head">
       <div><b>{{ t.sube.ad }}</b> · #{{ t.id }}<div class="sv-meta">{{ t.olusturan_ad|default:"—" }} · {{ t.olusturma|date:"d.m.Y H:i" }}</div></div>
-      {% if t.durum == 'Talep' %}<span class="badge badge-wait">Talep</span>
+      {% if t.durum == 'Talep' %}<span class="badge badge-wait">Satın Almada</span>
       {% elif t.durum == 'Sevkiyatta' %}<span class="badge badge-info">Sevkiyatta</span>
-      {% else %}<span class="badge badge-ok">Teslim Edildi</span>{% endif %}
+      {% elif t.durum == 'Onay Bekliyor' %}<span class="badge badge-wait">Çıkış Onayı</span>
+      {% elif t.durum == 'Onaylandı' %}<span class="badge badge-ok">Onaylandı</span>
+      {% elif t.durum == 'Reddedildi' %}<span class="badge badge-no">Düzeltmede</span>
+      {% else %}<span class="badge badge-ok">{{ t.durum }}</span>{% endif %}
     </div>
-
-    {% if is_satinalma and t.durum == 'Talep' %}
-    <form method="post">{% csrf_token %}
-      <input type="hidden" name="islem" value="satinalma_tamamla">
-      <input type="hidden" name="talep_id" value="{{ t.id }}">
-      <ul class="sv-kalemler">
-        {% for k in t.kalemler.all %}
-        <li class="sv-kalem-edit">
-          <span class="sv-urun-ad">{{ k.urun_adi }}</span>
-          <span class="sv-adet">İstenen: <b>{{ k.istenen }}</b> {{ k.birim }}</span>
-          <label class="sv-verilen">Verilen<input type="number" name="verilen_{{ k.id }}" min="0" value="{{ k.istenen }}"></label>
-        </li>
-        {% endfor %}
-      </ul>
-      <button type="submit" class="btn btn-primary btn-mini">Sevkiyata ilet</button>
-    </form>
-    {% else %}
     <ul class="sv-kalemler">
       {% for k in t.kalemler.all %}
       <li>
-        <span class="sv-urun-ad">{{ k.urun_adi }}</span>
-        <span class="sv-adet">İstenen: <b>{{ k.istenen }}</b> {{ k.birim }}{% if k.verilen != None %} · Verilen: <b>{{ k.verilen }}</b> {{ k.birim }}{% endif %}</span>
+        <span class="sv-urun-ad">{{ k.urun_ad }}</span>
+        <span class="sv-adet"><b>{{ k.istenen_miktar|floatformat:"-2" }}</b> {{ k.istenen_birim }}</span>
       </li>
       {% endfor %}
     </ul>
-    {% if is_sevkiyat and t.durum == 'Sevkiyatta' %}
-    <form method="post" onsubmit="return confirm('#{{ t.id }} teslim edildi olarak işaretlensin mi?');">{% csrf_token %}
-      <input type="hidden" name="islem" value="teslim_et">
-      <input type="hidden" name="talep_id" value="{{ t.id }}">
-      <button type="submit" class="btn btn-primary btn-mini">Teslim edildi</button>
-    </form>
-    {% endif %}
-    {% endif %}
-
-    {% if t.durum != 'Talep' %}
-    <div class="sv-belgeler">
-      <a class="btn btn-ghost btn-mini" href="{% url 'sevkiyat_belge' t.id 'yukleme' %}" target="_blank" rel="noopener">Yükleme belgesi (PDF)</a>
-      {% if t.durum == 'Teslim Edildi' %}<a class="btn btn-ghost btn-mini" href="{% url 'sevkiyat_belge' t.id 'fis' %}" target="_blank" rel="noopener">Teslim fişi (PDF)</a>{% endif %}
-    </div>
-    {% endif %}
-
-    {% if t.satin_alan_ad or t.teslim_eden_ad %}
-    <div class="sv-meta sv-altbilgi">
-      {% if t.satin_alan_ad %}Satın alma: {{ t.satin_alan_ad }} · {{ t.satin_alma_tarih|date:"d.m.Y H:i" }}{% endif %}
-      {% if t.teslim_eden_ad %}<br>Teslim: {{ t.teslim_eden_ad }} · {{ t.teslim_tarih|date:"d.m.Y H:i" }}{% endif %}
-    </div>
-    {% endif %}
-
     {% if t.not_metni %}<div class="sv-not">Not: {{ t.not_metni }}</div>{% endif %}
+    {% if is_sef and t.hareketler.all %}
+    <div class="sv-hareketler">
+      {% for h in t.hareketler.all %}
+      <div class="sv-hrow"><span>{{ h.mesaj }}{% if h.aciklama %} — {{ h.aciklama }}{% endif %}</span><span class="sv-meta">{{ h.olusturma|date:"d.m H:i" }}</span></div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
   {% empty %}
-  <div class="card"><p style="margin:0;color:var(--muted)">Henüz kayıt yok.</p></div>
+  <div class="card"><p style="margin:0;color:var(--muted)">Henüz sipariş yok.</p></div>
   {% endfor %}
 </div>
 
 {% if is_sef %}
 <script>
 (function () {
-  var kapsa = document.getElementById('kalemler');
-  var ekle = document.getElementById('sv-ekle');
-  if (!kapsa || !ekle) return;
+  var tabs = document.querySelectorAll('.sv-tab');
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      var f = t.getAttribute('data-form');
+      tabs.forEach(function (x) { x.classList.toggle('aktif', x === t); });
+      document.querySelectorAll('.sv-formblok').forEach(function (b) {
+        b.hidden = (b.getAttribute('data-form') !== f);
+      });
+    });
+  });
+  var kapsa = document.getElementById('ek-kalemler');
+  var ekle = document.getElementById('ek-ekle');
   function bagla(row) {
-    var sil = row.querySelector('.sv-sil');
+    var sil = row.querySelector('.sv-ek-sil');
     if (sil) sil.addEventListener('click', function () {
-      if (kapsa.querySelectorAll('.sv-kalem').length > 1) row.remove();
+      if (kapsa.querySelectorAll('.sv-ek-row').length > 1) row.remove();
     });
   }
-  kapsa.querySelectorAll('.sv-kalem').forEach(bagla);
-  ekle.addEventListener('click', function () {
-    var ilk = kapsa.querySelector('.sv-kalem');
-    var yeni = ilk.cloneNode(true);
-    yeni.querySelectorAll('input').forEach(function (i) { i.value = ''; });
-    kapsa.appendChild(yeni);
-    bagla(yeni);
-    yeni.querySelector('.sv-urun').focus();
-  });
+  if (kapsa && ekle) {
+    kapsa.querySelectorAll('.sv-ek-row').forEach(bagla);
+    ekle.addEventListener('click', function () {
+      var ilk = kapsa.querySelector('.sv-ek-row');
+      var yeni = ilk.cloneNode(true);
+      yeni.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+      kapsa.appendChild(yeni);
+      bagla(yeni);
+      yeni.querySelector('.sv-ek-ad').focus();
+    });
+  }
 })();
 </script>
 {% endif %}

@@ -216,34 +216,72 @@ class Kalibrasyon(models.Model):
 
 
 class SevkiyatBirim(models.TextChoices):
-    ADET = 'adet', 'adet'
-    KOLI = 'koli', 'koli'
+    ADET = 'ADET', 'ADET'
+    KOLI = 'KOLİ', 'KOLİ'
+    KG = 'KG', 'KG'
+    GRAM = 'GRAM', 'GRAM'
+    LITRE = 'LİTRE', 'LİTRE'
+    ML = 'ML', 'ML'
+    PAKET = 'PAKET', 'PAKET'
+    SET = 'SET', 'SET'
+
+
+class SevkiyatForm(models.TextChoices):
+    HAMMADDE = 'HAMMADDE', 'Hammadde'
+    TEMIZLIK = 'TEMIZLIK', 'Temizlik'
+
+
+class Urun(models.Model):
+    """Sevkiyat ürün kataloğu (Excel'den 'katalog_yukle' ile yüklenir)."""
+    form = models.CharField(max_length=10, choices=SevkiyatForm.choices,
+                            default=SevkiyatForm.HAMMADDE, verbose_name="Form")
+    kategori = models.CharField(max_length=80, verbose_name="Kategori")
+    ad = models.CharField(max_length=160, verbose_name="Ürün Adı")
+    koli_icerigi = models.PositiveIntegerField(default=1, verbose_name="Koli İçeriği")
+    birim = models.CharField(max_length=10, choices=SevkiyatBirim.choices,
+                             default=SevkiyatBirim.ADET, verbose_name="Birim")
+    sira = models.PositiveIntegerField(default=0, verbose_name="Sıra")
+    aktif = models.BooleanField(default=True, verbose_name="Aktif")
+
+    class Meta:
+        verbose_name = "Ürün (Katalog)"
+        verbose_name_plural = "Ürünler (Katalog)"
+        ordering = ['form', 'sira', 'ad']
+
+    def __str__(self):
+        return f"{self.ad} ({self.birim})"
 
 
 class SevkiyatDurumu(models.TextChoices):
-    TALEP = 'Talep', 'Talep (Satın Alma bekliyor)'
-    SEVKIYATTA = 'Sevkiyatta', 'Sevkiyatta (Teslim bekliyor)'
+    TALEP = 'Talep', 'Satın Almada'
+    SEVKIYATTA = 'Sevkiyatta', 'Sevkiyatta'
+    ONAY_BEKLIYOR = 'Onay Bekliyor', 'Çıkış Onayı Bekliyor'
+    ONAYLANDI = 'Onaylandı', 'Onaylandı'
+    REDDEDILDI = 'Reddedildi', 'Reddedildi (Düzeltmede)'
     TESLIM = 'Teslim Edildi', 'Teslim Edildi'
 
 
 class SevkiyatTalep(models.Model):
-    """Şube şefinin oluşturduğu, çok kalemli sevkiyat talebi."""
+    """Şube şefinin katalogdan oluşturduğu sipariş."""
     sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='sevkiyat_talepleri', verbose_name="Şube")
     olusturan = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
                                   related_name='sevkiyat_talepleri', verbose_name="Oluşturan")
     olusturan_ad = models.CharField(max_length=100, blank=True)
     durum = models.CharField(max_length=20, choices=SevkiyatDurumu.choices,
                              default=SevkiyatDurumu.TALEP, verbose_name="Durum")
-    not_metni = models.CharField(max_length=300, blank=True, verbose_name="Not")
+    not_metni = models.CharField(max_length=400, blank=True, verbose_name="Şef Notu")
+    red_notu = models.CharField(max_length=400, blank=True, verbose_name="Red Açıklaması")
     satin_alan_ad = models.CharField(max_length=100, blank=True)
-    teslim_eden_ad = models.CharField(max_length=100, blank=True)
-    olusturma = models.DateTimeField(auto_now_add=True, verbose_name="Talep Tarihi")
-    satin_alma_tarih = models.DateTimeField(null=True, blank=True, verbose_name="Satın Alma Tarihi")
-    teslim_tarih = models.DateTimeField(null=True, blank=True, verbose_name="Teslim Tarihi")
+    sevkiyatci_ad = models.CharField(max_length=100, blank=True)
+    onaylayan_ad = models.CharField(max_length=100, blank=True)
+    olusturma = models.DateTimeField(auto_now_add=True, verbose_name="Sipariş Tarihi")
+    satin_alma_tarih = models.DateTimeField(null=True, blank=True)
+    sevkiyat_tarih = models.DateTimeField(null=True, blank=True)
+    onay_tarih = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        verbose_name = "Sevkiyat Talebi"
-        verbose_name_plural = "Sevkiyat Talepleri"
+        verbose_name = "Sevkiyat Siparişi"
+        verbose_name_plural = "Sevkiyat Siparişleri"
         ordering = ['-olusturma']
 
     def __str__(self):
@@ -251,13 +289,40 @@ class SevkiyatTalep(models.Model):
 
 
 class SevkiyatKalem(models.Model):
-    """Bir sevkiyat talebindeki tek ürün satırı."""
+    """Siparişteki tek ürün satırı; her aşamada miktar/birim revize edilebilir."""
     talep = models.ForeignKey(SevkiyatTalep, on_delete=models.CASCADE, related_name='kalemler')
-    urun_adi = models.CharField(max_length=120, verbose_name="Ürün Adı")
-    istenen = models.PositiveIntegerField(verbose_name="İstenen")
-    verilen = models.PositiveIntegerField(null=True, blank=True, verbose_name="Verilen")
-    birim = models.CharField(max_length=10, choices=SevkiyatBirim.choices,
-                             default=SevkiyatBirim.ADET, verbose_name="Birim")
+    urun = models.ForeignKey(Urun, on_delete=models.SET_NULL, null=True, blank=True)
+    urun_ad = models.CharField(max_length=160)
+    kategori = models.CharField(max_length=80, blank=True)
+    form = models.CharField(max_length=10, blank=True)
+    koli_icerigi = models.PositiveIntegerField(default=1)
+    # Şefin istediği
+    istenen_miktar = models.DecimalField(max_digits=10, decimal_places=2)
+    istenen_birim = models.CharField(max_length=10, default=SevkiyatBirim.ADET)
+    # Satın almanın revizyonu
+    satinalma_miktar = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    satinalma_birim = models.CharField(max_length=10, blank=True)
+    # Sevkiyatın (stoğa göre) revizyonu
+    sevkiyat_miktar = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    sevkiyat_birim = models.CharField(max_length=10, blank=True)
+
+    class Meta:
+        ordering = ['id']
 
     def __str__(self):
-        return f"{self.urun_adi} {self.istenen} {self.birim}"
+        return f"{self.urun_ad} {self.istenen_miktar} {self.istenen_birim}"
+
+
+class SiparisHareket(models.Model):
+    """Sipariş hareket günlüğü (şef detaylı durum takibi için)."""
+    talep = models.ForeignKey(SevkiyatTalep, on_delete=models.CASCADE, related_name='hareketler')
+    mesaj = models.CharField(max_length=200)
+    aciklama = models.CharField(max_length=400, blank=True)
+    yapan_ad = models.CharField(max_length=100, blank=True)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['olusturma']
+
+    def __str__(self):
+        return f"#{self.talep_id} {self.mesaj}"

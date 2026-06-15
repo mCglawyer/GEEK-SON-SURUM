@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import (Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Zayi, Kalibrasyon, SevkiyatTalep, SevkiyatKalem)
+from .models import (Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Zayi, Kalibrasyon, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket)
 
 
 @admin.register(Sube)
@@ -77,8 +77,22 @@ class SevkiyatKalemInline(admin.TabularInline):
 
 @admin.register(SevkiyatTalep)
 class SevkiyatTalepAdmin(admin.ModelAdmin):
-    list_display = ('id', 'sube', 'olusturan_ad', 'durum', 'olusturma', 'teslim_tarih')
+    list_display = ('id', 'sube', 'olusturan_ad', 'durum', 'olusturma', 'onay_tarih')
     list_filter = ('durum', 'sube', 'olusturma')
-    search_fields = ('olusturan_ad', 'satin_alan_ad', 'teslim_eden_ad')
+    search_fields = ('olusturan_ad', 'satin_alan_ad', 'sevkiyatci_ad')
     readonly_fields = ('olusturma',)
     inlines = [SevkiyatKalemInline]
+
+
+@admin.register(Urun)
+class UrunAdmin(admin.ModelAdmin):
+    list_display = ('ad', 'form', 'kategori', 'koli_icerigi', 'birim', 'aktif')
+    list_filter = ('form', 'kategori', 'aktif', 'birim')
+    search_fields = ('ad',)
+    list_editable = ('aktif',)
+
+
+@admin.register(SiparisHareket)
+class SiparisHareketAdmin(admin.ModelAdmin):
+    list_display = ('talep', 'mesaj', 'yapan_ad', 'olusturma')
+    list_filter = ('olusturma',)
