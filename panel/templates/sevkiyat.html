@@ -27,16 +27,18 @@
       {% for f in katalog %}
       <div class="sv-formblok" data-form="{{ f.kod }}"{% if not forloop.first %} hidden{% endif %}>
         {% for kat in f.kategoriler %}
-        <details class="sv-kat" open>
-          <summary>{{ kat.ad }}</summary>
+        <details class="sv-kat">
+          <summary>{{ kat.ad }}<span class="sv-sayi">{{ kat.urunler|length }} ürün</span></summary>
           <div class="sv-urunler">
             {% for row in kat.urunler %}
             <div class="sv-urow">
               <div class="sv-uad">{{ row.u.ad }}<span class="sv-koli">1 koli = {{ row.u.koli_icerigi }} {{ row.u.birim }}</span></div>
-              <input class="input sv-miktar" type="number" name="miktar_{{ row.u.id }}" min="0" step="any" placeholder="0">
-              <select class="sube-sec sv-birim" name="birim_{{ row.u.id }}">
-                {% for b in row.birimler %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
-              </select>
+              <div class="sv-girdi">
+                <input class="input sv-miktar" type="number" name="miktar_{{ row.u.id }}" min="0" step="any" placeholder="0">
+                <select class="sube-sec sv-birim" name="birim_{{ row.u.id }}">
+                  {% for b in row.birimler %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+                </select>
+              </div>
             </div>
             {% endfor %}
           </div>
@@ -44,7 +46,7 @@
         {% endfor %}
       </div>
       {% endfor %}
-      <details class="sv-kat sv-ek-kat" open>
+      <details class="sv-kat sv-ek-kat">
         <summary>Listede olmayan ürün</summary>
         <div class="sv-urunler" id="ek-kalemler">
           <div class="sv-ek-row">
