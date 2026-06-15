@@ -31,7 +31,6 @@
       </select>
       <button class="btn btn-primary">Yönetici ekle</button>
     </form>
-    <p class="grid-not">İsim + rol girince kullanıcı adı ve şifre otomatik üretilir ve yukarıdaki yeşil mesajda <b>bir kez</b> gösterilir — not alıp kişiye iletin. Şifreyi sonra "Şifre yenile" ile değiştirebilirsiniz.</p>
   </div>
 
   <!-- ŞEFLER -->
@@ -57,7 +56,6 @@
       <select name="sef_sube_id" class="sube-sec" required>{% for sb in subeler %}<option value="{{ sb.id }}">{{ sb.ad }}</option>{% endfor %}</select>
       <button class="btn btn-primary">Şef ekle</button>
     </form>
-    <p class="grid-not">Şefe otomatik 6 haneli giriş kodu atanır (şef de personel gibi kodla girer). Şef, kendi şubesine personel ekler.</p>
   </div>
 </div>
 {% endblock %}

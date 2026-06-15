@@ -32,7 +32,6 @@
       <input type="hidden" name="foto_data" id="foto_data">
       <button type="button" id="cek-btn" class="btn btn-primary kal-cek">📸 Çek ve Yükle</button>
     </form>
-    <p class="grid-not">Görüntü yalnızca <b>o an kameradan</b> alınır; galeriden yükleme yoktur. Telefonda kamerayı açmak için izin verin (telefonda kameranın çalışması için sitenin HTTPS olması gerekir; bilgisayarda localhost'ta çalışır).</p>
   </div>
   {% endif %}
 
@@ -56,7 +55,6 @@
     {% endif %}
   </div>
 
-  {% if is_yon %}<p class="grid-not">Görüntüler {{ saklama_gun }} gün saklanır; tarih seçiciyle son {{ saklama_gun }} gün içinde gezebilirsiniz. Görüntüye tıklayınca tam boy açılır.</p>{% endif %}
 </div>
 
 {% if ekleyebilir %}

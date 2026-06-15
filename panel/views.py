@@ -201,8 +201,13 @@ def _personel_home(request, personel):
     vmap = {v.tarih: v for v in personel.vardiyalar.filter(tarih__range=[start, end], durum=OnayDurumu.ONAYLANDI)}
     hafta = [{'tarih': g, 'gun_adi': GUN_ADLARI[i], 'bugun': g == today, 'vardiya': vmap.get(g)}
              for i, g in enumerate(gunler)]
+    g_start, g_end, g_gunler = _hafta_gunleri('gelecek')
+    g_vmap = {v.tarih: v for v in personel.vardiyalar.filter(tarih__range=[g_start, g_end], durum=OnayDurumu.ONAYLANDI)}
+    gelecek = [{'tarih': g, 'gun_adi': GUN_ADLARI[i], 'bugun': False, 'vardiya': g_vmap.get(g)}
+               for i, g in enumerate(g_gunler)]
     ctx = {'personel': personel, 'aktif': 'home', 'is_gm': False,
-           'hafta': hafta, 'haftabasi': start, 'haftasonu': end}
+           'hafta': hafta, 'haftabasi': start, 'haftasonu': end,
+           'gelecek': gelecek, 'g_basi': g_start, 'g_sonu': g_end}
     ctx.update(_mola_ctx(personel, today))
     return render(request, 'personel_panel.html', ctx)
 

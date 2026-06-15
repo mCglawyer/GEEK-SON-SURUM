@@ -26,7 +26,7 @@
     <!-- VARDİYALARIM -->
     <div class="card hafta-card">
       <div class="hafta-head">
-        <h3>Vardiyalarım</h3>
+        <h3>Bu Hafta</h3>
         <span class="hafta-aralik">{{ haftabasi|date:"d.m" }} – {{ haftasonu|date:"d.m" }}</span>
       </div>
       <ul class="hafta">
@@ -43,7 +43,28 @@
           </li>
         {% endfor %}
       </ul>
-      <p class="hafta-not">Yalnızca onaylanmış vardiyalar gösterilir.</p>
+    </div>
+
+    <!-- GELECEK HAFTA -->
+    <div class="card hafta-card">
+      <div class="hafta-head">
+        <h3>Gelecek Hafta</h3>
+        <span class="hafta-aralik">{{ g_basi|date:"d.m" }} – {{ g_sonu|date:"d.m" }}</span>
+      </div>
+      <ul class="hafta">
+        {% for g in gelecek %}
+          <li class="hafta-row">
+            <div class="hafta-gun"><b>{{ g.gun_adi }}</b><span>{{ g.tarih|date:"d.m" }}</span></div>
+            {% if g.vardiya %}
+              {% with t=g.vardiya.vardiya_tipi %}
+              <span class="badge {% if t == 'İzinli' %}badge-info{% elif t == 'Raporlu' %}badge-wait{% elif t == 'Devamsız' %}badge-no{% else %}badge-work{% endif %}">{{ t }}</span>
+              {% endwith %}
+            {% else %}
+              <span class="hafta-bos">—</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
     </div>
 
   {% endif %}
