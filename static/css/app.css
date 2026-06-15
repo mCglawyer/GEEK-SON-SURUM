@@ -422,3 +422,10 @@ a { color:var(--brand); text-decoration:none; }
 .sv-kalem-edit .sv-adet { color:var(--muted); font-size:.82rem; }
 .sv-kalem-edit .sv-girdi { margin-left:auto; }
 .sv-talep form .btn-primary { margin-top:.6rem; }
+
+/* Sevkiyat - çıkış onay + iade notu (Aşama 3) */
+.sv-red { background:var(--no-bg); color:var(--no); }
+.sv-cikis-form { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin-top:.7rem;
+  border-top:1px solid var(--line); padding-top:.7rem; }
+.sv-cikis-form .input { flex:1; min-width:180px; min-height:44px; }
+.sv-cikis-btns { display:flex; gap:.5rem; }

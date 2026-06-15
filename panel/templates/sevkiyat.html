@@ -93,7 +93,7 @@
       {% else %}<span class="badge badge-ok">{{ t.durum }}</span>{% endif %}
     </div>
 
-    {% if duzenle %}
+    {% if t.mode == 'sa' %}
     <form method="post">{% csrf_token %}
       <input type="hidden" name="islem" value="satinalma_tamamla">
       <input type="hidden" name="talep_id" value="{{ t.id }}">
@@ -114,15 +114,58 @@
       {% if t.not_metni %}<div class="sv-not">Şef notu: {{ t.not_metni }}</div>{% endif %}
       <button type="submit" class="btn btn-primary btn-mini">Sevkiyata ilet</button>
     </form>
+
+    {% elif t.mode == 'sv' %}
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="islem" value="sevkiyat_onayla">
+      <input type="hidden" name="talep_id" value="{{ t.id }}">
+      {% if t.red_notu %}<div class="sv-not sv-red">İade notu: {{ t.red_notu }}</div>{% endif %}
+      <ul class="sv-kalemler">
+        {% for k in t.kalemler.all %}
+        <li class="sv-kalem-edit">
+          <span class="sv-urun-ad">{{ k.urun_ad }}</span>
+          <span class="sv-adet">Satın alma: <b>{% if k.satinalma_miktar != None %}{{ k.satinalma_miktar|floatformat:"-2" }}{% else %}{{ k.istenen_miktar|floatformat:"-2" }}{% endif %}</b> {{ k.satinalma_birim|default:k.istenen_birim }}</span>
+          <div class="sv-girdi">
+            <input class="input sv-miktar" type="number" name="sv_miktar_{{ k.id }}" min="0" step="any" value="{{ k.sv_def_miktar|floatformat:'-2' }}">
+            <select class="sube-sec sv-birim" name="sv_birim_{{ k.id }}">
+              {% for b in tum_birimler %}<option value="{{ b }}"{% if b == k.sv_def_birim %} selected{% endif %}>{{ b }}</option>{% endfor %}
+            </select>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      <button type="submit" class="btn btn-primary btn-mini">Onayla, çıkışa gönder</button>
+    </form>
+
+    {% elif t.mode == 'cikis' %}
+    <ul class="sv-kalemler">
+      {% for k in t.kalemler.all %}
+      <li>
+        <span class="sv-urun-ad">{{ k.urun_ad }}</span>
+        <span class="sv-adet">İstenen: {{ k.istenen_miktar|floatformat:"-2" }} {{ k.istenen_birim }} · Çıkış: <b>{% if k.sevkiyat_miktar != None %}{{ k.sevkiyat_miktar|floatformat:"-2" }}{% elif k.satinalma_miktar != None %}{{ k.satinalma_miktar|floatformat:"-2" }}{% else %}{{ k.istenen_miktar|floatformat:"-2" }}{% endif %}</b> {{ k.sevkiyat_birim|default:k.satinalma_birim|default:k.istenen_birim }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="sv-meta sv-altbilgi">Hazırlayan (Sevkiyat): {{ t.sevkiyatci_ad|default:"—" }}{% if t.satin_alan_ad %} · Satın alma: {{ t.satin_alan_ad }}{% endif %}</div>
+    <form method="post" class="sv-cikis-form">{% csrf_token %}
+      <input type="hidden" name="talep_id" value="{{ t.id }}">
+      <input class="input" type="text" name="red_notu" placeholder="Reddedilecekse açıklama yazın" maxlength="400">
+      <div class="sv-cikis-btns">
+        <button type="submit" name="islem" value="cikis_onayla" class="btn btn-primary btn-mini">Çıkışı onayla</button>
+        <button type="submit" name="islem" value="cikis_reddet" class="btn btn-danger btn-mini">Reddet</button>
+      </div>
+    </form>
+
     {% else %}
     <ul class="sv-kalemler">
       {% for k in t.kalemler.all %}
       <li>
         <span class="sv-urun-ad">{{ k.urun_ad }}</span>
-        <span class="sv-adet"><b>{{ k.istenen_miktar|floatformat:"-2" }}</b> {{ k.istenen_birim }}{% if k.satinalma_miktar != None %} · SA: <b>{{ k.satinalma_miktar|floatformat:"-2" }}</b> {{ k.satinalma_birim }}{% endif %}</span>
+        <span class="sv-adet"><b>{{ k.istenen_miktar|floatformat:"-2" }}</b> {{ k.istenen_birim }}{% if k.satinalma_miktar != None %} · SA: <b>{{ k.satinalma_miktar|floatformat:"-2" }}</b> {{ k.satinalma_birim }}{% endif %}{% if k.sevkiyat_miktar != None %} · Çıkış: <b>{{ k.sevkiyat_miktar|floatformat:"-2" }}</b> {{ k.sevkiyat_birim }}{% endif %}</span>
       </li>
       {% endfor %}
     </ul>
+    {% if t.red_notu %}<div class="sv-not sv-red">İade notu: {{ t.red_notu }}</div>{% endif %}
     {% if t.not_metni %}<div class="sv-not">Not: {{ t.not_metni }}</div>{% endif %}
     {% if is_sef and t.hareketler.all %}
     <div class="sv-hareketler">

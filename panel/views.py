@@ -860,6 +860,7 @@ def sevkiyat_sayfa(request):
     is_satinalma = rol == Rol.SATIN_ALMA
     is_sevkiyat = rol == Rol.SEVKIYAT
     is_yon = rol in UST_YONETIM
+    cikis_yetkili = (rol == Rol.GENEL_MUDUR) or is_satinalma
     if not (is_sef or is_satinalma or is_sevkiyat or is_yon):
         return redirect('ana_sayfa')
 
@@ -949,10 +950,69 @@ def sevkiyat_sayfa(request):
             messages.success(request, "#%s sevkiyata iletildi." % talep.id)
         return redirect('sevkiyat')
 
+    if request.method == 'POST' and is_sevkiyat and request.POST.get('islem') == 'sevkiyat_onayla':
+        talep = (SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'),
+                 durum__in=[SevkiyatDurumu.SEVKIYATTA, SevkiyatDurumu.REDDEDILDI])
+                 .prefetch_related('kalemler').first())
+        if talep:
+            gecerli = [b for b, _ in SevkiyatBirim.choices]
+            for k in talep.kalemler.all():
+                varsayilan = k.satinalma_miktar if k.satinalma_miktar is not None else k.istenen_miktar
+                raw = request.POST.get('sv_miktar_%s' % k.id, '').strip().replace(',', '.')
+                try:
+                    miktar = Decimal(raw)
+                except Exception:
+                    miktar = varsayilan
+                if miktar < 0:
+                    miktar = Decimal(0)
+                birim = request.POST.get('sv_birim_%s' % k.id) or (k.satinalma_birim or k.istenen_birim)
+                if birim not in gecerli:
+                    birim = k.satinalma_birim or k.istenen_birim
+                k.sevkiyat_miktar = miktar
+                k.sevkiyat_birim = birim
+                k.save()
+            talep.durum = SevkiyatDurumu.ONAY_BEKLIYOR
+            talep.sevkiyatci_ad = personel.ad_soyad
+            talep.sevkiyat_tarih = timezone.now()
+            talep.red_notu = ''
+            talep.save()
+            SiparisHareket.objects.create(talep=talep, mesaj="Sevkiyat hazırlandı, çıkış onayına gönderildi",
+                                          yapan_ad=personel.ad_soyad)
+            messages.success(request, "#%s çıkış onayına gönderildi." % talep.id)
+        return redirect('sevkiyat')
+
+    if request.method == 'POST' and cikis_yetkili and request.POST.get('islem') == 'cikis_onayla':
+        talep = SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'),
+                                             durum=SevkiyatDurumu.ONAY_BEKLIYOR).first()
+        if talep:
+            talep.durum = SevkiyatDurumu.ONAYLANDI
+            talep.onaylayan_ad = personel.ad_soyad
+            talep.onay_tarih = timezone.now()
+            talep.save()
+            SiparisHareket.objects.create(talep=talep, mesaj="Çıkış onaylandı", yapan_ad=personel.ad_soyad)
+            messages.success(request, "#%s onaylandı." % talep.id)
+        return redirect('sevkiyat')
+
+    if request.method == 'POST' and cikis_yetkili and request.POST.get('islem') == 'cikis_reddet':
+        talep = SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'),
+                                             durum=SevkiyatDurumu.ONAY_BEKLIYOR).first()
+        if talep:
+            aciklama = request.POST.get('red_notu', '').strip()[:400]
+            talep.durum = SevkiyatDurumu.REDDEDILDI
+            talep.red_notu = aciklama
+            talep.save()
+            SiparisHareket.objects.create(talep=talep, mesaj="Çıkış reddedildi", aciklama=aciklama,
+                                          yapan_ad=personel.ad_soyad)
+            messages.success(request, "#%s reddedildi, sevkiyata geri gönderildi." % talep.id)
+        return redirect('sevkiyat')
+
     ctx = {
         'personel': personel, 'aktif': 'sevkiyat',
         'is_sef': is_sef, 'is_satinalma': is_satinalma, 'is_sevkiyat': is_sevkiyat, 'is_yon': is_yon,
     }
+
+    ctx['cikis_yetkili'] = cikis_yetkili
+    ctx['tum_birimler'] = [b for b, _ in SevkiyatBirim.choices]
 
     if is_sef:
         katalog = _katalog_gruplu()
@@ -960,11 +1020,13 @@ def sevkiyat_sayfa(request):
             for kat in f['kategoriler']:
                 kat['urunler'] = [{'u': u, 'birimler': _birim_secenek(u)} for u in kat['urunler']]
         ctx['katalog'] = katalog
-        ctx['tum_birimler'] = [b for b, _ in SevkiyatBirim.choices]
         ctx['ek_oneri'] = list(SevkiyatKalem.objects.filter(urun__isnull=True)
                                .values_list('urun_ad', flat=True).distinct().order_by('urun_ad')[:200])
-        ctx['talepler'] = list(SevkiyatTalep.objects.filter(sube=personel.sube)
-                               .prefetch_related('kalemler', 'hareketler')[:50])
+        sefler = list(SevkiyatTalep.objects.filter(sube=personel.sube)
+                      .prefetch_related('kalemler', 'hareketler')[:50])
+        for t in sefler:
+            t.mode = 'read'
+        ctx['talepler'] = sefler
     elif is_satinalma:
         subeler = list(Sube.objects.order_by('ad'))
         sel_id = request.GET.get('sube')
@@ -972,20 +1034,35 @@ def sevkiyat_sayfa(request):
             sel_id = int(sel_id) if sel_id else None
         except (TypeError, ValueError):
             sel_id = None
-        qs = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.TALEP)
+        bekleyen = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.TALEP)
         if sel_id:
-            qs = qs.filter(sube_id=sel_id)
+            bekleyen = bekleyen.filter(sube_id=sel_id)
+        bekleyen = list(bekleyen.select_related('sube').prefetch_related('kalemler')[:100])
+        for t in bekleyen:
+            t.mode = 'sa'
+        onaylar = list(SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.ONAY_BEKLIYOR)
+                       .select_related('sube').prefetch_related('kalemler')[:100])
+        for t in onaylar:
+            t.mode = 'cikis'
         ctx['subeler'] = subeler
         ctx['sel_id'] = sel_id
-        ctx['tum_birimler'] = [b for b, _ in SevkiyatBirim.choices]
-        ctx['duzenle'] = True
-        ctx['talepler'] = list(qs.select_related('sube').prefetch_related('kalemler')[:100])
+        ctx['talepler'] = onaylar + bekleyen
     elif is_sevkiyat:
-        ctx['talepler'] = list(SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.SEVKIYATTA)
-                               .select_related('sube').prefetch_related('kalemler')[:100])
+        svt = list(SevkiyatTalep.objects.filter(durum__in=[SevkiyatDurumu.SEVKIYATTA, SevkiyatDurumu.REDDEDILDI])
+                   .select_related('sube').prefetch_related('kalemler')[:100])
+        for t in svt:
+            t.mode = 'sv'
+            for k in t.kalemler.all():
+                k.sv_def_miktar = (k.sevkiyat_miktar if k.sevkiyat_miktar is not None
+                                   else (k.satinalma_miktar if k.satinalma_miktar is not None else k.istenen_miktar))
+                k.sv_def_birim = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
+        ctx['talepler'] = svt
     else:
-        ctx['talepler'] = list(SevkiyatTalep.objects.all()
-                               .select_related('sube').prefetch_related('kalemler')[:100])
+        allt = list(SevkiyatTalep.objects.all()
+                    .select_related('sube').prefetch_related('kalemler')[:150])
+        for t in allt:
+            t.mode = 'cikis' if (cikis_yetkili and t.durum == SevkiyatDurumu.ONAY_BEKLIYOR) else 'read'
+        ctx['talepler'] = allt
 
     return render(request, 'sevkiyat.html', ctx)
 
