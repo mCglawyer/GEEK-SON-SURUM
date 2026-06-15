@@ -921,6 +921,34 @@ def sevkiyat_sayfa(request):
             messages.error(request, "En az bir ürüne miktar girin.")
         return redirect('sevkiyat')
 
+    if request.method == 'POST' and is_satinalma and request.POST.get('islem') == 'satinalma_tamamla':
+        talep = (SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'), durum=SevkiyatDurumu.TALEP)
+                 .prefetch_related('kalemler').first())
+        if talep:
+            gecerli = [b for b, _ in SevkiyatBirim.choices]
+            for k in talep.kalemler.all():
+                raw = request.POST.get('sa_miktar_%s' % k.id, '').strip().replace(',', '.')
+                try:
+                    miktar = Decimal(raw)
+                except Exception:
+                    miktar = k.istenen_miktar
+                if miktar < 0:
+                    miktar = Decimal(0)
+                birim = request.POST.get('sa_birim_%s' % k.id, k.istenen_birim)
+                if birim not in gecerli:
+                    birim = k.istenen_birim
+                k.satinalma_miktar = miktar
+                k.satinalma_birim = birim
+                k.save()
+            talep.durum = SevkiyatDurumu.SEVKIYATTA
+            talep.satin_alan_ad = personel.ad_soyad
+            talep.satin_alma_tarih = timezone.now()
+            talep.save()
+            SiparisHareket.objects.create(talep=talep, mesaj="Satın alma tamamlandı, depoya iletildi",
+                                          yapan_ad=personel.ad_soyad)
+            messages.success(request, "#%s sevkiyata iletildi." % talep.id)
+        return redirect('sevkiyat')
+
     ctx = {
         'personel': personel, 'aktif': 'sevkiyat',
         'is_sef': is_sef, 'is_satinalma': is_satinalma, 'is_sevkiyat': is_sevkiyat, 'is_yon': is_yon,
@@ -938,8 +966,20 @@ def sevkiyat_sayfa(request):
         ctx['talepler'] = list(SevkiyatTalep.objects.filter(sube=personel.sube)
                                .prefetch_related('kalemler', 'hareketler')[:50])
     elif is_satinalma:
-        ctx['talepler'] = list(SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.TALEP)
-                               .select_related('sube').prefetch_related('kalemler')[:100])
+        subeler = list(Sube.objects.order_by('ad'))
+        sel_id = request.GET.get('sube')
+        try:
+            sel_id = int(sel_id) if sel_id else None
+        except (TypeError, ValueError):
+            sel_id = None
+        qs = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.TALEP)
+        if sel_id:
+            qs = qs.filter(sube_id=sel_id)
+        ctx['subeler'] = subeler
+        ctx['sel_id'] = sel_id
+        ctx['tum_birimler'] = [b for b, _ in SevkiyatBirim.choices]
+        ctx['duzenle'] = True
+        ctx['talepler'] = list(qs.select_related('sube').prefetch_related('kalemler')[:100])
     elif is_sevkiyat:
         ctx['talepler'] = list(SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.SEVKIYATTA)
                                .select_related('sube').prefetch_related('kalemler')[:100])

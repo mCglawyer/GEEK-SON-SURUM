@@ -415,3 +415,10 @@ a { color:var(--brand); text-decoration:none; }
 .sv-not-input { flex:1; min-width:200px; min-height:48px; }
 .sv-gonder .btn-primary { min-height:48px; padding-left:1.6rem; padding-right:1.6rem; }
 #ek-ekle { margin:.3rem 1rem 1rem; }
+
+/* Sevkiyat - satın alma kalem düzenleme */
+.sv-kalem-edit { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; }
+.sv-kalem-edit .sv-urun-ad { flex:1 1 160px; }
+.sv-kalem-edit .sv-adet { color:var(--muted); font-size:.82rem; }
+.sv-kalem-edit .sv-girdi { margin-left:auto; }
+.sv-talep form .btn-primary { margin-top:.6rem; }
