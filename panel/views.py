@@ -847,6 +847,76 @@ def _birim_secenek(urun):
     return secs
 
 
+import calendar as _calmod
+
+_AY_ADLARI = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+              'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+_GUN_KISA = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+
+
+def _takvim_kur(yil, ay, sel_gun, sayac):
+    """Ay grid'i: haftalar -> günler. sayac: {date: adet}."""
+    cal = _calmod.Calendar(firstweekday=0)
+    bugun = timezone.localdate()
+    haftalar = []
+    for week in cal.monthdatescalendar(yil, ay):
+        satir = []
+        for d in week:
+            satir.append({
+                'no': d.day, 'gun': d.isoformat(), 'bu_ay': (d.month == ay),
+                'sayi': sayac.get(d, 0), 'secili': (sel_gun == d), 'bugun': (d == bugun),
+            })
+        haftalar.append(satir)
+    onceki = datetime.date(yil, ay, 1) - datetime.timedelta(days=1)
+    sonraki = (datetime.date(yil, ay, 28) + datetime.timedelta(days=10)).replace(day=1)
+    return {
+        'yil': yil, 'ay': ay, 'ay_adi': _AY_ADLARI[ay], 'gun_basliklari': _GUN_KISA,
+        'haftalar': haftalar,
+        'prev': '%04d-%02d' % (onceki.year, onceki.month),
+        'next': '%04d-%02d' % (sonraki.year, sonraki.month),
+    }
+
+
+def _gecmis_hazirla(request, sel_id):
+    """Seçili ay/gün + şubeye göre takvim verisi ve sipariş listesi döndürür."""
+    bugun = timezone.localdate()
+    yil, ay = bugun.year, bugun.month
+    sel_gun = None
+    gun_str = request.GET.get('gun')
+    if gun_str:
+        try:
+            sel_gun = datetime.date.fromisoformat(gun_str)
+            yil, ay = sel_gun.year, sel_gun.month
+        except ValueError:
+            sel_gun = None
+    if sel_gun is None:
+        ay_str = request.GET.get('ay')
+        if ay_str:
+            try:
+                yil, ay = (int(x) for x in ay_str.split('-'))
+            except (ValueError, TypeError):
+                yil, ay = bugun.year, bugun.month
+    ay_basi = datetime.date(yil, ay, 1)
+    son_gun = _calmod.monthrange(yil, ay)[1]
+    ay_sonu = datetime.date(yil, ay, son_gun)
+
+    qs = SevkiyatTalep.objects.filter(olusturma__date__gte=ay_basi, olusturma__date__lte=ay_sonu)
+    if sel_id:
+        qs = qs.filter(sube_id=sel_id)
+    ay_listesi = list(qs.select_related('sube').prefetch_related('kalemler').order_by('-olusturma')[:500])
+
+    sayac = {}
+    for t in ay_listesi:
+        g = timezone.localtime(t.olusturma).date()
+        sayac[g] = sayac.get(g, 0) + 1
+
+    if sel_gun:
+        liste = [t for t in ay_listesi if timezone.localtime(t.olusturma).date() == sel_gun]
+    else:
+        liste = ay_listesi
+    return _takvim_kur(yil, ay, sel_gun, sayac), liste, sel_gun
+
+
 def sevkiyat_sayfa(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -1044,15 +1114,16 @@ def sevkiyat_sayfa(request):
                        .select_related('sube').prefetch_related('kalemler')[:100])
         for t in onaylar:
             t.mode = 'cikis'
-        onaylanan = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.ONAYLANDI)
-        if sel_id:
-            onaylanan = onaylanan.filter(sube_id=sel_id)
-        onaylanan = list(onaylanan.select_related('sube').prefetch_related('kalemler')[:30])
-        for t in onaylanan:
+        ctx['talepler'] = onaylar + bekleyen
+        takvim, gecmis, sel_gun = _gecmis_hazirla(request, sel_id)
+        for t in gecmis:
             t.mode = 'read'
         ctx['subeler'] = subeler
         ctx['sel_id'] = sel_id
-        ctx['talepler'] = onaylar + bekleyen + onaylanan
+        ctx['takvim'] = takvim
+        ctx['gecmis_talepler'] = gecmis
+        ctx['sel_gun'] = sel_gun
+        ctx['gecmis'] = True
     elif is_sevkiyat:
         svt = list(SevkiyatTalep.objects.filter(durum__in=[SevkiyatDurumu.SEVKIYATTA, SevkiyatDurumu.REDDEDILDI])
                    .select_related('sube').prefetch_related('kalemler')[:100])
@@ -1070,16 +1141,24 @@ def sevkiyat_sayfa(request):
             sel_id = int(sel_id) if sel_id else None
         except (TypeError, ValueError):
             sel_id = None
-        qs = SevkiyatTalep.objects.all()
-        if sel_id:
-            qs = qs.filter(sube_id=sel_id)
-        allt = list(qs.select_related('sube').prefetch_related('kalemler')[:200])
-        for t in allt:
-            t.mode = 'cikis' if (cikis_yetkili and t.durum == SevkiyatDurumu.ONAY_BEKLIYOR) else 'read'
+        aktif = []
+        if cikis_yetkili:
+            aq = SevkiyatTalep.objects.filter(durum=SevkiyatDurumu.ONAY_BEKLIYOR)
+            if sel_id:
+                aq = aq.filter(sube_id=sel_id)
+            aktif = list(aq.select_related('sube').prefetch_related('kalemler')[:100])
+            for t in aktif:
+                t.mode = 'cikis'
+        ctx['talepler'] = aktif
+        takvim, gecmis, sel_gun = _gecmis_hazirla(request, sel_id)
+        for t in gecmis:
+            t.mode = 'read'
         ctx['subeler'] = subeler
         ctx['sel_id'] = sel_id
+        ctx['takvim'] = takvim
+        ctx['gecmis_talepler'] = gecmis
+        ctx['sel_gun'] = sel_gun
         ctx['gecmis'] = True
-        ctx['talepler'] = allt
 
     return render(request, 'sevkiyat.html', ctx)
 

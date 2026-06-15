@@ -87,113 +87,43 @@
   </form>
   {% endif %}
 
-  {% for t in talepler %}
-  <div class="card sv-talep">
-    <div class="sv-head">
-      <div><b>{{ t.sube.ad }}</b> · #{{ t.id }}<div class="sv-meta">{{ t.olusturan_ad|default:"—" }} · {{ t.olusturma|date:"d.m.Y H:i" }}</div></div>
-      {% if t.durum == 'Talep' %}<span class="badge badge-wait">Satın Almada</span>
-      {% elif t.durum == 'Sevkiyatta' %}<span class="badge badge-info">Sevkiyatta</span>
-      {% elif t.durum == 'Onay Bekliyor' %}<span class="badge badge-wait">Çıkış Onayı</span>
-      {% elif t.durum == 'Onaylandı' %}<span class="badge badge-ok">Onaylandı</span>
-      {% elif t.durum == 'Reddedildi' %}<span class="badge badge-no">Düzeltmede</span>
-      {% else %}<span class="badge badge-ok">{{ t.durum }}</span>{% endif %}
-    </div>
-
-    {% if t.mode == 'sa' %}
-    <form method="post">{% csrf_token %}
-      <input type="hidden" name="islem" value="satinalma_tamamla">
-      <input type="hidden" name="talep_id" value="{{ t.id }}">
-      <ul class="sv-kalemler">
-        {% for k in t.kalemler.all %}
-        <li class="sv-kalem-edit">
-          <span class="sv-urun-ad">{{ k.urun_ad }}</span>
-          <span class="sv-adet">İstenen: <b>{{ k.istenen_miktar|floatformat:"-2" }}</b> {{ k.istenen_birim }}</span>
-          <div class="sv-girdi">
-            <input class="input sv-miktar" type="number" name="sa_miktar_{{ k.id }}" min="0" step="any" value="{{ k.istenen_miktar|floatformat:'-2' }}">
-            <select class="sube-sec sv-birim" name="sa_birim_{{ k.id }}">
-              {% for b in tum_birimler %}<option value="{{ b }}"{% if b == k.istenen_birim %} selected{% endif %}>{{ b }}</option>{% endfor %}
-            </select>
-          </div>
-        </li>
-        {% endfor %}
-      </ul>
-      {% if t.not_metni %}<div class="sv-not">Şef notu: {{ t.not_metni }}</div>{% endif %}
-      <button type="submit" class="btn btn-primary btn-mini">Sevkiyata ilet</button>
-    </form>
-
-    {% elif t.mode == 'sv' %}
-    <form method="post">{% csrf_token %}
-      <input type="hidden" name="islem" value="sevkiyat_onayla">
-      <input type="hidden" name="talep_id" value="{{ t.id }}">
-      {% if t.red_notu %}<div class="sv-not sv-red">İade notu: {{ t.red_notu }}</div>{% endif %}
-      <ul class="sv-kalemler">
-        {% for k in t.kalemler.all %}
-        <li class="sv-kalem-edit">
-          <span class="sv-urun-ad">{{ k.urun_ad }}</span>
-          <span class="sv-adet">Satın alma: <b>{% if k.satinalma_miktar != None %}{{ k.satinalma_miktar|floatformat:"-2" }}{% else %}{{ k.istenen_miktar|floatformat:"-2" }}{% endif %}</b> {{ k.satinalma_birim|default:k.istenen_birim }}</span>
-          <div class="sv-girdi">
-            <input class="input sv-miktar" type="number" name="sv_miktar_{{ k.id }}" min="0" step="any" value="{{ k.sv_def_miktar|floatformat:'-2' }}">
-            <select class="sube-sec sv-birim" name="sv_birim_{{ k.id }}">
-              {% for b in tum_birimler %}<option value="{{ b }}"{% if b == k.sv_def_birim %} selected{% endif %}>{{ b }}</option>{% endfor %}
-            </select>
-          </div>
-        </li>
-        {% endfor %}
-      </ul>
-      <button type="submit" class="btn btn-primary btn-mini">Onayla, çıkışa gönder</button>
-    </form>
-
-    {% elif t.mode == 'cikis' %}
-    <ul class="sv-kalemler">
-      {% for k in t.kalemler.all %}
-      <li>
-        <span class="sv-urun-ad">{{ k.urun_ad }}</span>
-        <span class="sv-adet">İstenen: {{ k.istenen_miktar|floatformat:"-2" }} {{ k.istenen_birim }} · Çıkış: <b>{% if k.sevkiyat_miktar != None %}{{ k.sevkiyat_miktar|floatformat:"-2" }}{% elif k.satinalma_miktar != None %}{{ k.satinalma_miktar|floatformat:"-2" }}{% else %}{{ k.istenen_miktar|floatformat:"-2" }}{% endif %}</b> {{ k.sevkiyat_birim|default:k.satinalma_birim|default:k.istenen_birim }}</span>
-      </li>
-      {% endfor %}
-    </ul>
-    <div class="sv-meta sv-altbilgi">Hazırlayan (Sevkiyat): {{ t.sevkiyatci_ad|default:"—" }}{% if t.satin_alan_ad %} · Satın alma: {{ t.satin_alan_ad }}{% endif %}</div>
-    <form method="post" class="sv-cikis-form">{% csrf_token %}
-      <input type="hidden" name="talep_id" value="{{ t.id }}">
-      <input class="input" type="text" name="red_notu" placeholder="Reddedilecekse açıklama yazın" maxlength="400">
-      <div class="sv-cikis-btns">
-        <button type="submit" name="islem" value="cikis_onayla" class="btn btn-primary btn-mini">Çıkışı onayla</button>
-        <button type="submit" name="islem" value="cikis_reddet" class="btn btn-danger btn-mini">Reddet</button>
-      </div>
-    </form>
-
-    {% else %}
-    <ul class="sv-kalemler">
-      {% for k in t.kalemler.all %}
-      <li>
-        <span class="sv-urun-ad">{{ k.urun_ad }}</span>
-        <span class="sv-adet"><b>{{ k.istenen_miktar|floatformat:"-2" }}</b> {{ k.istenen_birim }}{% if k.satinalma_miktar != None %} · SA: <b>{{ k.satinalma_miktar|floatformat:"-2" }}</b> {{ k.satinalma_birim }}{% endif %}{% if k.sevkiyat_miktar != None %} · Çıkış: <b>{{ k.sevkiyat_miktar|floatformat:"-2" }}</b> {{ k.sevkiyat_birim }}{% endif %}</span>
-      </li>
-      {% endfor %}
-    </ul>
-    {% if not is_sef %}{% if t.durum == 'Sevkiyatta' or t.durum == 'Onay Bekliyor' or t.durum == 'Onaylandı' %}
-    <div class="sv-belgeler">
-      <a class="btn btn-ghost btn-mini" href="{% url 'sevkiyat_belge' t.id 'yukleme' %}" target="_blank" rel="noopener">Yükleme belgesi (PDF)</a>
-      {% if t.durum == 'Onaylandı' %}
-      <a class="btn btn-ghost btn-mini" href="{% url 'sevkiyat_belge' t.id 'fis' %}" target="_blank" rel="noopener">Teslim fişi (PDF)</a>
-      <a class="btn btn-ghost btn-mini sv-excel-btn" href="{% url 'sevkiyat_excel' t.id %}">Fatura Excel ↓</a>
-      {% endif %}
-    </div>
-    {% endif %}{% endif %}
-    {% if t.red_notu %}<div class="sv-not sv-red">İade notu: {{ t.red_notu }}</div>{% endif %}
-    {% if t.not_metni %}<div class="sv-not">Not: {{ t.not_metni }}</div>{% endif %}
-    {% if is_sef and t.hareketler.all %}
-    <div class="sv-hareketler">
-      {% for h in t.hareketler.all %}
-      <div class="sv-hrow"><span>{{ h.mesaj }}{% if h.aciklama %} — {{ h.aciklama }}{% endif %}</span><span class="sv-meta">{{ h.olusturma|date:"d.m H:i" }}</span></div>
-      {% endfor %}
-    </div>
-    {% endif %}
-    {% endif %}
-  </div>
-  {% empty %}
-  <div class="card"><p style="margin:0;color:var(--muted)">Henüz sipariş yok.</p></div>
+  {% for t in talepler %}{% include 'sevkiyat_kart.html' %}{% empty %}
+  <div class="card sv-bos"><p style="margin:0;color:var(--muted)">{% if gecmis %}Bekleyen işlem yok.{% else %}Henüz sipariş yok.{% endif %}</p></div>
   {% endfor %}
+
+  {% if gecmis %}
+  <div class="card sv-gecmis">
+    <div class="sv-gecmis-bas"><b>Geçmiş sevkiyatlar</b></div>
+    <div class="sv-tkv-ust">
+      <a class="btn btn-ghost btn-mini" href="?sube={{ sel_id|default:'' }}&ay={{ takvim.prev }}">‹</a>
+      <span class="sv-tkv-baslik">{{ takvim.ay_adi }} {{ takvim.yil }}</span>
+      <a class="btn btn-ghost btn-mini" href="?sube={{ sel_id|default:'' }}&ay={{ takvim.next }}">›</a>
+    </div>
+    <div class="sv-takvim">
+      <div class="sv-tkv-hafta sv-tkv-bas">
+        {% for g in takvim.gun_basliklari %}<div class="sv-tkv-gunbas">{{ g }}</div>{% endfor %}
+      </div>
+      {% for hafta in takvim.haftalar %}
+      <div class="sv-tkv-hafta">
+        {% for d in hafta %}
+        {% if d.sayi %}
+        <a class="sv-tkv-gun dolu{% if d.secili %} secili{% endif %}{% if not d.bu_ay %} disay{% endif %}{% if d.bugun %} bugun{% endif %}" href="?sube={{ sel_id|default:'' }}&gun={{ d.gun }}">
+          <span class="sv-tkv-no">{{ d.no }}</span><span class="sv-tkv-rozet">{{ d.sayi }}</span>
+        </a>
+        {% else %}
+        <div class="sv-tkv-gun bos{% if not d.bu_ay %} disay{% endif %}{% if d.bugun %} bugun{% endif %}"><span class="sv-tkv-no">{{ d.no }}</span></div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if sel_gun %}<div class="sv-tkv-secim sv-meta">Seçili gün: <b>{{ sel_gun|date:"d.m.Y" }}</b> · {{ gecmis_talepler|length }} sevkiyat · <a href="?sube={{ sel_id|default:'' }}&ay={{ takvim.yil }}-{% if takvim.ay < 10 %}0{% endif %}{{ takvim.ay }}">ayın tümü</a></div>{% endif %}
+  </div>
+
+  {% for t in gecmis_talepler %}{% include 'sevkiyat_kart.html' %}{% empty %}
+  <div class="card sv-bos"><p style="margin:0;color:var(--muted)">Bu {% if sel_gun %}günde{% else %}ayda{% endif %} sevkiyat yok.</p></div>
+  {% endfor %}
+  {% endif %}
 </div>
 
 {% if is_sef %}

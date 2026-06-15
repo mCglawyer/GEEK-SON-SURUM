@@ -434,3 +434,25 @@ a { color:var(--brand); text-decoration:none; }
 .sv-portal-bar { display:flex; justify-content:flex-end; margin-bottom:.8rem; }
 .sv-belgeler { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.7rem; }
 .sv-excel-btn { border-color:var(--ok); color:var(--ok); }
+
+/* Sevkiyat - takvimli geçmiş */
+.sv-gecmis { margin-top:.4rem; }
+.sv-gecmis-bas { display:flex; justify-content:space-between; align-items:center; margin-bottom:.6rem; }
+.sv-tkv-ust { display:flex; align-items:center; justify-content:center; gap:1rem; margin-bottom:.7rem; }
+.sv-tkv-baslik { font-weight:600; min-width:150px; text-align:center; }
+.sv-takvim { display:flex; flex-direction:column; gap:4px; }
+.sv-tkv-hafta { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.sv-tkv-gunbas { text-align:center; font-size:.7rem; font-weight:600; color:var(--muted); padding:.2rem 0; }
+.sv-tkv-gun { position:relative; min-height:48px; border:1px solid var(--line); border-radius:10px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  text-decoration:none; color:var(--ink); }
+.sv-tkv-gun.dolu { background:var(--brand-050); border-color:var(--brand-100); }
+.sv-tkv-gun.dolu:hover { background:var(--brand-100); }
+.sv-tkv-gun.secili { background:var(--brand); border-color:var(--brand); color:#fff; }
+.sv-tkv-gun.bugun { box-shadow:0 0 0 2px var(--brand-100) inset; }
+.sv-tkv-gun.disay { opacity:.3; }
+.sv-tkv-no { font-size:.8rem; font-weight:500; }
+.sv-tkv-rozet { font-size:.64rem; font-weight:700; background:var(--brand); color:#fff;
+  border-radius:999px; padding:0 .35rem; min-width:1.05rem; text-align:center; }
+.sv-tkv-gun.secili .sv-tkv-rozet { background:#fff; color:var(--brand); }
+.sv-tkv-secim { margin-top:.8rem; text-align:center; }
