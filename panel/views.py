@@ -1294,13 +1294,20 @@ _PWA_MANIFEST = {
 }
 
 _PWA_SW = """
-const STATIK = 'geek-statik-v1';
-self.addEventListener('install', function (e) { self.skipWaiting(); });
+const STATIK = 'geek-statik-v2';
+const KABUK = 'geek-kabuk-v2';
+const KABUK_URL = '/';
+self.addEventListener('install', function (e) {
+  e.waitUntil(
+    caches.open(KABUK).then(function (c) { return c.add(KABUK_URL); }).catch(function () {})
+  );
+  self.skipWaiting();
+});
 self.addEventListener('activate', function (e) {
   e.waitUntil(
-    caches.keys().then(function (anahtarlar) {
-      return Promise.all(anahtarlar.filter(function (k) { return k !== STATIK; })
-                                   .map(function (k) { return caches.delete(k); }));
+    caches.keys().then(function (ks) {
+      return Promise.all(ks.filter(function (k) { return k !== STATIK && k !== KABUK; })
+                           .map(function (k) { return caches.delete(k); }));
     }).then(function () { return self.clients.claim(); })
   );
 });
@@ -1308,8 +1315,9 @@ self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
-  // Yalnızca statik dosyalar önbelleğe alınır; sayfalar her zaman ağdan (güncel kalsın).
-  if (url.origin === location.origin && url.pathname.indexOf('/static/') === 0) {
+  if (url.origin !== location.origin) return;
+  // Statik dosyalar: önce önbellek (hızlı + çevrimdışı çalışır).
+  if (url.pathname.indexOf('/static/') === 0) {
     e.respondWith(
       caches.open(STATIK).then(function (c) {
         return c.match(req).then(function (hit) {
@@ -1320,6 +1328,14 @@ self.addEventListener('fetch', function (e) {
         });
       })
     );
+    return;
+  }
+  // Sayfa gezinmeleri: önce ağ (her zaman güncel), çevrimdışıysa kabuk.
+  if (req.mode === 'navigate') {
+    e.respondWith(
+      fetch(req).catch(function () { return caches.match(KABUK_URL); })
+    );
+    return;
   }
 });
 """
