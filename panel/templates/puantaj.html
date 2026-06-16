@@ -7,15 +7,25 @@
   {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
 
   <div class="plan-head">
-    <div><h2>Puantaj</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% endif %}</span></div>
+    <div><h2>Puantaj</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% endif %}{% if aralik_mod %} · {{ puantaj_bas }} – {{ puantaj_bit }}{% endif %}</span></div>
     <div class="yon-secimler">
       {% if is_yon %}
       <select class="sube-sec" onchange="location.href='?sube_id='+this.value+'&puantaj_ay={{ selected_ay_str }}'">
         {% for s in subeler %}<option value="{{ s.id }}"{% if sel_sube and s.id == sel_sube.id %} selected{% endif %}>{{ s.ad }}{% if s.depo_mu %} (depo){% endif %}</option>{% endfor %}
       </select>
       {% endif %}
+      {% if not aralik_mod %}
       <input type="month" class="ay-sec" value="{{ selected_ay_str }}" onchange="location.href='?{% if is_yon %}sube_id={{ sel_sube.id }}&{% endif %}puantaj_ay='+this.value">
-      <a class="btn btn-ghost btn-mini" href="{% url 'puantaj_excel_export' %}?{% if is_yon %}sube_id={{ sel_sube.id }}&{% endif %}puantaj_ay={{ selected_ay_str }}">Excel'e aktar</a>
+      {% endif %}
+      <form method="get" class="tarih-aralik">
+        {% if is_yon %}<input type="hidden" name="sube_id" value="{{ sel_sube.id }}">{% endif %}
+        <input type="date" name="puantaj_bas" value="{{ puantaj_bas }}" required>
+        <span class="ta-tire">–</span>
+        <input type="date" name="puantaj_bit" value="{{ puantaj_bit }}" required>
+        <button type="submit" class="btn btn-ghost btn-mini">Aralık</button>
+      </form>
+      {% if aralik_mod %}<a class="btn btn-ghost btn-mini" href="?{% if is_yon %}sube_id={{ sel_sube.id }}{% endif %}">Aya dön</a>{% endif %}
+      <a class="btn btn-ghost btn-mini" href="{% url 'puantaj_excel_export' %}?{% if is_yon %}sube_id={{ sel_sube.id }}&{% endif %}{% if aralik_mod %}puantaj_bas={{ puantaj_bas }}&puantaj_bit={{ puantaj_bit }}{% else %}puantaj_ay={{ selected_ay_str }}{% endif %}">Excel'e aktar</a>
     </div>
   </div>
 
@@ -25,8 +35,17 @@
       {% for r in puantaj_listesi %}
       <div class="pz-row">
         <div class="pz-ad">{{ r.personel.ad_soyad }}
-          {% if r.manuel %}<span class="badge badge-wait">manuel</span>{% else %}<span class="badge badge-info">otomatik</span>{% endif %}
+          {% if not aralik_mod %}{% if r.manuel %}<span class="badge badge-wait">manuel</span>{% else %}<span class="badge badge-info">otomatik</span>{% endif %}{% endif %}
         </div>
+        {% if aralik_mod %}
+        <div class="pz-oku">
+          <span>Çalışılan <b>{{ r.calisilan }}</b></span>
+          <span>Eksik <b>{{ r.eksik }}</b></span>
+          <span>İzinli <b>{{ r.izinli }}</b></span>
+          <span>Raporlu <b>{{ r.raporlu }}</b></span>
+          <span class="pz-hak">Hakediş <b>{{ r.hakedis }}</b></span>
+        </div>
+        {% else %}
         <form method="post" action="?{% if is_yon %}sube_id={{ sel_sube.id }}&{% endif %}puantaj_ay={{ selected_ay_str }}" class="pz-form">
           {% csrf_token %}<input type="hidden" name="islem" value="puantaj_kaydet"><input type="hidden" name="target_personel_id" value="{{ r.personel.id }}">
           <label>Çalışılan<input type="number" min="0" name="calisilan_gun" value="{{ r.calisilan }}"></label>
@@ -41,6 +60,7 @@
           {% csrf_token %}<input type="hidden" name="islem" value="puantaj_sifirla"><input type="hidden" name="target_personel_id" value="{{ r.personel.id }}">
           <button type="submit" class="btn btn-ghost btn-mini">Otomatiğe döndür</button>
         </form>
+        {% endif %}
         {% endif %}
       </div>
       {% endfor %}

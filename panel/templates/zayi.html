@@ -7,14 +7,26 @@
   {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
 
   <div class="plan-head">
-    <div><h2>Zayi</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% endif %}</span></div>
+    <div><h2>Zayi</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% endif %}{% if aralik_mod %} · {{ zayi_bas }} – {{ zayi_bit }}{% endif %}</span></div>
     <div class="yon-secimler">
       {% if is_yon %}
       <select class="sube-sec" onchange="location.href='?sube_id='+this.value+'&zayi_ay={{ selected_ay_str }}'">
         {% for s in subeler %}<option value="{{ s.id }}"{% if sel_sube and s.id == sel_sube.id %} selected{% endif %}>{{ s.ad }}{% if s.depo_mu %} (depo){% endif %}</option>{% endfor %}
       </select>
-      <input type="month" class="ay-sec" value="{{ selected_ay_str }}" onchange="location.href='?sube_id={{ sel_sube.id }}&zayi_ay='+this.value">
-      <a class="btn btn-ghost btn-mini" href="{% url 'zayi_excel_export' %}?sube_id={{ sel_sube.id }}&zayi_ay={{ selected_ay_str }}">Excel'e aktar</a>
+      {% endif %}
+      {% if not aralik_mod %}
+      <input type="month" class="ay-sec" value="{{ selected_ay_str }}" onchange="location.href='?{% if is_yon %}sube_id={{ sel_sube.id }}&{% endif %}zayi_ay='+this.value">
+      {% endif %}
+      <form method="get" class="tarih-aralik">
+        {% if is_yon %}<input type="hidden" name="sube_id" value="{{ sel_sube.id }}">{% endif %}
+        <input type="date" name="zayi_bas" value="{{ zayi_bas }}" required>
+        <span class="ta-tire">–</span>
+        <input type="date" name="zayi_bit" value="{{ zayi_bit }}" required>
+        <button type="submit" class="btn btn-ghost btn-mini">Aralık</button>
+      </form>
+      {% if aralik_mod %}<a class="btn btn-ghost btn-mini" href="?{% if is_yon %}sube_id={{ sel_sube.id }}{% endif %}">Aya dön</a>{% endif %}
+      {% if is_yon %}
+      <a class="btn btn-ghost btn-mini" href="{% url 'zayi_excel_export' %}?sube_id={{ sel_sube.id }}&{% if aralik_mod %}zayi_bas={{ zayi_bas }}&zayi_bit={{ zayi_bit }}{% else %}zayi_ay={{ selected_ay_str }}{% endif %}">Excel'e aktar</a>
       {% endif %}
     </div>
   </div>

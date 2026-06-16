@@ -60,6 +60,24 @@ def _ay_araligi(ay_str):
     return ilk, sonraki
 
 
+def _gun_araligi(request, bas_param, bit_param):
+    """İki tarih (YYYY-MM-DD) GET parametresinden (bas, son_haric, bas_str, bit_str)
+    döndürür. İkisi de geçerli değilse None. son_haric = bitiş + 1 gün (bitiş dahil)."""
+    bas_str = (request.GET.get(bas_param) or '').strip()
+    bit_str = (request.GET.get(bit_param) or '').strip()
+    if not bas_str or not bit_str:
+        return None
+    try:
+        bas = datetime.datetime.strptime(bas_str, '%Y-%m-%d').date()
+        bit = datetime.datetime.strptime(bit_str, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+    if bit < bas:
+        bas, bit = bit, bas
+        bas_str, bit_str = bit_str, bas_str
+    return bas, bit + datetime.timedelta(days=1), bas_str, bit_str
+
+
 def _aktif_personel(request):
     return Personel.objects.filter(user=request.user).select_related('sube').first()
 
@@ -102,13 +120,16 @@ def _vardiya_tablo(personeller, start, end, gunler):
     }
 
 
-def _puantaj_hesapla(personel, ay_ilk, ay_son):
-    rec = Puantaj.objects.filter(personel=personel, ay=ay_ilk).first()
-    if rec and rec.manuel_duzenlendi:
-        return {'calisilan': rec.calisilan_gun, 'eksik': rec.eksik_gun,
-                'izinli': rec.izinli_gun, 'raporlu': rec.raporlu_gun, 'manuel': True}
+def _puantaj_hesapla(personel, bas, son, manuel_ay=None):
+    """[bas, son) aralığında puantaj sayıları. manuel_ay verilirse o aya ait
+    manuel düzenlenmiş kayıt öncelikli kullanılır (aylık mod)."""
+    if manuel_ay is not None:
+        rec = Puantaj.objects.filter(personel=personel, ay=manuel_ay).first()
+        if rec and rec.manuel_duzenlendi:
+            return {'calisilan': rec.calisilan_gun, 'eksik': rec.eksik_gun,
+                    'izinli': rec.izinli_gun, 'raporlu': rec.raporlu_gun, 'manuel': True}
     # Vardiya girildiği anda yansır (reddedilenler hariç)
-    s = personel.vardiyalar.filter(tarih__gte=ay_ilk, tarih__lt=ay_son).exclude(durum=OnayDurumu.REDDEDILDI)
+    s = personel.vardiyalar.filter(tarih__gte=bas, tarih__lt=son).exclude(durum=OnayDurumu.REDDEDILDI)
     return {
         'calisilan': s.filter(vardiya_tipi__in=CALISMA_TIPLERI).count(),
         'izinli': s.filter(vardiya_tipi=VardiyaTipi.IZINLI).count(),
@@ -361,16 +382,27 @@ def puantaj_sayfa(request):
         return redirect(f'/puantaj/?puantaj_ay={ay_str}')
 
     personeller = list(sel_sube.personeller.order_by('ad_soyad')) if sel_sube else []
+    aralik = _gun_araligi(request, 'puantaj_bas', 'puantaj_bit')
+    aralik_mod = aralik is not None
+    if aralik_mod:
+        bas, son, bas_str, bit_str = aralik
+        hesap_bas, hesap_son, manuel_ay = bas, son, None
+    else:
+        hesap_bas, hesap_son, manuel_ay = ay_ilk, ay_son, ay_ilk
+        bas_str = bit_str = ''
+
     liste = []
     for p in personeller:
-        d = _puantaj_hesapla(p, ay_ilk, ay_son)
+        d = _puantaj_hesapla(p, hesap_bas, hesap_son, manuel_ay=manuel_ay)
         d['personel'] = p
-        d['hakedis'] = d['calisilan'] + d['izinli'] + d['raporlu']
+        # Hakediş: yalnızca çalışılan + izinli; raporlu ve eksik (devamsız) yansımaz
+        d['hakedis'] = d['calisilan'] + d['izinli']
         liste.append(d)
     return render(request, 'puantaj.html', {
         'personel': personel, 'aktif': 'puantaj', 'is_gm': is_gm, 'is_yon': is_yon,
         'subeler': subeler, 'sel_sube': sel_sube, 'puantaj_listesi': liste,
-        'selected_ay_str': ay_str,
+        'selected_ay_str': ay_str, 'aralik_mod': aralik_mod,
+        'puantaj_bas': bas_str, 'puantaj_bit': bit_str,
     })
 
 
@@ -530,6 +562,14 @@ def puantaj_excel_export(request):
         return redirect('ana_sayfa')
     ay_str = request.GET.get('puantaj_ay') or timezone.localdate().strftime('%Y-%m')
     ay_ilk, ay_son = _ay_araligi(ay_str)
+    aralik = _gun_araligi(request, 'puantaj_bas', 'puantaj_bit')
+    if aralik:
+        hbas, hson, bas_str, bit_str = aralik
+        manuel_ay = None
+        donem_etiket = f"{bas_str} – {bit_str}"
+    else:
+        hbas, hson, manuel_ay = ay_ilk, ay_son, ay_ilk
+        donem_etiket = ay_str
     if p.rol == Rol.SEF:
         subeler = Sube.objects.filter(id=p.sube_id) if p.sube_id else Sube.objects.none()
     else:
@@ -550,7 +590,7 @@ def puantaj_excel_export(request):
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
     ws.merge_cells("A1:H1")
-    ws["A1"] = f"GEEK PANEL — Aylık Puantaj ({ay_str})"
+    ws["A1"] = f"GEEK PANEL — Puantaj ({donem_etiket})"
     ws["A1"].font = Font(size=14, bold=True, color="162AA3")
     basliklar = ["Ad Soyad", "Görev", "Çalışılan", "Eksik (Devamsız)", "İzinli", "Raporlu", "Hakediş", "Kaynak"]
     for c, t in enumerate(basliklar, 1):
@@ -574,14 +614,14 @@ def puantaj_excel_export(request):
         r += 1
         bas = r
         for pp in plist:
-            d = _puantaj_hesapla(pp, ay_ilk, ay_son)
+            d = _puantaj_hesapla(pp, hbas, hson, manuel_ay=manuel_ay)
             ws.cell(row=r, column=1, value=pp.ad_soyad).alignment = left
             ws.cell(row=r, column=2, value=pp.rol).alignment = center
             ws.cell(row=r, column=3, value=d['calisilan']).alignment = center
             ws.cell(row=r, column=4, value=d['eksik']).alignment = center
             ws.cell(row=r, column=5, value=d['izinli']).alignment = center
             ws.cell(row=r, column=6, value=d['raporlu']).alignment = center
-            hc = ws.cell(row=r, column=7, value=f"=C{r}+E{r}+F{r}")
+            hc = ws.cell(row=r, column=7, value=f"=C{r}+E{r}")
             hc.alignment = center
             hc.font = bold
             ws.cell(row=r, column=8, value="Manuel" if d['manuel'] else "Otomatik").alignment = center
@@ -668,15 +708,22 @@ def zayi_sayfa(request):
         return redirect('zayi')
 
     kayitlar, grafik = [], None
+    aralik = _gun_araligi(request, 'zayi_bas', 'zayi_bit')
+    aralik_mod = aralik is not None
+    if aralik_mod:
+        bas, son, bas_str, bit_str = aralik
+    else:
+        bas, son = ay_ilk, ay_son
+        bas_str = bit_str = ''
     if sel_sube:
-        kayitlar = list(Zayi.objects.filter(sube=sel_sube, olusturma__date__gte=ay_ilk,
-                                            olusturma__date__lt=ay_son).select_related('giren'))
+        kayitlar = list(Zayi.objects.filter(sube=sel_sube, olusturma__date__gte=bas,
+                                            olusturma__date__lt=son).select_related('giren'))
         if personel.rol == Rol.SEF:
             bugun = timezone.localdate()
             for z in kayitlar:
                 z.duzenlenebilir = timezone.localtime(z.olusturma).date() == bugun
         if is_yon:
-            agg = list(Zayi.objects.filter(sube=sel_sube, olusturma__date__gte=ay_ilk, olusturma__date__lt=ay_son)
+            agg = list(Zayi.objects.filter(sube=sel_sube, olusturma__date__gte=bas, olusturma__date__lt=son)
                        .values('urun_adi', 'birim').annotate(toplam=Sum('miktar')).order_by('-toplam'))
             maxv = max((float(a['toplam']) for a in agg), default=0)
             grafik = [{'urun': a['urun_adi'], 'birim': a['birim'], 'toplam': a['toplam'],
@@ -686,6 +733,7 @@ def zayi_sayfa(request):
         'personel': personel, 'aktif': 'zayi', 'ekleyebilir': ekleyebilir, 'is_yon': is_yon,
         'subeler': subeler, 'sel_sube': sel_sube, 'kayitlar': kayitlar, 'grafik': grafik,
         'selected_ay_str': ay_str, 'birimler': Birim.choices,
+        'aralik_mod': aralik_mod, 'zayi_bas': bas_str, 'zayi_bit': bit_str,
     })
 
 
@@ -697,9 +745,16 @@ def zayi_excel_export(request):
         return redirect('ana_sayfa')
     ay_str = request.GET.get('zayi_ay') or timezone.localdate().strftime('%Y-%m')
     ay_ilk, ay_son = _ay_araligi(ay_str)
+    aralik = _gun_araligi(request, 'zayi_bas', 'zayi_bit')
+    if aralik:
+        bas, son, bas_str, bit_str = aralik
+        donem_etiket = f"{bas_str} – {bit_str}"
+    else:
+        bas, son = ay_ilk, ay_son
+        donem_etiket = ay_str
     sid = request.GET.get('sube_id') or request.session.get('sel_sube_id')
     sube = Sube.objects.filter(id=sid).first()
-    qs = Zayi.objects.filter(olusturma__date__gte=ay_ilk, olusturma__date__lt=ay_son).select_related('sube', 'giren')
+    qs = Zayi.objects.filter(olusturma__date__gte=bas, olusturma__date__lt=son).select_related('sube', 'giren')
     if sube:
         qs = qs.filter(sube=sube)
     qs = qs.order_by('olusturma')
@@ -716,7 +771,7 @@ def zayi_excel_export(request):
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
     ws.merge_cells("A1:F1")
-    ws["A1"] = f"GEEK PANEL — Zayi Listesi ({ay_str}{' · ' + sube.ad if sube else ' · Tüm şubeler'})"
+    ws["A1"] = f"GEEK PANEL — Zayi Listesi ({donem_etiket}{' · ' + sube.ad if sube else ' · Tüm şubeler'})"
     ws["A1"].font = Font(size=14, bold=True, color="162AA3")
     basliklar = ["Tarih", "Saat", "Şube", "Ürün", "Miktar", "Birim", "Giren"]
     for c, t in enumerate(basliklar, 1):

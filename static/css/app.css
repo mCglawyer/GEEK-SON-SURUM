@@ -454,3 +454,12 @@ a { color:var(--brand); text-decoration:none; }
   border-radius:999px; padding:0 .35rem; min-width:1.05rem; text-align:center; }
 .sv-tkv-gun.secili .sv-tkv-rozet { background:#fff; color:var(--brand); }
 .sv-tkv-secim { margin-top:.8rem; text-align:center; }
+
+/* Puantaj/Zayi - tarih aralığı filtresi + salt-okunur satır */
+.tarih-aralik { display:inline-flex; align-items:center; gap:.4rem; }
+.tarih-aralik input[type=date] { padding:.45rem .5rem; border:1px solid var(--line); border-radius:10px;
+  font:inherit; color:var(--ink); background:#fff; min-height:40px; }
+.tarih-aralik .ta-tire { color:var(--muted); }
+.pz-oku { display:flex; flex-wrap:wrap; gap:.6rem 1.1rem; align-items:center; font-size:.9rem; color:var(--muted); }
+.pz-oku b { color:var(--ink); }
+.pz-oku .pz-hak { margin-left:auto; color:var(--brand); font-weight:600; }
