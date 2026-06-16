@@ -57,15 +57,10 @@ a { color:var(--brand); text-decoration:none; }
 .login-wrap { min-height:100dvh; display:grid; grid-template-columns:1.05fr 1fr; }
 
 .brand-panel { position:relative; overflow:hidden; color:#fff;
-  background:linear-gradient(155deg,var(--brand) 0%, var(--brand-700) 100%);
-  display:flex; flex-direction:column; justify-content:space-between; padding:3rem; }
-.brand-panel::before { content:""; position:absolute; inset:0;
-  background-image:radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px);
-  background-size:24px 24px; opacity:.6; }
-.brand-panel::after { content:""; position:absolute; width:520px; height:520px; right:-170px; top:-150px;
-  background:radial-gradient(circle, rgba(255,255,255,.18), transparent 62%);
-  animation:glow 10s ease-in-out infinite alternate; }
-@keyframes glow { from { transform:translate(0,0) scale(1);} to { transform:translate(-26px,38px) scale(1.1);} }
+  background:#000;
+  display:flex; align-items:center; justify-content:center; padding:0; }
+.brand-panel::before, .brand-panel::after { display:none; }
+.brand-art { width:100%; height:100%; object-fit:contain; object-position:center; display:block; }
 .brand-logo { position:relative; height:40px; width:auto; }
 .brand-photo { position:relative; margin:0; width:clamp(210px,52%,290px); aspect-ratio:4/5;
   background:#fff; padding:10px; border-radius:22px; box-shadow:0 24px 54px -18px rgba(0,0,0,.55); }
@@ -107,7 +102,8 @@ a { color:var(--brand); text-decoration:none; }
 @media (max-width:820px) {
   .login-wrap { grid-template-columns:1fr; }
   .brand-panel { flex-direction:column; justify-content:center; align-items:center; text-align:center;
-    gap:1rem; padding:2rem 1.5rem 2.2rem; min-height:auto; border-radius:0 0 30px 30px; }
+    gap:1rem; padding:1.2rem 1rem; min-height:auto; border-radius:0 0 30px 30px; }
+  .brand-art { width:100%; height:auto; max-height:32vh; object-fit:contain; }
   .brand-photo { width:150px; padding:7px; border-radius:18px; }
   .brand-photo img { border-radius:11px; }
   .brand-copy, .brand-foot { display:none; }
