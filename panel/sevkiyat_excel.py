@@ -1,92 +1,66 @@
-"""Onaylanan siparişi, orijinal BAR/TEMİZLİK talep formu şablonuna doldurup
-xlsx olarak döndürür (fatura programına yüklemek için).
+"""Onaylanan siparişi, fatura sistemine yüklenecek sade bir Excel'e dönüştürür.
 
-Şablon: panel/sevkiyat_sablon.xlsx
-- Sheet1 (HAMMADDE): sol grup ürün B / talep E ; sağ grup ürün H / talep K
-- Sheet2 (TEMİZLİK): ürün B / talep G
+Sütunlar: Ürün Adı | Miktar | Birim | Birim Fiyat
+- Miktar/Birim: siparişin SON (çıkış) hâli (sevkiyat > satın alma > istenen).
+- Birim Fiyat: ürün ne olursa olsun her zaman 0.
 """
-import os
 from io import BytesIO
-from openpyxl import load_workbook
-from openpyxl.cell.cell import MergedCell
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
-SABLON = os.path.join(os.path.dirname(__file__), 'sevkiyat_sablon.xlsx')
-
-
-def _nrm(s):
-    return (s or '').strip().upper().replace('  ', ' ')
+BASLIKLAR = ['Ürün Adı', 'Miktar', 'Birim', 'Birim Fiyat']
 
 
 def _say(d):
     if d is None:
-        return ''
+        return 0
     d = float(d)
-    return str(int(d)) if d == int(d) else ('%.2f' % d)
-
-
-def _yaz(ws, row, col, deger):
-    """Hücreye güvenli yazar (merged ise atlar)."""
-    c = ws.cell(row=row, column=col)
-    if isinstance(c, MergedCell):
-        return
-    c.value = deger
+    return int(d) if d == int(d) else round(d, 2)
 
 
 def siparis_excel_bytes(talep):
-    wb = load_workbook(SABLON)
-    ws1 = wb['HAMMADDE TALEP FORMU']
-    ws2 = wb['TEMİZLİK MALZ. TALEP FORMU']
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Sipariş'
+    ws.append(BASLIKLAR)
 
-    # Ürün adı -> (worksheet, talep_sütunu, satır) haritası
-    harita = {}
-    # Sheet1 sol grup: ürün B(2), talep E(5)
-    for r in range(3, ws1.max_row + 1):
-        ad = ws1.cell(r, 2).value
-        if ad and str(ad).strip():
-            harita[_nrm(ad)] = (ws1, 5, r)
-    # Sheet1 sağ grup: ürün H(8), talep K(11)
-    for r in range(3, ws1.max_row + 1):
-        ad = ws1.cell(r, 8).value
-        if ad and str(ad).strip():
-            harita[_nrm(ad)] = (ws1, 11, r)
-    # Sheet2: ürün B(2), talep G(7)
-    for r in range(3, ws2.max_row + 1):
-        ad = ws2.cell(r, 2).value
-        if ad and str(ad).strip():
-            harita[_nrm(ad)] = (ws2, 7, r)
+    kafa_font = Font(bold=True, color='FFFFFF')
+    kafa_dolgu = PatternFill('solid', fgColor='162AA3')
+    ince = Side(style='thin', color='D0D5E4')
+    kenar = Border(left=ince, right=ince, top=ince, bottom=ince)
+    orta = Alignment(horizontal='center', vertical='center')
 
-    # Şube + tarih başlıkları (varsa etiketin yanına)
-    try:
-        _yaz(ws1, 1, 10, talep.sube.ad if talep.sube else '')          # I1 'ŞUBE ADI' -> J1
-        _yaz(ws1, 1, 12, talep.olusturma.strftime('%d.%m.%Y'))         # K1 'TARİH' -> L1
-    except Exception:
-        pass
+    for c in range(1, 5):
+        h = ws.cell(1, c)
+        h.font = kafa_font
+        h.fill = kafa_dolgu
+        h.alignment = orta
+        h.border = kenar
 
-    ekler = []  # şablonda olmayan (özel) ürünler
+    r = 2
     for k in talep.kalemler.all():
         miktar = (k.sevkiyat_miktar if k.sevkiyat_miktar is not None
                   else (k.satinalma_miktar if k.satinalma_miktar is not None else k.istenen_miktar))
         birim = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
-        deger = ('%s %s' % (_say(miktar), birim)).strip()
-        yer = harita.get(_nrm(k.urun_ad))
-        if yer:
-            ws, col, row = yer
-            _yaz(ws, row, col, deger)
-        else:
-            ekler.append((k.urun_ad, deger))
+        ws.cell(r, 1, k.urun_ad)
+        ws.cell(r, 2, _say(miktar))
+        ws.cell(r, 3, birim)
+        ws.cell(r, 4, 0)
+        ws.cell(r, 2).alignment = orta
+        ws.cell(r, 3).alignment = orta
+        ws.cell(r, 4).alignment = orta
+        for c in range(1, 5):
+            ws.cell(r, c).border = kenar
+        r += 1
 
-    # Özel ürünleri sağ gruptaki 'DİĞER' alanına (H78.., K78..) yaz
-    if ekler:
-        r = 78
-        for ad, deger in ekler:
-            if r > 86:
-                break
-            _yaz(ws1, r, 8, ad)
-            _yaz(ws1, r, 11, deger)
-            r += 1
+    ws.column_dimensions['A'].width = 42
+    ws.column_dimensions['B'].width = 12
+    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['D'].width = 14
+    ws.freeze_panes = 'A2'
 
     buf = BytesIO()
     wb.save(buf)
-    pdf = buf.getvalue()
+    data = buf.getvalue()
     buf.close()
-    return pdf
+    return data
