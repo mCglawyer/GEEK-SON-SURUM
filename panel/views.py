@@ -1,3 +1,4 @@
+import json
 import datetime
 import secrets
 import unicodedata
@@ -1268,3 +1269,76 @@ def kullanim_kosullari(request):
 
 def gizlilik(request):
     return _hukuki(request, 'gizlilik')
+
+
+# ---------------------------------------------------------------------------
+# PWA: manifest + service worker (uygulama olarak yüklenebilirlik)
+# ---------------------------------------------------------------------------
+_PWA_MANIFEST = {
+    "name": "Geek Coffee & Eatery Panel",
+    "short_name": "Geek Panel",
+    "description": "Geek Coffee & Eatery personel ve sevkiyat yönetim paneli",
+    "lang": "tr",
+    "dir": "ltr",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#ffffff",
+    "theme_color": "#162AA3",
+    "icons": [
+        {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": "/static/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    ],
+}
+
+_PWA_SW = """
+const STATIK = 'geek-statik-v1';
+self.addEventListener('install', function (e) { self.skipWaiting(); });
+self.addEventListener('activate', function (e) {
+  e.waitUntil(
+    caches.keys().then(function (anahtarlar) {
+      return Promise.all(anahtarlar.filter(function (k) { return k !== STATIK; })
+                                   .map(function (k) { return caches.delete(k); }));
+    }).then(function () { return self.clients.claim(); })
+  );
+});
+self.addEventListener('fetch', function (e) {
+  var req = e.request;
+  if (req.method !== 'GET') return;
+  var url = new URL(req.url);
+  // Yalnızca statik dosyalar önbelleğe alınır; sayfalar her zaman ağdan (güncel kalsın).
+  if (url.origin === location.origin && url.pathname.indexOf('/static/') === 0) {
+    e.respondWith(
+      caches.open(STATIK).then(function (c) {
+        return c.match(req).then(function (hit) {
+          return hit || fetch(req).then(function (res) {
+            if (res && res.status === 200) c.put(req, res.clone());
+            return res;
+          });
+        });
+      })
+    );
+  }
+});
+"""
+
+
+def pwa_manifest(request):
+    from django.templatetags.static import static as _static
+    data = dict(_PWA_MANIFEST)
+    data['icons'] = [
+        {"src": _static('icons/icon-192.png'), "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": _static('icons/icon-512.png'), "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": _static('icons/icon-512-maskable.png'), "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    ]
+    return HttpResponse(json.dumps(data, ensure_ascii=False),
+                        content_type='application/manifest+json')
+
+
+def pwa_service_worker(request):
+    resp = HttpResponse(_PWA_SW, content_type='application/javascript')
+    resp['Service-Worker-Allowed'] = '/'
+    resp['Cache-Control'] = 'no-cache'
+    return resp
