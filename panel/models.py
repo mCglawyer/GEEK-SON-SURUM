@@ -215,6 +215,25 @@ class Kalibrasyon(models.Model):
         return f"{self.sube} - {self.giren_ad} - {self.olusturma:%d.%m.%Y %H:%M}"
 
 
+class Irsaliye(models.Model):
+    """Sevkiyatçıların anlık kameradan çektiği ürün transfer / irsaliye görseli + açıklama.
+    Şube bazlı değildir; transfer yönü açıklamada belirtilir."""
+    giren = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='irsaliyeler', verbose_name="Yükleyen")
+    giren_ad = models.CharField(max_length=100, blank=True, verbose_name="Yükleyen (ad)")
+    foto = models.FileField(upload_to='irsaliye/%Y/%m/%d/', verbose_name="Görüntü")
+    aciklama = models.TextField(verbose_name="Açıklama")
+    olusturma = models.DateTimeField(auto_now_add=True, verbose_name="Yüklendiği An")
+
+    class Meta:
+        verbose_name = "İrsaliye / Transfer"
+        verbose_name_plural = "İrsaliye / Transferler"
+        ordering = ['-olusturma']
+
+    def __str__(self):
+        return f"{self.giren_ad} - {self.olusturma:%d.%m.%Y %H:%M}"
+
+
 class SevkiyatBirim(models.TextChoices):
     ADET = 'ADET', 'ADET'
     KOLI = 'KOLİ', 'KOLİ'
@@ -270,10 +289,10 @@ class SevkiyatTalep(models.Model):
     durum = models.CharField(max_length=20, choices=SevkiyatDurumu.choices,
                              default=SevkiyatDurumu.TALEP, verbose_name="Durum")
     not_metni = models.CharField(max_length=400, blank=True, verbose_name="Şef Notu")
-    red_notu = models.CharField(max_length=400, blank=True, verbose_name="Red Açıklaması")
-    satin_alan_ad = models.CharField(max_length=100, blank=True)
-    sevkiyatci_ad = models.CharField(max_length=100, blank=True)
-    onaylayan_ad = models.CharField(max_length=100, blank=True)
+    red_notu = models.CharField(max_length=400, blank=True, default='', verbose_name="Red Açıklaması")
+    satin_alan_ad = models.CharField(max_length=100, blank=True, default='')
+    sevkiyatci_ad = models.CharField(max_length=100, blank=True, default='')
+    onaylayan_ad = models.CharField(max_length=100, blank=True, default='')
     olusturma = models.DateTimeField(auto_now_add=True, verbose_name="Sipariş Tarihi")
     satin_alma_tarih = models.DateTimeField(null=True, blank=True)
     sevkiyat_tarih = models.DateTimeField(null=True, blank=True)
@@ -292,19 +311,19 @@ class SevkiyatKalem(models.Model):
     """Siparişteki tek ürün satırı; her aşamada miktar/birim revize edilebilir."""
     talep = models.ForeignKey(SevkiyatTalep, on_delete=models.CASCADE, related_name='kalemler')
     urun = models.ForeignKey(Urun, on_delete=models.SET_NULL, null=True, blank=True)
-    urun_ad = models.CharField(max_length=160)
-    kategori = models.CharField(max_length=80, blank=True)
-    form = models.CharField(max_length=10, blank=True)
+    urun_ad = models.CharField(max_length=160, default='')
+    kategori = models.CharField(max_length=80, blank=True, default='')
+    form = models.CharField(max_length=10, blank=True, default='')
     koli_icerigi = models.PositiveIntegerField(default=1)
     # Şefin istediği
-    istenen_miktar = models.DecimalField(max_digits=10, decimal_places=2)
+    istenen_miktar = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     istenen_birim = models.CharField(max_length=10, default=SevkiyatBirim.ADET)
     # Satın almanın revizyonu
     satinalma_miktar = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    satinalma_birim = models.CharField(max_length=10, blank=True)
+    satinalma_birim = models.CharField(max_length=10, blank=True, default='')
     # Sevkiyatın (stoğa göre) revizyonu
     sevkiyat_miktar = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    sevkiyat_birim = models.CharField(max_length=10, blank=True)
+    sevkiyat_birim = models.CharField(max_length=10, blank=True, default='')
 
     class Meta:
         ordering = ['id']

@@ -463,3 +463,12 @@ a { color:var(--brand); text-decoration:none; }
 .pz-oku { display:flex; flex-wrap:wrap; gap:.6rem 1.1rem; align-items:center; font-size:.9rem; color:var(--muted); }
 .pz-oku b { color:var(--ink); }
 .pz-oku .pz-hak { margin-left:auto; color:var(--brand); font-weight:600; }
+
+/* İrsaliye / Transfer */
+.irs-aciklama { width:100%; margin:.8rem 0; resize:vertical; }
+.irs-galeri { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:1rem; }
+.irs-item { margin:0; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#fff; display:flex; flex-direction:column; }
+.irs-item img { width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:var(--brand-050); }
+.irs-item figcaption { padding:.7rem .8rem; display:flex; flex-direction:column; gap:.4rem; }
+.irs-aciklama-metin { margin:0; font-size:.92rem; color:var(--ink); white-space:pre-line; }
+.irs-meta { font-size:.78rem; color:var(--muted); }

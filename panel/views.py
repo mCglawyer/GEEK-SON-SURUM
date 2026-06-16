@@ -17,7 +17,7 @@ from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.models import User
 
-from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Birim, Kalibrasyon,
+from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Birim, Kalibrasyon, Irsaliye,
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      SevkiyatForm, Urun, SiparisHareket,
                      Rol, OnayDurumu, VardiyaTipi)
@@ -877,6 +877,77 @@ def kalibrasyon_sayfa(request):
         'subeler': subeler, 'sel_sube': sel_sube, 'gorseller': gorseller,
         'secili_tarih': ref.strftime('%Y-%m-%d'), 'en_eski_tarih': en_eski.strftime('%Y-%m-%d'),
         'bugun': today.strftime('%Y-%m-%d'), 'saklama_gun': KALIBRASYON_GUN,
+    })
+
+
+# =========================================================================
+# İRSALİYE / ÜRÜN TRANSFER ( /irsaliye/ ) — sevkiyatçı yükler, yönetim görüntüler
+# =========================================================================
+IRSALIYE_GUN = 180  # 6 ay
+
+
+def _irsaliye_temizle():
+    """6 aydan eski irsaliye kayıtlarını ve dosyalarını siler."""
+    sinir = timezone.now() - datetime.timedelta(days=IRSALIYE_GUN)
+    for k in Irsaliye.objects.filter(olusturma__lt=sinir):
+        if k.foto:
+            k.foto.delete(save=False)
+        k.delete()
+
+
+def irsaliye_sayfa(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+
+    ekleyebilir = personel.rol == Rol.SEVKIYAT
+    goruntuleyebilir = personel.rol in (Rol.SATIN_ALMA, Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR)
+    if not (ekleyebilir or goruntuleyebilir):
+        return redirect('ana_sayfa')
+
+    today = timezone.localdate()
+    en_eski = today - datetime.timedelta(days=IRSALIYE_GUN)
+    if goruntuleyebilir:
+        try:
+            ref = datetime.datetime.strptime(request.GET.get('irsaliye_tarih'), '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            ref = today
+        ref = min(max(ref, en_eski), today)
+    else:
+        ref = today
+
+    if request.method == 'POST' and ekleyebilir:
+        if request.POST.get('islem') == 'irsaliye_yukle':
+            data = request.POST.get('foto_data', '')
+            aciklama = request.POST.get('aciklama', '').strip()
+            raw = None
+            if data.startswith('data:image'):
+                try:
+                    raw = base64.b64decode(data.split(',', 1)[1])
+                except (ValueError, IndexError):
+                    raw = None
+            if not aciklama:
+                messages.error(request, "Açıklama zorunlu. Lütfen transfer bilgisini yazın.")
+            elif raw and 100 < len(raw) <= 8 * 1024 * 1024:
+                _irsaliye_temizle()
+                k = Irsaliye(giren=personel, giren_ad=personel.ad_soyad, aciklama=aciklama)
+                fname = f"irs_{personel.id}_{timezone.now():%Y%m%d_%H%M%S}.jpg"
+                k.foto.save(fname, ContentFile(raw), save=True)
+                messages.success(request, "İrsaliye görüntüsü yüklendi.")
+            else:
+                messages.error(request, "Görüntü alınamadı. Lütfen kameradan tekrar çekin.")
+        return redirect('irsaliye')
+
+    kayitlar = list(Irsaliye.objects.filter(olusturma__date=ref).select_related('giren'))
+    return render(request, 'irsaliye.html', {
+        'personel': personel, 'aktif': 'irsaliye', 'ekleyebilir': ekleyebilir,
+        'goruntuleyebilir': goruntuleyebilir, 'kayitlar': kayitlar,
+        'secili_tarih': ref.strftime('%Y-%m-%d'), 'en_eski_tarih': en_eski.strftime('%Y-%m-%d'),
+        'bugun': today.strftime('%Y-%m-%d'),
     })
 
 
