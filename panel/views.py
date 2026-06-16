@@ -1287,9 +1287,9 @@ _PWA_MANIFEST = {
     "background_color": "#ffffff",
     "theme_color": "#162AA3",
     "icons": [
-        {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
-        {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
-        {"src": "/static/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
     ],
 }
 
@@ -1342,15 +1342,29 @@ self.addEventListener('fetch', function (e) {
 
 
 def pwa_manifest(request):
-    from django.templatetags.static import static as _static
-    data = dict(_PWA_MANIFEST)
-    data['icons'] = [
-        {"src": _static('icons/icon-192.png'), "sizes": "192x192", "type": "image/png", "purpose": "any"},
-        {"src": _static('icons/icon-512.png'), "sizes": "512x512", "type": "image/png", "purpose": "any"},
-        {"src": _static('icons/icon-512-maskable.png'), "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
-    ]
-    return HttpResponse(json.dumps(data, ensure_ascii=False),
+    return HttpResponse(json.dumps(_PWA_MANIFEST, ensure_ascii=False),
                         content_type='application/manifest+json')
+
+
+_PWA_IKON_IZIN = {'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'icon-180.png'}
+
+
+def pwa_icon(request, ad):
+    """İkonları doğrudan Django üzerinden sunar (statik eşlemeden bağımsız)."""
+    import os
+    from django.conf import settings
+    from django.http import Http404
+    if ad not in _PWA_IKON_IZIN:
+        raise Http404("ikon yok")
+    yol = os.path.join(settings.BASE_DIR, 'static', 'icons', ad)
+    try:
+        with open(yol, 'rb') as f:
+            data = f.read()
+    except OSError:
+        raise Http404("ikon dosyası bulunamadı")
+    resp = HttpResponse(data, content_type='image/png')
+    resp['Cache-Control'] = 'public, max-age=604800'
+    return resp
 
 
 def pwa_service_worker(request):

@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
     path('sw.js', views.pwa_service_worker, name='pwa_sw'),
+    path('icons/<str:ad>', views.pwa_icon, name='pwa_icon'),
     path('', views.ana_sayfa, name='ana_sayfa'),
     path('puantaj/', views.puantaj_sayfa, name='puantaj'),
     path('mola/', views.mola_sayfa, name='mola'),
