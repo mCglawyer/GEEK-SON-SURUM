@@ -7,7 +7,7 @@
   {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
 
   <div class="plan-head">
-    <div><h2>Stok Sayımı</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% else %}Şube tanımsız{% endif %}{% if sayim and is_viewer %} · son güncelleme {{ sayim.guncelleme|date:"d.m.Y H:i" }}{% endif %}</span></div>
+    <div><h2>Stok Sayımı</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% else %}Şube tanımsız{% endif %}{% if sayim %} · son güncelleme {{ sayim.guncelleme|date:"d.m.Y H:i" }}{% endif %}</span></div>
     <div class="yon-secimler">
       {% if is_viewer %}
       <select class="sube-sec" onchange="location.href='?sube_id='+this.value+'&stok_ay={{ selected_ay_str }}'">
@@ -15,6 +15,9 @@
       </select>
       {% endif %}
       <input type="month" class="ay-sec" value="{{ selected_ay_str }}" onchange="location.href='?{% if is_viewer %}sube_id={{ sel_sube.id }}&{% endif %}stok_ay='+this.value">
+      {% if sel_sube and sayim %}
+      <a class="btn btn-ghost btn-mini" href="{% url 'stok_excel' %}?{% if is_viewer %}sube_id={{ sel_sube.id }}&{% endif %}stok_ay={{ selected_ay_str }}">Excel'e aktar ↓</a>
+      {% endif %}
     </div>
   </div>
 
@@ -23,24 +26,25 @@
 
   {% elif is_sef %}
     {% if not katalog_var %}
-    <div class="card"><p style="margin:0;color:var(--muted)">Stok sayım listesi henüz tanımlı değil. Yönetim, sayılacak ürün listesini (Excel) sisteme yükledikten sonra burada görünecek.</p></div>
+    <div class="card"><p style="margin:0;color:var(--muted)">Stok sayım listesi henüz tanımlı değil. Yönetim, listeyi sisteme yükledikten sonra burada görünecek.</p></div>
     {% else %}
     <form method="post" class="stok-form">{% csrf_token %}
       <input type="hidden" name="islem" value="stok_kaydet">
       {% for g in gruplar %}
       <div class="card stok-grup">
         <h3>{{ g.kategori }}</h3>
-        <div class="stok-liste">
-          {% for it in g.urunler %}
-          <div class="stok-row">
-            <span class="stok-ad">{{ it.urun.ad }}</span>
-            <span class="stok-inp">
-              <input type="number" step="0.01" min="0" name="miktar_{{ it.urun.id }}" value="{{ it.miktar|default_if_none:'' }}" placeholder="0">
-              <em>{{ it.urun.birim }}</em>
-            </span>
-          </div>
-          {% endfor %}
+        <div class="stok-tablo stok-head">
+          <span>Ürün</span><span>Kapalı kutu</span><span>Açık (adet/ml/kg)</span><span>Toplam</span><span>Açıklama</span>
         </div>
+        {% for it in g.urunler %}
+        <div class="stok-tablo stok-satir" data-icerik="{{ it.urun.kapali_icerik|stringformat:'s' }}" data-carpan="{{ it.urun.acik_carpan|stringformat:'s' }}">
+          <span class="stok-ad">{{ it.urun.ad }}</span>
+          <span class="stok-kapali"><input type="number" step="0.01" min="0" name="kapali_{{ it.urun.id }}" value="{{ it.kapali|default_if_none:'' }}" placeholder="0" class="js-kap"><em>× {{ it.urun.kapali_icerik|floatformat:"-2" }}</em></span>
+          <span><input type="number" step="0.01" min="0" name="acik_{{ it.urun.id }}" value="{{ it.acik|default_if_none:'' }}" placeholder="0" class="js-ack"></span>
+          <span class="stok-top js-top">—</span>
+          <span><input type="text" name="aciklama_{{ it.urun.id }}" value="{{ it.aciklama }}" placeholder="(opsiyonel)" maxlength="300"></span>
+        </div>
+        {% endfor %}
       </div>
       {% endfor %}
       <div class="stok-kaydet"><button class="btn btn-primary">Stok sayımını kaydet</button></div>
@@ -52,14 +56,18 @@
     {% for g in gruplar %}
     <div class="card stok-grup">
       <h3>{{ g.kategori }}</h3>
-      <div class="stok-liste">
-        {% for k in g.urunler %}
-        <div class="stok-row">
-          <span class="stok-ad">{{ k.urun_ad }}</span>
-          <span class="stok-deger"><b>{{ k.miktar|floatformat:"-2" }}</b> {{ k.birim }}</span>
-        </div>
-        {% endfor %}
+      <div class="stok-tablo stok-head">
+        <span>Ürün</span><span>Kapalı kutu</span><span>Açık</span><span>Toplam</span><span>Açıklama</span>
       </div>
+      {% for k in g.urunler %}
+      <div class="stok-tablo stok-satir">
+        <span class="stok-ad">{{ k.urun_ad }}</span>
+        <span>{{ k.kapali_adet|floatformat:"-2" }} <em>× {{ k.kapali_icerik|floatformat:"-2" }}</em></span>
+        <span>{{ k.acik_miktar|floatformat:"-2" }}</span>
+        <span class="stok-top"><b>{{ k.toplam|floatformat:"-2" }}</b></span>
+        <span class="stok-acik-not">{{ k.aciklama }}</span>
+      </div>
+      {% endfor %}
     </div>
     {% endfor %}
     <p class="stok-meta">Giren: {{ sayim.giren_ad|default:"—" }} · {{ sayim.guncelleme|date:"d.m.Y H:i" }}</p>
@@ -69,4 +77,19 @@
   {% endif %}
 
 </div>
+
+{% if is_sef and katalog_var %}
+<script>
+(function () {
+  function num(v){ v=parseFloat((v||'').toString().replace(',','.')); return isNaN(v)?0:v; }
+  document.querySelectorAll('.stok-satir').forEach(function (row) {
+    var ic = num(row.dataset.icerik), ca = num(row.dataset.carpan);
+    var kap = row.querySelector('.js-kap'), ack = row.querySelector('.js-ack'), top = row.querySelector('.js-top');
+    if (!kap || !top) return;
+    function hesapla(){ var t = num(kap.value)*ic + num(ack.value)*ca; top.textContent = t ? t.toLocaleString('tr-TR') : '—'; }
+    kap.addEventListener('input', hesapla); ack.addEventListener('input', hesapla); hesapla();
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -1036,18 +1036,21 @@ def stok_sayimi(request):
             sayim.giren_ad = personel.ad_soyad
             sayim.save()
             sayim.kalemler.all().delete()
-            for u in StokUrun.objects.filter(aktif=True):
-                raw = request.POST.get('miktar_%s' % u.id, '').strip().replace(',', '.')
-                if not raw:
-                    continue
+            def _say(v):
                 try:
-                    miktar = Decimal(raw)
+                    return Decimal((v or '').strip().replace(',', '.') or '0')
                 except Exception:
+                    return Decimal('0')
+            for u in StokUrun.objects.filter(aktif=True):
+                kap = _say(request.POST.get('kapali_%s' % u.id))
+                ack = _say(request.POST.get('acik_%s' % u.id))
+                note = (request.POST.get('aciklama_%s' % u.id) or '').strip()[:300]
+                if kap == 0 and ack == 0 and not note:
                     continue
-                if miktar < 0:
-                    continue
-                StokSayimKalem.objects.create(sayim=sayim, urun=u, urun_ad=u.ad,
-                                              kategori=u.kategori, birim=u.birim, miktar=miktar)
+                StokSayimKalem.objects.create(
+                    sayim=sayim, urun=u, urun_ad=u.ad, kategori=u.kategori,
+                    kapali_icerik=u.kapali_icerik, acik_carpan=u.acik_carpan,
+                    kapali_adet=kap, acik_miktar=ack, aciklama=note)
             messages.success(request, f"{ay_ilk:%m.%Y} stok sayımı kaydedildi.")
         return redirect(f"{reverse('stok')}?stok_ay={ay_str}")
 
@@ -1057,18 +1060,21 @@ def stok_sayimi(request):
         for k in sayim.kalemler.all():
             girilen[k.urun_id] = k
 
-    # Kategori bazlı gruplu liste (katalog henüz boşsa boş gelir)
     gruplar = []
     if is_sef:
         kat_map = {}
-        for u in StokUrun.objects.filter(aktif=True).order_by('kategori', 'sira', 'ad'):
+        for u in StokUrun.objects.filter(aktif=True).order_by('sira', 'ad'):
             g = girilen.get(u.id)
             kat_map.setdefault(u.kategori or 'Diğer', []).append({
-                'urun': u, 'miktar': (g.miktar if g else None)})
+                'urun': u,
+                'kapali': (g.kapali_adet if g else None),
+                'acik': (g.acik_miktar if g else None),
+                'aciklama': (g.aciklama if g else ''),
+            })
         gruplar = [{'kategori': k, 'urunler': v} for k, v in kat_map.items()]
     elif sayim:
         kat_map = {}
-        for k in sayim.kalemler.all().order_by('kategori', 'urun_ad'):
+        for k in sayim.kalemler.all():
             kat_map.setdefault(k.kategori or 'Diğer', []).append(k)
         gruplar = [{'kategori': k, 'urunler': v} for k, v in kat_map.items()]
 
@@ -1078,6 +1084,107 @@ def stok_sayimi(request):
         'selected_ay_str': ay_str,
         'katalog_var': StokUrun.objects.filter(aktif=True).exists(),
     })
+
+
+def stok_excel(request):
+    """Seçili şube + ayın dolu stok sayımını Excel olarak indirir (yükleme şablonu düzeninde)."""
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    rol = personel.rol
+    if rol not in (Rol.SEF, Rol.MUDUR, Rol.GENEL_MUDUR, Rol.SATIN_ALMA, Rol.OPERATOR, Rol.YATIRIMCI):
+        return redirect('ana_sayfa')
+
+    ay_str = request.GET.get('stok_ay') or timezone.localdate().strftime('%Y-%m')
+    ay_ilk, _ = _ay_araligi(ay_str)
+    sid = request.GET.get('sube_id') or request.session.get('sel_sube_id')
+    if rol == Rol.SEF:
+        sube = personel.sube
+    else:
+        sube = Sube.objects.filter(id=sid).first()
+        if rol == Rol.MUDUR:
+            izin_ids = [s.id for s in _yon_subeler(personel)]
+            if not sube or sube.id not in izin_ids:
+                return redirect('stok')
+    if not sube:
+        return redirect('stok')
+
+    sayim = StokSayim.objects.filter(sube=sube, ay=ay_ilk).first()
+    kalemler = list(sayim.kalemler.all()) if sayim else []
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sayım Raporu"
+    navy = PatternFill("solid", fgColor="162AA3")
+    gray = PatternFill("solid", fgColor="EEF1FB")
+    wf = Font(bold=True, color="FFFFFF", name="Arial")
+    bf = Font(bold=True, name="Arial")
+    nf = Font(name="Arial")
+    ctr = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left = Alignment(horizontal="left", vertical="center")
+    thin = Side(style="thin", color="C9CEE8")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    ws.merge_cells("A1:H1")
+    ws["A1"] = f"GEEK COFFEE SHOP — AYLIK SAYIM RAPORU"
+    ws["A1"].font = Font(bold=True, size=13, name="Arial")
+    ws["A1"].alignment = ctr
+    ws["A2"] = "TARİH:"; ws["B2"] = ay_ilk.strftime("%m.%Y")
+    ws["D2"] = "ŞUBE:"; ws["E2"] = sube.ad
+    for c in ("A2", "D2"):
+        ws[c].font = bf
+    # Başlıklar
+    ws.merge_cells("C3:D3"); ws["C3"] = "KAPALI KUTU"
+    ws.merge_cells("E3:F3"); ws["E3"] = "AÇIK KUTU"
+    hdr = ["GRUP", "ÜRÜN ADI", "MİKTAR", "ADET/ML/KG", "MİKTAR", "ADET/ML/KG", "TOPLAM", "AÇIKLAMA"]
+    for j, h in enumerate(hdr, 1):
+        cell = ws.cell(row=4, column=j, value=h)
+        cell.font = wf; cell.fill = navy; cell.alignment = ctr; cell.border = border
+    for c in ("C3", "E3"):
+        ws[c].font = wf; ws[c].fill = navy; ws[c].alignment = ctr
+        ws[c].border = border
+
+    # Veri: katalog sırasına göre tüm kalemler (girilmeyenler boş/0)
+    girilen = {k.urun_ad: k for k in kalemler}
+    r = 5
+    for u in StokUrun.objects.filter(aktif=True).order_by('sira', 'ad'):
+        k = girilen.get(u.ad)
+        kap = k.kapali_adet if k else None
+        ack = k.acik_miktar if k else None
+        note = k.aciklama if k else ""
+        ws.cell(row=r, column=1, value=u.kategori).font = nf
+        ws.cell(row=r, column=2, value=u.ad).font = nf
+        ws.cell(row=r, column=3, value=(float(kap) if kap is not None else None)).font = nf
+        ws.cell(row=r, column=4, value=float(u.kapali_icerik)).font = nf
+        ws.cell(row=r, column=5, value=(float(ack) if ack is not None else None)).font = nf
+        ws.cell(row=r, column=6, value=float(u.acik_carpan)).font = nf
+        # TOPLAM = C*D + E*F (formül)
+        ws.cell(row=r, column=7, value=f"=C{r}*D{r}+E{r}*F{r}").font = bf
+        ws.cell(row=r, column=8, value=note).font = nf
+        for j in range(1, 9):
+            ws.cell(row=r, column=j).border = border
+            if j != 2 and j != 8:
+                ws.cell(row=r, column=j).alignment = ctr
+        if r % 2 == 0:
+            for j in range(1, 9):
+                ws.cell(row=r, column=j).fill = gray
+        r += 1
+
+    widths = [20, 42, 9, 12, 9, 12, 12, 28]
+    for j, w in enumerate(widths, 1):
+        ws.column_dimensions[chr(64 + j)].width = w
+    ws.freeze_panes = "A5"
+
+    from django.http import HttpResponse
+    resp = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    fn = f"stok_{sube.ad}_{ay_str}.xlsx".replace(' ', '_')
+    resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    wb.save(resp)
+    return resp
 
 
 # =========================================================================

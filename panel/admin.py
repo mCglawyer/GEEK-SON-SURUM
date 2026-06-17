@@ -81,10 +81,11 @@ class IrsaliyeAdmin(admin.ModelAdmin):
 
 @admin.register(StokUrun)
 class StokUrunAdmin(admin.ModelAdmin):
-    list_display = ('ad', 'kategori', 'birim', 'sira', 'aktif')
+    list_display = ('sira', 'ad', 'kategori', 'kapali_icerik', 'acik_carpan', 'aktif')
     list_filter = ('kategori', 'aktif')
     search_fields = ('ad', 'kategori')
-    list_editable = ('sira', 'aktif')
+    list_editable = ('aktif',)
+    ordering = ('sira', 'ad')
 
 
 class StokSayimKalemInline(admin.TabularInline):

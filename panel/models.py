@@ -239,20 +239,23 @@ class Irsaliye(models.Model):
 
 
 class StokUrun(models.Model):
-    """Ay sonu stok sayımında sayılacak kalemler (katalog). İleride Excel'den yüklenir."""
-    kategori = models.CharField(max_length=80, blank=True, verbose_name="Kategori")
-    ad = models.CharField(max_length=160, verbose_name="Ürün Adı")
-    birim = models.CharField(max_length=20, default='adet', verbose_name="Birim")
+    """Ay sonu stok sayımında sayılacak kalemler (katalog). Excel'den 'stok_yukle' ile yüklenir."""
+    kategori = models.CharField(max_length=80, blank=True, verbose_name="Grup")
+    ad = models.CharField(max_length=200, verbose_name="Ürün Adı")
+    kapali_icerik = models.DecimalField(max_digits=12, decimal_places=2, default=1,
+                                        verbose_name="Kapalı kutu içeriği (adet/ml/kg)")
+    acik_carpan = models.DecimalField(max_digits=12, decimal_places=2, default=1,
+                                      verbose_name="Açık kutu çarpanı")
     sira = models.PositiveIntegerField(default=0, verbose_name="Sıra")
     aktif = models.BooleanField(default=True, verbose_name="Aktif")
 
     class Meta:
         verbose_name = "Stok Kalemi (Katalog)"
         verbose_name_plural = "Stok Kalemleri (Katalog)"
-        ordering = ['kategori', 'sira', 'ad']
+        ordering = ['sira', 'ad']
 
     def __str__(self):
-        return f"{self.ad} ({self.birim})"
+        return self.ad
 
 
 class StokSayim(models.Model):
@@ -278,18 +281,25 @@ class StokSayim(models.Model):
 class StokSayimKalem(models.Model):
     sayim = models.ForeignKey(StokSayim, on_delete=models.CASCADE, related_name='kalemler')
     urun = models.ForeignKey(StokUrun, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
-    urun_ad = models.CharField(max_length=160, verbose_name="Ürün Adı")
-    kategori = models.CharField(max_length=80, blank=True, verbose_name="Kategori")
-    birim = models.CharField(max_length=20, blank=True, verbose_name="Birim")
-    miktar = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Sayılan Miktar")
+    urun_ad = models.CharField(max_length=200, verbose_name="Ürün Adı")
+    kategori = models.CharField(max_length=80, blank=True, verbose_name="Grup")
+    kapali_icerik = models.DecimalField(max_digits=12, decimal_places=2, default=1, verbose_name="Kapalı içerik")
+    acik_carpan = models.DecimalField(max_digits=12, decimal_places=2, default=1, verbose_name="Açık çarpan")
+    kapali_adet = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Kapalı kutu adedi")
+    acik_miktar = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Açık kutu miktarı")
+    aciklama = models.CharField(max_length=300, blank=True, verbose_name="Açıklama")
 
     class Meta:
         verbose_name = "Stok Sayım Kalemi"
         verbose_name_plural = "Stok Sayım Kalemleri"
-        ordering = ['kategori', 'urun_ad']
+        ordering = ['id']
+
+    @property
+    def toplam(self):
+        return (self.kapali_adet * self.kapali_icerik) + (self.acik_miktar * self.acik_carpan)
 
     def __str__(self):
-        return f"{self.urun_ad}: {self.miktar} {self.birim}"
+        return f"{self.urun_ad}: {self.toplam}"
 
 
 class SevkiyatBirim(models.TextChoices):

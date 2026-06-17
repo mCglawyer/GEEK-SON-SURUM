@@ -486,14 +486,22 @@ a { color:var(--brand); text-decoration:none; }
 
 /* Stok Sayımı */
 .stok-grup h3 { margin:0 0 .7rem; }
-.stok-liste { display:flex; flex-direction:column; gap:.5rem; }
-.stok-row { display:flex; align-items:center; justify-content:space-between; gap:1rem;
-  padding:.4rem 0; border-bottom:1px solid var(--line); }
-.stok-row:last-child { border-bottom:none; }
-.stok-ad { font-size:.95rem; color:var(--ink); }
-.stok-inp { display:inline-flex; align-items:center; gap:.45rem; }
-.stok-inp input { width:110px; padding:.45rem .55rem; border:1px solid var(--line); border-radius:10px; font:inherit; text-align:right; }
-.stok-inp em { color:var(--muted); font-style:normal; font-size:.85rem; min-width:42px; }
-.stok-deger { color:var(--ink); } .stok-deger b { color:var(--brand); }
-.stok-kaydet { position:sticky; bottom:0; padding:.8rem 0; background:linear-gradient(0deg,var(--bg,#fff) 70%,transparent); }
+.stok-tablo { display:grid; grid-template-columns:2.2fr 1.3fr 1.1fr .9fr 1.6fr; gap:.6rem; align-items:center; }
+.stok-head { font-size:.74rem; text-transform:uppercase; letter-spacing:.02em; color:var(--muted); padding:.2rem 0 .5rem; border-bottom:1px solid var(--line); }
+.stok-satir { padding:.45rem 0; border-bottom:1px solid var(--line); }
+.stok-satir:last-child { border-bottom:none; }
+.stok-ad { font-size:.92rem; color:var(--ink); }
+.stok-tablo input { width:100%; padding:.4rem .5rem; border:1px solid var(--line); border-radius:9px; font:inherit; }
+.stok-tablo input[type=number] { text-align:right; }
+.stok-kapali { display:flex; align-items:center; gap:.35rem; }
+.stok-kapali em, .stok-satir em { color:var(--muted); font-style:normal; font-size:.8rem; white-space:nowrap; }
+.stok-top { text-align:right; font-weight:600; color:var(--brand); }
+.stok-acik-not { color:var(--muted); font-size:.86rem; }
+.stok-kaydet { position:sticky; bottom:0; padding:.8rem 0; background:linear-gradient(0deg,#fff 70%,transparent); }
 .stok-meta { color:var(--muted); font-size:.82rem; margin:.4rem 0 0; }
+@media (max-width:720px){
+  .stok-head { display:none; }
+  .stok-tablo { grid-template-columns:1fr 1fr; gap:.4rem .6rem; }
+  .stok-ad { grid-column:1 / -1; font-weight:600; }
+  .stok-top { text-align:left; }
+}
