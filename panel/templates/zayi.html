@@ -46,21 +46,22 @@
   {% endif %}
 
   {% if is_yon and grafik %}
-  <!-- Aylık ürün grafiği (yönetim) -->
+  <!-- Zayi sütun grafiği (yönetim) — sütunlar ürün miktarına oranla yükselir -->
   <div class="card">
-    <div class="hafta-head"><h3>Aylık Zayi Grafiği</h3><span class="hafta-aralik">ürünlere göre toplam</span></div>
+    <div class="hafta-head"><h3>{% if aralik_mod %}Zayi Grafiği{% else %}Aylık Zayi Grafiği{% endif %}</h3><span class="hafta-aralik">ürünlere göre toplam · oran</span></div>
     <div class="chart">
       {% for b in grafik %}
       <div class="chart-col">
         <div class="chart-val">{{ b.toplam|floatformat:"-2" }}</div>
-        <div class="chart-track"><div class="chart-bar" style="height: {{ b.yuzde }}%"></div></div>
+        <div class="chart-track"><div class="chart-bar" style="--h: {{ b.yuzde }}%"></div></div>
+        <div class="chart-oran">%{{ b.oran|floatformat:"-1" }}</div>
         <div class="chart-lbl">{{ b.urun }}<br><span>{{ b.birim }}</span></div>
       </div>
       {% endfor %}
     </div>
   </div>
   {% elif is_yon %}
-  <div class="card"><p style="margin:0;color:var(--muted)">Bu ay bu şubede zayi kaydı yok.</p></div>
+  <div class="card"><p style="margin:0;color:var(--muted)">Bu {% if aralik_mod %}aralıkta{% else %}ay{% endif %} bu şubede zayi kaydı yok.</p></div>
   {% endif %}
 
   <!-- Liste -->

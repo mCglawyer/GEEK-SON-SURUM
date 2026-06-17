@@ -726,8 +726,11 @@ def zayi_sayfa(request):
             agg = list(Zayi.objects.filter(sube=sel_sube, olusturma__date__gte=bas, olusturma__date__lt=son)
                        .values('urun_adi', 'birim').annotate(toplam=Sum('miktar')).order_by('-toplam'))
             maxv = max((float(a['toplam']) for a in agg), default=0)
+            toplam_genel = sum(float(a['toplam']) for a in agg)
             grafik = [{'urun': a['urun_adi'], 'birim': a['birim'], 'toplam': a['toplam'],
-                       'yuzde': round(float(a['toplam']) / maxv * 100, 1) if maxv else 0} for a in agg]
+                       'yuzde': round(float(a['toplam']) / maxv * 100, 1) if maxv else 0,
+                       'oran': round(float(a['toplam']) / toplam_genel * 100, 1) if toplam_genel else 0}
+                      for a in agg]
 
     return render(request, 'zayi.html', {
         'personel': personel, 'aktif': 'zayi', 'ekleyebilir': ekleyebilir, 'is_yon': is_yon,
