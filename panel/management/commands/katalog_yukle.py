@@ -12,7 +12,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         eklenen = guncellenen = 0
+        gelen = set()
         for sira, (form, kategori, ad, koli, birim) in enumerate(KATALOG):
+            gelen.add((form, ad))
             obj, created = Urun.objects.update_or_create(
                 form=form, ad=ad,
                 defaults={'kategori': kategori, 'koli_icerigi': koli,
@@ -22,5 +24,13 @@ class Command(BaseCommand):
                 eklenen += 1
             else:
                 guncellenen += 1
+        # Katalogda olmayan eski ürünleri pasifleştir (silme; geçmiş siparişler korunur)
+        pasif = 0
+        for u in Urun.objects.filter(aktif=True):
+            if (u.form, u.ad) not in gelen:
+                u.aktif = False
+                u.save(update_fields=['aktif'])
+                pasif += 1
         self.stdout.write(self.style.SUCCESS(
-            f"Katalog yüklendi: {eklenen} yeni, {guncellenen} güncellendi, toplam {len(KATALOG)}."))
+            f"Katalog yüklendi: {eklenen} yeni, {guncellenen} güncellendi, {pasif} pasifleştirildi, "
+            f"toplam {len(KATALOG)}."))
