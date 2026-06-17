@@ -60,6 +60,9 @@ class Personel(models.Model):
     sube = models.ForeignKey(
         Sube, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='personeller', verbose_name="Şubesi")
+    sorumlu_subeler = models.ManyToManyField(
+        Sube, blank=True, related_name='bolge_mudurleri',
+        verbose_name="Sorumlu olduğu şubeler (Bölge Müdürü)")
     rol = models.CharField(
         max_length=20, choices=Rol.choices, default=Rol.PERSONEL, verbose_name="Rol")
     giris_kodu = models.CharField(

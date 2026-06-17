@@ -57,5 +57,30 @@
       <button class="btn btn-primary">Şef ekle</button>
     </form>
   </div>
+
+  {% if is_atayabilir %}
+  <div class="card staff-card">
+    <h3>Bölge Müdürü — Şube Atama</h3>
+    <p style="margin:.2rem 0 1rem;color:var(--muted);font-size:.9rem">Her bölge müdürünün hangi şubeleri görebileceğini buradan belirleyin. Bir şubeye birden fazla müdür atanabilir.</p>
+    {% if bolge_mudurleri %}
+    {% for m in bolge_mudurleri %}
+    <form method="post" class="bm-ata">
+      {% csrf_token %}
+      <input type="hidden" name="islem" value="bolge_sube_ata">
+      <input type="hidden" name="mudur_id" value="{{ m.id }}">
+      <div class="bm-ad">{{ m.ad_soyad }} <span class="badge badge-info">{{ m.atanan_ids|length }} şube</span></div>
+      <div class="bm-subeler">
+        {% for sb in tum_subeler %}
+        <label class="bm-chk"><input type="checkbox" name="sube_idler" value="{{ sb.id }}"{% if sb.id in m.atanan_ids %} checked{% endif %}> {{ sb.ad }}{% if sb.depo_mu %} (depo){% endif %}</label>
+        {% endfor %}
+      </div>
+      <button class="btn btn-primary btn-mini">Kaydet</button>
+    </form>
+    {% endfor %}
+    {% else %}
+    <p style="margin:0;color:var(--muted)">Henüz Bölge Müdürü rolünde kullanıcı yok. Yukarıdan "Müdür" rolüyle ekleyebilirsiniz.</p>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

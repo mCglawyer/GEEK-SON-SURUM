@@ -21,6 +21,7 @@ class PersonelAdmin(admin.ModelAdmin):
     list_filter = ('rol', 'sube')
     search_fields = ('ad_soyad', 'giris_kodu')
     autocomplete_fields = ('user', 'sube')
+    filter_horizontal = ('sorumlu_subeler',)
     readonly_fields = ('giris_kodu',)
     actions = [kodu_yenile]
 

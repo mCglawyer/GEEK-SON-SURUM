@@ -95,6 +95,14 @@ def _yonetici_sube(request, subeler):
     return sel
 
 
+def _yon_subeler(personel):
+    """Yöneticinin görebileceği şubeler. Bölge Müdürü yalnızca atandığı şubeleri,
+    Genel Müdür/Operatör tüm şubeleri görür."""
+    if personel and personel.rol == Rol.MUDUR:
+        return list(personel.sorumlu_subeler.order_by('ad'))
+    return list(Sube.objects.order_by('ad'))
+
+
 def _vardiya_tablo(personeller, start, end, gunler):
     shifts = list(Vardiya.objects.filter(personel__in=personeller, tarih__range=[start, end])) if personeller else []
     smap = {(v.personel_id, v.tarih): v for v in shifts}
@@ -312,7 +320,7 @@ def _vardiya_kaydet(request, sube):
 # =========================================================================
 def _yonetici_vardiya(request, personel):
     is_gm = personel.rol == Rol.GENEL_MUDUR
-    subeler = list(Sube.objects.order_by('ad'))
+    subeler = _yon_subeler(personel)
     sel_sube = _yonetici_sube(request, subeler)
     secili = request.GET.get('hafta', 'gelecek')
     if secili not in ('bu', 'gelecek'):
@@ -356,7 +364,7 @@ def puantaj_sayfa(request):
 
     is_gm = personel.rol == Rol.GENEL_MUDUR
     is_yon = personel.rol in UST_YONETIM
-    subeler = list(Sube.objects.order_by('ad')) if is_yon else []
+    subeler = _yon_subeler(personel) if is_yon else []
     sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
     ay_str = request.GET.get('puantaj_ay') or timezone.localdate().strftime('%Y-%m')
     ay_ilk, ay_son = _ay_araligi(ay_str)
@@ -420,7 +428,7 @@ def mola_sayfa(request):
 
     is_gm = personel.rol == Rol.GENEL_MUDUR
     is_yon = personel.rol in UST_YONETIM
-    subeler = list(Sube.objects.order_by('ad')) if is_yon else []
+    subeler = _yon_subeler(personel) if is_yon else []
     sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
 
     tarih_str = request.GET.get('mola_tarih')
@@ -475,7 +483,7 @@ def ekip_sayfa(request):
     if personel is None or personel.rol not in UST_YONETIM:
         return redirect('ana_sayfa')
 
-    subeler = list(Sube.objects.order_by('ad'))
+    subeler = _yon_subeler(personel)
     if request.method == 'POST':
         islem = request.POST.get('islem')
 
@@ -512,6 +520,14 @@ def ekip_sayfa(request):
                 messages.success(request, "Yönetici hesabı çıkarıldı.")
             return redirect('ekip')
 
+        if islem == 'bolge_sube_ata' and personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR):
+            m = Personel.objects.filter(id=request.POST.get('mudur_id'), rol=Rol.MUDUR).first()
+            if m:
+                ids = request.POST.getlist('sube_idler')
+                m.sorumlu_subeler.set(Sube.objects.filter(id__in=ids))
+                messages.success(request, f"{m.ad_soyad} için sorumlu şubeler güncellendi ({m.sorumlu_subeler.count()} şube).")
+            return redirect('ekip')
+
         if islem == 'sef_ekle':
             ad = request.POST.get('ad_soyad', '').strip()
             sid = request.POST.get('sef_sube_id')
@@ -543,11 +559,25 @@ def ekip_sayfa(request):
             return redirect('ekip')
 
     yoneticiler = list(Personel.objects.filter(rol__in=OFIS_ROLLERI).select_related('user').order_by('ad_soyad'))
-    sefler = list(Personel.objects.filter(rol=Rol.SEF).select_related('sube').order_by('ad_soyad'))
+    sefler_qs = Personel.objects.filter(rol=Rol.SEF).select_related('sube')
+    if personel.rol == Rol.MUDUR:
+        sefler_qs = sefler_qs.filter(sube_id__in=[s.id for s in subeler])
+    sefler = list(sefler_qs.order_by('ad_soyad'))
+
+    is_atayabilir = personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR)
+    bolge_mudurleri = []
+    tum_subeler = []
+    if is_atayabilir:
+        tum_subeler = list(Sube.objects.order_by('ad'))
+        bolge_mudurleri = list(Personel.objects.filter(rol=Rol.MUDUR)
+                               .prefetch_related('sorumlu_subeler').order_by('ad_soyad'))
+        for m in bolge_mudurleri:
+            m.atanan_ids = set(m.sorumlu_subeler.values_list('id', flat=True))
     return render(request, 'ekip.html', {
         'personel': personel, 'aktif': 'ekip', 'subeler': subeler,
         'yoneticiler': yoneticiler, 'sefler': sefler,
         'yonetici_rolleri': OFIS_ROLLERI,
+        'is_atayabilir': is_atayabilir, 'bolge_mudurleri': bolge_mudurleri, 'tum_subeler': tum_subeler,
     })
 
 
@@ -574,7 +604,12 @@ def puantaj_excel_export(request):
         subeler = Sube.objects.filter(id=p.sube_id) if p.sube_id else Sube.objects.none()
     else:
         sid = request.GET.get('sube_id') or request.session.get('sel_sube_id')
-        subeler = Sube.objects.filter(id=sid) if sid else Sube.objects.order_by('ad')
+        izinli = _yon_subeler(p)
+        izinli_ids = [s.id for s in izinli]
+        if sid and (int(sid) in izinli_ids if str(sid).isdigit() else False):
+            subeler = Sube.objects.filter(id=sid)
+        else:
+            subeler = Sube.objects.filter(id__in=izinli_ids).order_by('ad')
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -661,7 +696,7 @@ def zayi_sayfa(request):
 
     ekleyebilir = personel.rol in (Rol.PERSONEL, Rol.SEF)
     is_yon = personel.rol in UST_YONETIM
-    subeler = list(Sube.objects.order_by('ad')) if is_yon else []
+    subeler = _yon_subeler(personel) if is_yon else []
     sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
     ay_str = request.GET.get('zayi_ay') or timezone.localdate().strftime('%Y-%m')
     ay_ilk, ay_son = _ay_araligi(ay_str)
@@ -757,9 +792,14 @@ def zayi_excel_export(request):
         donem_etiket = ay_str
     sid = request.GET.get('sube_id') or request.session.get('sel_sube_id')
     sube = Sube.objects.filter(id=sid).first()
+    izin_ids = [s.id for s in _yon_subeler(p)] if p.rol == Rol.MUDUR else None
+    if izin_ids is not None and sube and sube.id not in izin_ids:
+        sube = None
     qs = Zayi.objects.filter(olusturma__date__gte=bas, olusturma__date__lt=son).select_related('sube', 'giren')
     if sube:
         qs = qs.filter(sube=sube)
+    elif izin_ids is not None:
+        qs = qs.filter(sube_id__in=izin_ids)
     qs = qs.order_by('olusturma')
 
     wb = openpyxl.Workbook()
@@ -835,7 +875,7 @@ def kalibrasyon_sayfa(request):
 
     ekleyebilir = personel.rol in (Rol.PERSONEL, Rol.SEF)
     is_yon = personel.rol in UST_YONETIM
-    subeler = list(Sube.objects.order_by('ad')) if is_yon else []
+    subeler = _yon_subeler(personel) if is_yon else []
     sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
 
     today = timezone.localdate()
@@ -1007,8 +1047,9 @@ def _takvim_kur(yil, ay, sel_gun, sayac):
     }
 
 
-def _gecmis_hazirla(request, sel_id):
-    """Seçili ay/gün + şubeye göre takvim verisi ve sipariş listesi döndürür."""
+def _gecmis_hazirla(request, sel_id, izin_ids=None):
+    """Seçili ay/gün + şubeye göre takvim verisi ve sipariş listesi döndürür.
+    izin_ids verilirse (bölge müdürü) yalnızca o şubeler kapsanır."""
     bugun = timezone.localdate()
     yil, ay = bugun.year, bugun.month
     sel_gun = None
@@ -1031,6 +1072,8 @@ def _gecmis_hazirla(request, sel_id):
     ay_sonu = datetime.date(yil, ay, son_gun)
 
     qs = SevkiyatTalep.objects.filter(olusturma__date__gte=ay_basi, olusturma__date__lte=ay_sonu)
+    if izin_ids is not None:
+        qs = qs.filter(sube_id__in=izin_ids)
     if sel_id:
         qs = qs.filter(sube_id=sel_id)
     ay_listesi = list(qs.select_related('sube').prefetch_related('kalemler').order_by('-olusturma')[:500])
@@ -1228,7 +1271,7 @@ def sevkiyat_sayfa(request):
             t.mode = 'read'
         ctx['talepler'] = sefler
     elif is_satinalma:
-        subeler = list(Sube.objects.order_by('ad'))
+        subeler = _yon_subeler(personel)
         sel_id = request.GET.get('sube')
         try:
             sel_id = int(sel_id) if sel_id else None
@@ -1265,11 +1308,14 @@ def sevkiyat_sayfa(request):
                 k.sv_def_birim = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
         ctx['talepler'] = svt
     else:
-        subeler = list(Sube.objects.order_by('ad'))
+        subeler = _yon_subeler(personel)
+        izin_ids = [s.id for s in subeler] if personel.rol == Rol.MUDUR else None
         sel_id = request.GET.get('sube')
         try:
             sel_id = int(sel_id) if sel_id else None
         except (TypeError, ValueError):
+            sel_id = None
+        if izin_ids is not None and sel_id not in izin_ids:
             sel_id = None
         aktif = []
         if cikis_yetkili:
@@ -1280,7 +1326,7 @@ def sevkiyat_sayfa(request):
             for t in aktif:
                 t.mode = 'cikis'
         ctx['talepler'] = aktif
-        takvim, gecmis, sel_gun = _gecmis_hazirla(request, sel_id)
+        takvim, gecmis, sel_gun = _gecmis_hazirla(request, sel_id, izin_ids=izin_ids)
         for t in gecmis:
             t.mode = 'read'
         ctx['subeler'] = subeler
