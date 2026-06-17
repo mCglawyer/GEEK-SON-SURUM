@@ -28,7 +28,7 @@
     <a href="{% url 'kalibrasyon' %}" class="{% if aktif == 'kalibrasyon' %}aktif{% endif %}">Kalibrasyon</a>
     <a href="{% url 'zayi' %}" class="{% if aktif == 'zayi' %}aktif{% endif %}">Zayi</a>
     <a href="{% url 'sevkiyat' %}" class="{% if aktif == 'sevkiyat' %}aktif{% endif %}">Sevkiyat</a>
-    {% if personel.rol == 'Genel Müdür' or personel.rol == 'Müdür' or personel.rol == 'Operatör' %}<a href="{% url 'irsaliye' %}" class="{% if aktif == 'irsaliye' %}aktif{% endif %}">İrsaliye</a><a href="{% url 'ekip' %}" class="{% if aktif == 'ekip' %}aktif{% endif %}">Ekip</a>{% endif %}
+    {% if personel.rol == 'Genel Müdür' or personel.rol == 'Müdür' or personel.rol == 'Operatör' or personel.rol == 'Yatırımcı' %}<a href="{% url 'irsaliye' %}" class="{% if aktif == 'irsaliye' %}aktif{% endif %}">İrsaliye</a><a href="{% url 'ekip' %}" class="{% if aktif == 'ekip' %}aktif{% endif %}">{% if personel.rol == 'Müdür' %}Şefler{% else %}Ekip{% endif %}</a>{% endif %}
   {% endif %}
 </nav>
 {% endif %}

@@ -28,9 +28,11 @@ MAX_DENEME = 5
 KILIT_DK = 10
 MODEL_BACKEND = 'django.contrib.auth.backends.ModelBackend'
 GUN_ADLARI = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
-UST_YONETIM = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR]
+UST_YONETIM = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
+# Tam yetkili roller (Ekip yönetimi, şube atama, çıkış onayı gibi GM düzeyi yetkiler)
+TAM_YETKILI = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
 # Şifreyle giren, şubeye bağlı olmayan ofis/birim rolleri (Ekip'ten açılır)
-OFIS_ROLLERI = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.SATIN_ALMA, Rol.SEVKIYAT]
+OFIS_ROLLERI = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.SATIN_ALMA, Rol.SEVKIYAT]
 CALISMA_TIPLERI = [VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI]
 
 
@@ -484,7 +486,10 @@ def ekip_sayfa(request):
         return redirect('ana_sayfa')
 
     subeler = _yon_subeler(personel)
+    is_tam = personel.rol in TAM_YETKILI
     if request.method == 'POST':
+        if not is_tam:
+            return redirect('ekip')
         islem = request.POST.get('islem')
 
         if islem == 'yonetici_ekle':
@@ -520,7 +525,7 @@ def ekip_sayfa(request):
                 messages.success(request, "Yönetici hesabı çıkarıldı.")
             return redirect('ekip')
 
-        if islem == 'bolge_sube_ata' and personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR):
+        if islem == 'bolge_sube_ata':
             m = Personel.objects.filter(id=request.POST.get('mudur_id'), rol=Rol.MUDUR).first()
             if m:
                 ids = request.POST.getlist('sube_idler')
@@ -564,7 +569,7 @@ def ekip_sayfa(request):
         sefler_qs = sefler_qs.filter(sube_id__in=[s.id for s in subeler])
     sefler = list(sefler_qs.order_by('ad_soyad'))
 
-    is_atayabilir = personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR)
+    is_atayabilir = is_tam
     bolge_mudurleri = []
     tum_subeler = []
     if is_atayabilir:
@@ -577,6 +582,7 @@ def ekip_sayfa(request):
         'personel': personel, 'aktif': 'ekip', 'subeler': subeler,
         'yoneticiler': yoneticiler, 'sefler': sefler,
         'yonetici_rolleri': OFIS_ROLLERI,
+        'is_tam': is_tam,
         'is_atayabilir': is_atayabilir, 'bolge_mudurleri': bolge_mudurleri, 'tum_subeler': tum_subeler,
     })
 
@@ -948,7 +954,7 @@ def irsaliye_sayfa(request):
         return redirect('ana_sayfa')
 
     ekleyebilir = personel.rol == Rol.SEVKIYAT
-    goruntuleyebilir = personel.rol in (Rol.SATIN_ALMA, Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR)
+    goruntuleyebilir = personel.rol in (Rol.SATIN_ALMA, Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI)
     if not (ekleyebilir or goruntuleyebilir):
         return redirect('ana_sayfa')
 
@@ -1103,7 +1109,7 @@ def sevkiyat_sayfa(request):
     is_satinalma = rol == Rol.SATIN_ALMA
     is_sevkiyat = rol == Rol.SEVKIYAT
     is_yon = rol in UST_YONETIM
-    cikis_yetkili = (rol == Rol.GENEL_MUDUR) or is_satinalma
+    cikis_yetkili = (rol in (Rol.GENEL_MUDUR, Rol.YATIRIMCI)) or is_satinalma
     if not (is_sef or is_satinalma or is_sevkiyat or is_yon):
         return redirect('ana_sayfa')
 

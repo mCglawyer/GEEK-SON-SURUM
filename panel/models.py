@@ -8,8 +8,9 @@ from django.contrib.auth.models import User
 # =========================================================================
 class Rol(models.TextChoices):
     GENEL_MUDUR = 'Genel Müdür', 'Genel Müdür (Tam Yetkili)'
-    MUDUR = 'Müdür', 'Bölge Müdürü (Tam Yetkili)'
+    MUDUR = 'Müdür', 'Bölge Müdürü'
     OPERATOR = 'Operatör', 'Operatör (Tam Yetkili)'
+    YATIRIMCI = 'Yatırımcı', 'Yatırımcı (Tam Yetkili)'
     SATIN_ALMA = 'Satın Alma', 'Satın Alma'
     SEVKIYAT = 'Sevkiyat', 'Sevkiyat'
     SEF = 'Şef', 'Şube Şefi'
@@ -33,7 +34,7 @@ class OnayDurumu(models.TextChoices):
 
 
 # Yönetim rolleri (şifreyle giriş yapar); diğerleri (Personel) kod ile girer
-YONETIM_ROLLERI = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.SEF]
+YONETIM_ROLLERI = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.SEF]
 
 
 # =========================================================================

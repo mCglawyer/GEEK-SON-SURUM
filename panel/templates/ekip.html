@@ -5,8 +5,9 @@
 {% include '_nav.html' %}
 <div class="container">
   {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
-  <div class="plan-head"><div><h2>Ekip Yönetimi</h2></div></div>
+  <div class="plan-head"><div><h2>{% if is_tam %}Ekip Yönetimi{% else %}Şefler{% endif %}</h2></div></div>
 
+  {% if is_tam %}
   <!-- YÖNETİCİLER -->
   <div class="card staff-card">
     <h3>Yöneticiler</h3>
@@ -32,12 +33,14 @@
       <button class="btn btn-primary">Yönetici ekle</button>
     </form>
   </div>
+  {% endif %}
 
   <!-- ŞEFLER -->
   <div class="card staff-card">
-    <h3>Şefler</h3>
+    <h3>Şefler{% if not is_tam %} <span class="badge badge-info">şubelerinize göre</span>{% endif %}</h3>
     <ul class="staff-list">
       {% for s in sefler %}
+      {% if is_tam %}
       <li class="sef-row">
         <form method="post" class="sef-form">{% csrf_token %}<input type="hidden" name="islem" value="sef_degistir"><input type="hidden" name="sef_id" value="{{ s.id }}">
           <input class="input" type="text" name="yeni_ad_soyad" value="{{ s.ad_soyad }}">
@@ -47,15 +50,23 @@
         </form>
         <form method="post" onsubmit="return confirm('{{ s.ad_soyad }} silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="sef_cikar"><input type="hidden" name="sef_id" value="{{ s.id }}"><button class="btn btn-danger btn-mini">Çıkar</button></form>
       </li>
+      {% else %}
+      <li class="sef-row">
+        <span class="staff-ad">{{ s.ad_soyad }}</span>
+        <span class="staff-kod">{% if s.sube %}{{ s.sube.ad }}{% else %}—{% endif %}</span>
+      </li>
+      {% endif %}
       {% empty %}
-      <li><span class="staff-ad" style="color:var(--muted)">Henüz şef yok.</span></li>
+      <li><span class="staff-ad" style="color:var(--muted)">{% if is_tam %}Henüz şef yok.{% else %}Şubelerinizde tanımlı şef yok.{% endif %}</span></li>
       {% endfor %}
     </ul>
+    {% if is_tam %}
     <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="sef_ekle">
       <input class="input" type="text" name="ad_soyad" placeholder="Yeni şef ad soyad" required>
       <select name="sef_sube_id" class="sube-sec" required>{% for sb in subeler %}<option value="{{ sb.id }}">{{ sb.ad }}</option>{% endfor %}</select>
       <button class="btn btn-primary">Şef ekle</button>
     </form>
+    {% endif %}
   </div>
 
   {% if is_atayabilir %}
