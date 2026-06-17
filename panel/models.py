@@ -238,6 +238,60 @@ class Irsaliye(models.Model):
         return f"{self.giren_ad} - {self.olusturma:%d.%m.%Y %H:%M}"
 
 
+class StokUrun(models.Model):
+    """Ay sonu stok sayımında sayılacak kalemler (katalog). İleride Excel'den yüklenir."""
+    kategori = models.CharField(max_length=80, blank=True, verbose_name="Kategori")
+    ad = models.CharField(max_length=160, verbose_name="Ürün Adı")
+    birim = models.CharField(max_length=20, default='adet', verbose_name="Birim")
+    sira = models.PositiveIntegerField(default=0, verbose_name="Sıra")
+    aktif = models.BooleanField(default=True, verbose_name="Aktif")
+
+    class Meta:
+        verbose_name = "Stok Kalemi (Katalog)"
+        verbose_name_plural = "Stok Kalemleri (Katalog)"
+        ordering = ['kategori', 'sira', 'ad']
+
+    def __str__(self):
+        return f"{self.ad} ({self.birim})"
+
+
+class StokSayim(models.Model):
+    """Bir şubenin bir aya ait stok sayımı (şube şefi girer)."""
+    sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='stok_sayimlari', verbose_name="Şube")
+    ay = models.DateField(verbose_name="Ay (ayın 1'i)")
+    giren = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='stok_sayimlari', verbose_name="Giren")
+    giren_ad = models.CharField(max_length=100, blank=True, verbose_name="Giren (ad)")
+    olusturma = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturma")
+    guncelleme = models.DateTimeField(auto_now=True, verbose_name="Son Güncelleme")
+
+    class Meta:
+        verbose_name = "Stok Sayımı"
+        verbose_name_plural = "Stok Sayımları"
+        ordering = ['-ay']
+        unique_together = [('sube', 'ay')]
+
+    def __str__(self):
+        return f"{self.sube} - {self.ay:%m.%Y}"
+
+
+class StokSayimKalem(models.Model):
+    sayim = models.ForeignKey(StokSayim, on_delete=models.CASCADE, related_name='kalemler')
+    urun = models.ForeignKey(StokUrun, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    urun_ad = models.CharField(max_length=160, verbose_name="Ürün Adı")
+    kategori = models.CharField(max_length=80, blank=True, verbose_name="Kategori")
+    birim = models.CharField(max_length=20, blank=True, verbose_name="Birim")
+    miktar = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Sayılan Miktar")
+
+    class Meta:
+        verbose_name = "Stok Sayım Kalemi"
+        verbose_name_plural = "Stok Sayım Kalemleri"
+        ordering = ['kategori', 'urun_ad']
+
+    def __str__(self):
+        return f"{self.urun_ad}: {self.miktar} {self.birim}"
+
+
 class SevkiyatBirim(models.TextChoices):
     ADET = 'ADET', 'ADET'
     KOLI = 'KOLİ', 'KOLİ'

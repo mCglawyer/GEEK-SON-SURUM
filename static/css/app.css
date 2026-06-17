@@ -483,3 +483,17 @@ a { color:var(--brand); text-decoration:none; }
 .bm-chk { display:inline-flex; align-items:center; gap:.35rem; font-size:.9rem; background:var(--brand-050);
   border:1px solid var(--brand-100); border-radius:999px; padding:.3rem .7rem; cursor:pointer; }
 .bm-chk input { accent-color:var(--brand); }
+
+/* Stok Sayımı */
+.stok-grup h3 { margin:0 0 .7rem; }
+.stok-liste { display:flex; flex-direction:column; gap:.5rem; }
+.stok-row { display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  padding:.4rem 0; border-bottom:1px solid var(--line); }
+.stok-row:last-child { border-bottom:none; }
+.stok-ad { font-size:.95rem; color:var(--ink); }
+.stok-inp { display:inline-flex; align-items:center; gap:.45rem; }
+.stok-inp input { width:110px; padding:.45rem .55rem; border:1px solid var(--line); border-radius:10px; font:inherit; text-align:right; }
+.stok-inp em { color:var(--muted); font-style:normal; font-size:.85rem; min-width:42px; }
+.stok-deger { color:var(--ink); } .stok-deger b { color:var(--brand); }
+.stok-kaydet { position:sticky; bottom:0; padding:.8rem 0; background:linear-gradient(0deg,var(--bg,#fff) 70%,transparent); }
+.stok-meta { color:var(--muted); font-size:.82rem; margin:.4rem 0 0; }

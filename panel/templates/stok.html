@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Stok Sayımı · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Stok Sayımı</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% else %}Şube tanımsız{% endif %}{% if sayim and is_viewer %} · son güncelleme {{ sayim.guncelleme|date:"d.m.Y H:i" }}{% endif %}</span></div>
+    <div class="yon-secimler">
+      {% if is_viewer %}
+      <select class="sube-sec" onchange="location.href='?sube_id='+this.value+'&stok_ay={{ selected_ay_str }}'">
+        {% for s in subeler %}<option value="{{ s.id }}"{% if sel_sube and s.id == sel_sube.id %} selected{% endif %}>{{ s.ad }}{% if s.depo_mu %} (depo){% endif %}</option>{% endfor %}
+      </select>
+      {% endif %}
+      <input type="month" class="ay-sec" value="{{ selected_ay_str }}" onchange="location.href='?{% if is_viewer %}sube_id={{ sel_sube.id }}&{% endif %}stok_ay='+this.value">
+    </div>
+  </div>
+
+  {% if not sel_sube %}
+  <div class="card"><p style="margin:0;color:var(--muted)">{% if is_sef %}Şubeniz tanımlı değil. Yöneticinize başvurun.{% else %}Görüntülenecek şube yok.{% endif %}</p></div>
+
+  {% elif is_sef %}
+    {% if not katalog_var %}
+    <div class="card"><p style="margin:0;color:var(--muted)">Stok sayım listesi henüz tanımlı değil. Yönetim, sayılacak ürün listesini (Excel) sisteme yükledikten sonra burada görünecek.</p></div>
+    {% else %}
+    <form method="post" class="stok-form">{% csrf_token %}
+      <input type="hidden" name="islem" value="stok_kaydet">
+      {% for g in gruplar %}
+      <div class="card stok-grup">
+        <h3>{{ g.kategori }}</h3>
+        <div class="stok-liste">
+          {% for it in g.urunler %}
+          <div class="stok-row">
+            <span class="stok-ad">{{ it.urun.ad }}</span>
+            <span class="stok-inp">
+              <input type="number" step="0.01" min="0" name="miktar_{{ it.urun.id }}" value="{{ it.miktar|default_if_none:'' }}" placeholder="0">
+              <em>{{ it.urun.birim }}</em>
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+      <div class="stok-kaydet"><button class="btn btn-primary">Stok sayımını kaydet</button></div>
+    </form>
+    {% endif %}
+
+  {% else %}
+    {% if sayim and gruplar %}
+    {% for g in gruplar %}
+    <div class="card stok-grup">
+      <h3>{{ g.kategori }}</h3>
+      <div class="stok-liste">
+        {% for k in g.urunler %}
+        <div class="stok-row">
+          <span class="stok-ad">{{ k.urun_ad }}</span>
+          <span class="stok-deger"><b>{{ k.miktar|floatformat:"-2" }}</b> {{ k.birim }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    <p class="stok-meta">Giren: {{ sayim.giren_ad|default:"—" }} · {{ sayim.guncelleme|date:"d.m.Y H:i" }}</p>
+    {% else %}
+    <div class="card"><p style="margin:0;color:var(--muted)">Bu şube için {{ selected_ay_str }} ayında stok sayımı girilmemiş.</p></div>
+    {% endif %}
+  {% endif %}
+
+</div>
+{% endblock %}

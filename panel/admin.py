@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import (Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Zayi, Kalibrasyon, Irsaliye, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket)
+from .models import (Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Zayi, Kalibrasyon, Irsaliye, StokUrun, StokSayim, StokSayimKalem, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket)
 
 
 @admin.register(Sube)
@@ -77,6 +77,28 @@ class IrsaliyeAdmin(admin.ModelAdmin):
     list_filter = ('olusturma',)
     search_fields = ('giren_ad', 'aciklama')
     readonly_fields = ('olusturma',)
+
+
+@admin.register(StokUrun)
+class StokUrunAdmin(admin.ModelAdmin):
+    list_display = ('ad', 'kategori', 'birim', 'sira', 'aktif')
+    list_filter = ('kategori', 'aktif')
+    search_fields = ('ad', 'kategori')
+    list_editable = ('sira', 'aktif')
+
+
+class StokSayimKalemInline(admin.TabularInline):
+    model = StokSayimKalem
+    extra = 0
+
+
+@admin.register(StokSayim)
+class StokSayimAdmin(admin.ModelAdmin):
+    list_display = ('sube', 'ay', 'giren_ad', 'guncelleme')
+    list_filter = ('sube', 'ay')
+    search_fields = ('giren_ad',)
+    readonly_fields = ('olusturma', 'guncelleme')
+    inlines = [StokSayimKalemInline]
 
 
 class SevkiyatKalemInline(admin.TabularInline):

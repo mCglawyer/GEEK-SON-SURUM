@@ -21,12 +21,14 @@
   {% elif personel.rol == 'Satın Alma' or personel.rol == 'Sevkiyat' %}
     <a href="{% url 'sevkiyat' %}" class="{% if aktif == 'sevkiyat' %}aktif{% endif %}">Sevkiyat</a>
     <a href="{% url 'irsaliye' %}" class="{% if aktif == 'irsaliye' %}aktif{% endif %}">İrsaliye</a>
+    {% if personel.rol == 'Satın Alma' %}<a href="{% url 'stok' %}" class="{% if aktif == 'stok' %}aktif{% endif %}">Stok</a>{% endif %}
   {% else %}
     <a href="{% url 'ana_sayfa' %}" class="{% if aktif == 'home' %}aktif{% endif %}">Vardiya</a>
     <a href="{% url 'puantaj' %}" class="{% if aktif == 'puantaj' %}aktif{% endif %}">Puantaj</a>
     <a href="{% url 'mola' %}" class="{% if aktif == 'mola' %}aktif{% endif %}">Mola</a>
     <a href="{% url 'kalibrasyon' %}" class="{% if aktif == 'kalibrasyon' %}aktif{% endif %}">Kalibrasyon</a>
     <a href="{% url 'zayi' %}" class="{% if aktif == 'zayi' %}aktif{% endif %}">Zayi</a>
+    <a href="{% url 'stok' %}" class="{% if aktif == 'stok' %}aktif{% endif %}">Stok</a>
     <a href="{% url 'sevkiyat' %}" class="{% if aktif == 'sevkiyat' %}aktif{% endif %}">Sevkiyat</a>
     {% if personel.rol == 'Genel Müdür' or personel.rol == 'Müdür' or personel.rol == 'Operatör' or personel.rol == 'Yatırımcı' %}<a href="{% url 'irsaliye' %}" class="{% if aktif == 'irsaliye' %}aktif{% endif %}">İrsaliye</a><a href="{% url 'ekip' %}" class="{% if aktif == 'ekip' %}aktif{% endif %}">{% if personel.rol == 'Müdür' %}Şefler{% else %}Ekip{% endif %}</a>{% endif %}
   {% endif %}

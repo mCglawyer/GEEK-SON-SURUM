@@ -81,7 +81,7 @@
       </li>
       {% endfor %}
     </ul>
-    {% if not is_sef %}{% if t.durum == 'Sevkiyatta' or t.durum == 'Onay Bekliyor' or t.durum == 'Onaylandı' %}
+    {% if belge_yetkili %}{% if t.durum == 'Sevkiyatta' or t.durum == 'Onay Bekliyor' or t.durum == 'Onaylandı' %}
     <div class="sv-belgeler">
       <a class="btn btn-ghost btn-mini" href="{% url 'sevkiyat_belge' t.id 'yukleme' %}" target="_blank" rel="noopener">Yükleme belgesi (PDF)</a>
       {% if t.durum == 'Onaylandı' %}

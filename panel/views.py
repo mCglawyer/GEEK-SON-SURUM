@@ -9,6 +9,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.contrib import messages
 from django.http import HttpResponse
 from django.utils import timezone
@@ -18,6 +19,7 @@ from django.contrib.auth import authenticate, login as auth_login, logout as aut
 from django.contrib.auth.models import User
 
 from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Birim, Kalibrasyon, Irsaliye,
+                     StokUrun, StokSayim, StokSayimKalem,
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      SevkiyatForm, Urun, SiparisHareket,
                      Rol, OnayDurumu, VardiyaTipi)
@@ -1001,6 +1003,84 @@ def irsaliye_sayfa(request):
 
 
 # =========================================================================
+# STOK SAYIMI ( /stok/ ) — şube şefi ay sonu stok girer; yönetim şube bazında görür
+# =========================================================================
+def stok_sayimi(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+
+    is_sef = personel.rol == Rol.SEF
+    is_viewer = personel.rol in (Rol.MUDUR, Rol.GENEL_MUDUR, Rol.SATIN_ALMA, Rol.OPERATOR, Rol.YATIRIMCI)
+    if not (is_sef or is_viewer):
+        return redirect('ana_sayfa')
+
+    ay_str = request.GET.get('stok_ay') or timezone.localdate().strftime('%Y-%m')
+    ay_ilk, _ = _ay_araligi(ay_str)
+
+    if is_sef:
+        subeler = []
+        sel_sube = personel.sube
+    else:
+        subeler = _yon_subeler(personel)
+        sel_sube = _yonetici_sube(request, subeler)
+
+    if request.method == 'POST' and is_sef and sel_sube:
+        if request.POST.get('islem') == 'stok_kaydet':
+            sayim, _olusan = StokSayim.objects.get_or_create(sube=sel_sube, ay=ay_ilk)
+            sayim.giren = personel
+            sayim.giren_ad = personel.ad_soyad
+            sayim.save()
+            sayim.kalemler.all().delete()
+            for u in StokUrun.objects.filter(aktif=True):
+                raw = request.POST.get('miktar_%s' % u.id, '').strip().replace(',', '.')
+                if not raw:
+                    continue
+                try:
+                    miktar = Decimal(raw)
+                except Exception:
+                    continue
+                if miktar < 0:
+                    continue
+                StokSayimKalem.objects.create(sayim=sayim, urun=u, urun_ad=u.ad,
+                                              kategori=u.kategori, birim=u.birim, miktar=miktar)
+            messages.success(request, f"{ay_ilk:%m.%Y} stok sayımı kaydedildi.")
+        return redirect(f"{reverse('stok')}?stok_ay={ay_str}")
+
+    sayim = StokSayim.objects.filter(sube=sel_sube, ay=ay_ilk).first() if sel_sube else None
+    girilen = {}
+    if sayim:
+        for k in sayim.kalemler.all():
+            girilen[k.urun_id] = k
+
+    # Kategori bazlı gruplu liste (katalog henüz boşsa boş gelir)
+    gruplar = []
+    if is_sef:
+        kat_map = {}
+        for u in StokUrun.objects.filter(aktif=True).order_by('kategori', 'sira', 'ad'):
+            g = girilen.get(u.id)
+            kat_map.setdefault(u.kategori or 'Diğer', []).append({
+                'urun': u, 'miktar': (g.miktar if g else None)})
+        gruplar = [{'kategori': k, 'urunler': v} for k, v in kat_map.items()]
+    elif sayim:
+        kat_map = {}
+        for k in sayim.kalemler.all().order_by('kategori', 'urun_ad'):
+            kat_map.setdefault(k.kategori or 'Diğer', []).append(k)
+        gruplar = [{'kategori': k, 'urunler': v} for k, v in kat_map.items()]
+
+    return render(request, 'stok.html', {
+        'personel': personel, 'aktif': 'stok', 'is_sef': is_sef, 'is_viewer': is_viewer,
+        'subeler': subeler, 'sel_sube': sel_sube, 'gruplar': gruplar, 'sayim': sayim,
+        'selected_ay_str': ay_str,
+        'katalog_var': StokUrun.objects.filter(aktif=True).exists(),
+    })
+
+
+# =========================================================================
 # SEVKİYAT ( /sevkiyat/ ) — katalog tabanlı sipariş sistemi
 # =========================================================================
 def _katalog_gruplu():
@@ -1258,6 +1338,7 @@ def sevkiyat_sayfa(request):
     ctx = {
         'personel': personel, 'aktif': 'sevkiyat',
         'is_sef': is_sef, 'is_satinalma': is_satinalma, 'is_sevkiyat': is_sevkiyat, 'is_yon': is_yon,
+        'belge_yetkili': (not is_sef) and rol != Rol.MUDUR,
     }
 
     ctx['cikis_yetkili'] = cikis_yetkili
@@ -1354,6 +1435,8 @@ def sevkiyat_belge(request, talep_id, tip):
     personel = _aktif_personel(request)
     if personel is None:
         return redirect('ana_sayfa')
+    if personel.rol in (Rol.SEF, Rol.MUDUR):
+        return redirect('sevkiyat')
     if tip not in ('yukleme', 'fis'):
         return redirect('sevkiyat')
     talep = (SevkiyatTalep.objects.filter(id=talep_id)
@@ -1384,6 +1467,8 @@ def sevkiyat_excel(request, talep_id):
     personel = _aktif_personel(request)
     if personel is None:
         return redirect('ana_sayfa')
+    if personel.rol in (Rol.SEF, Rol.MUDUR):
+        return redirect('sevkiyat')
     talep = (SevkiyatTalep.objects.filter(id=talep_id, durum=SevkiyatDurumu.ONAYLANDI)
              .select_related('sube').prefetch_related('kalemler').first())
     if talep is None:
