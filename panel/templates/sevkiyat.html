@@ -32,7 +32,7 @@
           <div class="sv-urunler">
             {% for row in kat.urunler %}
             <div class="sv-urow">
-              <div class="sv-uad">{{ row.u.ad }}<span class="sv-koli">1 koli = {{ row.u.koli_icerigi }} {{ row.u.birim }}</span></div>
+              <div class="sv-uad">{{ row.u.ad }}<span class="sv-koli">{% if row.u.ust_birim %}1 {{ row.u.ust_birim }} = {{ row.u.koli_icerigi }} {{ row.u.birim }}{% else %}Birim: {{ row.u.birim }}{% endif %}</span></div>
               <div class="sv-girdi">
                 <input class="input sv-miktar" type="number" name="miktar_{{ row.u.id }}" min="0" step="any" placeholder="0">
                 <select class="sube-sec sv-birim" name="birim_{{ row.u.id }}">

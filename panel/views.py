@@ -1205,8 +1205,8 @@ def _katalog_gruplu():
 
 def _birim_secenek(urun):
     secs = [urun.birim]
-    if urun.birim != SevkiyatBirim.KOLI:
-        secs.append(SevkiyatBirim.KOLI)
+    if urun.ust_birim and urun.ust_birim != urun.birim:
+        secs.append(urun.ust_birim)
     return secs
 
 
@@ -1244,11 +1244,15 @@ def sevkiyat_duzenle(request):
                 birim = request.POST.get('birim')
                 if birim not in birimler:
                     birim = u.birim
+                ust = (request.POST.get('ust_birim') or '').strip()
+                if ust and ust not in birimler:
+                    ust = u.ust_birim
                 if ad:
                     u.ad = ad[:160]
                 u.koli_icerigi = koli
                 u.birim = birim
-                u.save(update_fields=['ad', 'koli_icerigi', 'birim'])
+                u.ust_birim = ust
+                u.save(update_fields=['ad', 'koli_icerigi', 'birim', 'ust_birim'])
                 messages.success(request, f"{u.ad} güncellendi.")
             return redirect(geri)
 
@@ -1273,19 +1277,23 @@ def sevkiyat_duzenle(request):
             birim = request.POST.get('birim')
             if birim not in birimler:
                 birim = SevkiyatBirim.ADET
+            ust = (request.POST.get('ust_birim') or '').strip()
+            if ust and ust not in birimler:
+                ust = ''
             if ad and kategori:
                 var = Urun.objects.filter(form=form, ad=ad).first()
                 if var:
                     var.kategori = kategori
                     var.koli_icerigi = koli
                     var.birim = birim
+                    var.ust_birim = ust
                     var.aktif = True
                     var.save()
                     messages.success(request, f"{ad} güncellendi (zaten vardı, yeniden eklendi).")
                 else:
                     son = Urun.objects.filter(form=form).order_by('-sira').first()
                     Urun.objects.create(form=form, kategori=kategori, ad=ad[:160],
-                                        koli_icerigi=koli, birim=birim,
+                                        koli_icerigi=koli, birim=birim, ust_birim=ust,
                                         sira=(son.sira + 1 if son else 0), aktif=True)
                     messages.success(request, f"{ad} eklendi.")
                 geri = f"{reverse('sevkiyat_duzenle')}?grup={kategori}"

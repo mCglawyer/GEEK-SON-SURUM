@@ -311,6 +311,7 @@ class SevkiyatBirim(models.TextChoices):
     ML = 'ML', 'ML'
     PAKET = 'PAKET', 'PAKET'
     SET = 'SET', 'SET'
+    KUTU = 'KUTU', 'KUTU'
 
 
 class SevkiyatForm(models.TextChoices):
@@ -324,9 +325,12 @@ class Urun(models.Model):
                             default=SevkiyatForm.HAMMADDE, verbose_name="Form")
     kategori = models.CharField(max_length=80, verbose_name="Kategori")
     ad = models.CharField(max_length=160, verbose_name="Ürün Adı")
-    koli_icerigi = models.PositiveIntegerField(default=1, verbose_name="Koli İçeriği")
+    koli_icerigi = models.PositiveIntegerField(default=1, verbose_name="İçerik (üst birimdeki taban birim adedi)")
     birim = models.CharField(max_length=10, choices=SevkiyatBirim.choices,
-                             default=SevkiyatBirim.ADET, verbose_name="Birim")
+                             default=SevkiyatBirim.ADET, verbose_name="Taban Birim")
+    ust_birim = models.CharField(max_length=10, choices=SevkiyatBirim.choices, blank=True,
+                                 default=SevkiyatBirim.KOLI,
+                                 verbose_name="Üst Birim (koli/paket/set; boş = yok)")
     sira = models.PositiveIntegerField(default=0, verbose_name="Sıra")
     aktif = models.BooleanField(default=True, verbose_name="Aktif")
 
