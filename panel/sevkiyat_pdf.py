@@ -99,27 +99,22 @@ def sevkiyat_pdf_bytes(talep, tip):
         bir = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
         veri.append([str(i), k.urun_ad, _say(k.istenen_miktar), _say(son), bir])
 
-    SAYFA_BASI = 50  # her sayfada en fazla 50 ürün; fazlası sonraki sayfaya
     basliklar = ['#', 'Ürün', 'İstenen', 'Son', 'Birim']
     col_w = [9 * mm, 93 * mm, 23 * mm, 23 * mm, 19 * mm]
-    parcalar = [veri[c:c + SAYFA_BASI] for c in range(0, len(veri), SAYFA_BASI)] or [[]]
-    son_idx = len(parcalar) - 1
-    for pi, parca in enumerate(parcalar):
-        kt = Table([basliklar] + parca, colWidths=col_w, repeatRows=1)
-        kt.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 7),
-            ('LEADING', (0, 0), (-1, -1), 8),
-            ('FONTNAME', (0, 0), (-1, 0), fontb),
-            ('BACKGROUND', (0, 0), (-1, 0), BRAND), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (2, 0), (4, -1), 'CENTER'),
-            ('GRID', (0, 0), (-1, -1), 0.4, LINE),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, ZEBRA]),
-            ('TOPPADDING', (0, 0), (-1, -1), 1.0), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.0),
-            ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ]))
-        el.append(kt)
-        if pi < son_idx:
-            el.append(PageBreak())
+    # Tek tablo: her sayfaya sığabildiği kadar satır otomatik dizilir (başlık her sayfada tekrarlar)
+    kt = Table([basliklar] + veri, colWidths=col_w, repeatRows=1)
+    kt.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 7),
+        ('LEADING', (0, 0), (-1, -1), 8),
+        ('FONTNAME', (0, 0), (-1, 0), fontb),
+        ('BACKGROUND', (0, 0), (-1, 0), BRAND), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (2, 0), (4, -1), 'CENTER'),
+        ('GRID', (0, 0), (-1, -1), 0.4, LINE),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, ZEBRA]),
+        ('TOPPADDING', (0, 0), (-1, -1), 1.0), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.0),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    el.append(kt)
 
     alt = []
     if talep.not_metni:
