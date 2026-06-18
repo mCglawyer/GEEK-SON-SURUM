@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Sevkiyat Düzenleme · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'zorunlu' in m.tags or 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Sevkiyat Düzenleme</h2><span class="plan-aralik">Katalog · değişiklikler tüm şeflere anında yansır</span></div>
+    <div class="yon-secimler">
+      <select class="sube-sec" onchange="location.href='?grup='+encodeURIComponent(this.value)">
+        {% for g in gruplar %}<option value="{{ g }}"{% if g == sel_grup %} selected{% endif %}>{{ g }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+
+  {% if not gruplar %}
+  <div class="card"><p style="margin:0;color:var(--muted)">Katalog boş. Önce <code>katalog_yukle</code> ile ürünleri yükleyin.</p></div>
+  {% else %}
+
+  <div class="card sd-grup">
+    <div class="sd-baslik"><h3>{{ sel_grup }}</h3><span class="hafta-aralik">{{ urunler|length }} ürün</span></div>
+
+    <div class="sd-tablo sd-head">
+      <span>Ürün adı</span><span>Koli içeriği</span><span>Birim</span><span></span>
+    </div>
+
+    {% for u in urunler %}
+    <div class="sd-tablo sd-satir">
+      <form method="post" class="sd-form">{% csrf_token %}
+        <input type="hidden" name="islem" value="urun_guncelle">
+        <input type="hidden" name="urun_id" value="{{ u.id }}">
+        <input type="hidden" name="geri_grup" value="{{ sel_grup }}">
+        <input class="input" type="text" name="ad" value="{{ u.ad }}" required>
+        <input class="input sd-koli" type="number" name="koli_icerigi" min="1" step="1" value="{{ u.koli_icerigi }}">
+        <select class="sube-sec" name="birim">
+          {% for b in birimler %}<option value="{{ b }}"{% if b == u.birim %} selected{% endif %}>{{ b }}</option>{% endfor %}
+        </select>
+        <span class="sd-aks">
+          <button type="submit" class="btn btn-ghost btn-mini">Kaydet</button>
+        </span>
+      </form>
+      <form method="post" class="sd-cikar" onsubmit="return confirm('{{ u.ad }} listeden çıkarılsın mı? (Geçmiş siparişler korunur)');">{% csrf_token %}
+        <input type="hidden" name="islem" value="urun_cikar">
+        <input type="hidden" name="urun_id" value="{{ u.id }}">
+        <input type="hidden" name="geri_grup" value="{{ sel_grup }}">
+        <button type="submit" class="btn btn-danger btn-mini">Çıkar</button>
+      </form>
+      <div class="sd-onizleme">Şefte görünüm: <b>1 koli = {{ u.koli_icerigi }} {{ u.birim }}</b> · birim seçenekleri: {{ u.birim }}{% if u.birim != 'KOLİ' %}, KOLİ{% endif %}</div>
+    </div>
+    {% empty %}
+    <p style="margin:.6rem 0;color:var(--muted)">Bu grupta ürün yok.</p>
+    {% endfor %}
+  </div>
+
+  <div class="card sd-ekle">
+    <h3>Bu gruba yeni ürün ekle</h3>
+    <form method="post" class="sd-ekle-form">{% csrf_token %}
+      <input type="hidden" name="islem" value="urun_ekle">
+      <input type="hidden" name="geri_grup" value="{{ sel_grup }}">
+      <input class="input" type="text" name="ad" placeholder="Ürün adı" required>
+      <input class="input sd-koli" type="number" name="koli_icerigi" min="1" step="1" value="1" title="Koli içeriği">
+      <select class="sube-sec" name="birim">{% for b in birimler %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select>
+      <button class="btn btn-primary">Ekle</button>
+    </form>
+    <details class="sd-yenigrup">
+      <summary>Farklı / yeni gruba ekle</summary>
+      <form method="post" class="sd-ekle-form" style="margin-top:.7rem">{% csrf_token %}
+        <input type="hidden" name="islem" value="urun_ekle">
+        <select class="sube-sec" name="form">{% for f, e in formlar %}<option value="{{ f }}">{{ e }}</option>{% endfor %}</select>
+        <input class="input" type="text" name="kategori" placeholder="Grup adı (örn. GIDA GRUBU)" value="{{ sel_grup }}" required>
+        <input class="input" type="text" name="ad" placeholder="Ürün adı" required>
+        <input class="input sd-koli" type="number" name="koli_icerigi" min="1" step="1" value="1">
+        <select class="sube-sec" name="birim">{% for b in birimler %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select>
+        <button class="btn btn-primary">Ekle</button>
+      </form>
+    </details>
+  </div>
+
+  {% endif %}
+</div>
+{% endblock %}

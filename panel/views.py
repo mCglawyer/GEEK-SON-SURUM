@@ -1210,6 +1210,110 @@ def _birim_secenek(urun):
     return secs
 
 
+# Sevkiyat kataloğunu düzenleyebilen roller (değişiklik tüm şeflere anında yansır)
+SEVKIYAT_DUZENLE_ROLLERI = [Rol.SATIN_ALMA, Rol.OPERATOR, Rol.GENEL_MUDUR, Rol.YATIRIMCI]
+
+
+def sevkiyat_duzenle(request):
+    """Operatör/Satın Alma (ve tam yetkililer) sevkiyat kataloğunu düzenler:
+    grup seçip ürün ekler/çıkarır, koli içeriği + birimini değiştirir. Şeflere anında yansır."""
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in SEVKIYAT_DUZENLE_ROLLERI:
+        return redirect('ana_sayfa')
+
+    birimler = [b for b, _ in SevkiyatBirim.choices]
+    formlar = [(f, e) for f, e in SevkiyatForm.choices]
+
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        geri_grup = (request.POST.get('geri_grup') or '').strip()
+        geri = f"{reverse('sevkiyat_duzenle')}?grup={geri_grup}" if geri_grup else reverse('sevkiyat_duzenle')
+
+        if islem == 'urun_guncelle':
+            u = Urun.objects.filter(id=request.POST.get('urun_id')).first()
+            if u:
+                ad = (request.POST.get('ad') or '').strip()
+                try:
+                    koli = max(1, int(float((request.POST.get('koli_icerigi') or '1').replace(',', '.'))))
+                except Exception:
+                    koli = u.koli_icerigi
+                birim = request.POST.get('birim')
+                if birim not in birimler:
+                    birim = u.birim
+                if ad:
+                    u.ad = ad[:160]
+                u.koli_icerigi = koli
+                u.birim = birim
+                u.save(update_fields=['ad', 'koli_icerigi', 'birim'])
+                messages.success(request, f"{u.ad} güncellendi.")
+            return redirect(geri)
+
+        if islem == 'urun_cikar':
+            u = Urun.objects.filter(id=request.POST.get('urun_id')).first()
+            if u:
+                u.aktif = False
+                u.save(update_fields=['aktif'])
+                messages.success(request, f"{u.ad} listeden çıkarıldı.")
+            return redirect(geri)
+
+        if islem == 'urun_ekle':
+            ad = (request.POST.get('ad') or '').strip()
+            kategori = (request.POST.get('kategori') or '').strip() or geri_grup
+            form = request.POST.get('form')
+            if form not in [f for f, _ in SevkiyatForm.choices]:
+                form = SevkiyatForm.HAMMADDE
+            try:
+                koli = max(1, int(float((request.POST.get('koli_icerigi') or '1').replace(',', '.'))))
+            except Exception:
+                koli = 1
+            birim = request.POST.get('birim')
+            if birim not in birimler:
+                birim = SevkiyatBirim.ADET
+            if ad and kategori:
+                var = Urun.objects.filter(form=form, ad=ad).first()
+                if var:
+                    var.kategori = kategori
+                    var.koli_icerigi = koli
+                    var.birim = birim
+                    var.aktif = True
+                    var.save()
+                    messages.success(request, f"{ad} güncellendi (zaten vardı, yeniden eklendi).")
+                else:
+                    son = Urun.objects.filter(form=form).order_by('-sira').first()
+                    Urun.objects.create(form=form, kategori=kategori, ad=ad[:160],
+                                        koli_icerigi=koli, birim=birim,
+                                        sira=(son.sira + 1 if son else 0), aktif=True)
+                    messages.success(request, f"{ad} eklendi.")
+                geri = f"{reverse('sevkiyat_duzenle')}?grup={kategori}"
+            else:
+                messages.error(request, "Ürün adı ve grup zorunlu.")
+            return redirect(geri)
+
+        return redirect(geri)
+
+    # GET — grup listesi + seçili grubun ürünleri
+    aktif_urunler = list(Urun.objects.filter(aktif=True).order_by('form', 'sira', 'ad'))
+    grup_sira = []
+    grup_form = {}
+    for u in aktif_urunler:
+        if u.kategori not in grup_form:
+            grup_form[u.kategori] = u.form
+            grup_sira.append(u.kategori)
+    sel_grup = request.GET.get('grup') or (grup_sira[0] if grup_sira else '')
+    urunler = [u for u in aktif_urunler if u.kategori == sel_grup]
+    sel_form = grup_form.get(sel_grup, SevkiyatForm.HAMMADDE)
+
+    return render(request, 'sevkiyat_duzenle.html', {
+        'personel': personel, 'aktif': 'sevkiyat_duzenle',
+        'gruplar': grup_sira, 'sel_grup': sel_grup, 'sel_form': sel_form,
+        'urunler': urunler, 'birimler': birimler, 'formlar': formlar,
+    })
+
+
 import calendar as _calmod
 
 _AY_ADLARI = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
