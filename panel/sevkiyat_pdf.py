@@ -13,7 +13,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether
 
 BRAND = colors.HexColor('#162AA3')
 INK = colors.HexColor('#1f2430')
@@ -52,21 +52,21 @@ def sevkiyat_pdf_bytes(talep, tip):
     fontb = 'DejaVu-Bold' if ok else 'Helvetica-Bold'
 
     buf = BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=18 * mm, bottomMargin=18 * mm,
-                            leftMargin=18 * mm, rightMargin=18 * mm,
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=13 * mm, bottomMargin=11 * mm,
+                            leftMargin=16 * mm, rightMargin=16 * mm,
                             title=f"Sevkiyat #{talep.id}")
     base = getSampleStyleSheet()['Normal']
-    st_marka = ParagraphStyle('marka', parent=base, fontName=fontb, fontSize=13, leading=16, textColor=BRAND)
-    st_baslik = ParagraphStyle('baslik', parent=base, fontName=fontb, fontSize=18, leading=23,
-                               textColor=INK, spaceBefore=1, spaceAfter=4)
-    st_sub = ParagraphStyle('sub', parent=base, fontName=font, fontSize=9, leading=12, textColor=MUTED)
+    st_marka = ParagraphStyle('marka', parent=base, fontName=fontb, fontSize=11, leading=13, textColor=BRAND)
+    st_baslik = ParagraphStyle('baslik', parent=base, fontName=fontb, fontSize=14, leading=17,
+                               textColor=INK, spaceBefore=1, spaceAfter=2)
+    st_sub = ParagraphStyle('sub', parent=base, fontName=font, fontSize=8, leading=11, textColor=MUTED)
 
     baslik = 'YÜKLEME BELGESİ' if tip == 'yukleme' else 'TESLİM FİŞİ'
     el = [
         Paragraph('GEEK COFFEE &amp; EATERY', st_marka),
         Paragraph(baslik, st_baslik),
         Paragraph('Personel Yönetim Sistemi · Sevkiyat', st_sub),
-        Spacer(1, 8 * mm),
+        Spacer(1, 3 * mm),
     ]
 
     bilgi = [
@@ -84,43 +84,54 @@ def sevkiyat_pdf_bytes(talep, tip):
                       talep.onay_tarih.strftime('%d.%m.%Y %H:%M')])
     bt = Table(bilgi, colWidths=[28 * mm, 56 * mm, 28 * mm, 56 * mm])
     bt.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('FONTNAME', (0, 0), (0, -1), fontb), ('FONTNAME', (2, 0), (2, -1), fontb),
         ('TEXTCOLOR', (0, 0), (-1, -1), INK),
-        ('TOPPADDING', (0, 0), (-1, -1), 3), ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 1.5), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.5),
     ]))
     el.append(bt)
-    el.append(Spacer(1, 6 * mm))
+    el.append(Spacer(1, 3 * mm))
 
-    rows = [['#', 'Ürün', 'İstenen', 'Son', 'Birim']]
+    veri = []
     for i, k in enumerate(talep.kalemler.all(), 1):
         son = k.sevkiyat_miktar if k.sevkiyat_miktar is not None else (
             k.satinalma_miktar if k.satinalma_miktar is not None else k.istenen_miktar)
         bir = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
-        rows.append([str(i), k.urun_ad, _say(k.istenen_miktar), _say(son), bir])
-    kt = Table(rows, colWidths=[12 * mm, 84 * mm, 26 * mm, 26 * mm, 22 * mm], repeatRows=1)
-    kt.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('FONTNAME', (0, 0), (-1, 0), fontb),
-        ('BACKGROUND', (0, 0), (-1, 0), BRAND), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (2, 0), (4, -1), 'CENTER'),
-        ('GRID', (0, 0), (-1, -1), 0.5, LINE),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, ZEBRA]),
-        ('TOPPADDING', (0, 0), (-1, -1), 6), ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-    ]))
-    el.append(kt)
+        veri.append([str(i), k.urun_ad, _say(k.istenen_miktar), _say(son), bir])
 
+    SAYFA_BASI = 50  # her sayfada en fazla 50 ürün; fazlası sonraki sayfaya
+    basliklar = ['#', 'Ürün', 'İstenen', 'Son', 'Birim']
+    col_w = [9 * mm, 93 * mm, 23 * mm, 23 * mm, 19 * mm]
+    parcalar = [veri[c:c + SAYFA_BASI] for c in range(0, len(veri), SAYFA_BASI)] or [[]]
+    son_idx = len(parcalar) - 1
+    for pi, parca in enumerate(parcalar):
+        kt = Table([basliklar] + parca, colWidths=col_w, repeatRows=1)
+        kt.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('LEADING', (0, 0), (-1, -1), 8),
+            ('FONTNAME', (0, 0), (-1, 0), fontb),
+            ('BACKGROUND', (0, 0), (-1, 0), BRAND), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (2, 0), (4, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 0.4, LINE),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, ZEBRA]),
+            ('TOPPADDING', (0, 0), (-1, -1), 1.0), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.0),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        el.append(kt)
+        if pi < son_idx:
+            el.append(PageBreak())
+
+    alt = []
     if talep.not_metni:
-        el.append(Spacer(1, 4 * mm))
-        el.append(Paragraph('Not: %s' % talep.not_metni, st_sub))
+        alt.append(Spacer(1, 3 * mm))
+        alt.append(Paragraph('Not: %s' % talep.not_metni, st_sub))
 
-    el.append(Spacer(1, 16 * mm))
+    alt.append(Spacer(1, 9 * mm))
     if tip == 'yukleme':
         sol, sag = 'Teslim Eden (Satın Alma)', 'Teslim Alan (Sevkiyat)'
     else:
         sol, sag = 'Teslim Eden (Sevkiyat)', 'Teslim Alan (Şube Şefi)'
-    imza = Table([['', ''], ['', ''], [sol, sag]], colWidths=[88 * mm, 88 * mm])
+    imza = Table([['', ''], ['', ''], [sol, sag]], colWidths=[84 * mm, 84 * mm])
     imza.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -128,11 +139,11 @@ def sevkiyat_pdf_bytes(talep, tip):
         ('LINEABOVE', (0, 2), (0, 2), 0.7, INK), ('LINEABOVE', (1, 2), (1, 2), 0.7, INK),
         ('TOPPADDING', (0, 2), (-1, 2), 6),
     ]))
-    el.append(imza)
-
+    alt.append(imza)
     if tip == 'yukleme':
-        el.append(Spacer(1, 6 * mm))
-        el.append(Paragraph('Bu belge yüklenecek ürünleri gösterir; "Verilen" adetler esas alınır.', st_sub))
+        alt.append(Spacer(1, 4 * mm))
+        alt.append(Paragraph('Bu belge yüklenecek ürünleri gösterir; "Verilen" adetler esas alınır.', st_sub))
+    el.append(KeepTogether(alt))
 
     doc.build(el)
     pdf = buf.getvalue()
