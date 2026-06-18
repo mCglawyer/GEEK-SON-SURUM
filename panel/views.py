@@ -1051,14 +1051,31 @@ def stok_sayimi(request):
                     sayim=sayim, urun=u, urun_ad=u.ad, kategori=u.kategori,
                     kapali_icerik=u.kapali_icerik, acik_carpan=u.acik_carpan,
                     kapali_adet=kap, acik_miktar=ack, aciklama=note)
+            # Şefin eklediği, katalogda olmayan ürünler
+            ek_adlar = request.POST.getlist('ek_ad')
+            ek_miktarlar = request.POST.getlist('ek_miktar')
+            ek_notlar = request.POST.getlist('ek_not')
+            for idx, ad in enumerate(ek_adlar):
+                ad = (ad or '').strip()
+                if not ad:
+                    continue
+                mik = _say(ek_miktarlar[idx]) if idx < len(ek_miktarlar) else Decimal('0')
+                note = (ek_notlar[idx].strip()[:300] if idx < len(ek_notlar) else '')
+                StokSayimKalem.objects.create(
+                    sayim=sayim, urun=None, urun_ad=ad[:200], kategori='EK ÜRÜNLER',
+                    kapali_icerik=1, acik_carpan=1, kapali_adet=mik, acik_miktar=0, aciklama=note)
             messages.success(request, f"{ay_ilk:%m.%Y} stok sayımı kaydedildi.")
         return redirect(f"{reverse('stok')}?stok_ay={ay_str}")
 
     sayim = StokSayim.objects.filter(sube=sel_sube, ay=ay_ilk).first() if sel_sube else None
     girilen = {}
+    ek_kalemler = []
     if sayim:
         for k in sayim.kalemler.all():
-            girilen[k.urun_id] = k
+            if k.urun_id:
+                girilen[k.urun_id] = k
+            else:
+                ek_kalemler.append(k)
 
     gruplar = []
     if is_sef:
@@ -1081,6 +1098,7 @@ def stok_sayimi(request):
     return render(request, 'stok.html', {
         'personel': personel, 'aktif': 'stok', 'is_sef': is_sef, 'is_viewer': is_viewer,
         'subeler': subeler, 'sel_sube': sel_sube, 'gruplar': gruplar, 'sayim': sayim,
+        'ek_kalemler': ek_kalemler,
         'selected_ay_str': ay_str,
         'katalog_var': StokUrun.objects.filter(aktif=True).exists(),
     })
@@ -1148,22 +1166,20 @@ def stok_excel(request):
         ws[c].font = wf; ws[c].fill = navy; ws[c].alignment = ctr
         ws[c].border = border
 
-    # Veri: katalog sırasına göre tüm kalemler (girilmeyenler boş/0)
-    girilen = {k.urun_ad: k for k in kalemler}
-    r = 5
-    for u in StokUrun.objects.filter(aktif=True).order_by('sira', 'ad'):
-        k = girilen.get(u.ad)
-        kap = k.kapali_adet if k else None
-        ack = k.acik_miktar if k else None
-        note = k.aciklama if k else ""
-        ws.cell(row=r, column=1, value=u.kategori).font = nf
-        ws.cell(row=r, column=2, value=u.ad).font = nf
+    # Veri: katalog sırasına göre tüm kalemler (girilmeyenler boş)
+    girilen = {k.urun_ad: k for k in kalemler if k.urun_id}
+    ekler = [k for k in kalemler if not k.urun_id]  # şefin eklediği listede olmayan ürünler
+
+    def _yaz(r, kategori, ad, kap, ic, ack, carp, note):
+        ws.cell(row=r, column=1, value=kategori).font = nf
+        ws.cell(row=r, column=2, value=ad).font = nf
         ws.cell(row=r, column=3, value=(float(kap) if kap is not None else None)).font = nf
-        ws.cell(row=r, column=4, value=float(u.kapali_icerik)).font = nf
+        ws.cell(row=r, column=4, value=float(ic)).font = nf
         ws.cell(row=r, column=5, value=(float(ack) if ack is not None else None)).font = nf
-        ws.cell(row=r, column=6, value=float(u.acik_carpan)).font = nf
-        # TOPLAM = C*D + E*F (formül)
-        ws.cell(row=r, column=7, value=f"=C{r}*D{r}+E{r}*F{r}").font = bf
+        ws.cell(row=r, column=6, value=float(carp)).font = nf
+        # TOPLAM: formül yerine hesaplanmış SAYI yazılır (her görüntüleyicide doğru görünür)
+        toplam = float((kap or 0)) * float(ic) + float((ack or 0)) * float(carp)
+        ws.cell(row=r, column=7, value=toplam).font = bf
         ws.cell(row=r, column=8, value=note).font = nf
         for j in range(1, 9):
             ws.cell(row=r, column=j).border = border
@@ -1172,6 +1188,18 @@ def stok_excel(request):
         if r % 2 == 0:
             for j in range(1, 9):
                 ws.cell(row=r, column=j).fill = gray
+
+    r = 5
+    for u in StokUrun.objects.filter(aktif=True).order_by('sira', 'ad'):
+        k = girilen.get(u.ad)
+        _yaz(r, u.kategori, u.ad,
+             (k.kapali_adet if k else None), u.kapali_icerik,
+             (k.acik_miktar if k else None), u.acik_carpan,
+             (k.aciklama if k else ""))
+        r += 1
+    for k in ekler:
+        _yaz(r, k.kategori or "EK ÜRÜNLER", k.urun_ad,
+             k.kapali_adet, k.kapali_icerik, k.acik_miktar, k.acik_carpan, k.aciklama)
         r += 1
 
     widths = [20, 42, 9, 12, 9, 12, 12, 28]

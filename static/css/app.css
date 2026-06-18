@@ -530,3 +530,15 @@ a { color:var(--brand); text-decoration:none; }
   .sd-aks { justify-self:stretch; }
   .sd-cikar { justify-self:start; margin-top:.3rem; }
 }
+
+/* Stok - ek ürünler (şef ekler) */
+.ek-tablo { display:grid; grid-template-columns:2fr 1fr 2fr auto; gap:.5rem .6rem; align-items:center; }
+.ek-head { font-size:.74rem; text-transform:uppercase; letter-spacing:.02em; color:var(--muted); padding:.2rem 0 .5rem; border-bottom:1px solid var(--line); }
+.ek-satir { padding:.4rem 0; }
+.ek-tablo input { width:100%; }
+#ek-ekle { margin-top:.6rem; }
+@media (max-width:720px){
+  .ek-head { display:none; }
+  .ek-tablo { grid-template-columns:1fr 1fr; }
+  .ek-satir .input[name=ek_ad] { grid-column:1 / -1; }
+}
