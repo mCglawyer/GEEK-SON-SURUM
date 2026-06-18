@@ -1,5 +1,6 @@
 import json
 import datetime
+import random
 import secrets
 import unicodedata
 import base64
@@ -22,6 +23,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      StokUrun, StokSayim, StokSayimKalem,
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      SevkiyatForm, Urun, SiparisHareket,
+                     KahveSoru, GunlukSoru,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -185,6 +187,12 @@ def ana_sayfa(request):
         return _yonetici_vardiya(request, personel)
     if personel.rol in (Rol.SATIN_ALMA, Rol.SEVKIYAT):
         return redirect('sevkiyat')
+    if personel.rol in SORU_ROLLERI:
+        _gs = _gunluk_soru_getir_veya_ata(personel, timezone.localdate())
+        if _gs is not None:
+            _gunluk_finalize(_gs)
+            if not _gs.cevaplandi:
+                return redirect('gunluk_soru')
     if personel.rol == Rol.SEF:
         return _sef_home(request, personel)
     return _personel_home(request, personel)
@@ -1351,7 +1359,6 @@ def sevkiyat_duzenle(request):
 
 
 import calendar as _calmod
-
 _AY_ADLARI = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
               'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
 _GUN_KISA = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
@@ -1885,3 +1892,180 @@ def pwa_service_worker(request):
     resp['Service-Worker-Allowed'] = '/'
     resp['Cache-Control'] = 'no-cache'
     return resp
+
+
+# =========================================================================
+# GÜNLÜK KAHVE SORUSU (personel + şef)
+# =========================================================================
+SORU_ROLLERI = [Rol.PERSONEL, Rol.SEF]
+SORU_SURE = 30           # saniye (kullanıcıya gösterilen sayaç)
+SORU_SURE_PAYLI = 38     # sunucu tarafı tolerans (ağ gecikmesi)
+CALISMAYAN_TIPLER = [VardiyaTipi.IZINLI, VardiyaTipi.RAPORLU, VardiyaTipi.DEVAMSIZ]
+# Bilgi karnesini görebilen yönetim rolleri
+KARNE_ROLLERI = [Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
+
+
+def _bugun_calisiyor_mu(personel, gun):
+    """O gün izinli/raporlu/devamsız ise False; aksi halde (kayıt yoksa da) True."""
+    v = personel.vardiyalar.filter(tarih=gun).first()
+    if v and v.vardiya_tipi in CALISMAYAN_TIPLER:
+        return False
+    return True
+
+
+def _gunluk_soru_getir_veya_ata(personel, gun):
+    """O güne ait GunlukSoru'yu döndürür; yoksa (ve çalışma günüyse) yeni atar.
+    Çalışma günü değilse None döner."""
+    gs = GunlukSoru.objects.filter(personel=personel, tarih=gun).first()
+    if gs:
+        return gs
+    if not _bugun_calisiyor_mu(personel, gun):
+        return None
+    aktif_ids = list(KahveSoru.objects.filter(aktif=True).values_list('id', flat=True))
+    if not aktif_ids:
+        return None
+    gorulen = set(GunlukSoru.objects.filter(personel=personel)
+                  .values_list('soru_id', flat=True))
+    havuz = [i for i in aktif_ids if i not in gorulen] or aktif_ids
+    soru_id = random.choice(havuz)
+    sube = personel.sube
+    return GunlukSoru.objects.create(
+        personel=personel, sube=sube, sube_ad=(sube.ad if sube else ''),
+        soru_id=soru_id, tarih=gun)
+
+
+def _gunluk_finalize(gs):
+    """Süresi dolmuş ama cevaplanmamış soruyu yanlış olarak kapatır."""
+    if gs and gs.baslangic and not gs.cevaplandi:
+        gecen = (timezone.now() - gs.baslangic).total_seconds()
+        if gecen > SORU_SURE_PAYLI:
+            gs.cevaplandi = True
+            gs.sure_doldu = True
+            gs.dogru_mu = False
+            gs.secilen = ''
+            gs.save(update_fields=['cevaplandi', 'sure_doldu', 'dogru_mu', 'secilen'])
+
+
+def gunluk_soru(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in SORU_ROLLERI:
+        return redirect('ana_sayfa')
+
+    today = timezone.localdate()
+    gs = _gunluk_soru_getir_veya_ata(personel, today)
+    if gs is None:
+        return redirect('ana_sayfa')
+    _gunluk_finalize(gs)
+    if gs.cevaplandi:
+        return redirect('ana_sayfa')
+
+    if request.method == 'POST':
+        # Sunucu tarafı süre kontrolü
+        suresi_doldu = False
+        if gs.baslangic:
+            gecen = (timezone.now() - gs.baslangic).total_seconds()
+            suresi_doldu = gecen > SORU_SURE_PAYLI
+        secilen = (request.POST.get('secilen') or '').strip().upper()
+        if secilen not in ('A', 'B', 'C', 'D'):
+            secilen = ''
+        if suresi_doldu or not secilen:
+            gs.secilen = '' if suresi_doldu else secilen
+            gs.sure_doldu = suresi_doldu
+            gs.dogru_mu = False
+        else:
+            gs.secilen = secilen
+            gs.dogru_mu = (gs.soru is not None and secilen == gs.soru.dogru)
+        gs.cevaplandi = True
+        gs.save()
+        if gs.dogru_mu:
+            messages.success(request, "Doğru cevap! 🎉")
+        elif gs.sure_doldu:
+            messages.error(request, "Süre doldu, soru boş işlendi.")
+        else:
+            dogru_txt = gs.soru.sik(gs.soru.dogru) if gs.soru else ''
+            messages.error(request, f"Yanlış. Doğru cevap: {dogru_txt}")
+        return redirect('ana_sayfa')
+
+    # GET — sayaç başlangıcını ilk gösterimde sabitle
+    if gs.baslangic is None:
+        gs.baslangic = timezone.now()
+        gs.save(update_fields=['baslangic'])
+    gecen = (timezone.now() - gs.baslangic).total_seconds()
+    kalan = max(1, int(SORU_SURE - gecen))
+    return render(request, 'gunluk_soru.html', {
+        'personel': personel, 'aktif': 'home', 'gs': gs, 'soru': gs.soru,
+        'kalan': kalan, 'sure': SORU_SURE,
+    })
+
+
+def bilgi_karnesi(request):
+    """Yönetim: şube + ay seçip personelin aylık bilgi kapasitesini ve yanlışları görür."""
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in KARNE_ROLLERI:
+        return redirect('ana_sayfa')
+
+    subeler = _yon_subeler(personel)
+    sel_sube = _yonetici_sube(request, subeler)
+    ay_str = request.GET.get('ay') or timezone.localdate().strftime('%Y-%m')
+    try:
+        ay_ilk, sonraki = _ay_araligi(ay_str)
+    except Exception:
+        ay_ilk, sonraki = _ay_araligi(timezone.localdate().strftime('%Y-%m'))
+        ay_str = ay_ilk.strftime('%Y-%m')
+
+    satirlar = []
+    yanlislar = []
+    if sel_sube:
+        kisiler = (Personel.objects.filter(sube=sel_sube, rol__in=SORU_ROLLERI, aktif=True)
+                   .order_by('ad_soyad'))
+        kayitlar = (GunlukSoru.objects.filter(personel__in=kisiler,
+                                              tarih__gte=ay_ilk, tarih__lt=sonraki)
+                    .select_related('soru', 'personel'))
+        # süresi geçmiş ama kapanmamışları kapat
+        for gs in kayitlar:
+            _gunluk_finalize(gs)
+        per_map = {k.id: {'personel': k, 'toplam': 0, 'dogru': 0, 'yanlis': 0, 'bos': 0}
+                   for k in kisiler}
+        for gs in kayitlar:
+            d = per_map.get(gs.personel_id)
+            if not d:
+                continue
+            d['toplam'] += 1
+            if not gs.cevaplandi:
+                # henüz cevaplanmamış (bugünün sorusu olabilir) — sayma
+                d['toplam'] -= 1
+                continue
+            if gs.dogru_mu:
+                d['dogru'] += 1
+            elif gs.sure_doldu or not gs.secilen:
+                d['bos'] += 1
+                d['yanlis'] += 1
+            else:
+                d['yanlis'] += 1
+            if gs.cevaplandi and not gs.dogru_mu and gs.soru:
+                yanlislar.append({
+                    'ad': gs.personel.ad_soyad, 'tarih': gs.tarih, 'soru': gs.soru.metin,
+                    'secilen': (gs.soru.sik(gs.secilen) if gs.secilen else '—'),
+                    'dogru': gs.soru.sik(gs.soru.dogru),
+                    'bos': gs.sure_doldu or not gs.secilen,
+                })
+        for d in per_map.values():
+            t = d['toplam']
+            d['basari'] = round(d['dogru'] * 100 / t) if t else 0
+            satirlar.append(d)
+        satirlar.sort(key=lambda x: (-x['basari'], x['personel'].ad_soyad))
+        yanlislar.sort(key=lambda x: x['tarih'], reverse=True)
+
+    return render(request, 'bilgi_karnesi.html', {
+        'personel': personel, 'aktif': 'bilgi_karnesi',
+        'subeler': subeler, 'sel_sube': sel_sube, 'selected_ay_str': ay_str,
+        'satirlar': satirlar, 'yanlislar': yanlislar,
+    })

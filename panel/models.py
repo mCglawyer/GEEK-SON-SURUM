@@ -417,3 +417,52 @@ class SiparisHareket(models.Model):
 
     def __str__(self):
         return f"#{self.talep_id} {self.mesaj}"
+
+
+class KahveSoru(models.Model):
+    """Günlük kahve kültürü soru bankası (4 şıklı)."""
+    SIKLAR = [('A', 'A'), ('B', 'B'), ('C', 'C'), ('D', 'D')]
+    kategori = models.CharField(max_length=40, blank=True)
+    metin = models.TextField(verbose_name="Soru")
+    sik_a = models.CharField(max_length=200)
+    sik_b = models.CharField(max_length=200)
+    sik_c = models.CharField(max_length=200)
+    sik_d = models.CharField(max_length=200)
+    dogru = models.CharField(max_length=1, choices=SIKLAR)
+    aktif = models.BooleanField(default=True)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return self.metin[:60]
+
+    def sik(self, harf):
+        return {'A': self.sik_a, 'B': self.sik_b, 'C': self.sik_c, 'D': self.sik_d}.get(harf, '')
+
+    @property
+    def siklar(self):
+        return [('A', self.sik_a), ('B', self.sik_b), ('C', self.sik_c), ('D', self.sik_d)]
+
+
+class GunlukSoru(models.Model):
+    """Bir kişiye belirli bir günde atanan soru ve verdiği cevap."""
+    personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='gunluk_sorular')
+    sube = models.ForeignKey(Sube, on_delete=models.SET_NULL, null=True, blank=True)
+    sube_ad = models.CharField(max_length=120, blank=True)  # şube anlık adı (snapshot)
+    soru = models.ForeignKey(KahveSoru, on_delete=models.SET_NULL, null=True)
+    tarih = models.DateField()
+    baslangic = models.DateTimeField(null=True, blank=True)  # sorunun gösterildiği an (sayaç başı)
+    secilen = models.CharField(max_length=1, blank=True)     # '' = boş bırakıldı
+    dogru_mu = models.BooleanField(default=False)
+    sure_doldu = models.BooleanField(default=False)
+    cevaplandi = models.BooleanField(default=False)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-tarih', 'personel']
+        unique_together = ('personel', 'tarih')
+
+    def __str__(self):
+        return f"{self.personel_id} · {self.tarih}"

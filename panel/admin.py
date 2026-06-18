@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import (Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Zayi, Kalibrasyon, Irsaliye, StokUrun, StokSayim, StokSayimKalem, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket)
+from .models import (Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Zayi, Kalibrasyon, Irsaliye, StokUrun, StokSayim, StokSayimKalem, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket, KahveSoru, GunlukSoru)
 
 
 @admin.register(Sube)
@@ -128,3 +128,18 @@ class UrunAdmin(admin.ModelAdmin):
 class SiparisHareketAdmin(admin.ModelAdmin):
     list_display = ('talep', 'mesaj', 'yapan_ad', 'olusturma')
     list_filter = ('olusturma',)
+
+
+@admin.register(KahveSoru)
+class KahveSoruAdmin(admin.ModelAdmin):
+    list_display = ('id', 'kategori', 'metin', 'dogru', 'aktif')
+    list_filter = ('kategori', 'aktif')
+    search_fields = ('metin',)
+    list_editable = ('aktif',)
+
+
+@admin.register(GunlukSoru)
+class GunlukSoruAdmin(admin.ModelAdmin):
+    list_display = ('tarih', 'personel', 'sube_ad', 'secilen', 'dogru_mu', 'sure_doldu', 'cevaplandi')
+    list_filter = ('tarih', 'dogru_mu', 'sure_doldu', 'cevaplandi')
+    search_fields = ('personel__ad_soyad',)

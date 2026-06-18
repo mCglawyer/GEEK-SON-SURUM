@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Günün Sorusu · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  <div class="card soru-kart">
+    <div class="soru-ust">
+      <span class="badge badge-info">Günün Kahve Sorusu</span>
+      {% if soru.kategori %}<span class="soru-kat">{{ soru.kategori }}</span>{% endif %}
+    </div>
+    <div class="soru-sayac" id="sayac-kutu">
+      <div class="soru-sayac-bar"><span id="sayac-dolgu"></span></div>
+      <span id="sayac-no">{{ kalan }}</span> sn
+    </div>
+    {% if soru %}
+    <h2 class="soru-metin">{{ soru.metin }}</h2>
+    <form method="post" id="soru-form">{% csrf_token %}
+      <input type="hidden" name="secilen" id="secilen" value="">
+      <div class="soru-siklar">
+        {% for harf, metin in soru.siklar %}
+        <button type="button" class="soru-sik" data-harf="{{ harf }}">
+          <b>{{ harf }}</b><span>{{ metin }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </form>
+    <p class="soru-ipucu">Bir şıkka dokun. Süre dolarsa soru boş (yanlış) işlenir.</p>
+    {% else %}
+    <p>Bugün için soru bulunamadı.</p>
+    <a href="{% url 'ana_sayfa' %}" class="btn btn-primary">Devam et</a>
+    {% endif %}
+  </div>
+</div>
+{% if soru %}
+<script>
+(function () {
+  var kalan = {{ kalan }}, sure = {{ sure }};
+  var form = document.getElementById('soru-form');
+  var sec = document.getElementById('secilen');
+  var no = document.getElementById('sayac-no');
+  var dolgu = document.getElementById('sayac-dolgu');
+  var gonderildi = false;
+  function gonder(harf) {
+    if (gonderildi) return; gonderildi = true;
+    sec.value = harf || '';
+    form.submit();
+  }
+  document.querySelectorAll('.soru-sik').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.soru-sik').forEach(function (x){ x.classList.remove('secili'); });
+      b.classList.add('secili');
+      gonder(b.dataset.harf);
+    });
+  });
+  function tik() {
+    if (gonderildi) return;
+    no.textContent = kalan;
+    var yuzde = Math.max(0, Math.min(100, (kalan / sure) * 100));
+    dolgu.style.width = yuzde + '%';
+    if (kalan <= 0) { gonder(''); return; }
+    kalan -= 1;
+    setTimeout(tik, 1000);
+  }
+  tik();
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -31,7 +31,7 @@
     <a href="{% url 'stok' %}" class="{% if aktif == 'stok' %}aktif{% endif %}">Stok</a>
     <a href="{% url 'sevkiyat' %}" class="{% if aktif == 'sevkiyat' %}aktif{% endif %}">Sevkiyat</a>
     {% if personel.rol == 'Genel Müdür' or personel.rol == 'Operatör' or personel.rol == 'Yatırımcı' %}<a href="{% url 'sevkiyat_duzenle' %}" class="{% if aktif == 'sevkiyat_duzenle' %}aktif{% endif %}">Sevkiyat Düzenle</a>{% endif %}
-    {% if personel.rol == 'Genel Müdür' or personel.rol == 'Müdür' or personel.rol == 'Operatör' or personel.rol == 'Yatırımcı' %}<a href="{% url 'irsaliye' %}" class="{% if aktif == 'irsaliye' %}aktif{% endif %}">İrsaliye</a><a href="{% url 'ekip' %}" class="{% if aktif == 'ekip' %}aktif{% endif %}">{% if personel.rol == 'Müdür' %}Şefler{% else %}Ekip{% endif %}</a>{% endif %}
+    {% if personel.rol == 'Genel Müdür' or personel.rol == 'Müdür' or personel.rol == 'Operatör' or personel.rol == 'Yatırımcı' %}<a href="{% url 'irsaliye' %}" class="{% if aktif == 'irsaliye' %}aktif{% endif %}">İrsaliye</a><a href="{% url 'ekip' %}" class="{% if aktif == 'ekip' %}aktif{% endif %}">{% if personel.rol == 'Müdür' %}Şefler{% else %}Ekip{% endif %}</a><a href="{% url 'bilgi_karnesi' %}" class="{% if aktif == 'bilgi_karnesi' %}aktif{% endif %}">Bilgi Karnesi</a>{% endif %}
   {% endif %}
 </nav>
 {% endif %}

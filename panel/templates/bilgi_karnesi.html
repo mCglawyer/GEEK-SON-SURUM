@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Bilgi Karnesi · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Bilgi Karnesi</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% else %}Şube seçin{% endif %} · kahve bilgi kapasitesi</span></div>
+    <div class="yon-secimler">
+      <select class="sube-sec" onchange="location.href='?sube_id='+this.value+'&ay={{ selected_ay_str }}'">
+        {% for s in subeler %}<option value="{{ s.id }}"{% if sel_sube and s.id == sel_sube.id %} selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+      </select>
+      <input type="month" class="ay-sec" value="{{ selected_ay_str }}" onchange="location.href='?sube_id={% if sel_sube %}{{ sel_sube.id }}{% endif %}&ay='+this.value">
+    </div>
+  </div>
+
+  {% if not sel_sube %}
+  <div class="card"><p style="margin:0;color:var(--muted)">Görüntülenecek şube yok.</p></div>
+  {% else %}
+
+  <div class="card">
+    <div class="kn-tablo kn-head">
+      <span>Personel</span><span>Toplam</span><span>Doğru</span><span>Yanlış</span><span>Boş</span><span>Başarı</span>
+    </div>
+    {% for d in satirlar %}
+    <div class="kn-tablo kn-satir">
+      <span class="kn-ad">{{ d.personel.ad_soyad }}{% if d.personel.rol == 'Şef' %} <span class="badge badge-info">şef</span>{% endif %}</span>
+      <span>{{ d.toplam }}</span>
+      <span class="kn-ok">{{ d.dogru }}</span>
+      <span class="kn-no">{{ d.yanlis }}</span>
+      <span class="kn-bos">{{ d.bos }}</span>
+      <span><b class="kn-yuzde {% if d.basari >= 70 %}iyi{% elif d.basari >= 40 %}orta{% else %}dusuk{% endif %}">%{{ d.basari }}</b></span>
+    </div>
+    {% empty %}
+    <p style="margin:.4rem 0;color:var(--muted)">Bu şubede personel/kayıt yok.</p>
+    {% endfor %}
+  </div>
+
+  {% if yanlislar %}
+  <div class="card">
+    <h3 style="margin-top:0">Yanlış cevaplanan sorular <span class="hafta-aralik">{{ yanlislar|length }} kayıt</span></h3>
+    {% for y in yanlislar %}
+    <div class="kn-yanlis">
+      <div class="kn-yanlis-ust"><b>{{ y.ad }}</b><span class="hafta-aralik">{{ y.tarih|date:"d.m.Y" }}</span></div>
+      <div class="kn-soru">{{ y.soru }}</div>
+      <div class="kn-cevaplar">
+        {% if y.bos %}<span class="kn-no">Boş bıraktı / süre doldu</span>{% else %}<span class="kn-no">Verdiği: {{ y.secilen }}</span>{% endif %}
+        <span class="kn-ok">Doğru: {{ y.dogru }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% endif %}
+</div>
+{% endblock %}
