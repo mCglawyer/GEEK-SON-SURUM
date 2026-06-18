@@ -22,8 +22,10 @@
     <a href="{% url 'sevkiyat' %}" class="{% if aktif == 'sevkiyat' %}aktif{% endif %}">Sevkiyat</a>
     <a href="{% url 'irsaliye' %}" class="{% if aktif == 'irsaliye' %}aktif{% endif %}">İrsaliye</a>
     {% if personel.rol == 'Satın Alma' %}<a href="{% url 'sevkiyat_duzenle' %}" class="{% if aktif == 'sevkiyat_duzenle' %}aktif{% endif %}">Sevkiyat Düzenle</a><a href="{% url 'stok' %}" class="{% if aktif == 'stok' %}aktif{% endif %}">Stok</a>{% endif %}
+    {% elif personel.rol == 'Eğitmen' %}
+    <a href="{% url 'soru_yonetimi' %}" class="{% if aktif == 'soru_yonetimi' %}aktif{% endif %}">Soru Yönetimi</a>
+    <a href="{% url 'bilgi_karnesi' %}" class="{% if aktif == 'bilgi_karnesi' %}aktif{% endif %}">Bilgi Karnesi</a>
   {% else %}
-    <a href="{% url 'ana_sayfa' %}" class="{% if aktif == 'home' %}aktif{% endif %}">Vardiya</a>
     <a href="{% url 'puantaj' %}" class="{% if aktif == 'puantaj' %}aktif{% endif %}">Puantaj</a>
     <a href="{% url 'mola' %}" class="{% if aktif == 'mola' %}aktif{% endif %}">Mola</a>
     <a href="{% url 'kalibrasyon' %}" class="{% if aktif == 'kalibrasyon' %}aktif{% endif %}">Kalibrasyon</a>

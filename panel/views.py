@@ -23,7 +23,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      StokUrun, StokSayim, StokSayimKalem,
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      SevkiyatForm, Urun, SiparisHareket,
-                     KahveSoru, GunlukSoru,
+                     KahveSoru, GunlukSoru, SoruAyar,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -187,7 +187,9 @@ def ana_sayfa(request):
         return _yonetici_vardiya(request, personel)
     if personel.rol in (Rol.SATIN_ALMA, Rol.SEVKIYAT):
         return redirect('sevkiyat')
-    if personel.rol in SORU_ROLLERI:
+    if personel.rol == Rol.EGITMEN:
+        return redirect('soru_yonetimi')
+    if personel.rol in SORU_ROLLERI and _soru_sistemi_aktif():
         _gs = _gunluk_soru_getir_veya_ata(personel, timezone.localdate())
         if _gs is not None:
             _gunluk_finalize(_gs)
@@ -1901,8 +1903,14 @@ SORU_ROLLERI = [Rol.PERSONEL, Rol.SEF]
 SORU_SURE = 30           # saniye (kullanıcıya gösterilen sayaç)
 SORU_SURE_PAYLI = 38     # sunucu tarafı tolerans (ağ gecikmesi)
 CALISMAYAN_TIPLER = [VardiyaTipi.IZINLI, VardiyaTipi.RAPORLU, VardiyaTipi.DEVAMSIZ]
-# Bilgi karnesini görebilen yönetim rolleri
-KARNE_ROLLERI = [Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
+# Bilgi karnesini görebilen roller (şube bazlı)
+KARNE_ROLLERI = [Rol.EGITMEN, Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
+# Soru bankasını yönetebilen roller (ekle/çıkar/aktif-pasif)
+SORU_YONETIM_ROLLERI = [Rol.EGITMEN, Rol.GENEL_MUDUR]
+
+
+def _soru_sistemi_aktif():
+    return SoruAyar.get().aktif
 
 
 def _bugun_calisiyor_mu(personel, gun):
@@ -1953,6 +1961,8 @@ def gunluk_soru(request):
         return _logout(request)
     personel = _aktif_personel(request)
     if personel is None or personel.rol not in SORU_ROLLERI:
+        return redirect('ana_sayfa')
+    if not _soru_sistemi_aktif():
         return redirect('ana_sayfa')
 
     today = timezone.localdate()
@@ -2068,4 +2078,92 @@ def bilgi_karnesi(request):
         'personel': personel, 'aktif': 'bilgi_karnesi',
         'subeler': subeler, 'sel_sube': sel_sube, 'selected_ay_str': ay_str,
         'satirlar': satirlar, 'yanlislar': yanlislar,
+    })
+
+
+def soru_yonetimi(request):
+    """Eğitmen (ve GM): soru bankasını yönetir — ekle/düzenle/aktif-pasif + sistemi aç/kapat."""
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in SORU_YONETIM_ROLLERI:
+        return redirect('ana_sayfa')
+
+    ayar = SoruAyar.get()
+
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+
+        if islem == 'sistem_durum':
+            ayar.aktif = (request.POST.get('aktif') == '1')
+            ayar.save(update_fields=['aktif', 'guncelleme'])
+            messages.success(request, "Günlük soru sistemi " + ("aktif edildi." if ayar.aktif else "pasife alındı."))
+            return redirect('soru_yonetimi')
+
+        if islem == 'soru_ekle':
+            metin = (request.POST.get('metin') or '').strip()
+            a = (request.POST.get('sik_a') or '').strip()
+            b = (request.POST.get('sik_b') or '').strip()
+            c = (request.POST.get('sik_c') or '').strip()
+            d = (request.POST.get('sik_d') or '').strip()
+            dogru = (request.POST.get('dogru') or '').strip().upper()
+            kategori = (request.POST.get('kategori') or '').strip()[:40]
+            if metin and a and b and c and d and dogru in ('A', 'B', 'C', 'D'):
+                KahveSoru.objects.create(metin=metin, sik_a=a[:200], sik_b=b[:200],
+                                         sik_c=c[:200], sik_d=d[:200], dogru=dogru,
+                                         kategori=kategori, aktif=True)
+                messages.success(request, "Soru eklendi.")
+            else:
+                messages.error(request, "Tüm alanlar ve geçerli bir doğru şık (A/B/C/D) zorunlu.")
+            return redirect('soru_yonetimi')
+
+        if islem == 'soru_guncelle':
+            s = KahveSoru.objects.filter(id=request.POST.get('soru_id')).first()
+            if s:
+                metin = (request.POST.get('metin') or '').strip()
+                a = (request.POST.get('sik_a') or '').strip()
+                b = (request.POST.get('sik_b') or '').strip()
+                c = (request.POST.get('sik_c') or '').strip()
+                d = (request.POST.get('sik_d') or '').strip()
+                dogru = (request.POST.get('dogru') or '').strip().upper()
+                if metin and a and b and c and d and dogru in ('A', 'B', 'C', 'D'):
+                    s.metin = metin
+                    s.sik_a, s.sik_b, s.sik_c, s.sik_d = a[:200], b[:200], c[:200], d[:200]
+                    s.dogru = dogru
+                    s.kategori = (request.POST.get('kategori') or '').strip()[:40]
+                    s.save()
+                    messages.success(request, "Soru güncellendi.")
+                else:
+                    messages.error(request, "Geçersiz soru bilgisi.")
+            return redirect('soru_yonetimi')
+
+        if islem == 'soru_durum':
+            s = KahveSoru.objects.filter(id=request.POST.get('soru_id')).first()
+            if s:
+                s.aktif = not s.aktif
+                s.save(update_fields=['aktif'])
+                messages.success(request, ("Soru aktif edildi." if s.aktif else "Soru pasife alındı (çıkarıldı)."))
+            return redirect('soru_yonetimi')
+
+        return redirect('soru_yonetimi')
+
+    # GET
+    arama = (request.GET.get('q') or '').strip()
+    kategori = (request.GET.get('kategori') or '').strip()
+    qs = KahveSoru.objects.all().order_by('-aktif', 'kategori', 'id')
+    if arama:
+        qs = qs.filter(metin__icontains=arama)
+    if kategori:
+        qs = qs.filter(kategori=kategori)
+    sorular = list(qs)
+    kategoriler = sorted(set(KahveSoru.objects.exclude(kategori='')
+                             .values_list('kategori', flat=True)))
+    return render(request, 'soru_yonetimi.html', {
+        'personel': personel, 'aktif': 'soru_yonetimi',
+        'ayar': ayar, 'sorular': sorular, 'kategoriler': kategoriler,
+        'arama': arama, 'sel_kategori': kategori,
+        'toplam': len(sorular),
+        'aktif_sayi': KahveSoru.objects.filter(aktif=True).count(),
     })

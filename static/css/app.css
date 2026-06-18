@@ -583,3 +583,26 @@ a { color:var(--brand); text-decoration:none; }
   .kn-tablo { grid-template-columns:1.6fr .6fr .6fr .6fr .6fr .8fr; font-size:.85rem; }
   .soru-metin { font-size:1.1rem; }
 }
+
+/* Soru Yönetimi (Eğitmen) */
+.sy-durum { display:flex; align-items:center; justify-content:space-between; gap:1rem; border-left:4px solid var(--line); }
+.sy-durum.sy-acik { border-left-color:var(--ok); background:#f3fbf6; }
+.sy-durum.sy-kapali { border-left-color:var(--no); background:#fdf4f4; }
+.sy-ekle-kart summary { cursor:pointer; color:var(--brand); }
+.sy-form { display:grid; gap:.7rem; margin-top:.8rem; }
+.sy-form label { display:flex; flex-direction:column; gap:.25rem; font-size:.8rem; color:var(--muted); }
+.sy-form .input, .sy-form textarea.input { font-size:.95rem; color:var(--ink); }
+.sy-siklar { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
+.sy-alt { display:flex; flex-wrap:wrap; gap:.8rem; align-items:flex-end; }
+.sy-alt label { flex:1; min-width:120px; }
+.sy-arama { display:flex; gap:.5rem; margin:1rem 0; flex-wrap:wrap; }
+.sy-arama .input { flex:1; min-width:160px; }
+.sy-soru.sy-pasif { opacity:.62; }
+.sy-soru-ust { display:flex; justify-content:space-between; align-items:center; gap:.6rem; }
+.sy-kat { font-size:.78rem; color:var(--muted); margin-left:.4rem; }
+.sy-soru-metin { font-weight:600; margin:.5rem 0; }
+.sy-siklar-goster { display:grid; grid-template-columns:1fr 1fr; gap:.3rem .8rem; font-size:.88rem; color:var(--muted); }
+.sy-siklar-goster .dogru { color:var(--ok); font-weight:600; }
+.sy-duzenle { margin-top:.6rem; }
+.sy-duzenle summary { cursor:pointer; color:var(--brand); font-size:.88rem; }
+@media (max-width:600px){ .sy-siklar, .sy-siklar-goster { grid-template-columns:1fr; } .sy-durum { flex-direction:column; align-items:flex-start; } }

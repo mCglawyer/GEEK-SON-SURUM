@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Soru Yönetimi · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'zorunlu' in m.tags or 'error' in m.tags or 'Geçersiz' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Soru Yönetimi</h2><span class="plan-aralik">{{ aktif_sayi }} aktif · {{ toplam }} görüntülenen soru</span></div>
+  </div>
+
+  <div class="card sy-durum {% if ayar.aktif %}sy-acik{% else %}sy-kapali{% endif %}">
+    <div>
+      <b>Günlük soru sistemi: {% if ayar.aktif %}AKTİF{% else %}PASİF{% endif %}</b>
+      <p style="margin:.25rem 0 0;color:var(--muted);font-size:.86rem">
+        {% if ayar.aktif %}Personel ve şeflere her gün ilk girişte soru çıkıyor.{% else %}Şu an kimseye soru çıkmıyor. Hazır olunca aktif edin.{% endif %}
+      </p>
+    </div>
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="islem" value="sistem_durum">
+      <input type="hidden" name="aktif" value="{% if ayar.aktif %}0{% else %}1{% endif %}">
+      <button class="btn {% if ayar.aktif %}btn-danger{% else %}btn-primary{% endif %}">
+        {% if ayar.aktif %}Pasife al{% else %}Aktif et{% endif %}
+      </button>
+    </form>
+  </div>
+
+  <details class="card sy-ekle-kart">
+    <summary><b>+ Yeni soru ekle</b></summary>
+    <form method="post" class="sy-form">{% csrf_token %}
+      <input type="hidden" name="islem" value="soru_ekle">
+      <label>Soru<textarea class="input" name="metin" rows="2" required></textarea></label>
+      <div class="sy-siklar">
+        <label>A<input class="input" name="sik_a" required></label>
+        <label>B<input class="input" name="sik_b" required></label>
+        <label>C<input class="input" name="sik_c" required></label>
+        <label>D<input class="input" name="sik_d" required></label>
+      </div>
+      <div class="sy-alt">
+        <label>Doğru şık
+          <select class="sube-sec" name="dogru" required><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select>
+        </label>
+        <label>Kategori<input class="input" name="kategori" list="kat-liste" placeholder="örn. Demleme"></label>
+        <button class="btn btn-primary">Ekle</button>
+      </div>
+    </form>
+  </details>
+
+  <form method="get" class="sy-arama">
+    <input class="input" type="text" name="q" value="{{ arama }}" placeholder="Soru ara...">
+    <select class="sube-sec" name="kategori" onchange="this.form.submit()">
+      <option value="">Tüm kategoriler</option>
+      {% for k in kategoriler %}<option value="{{ k }}"{% if k == sel_kategori %} selected{% endif %}>{{ k }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-ghost btn-mini">Ara</button>
+  </form>
+  <datalist id="kat-liste">{% for k in kategoriler %}<option value="{{ k }}">{% endfor %}</datalist>
+
+  {% for s in sorular %}
+  <div class="card sy-soru {% if not s.aktif %}sy-pasif{% endif %}">
+    <div class="sy-soru-ust">
+      <div>
+        <span class="badge {% if s.aktif %}badge-ok{% else %}badge-no{% endif %}">{% if s.aktif %}Aktif{% else %}Pasif{% endif %}</span>
+        {% if s.kategori %}<span class="sy-kat">{{ s.kategori }}</span>{% endif %}
+      </div>
+      <div class="sy-soru-aks">
+        <form method="post">{% csrf_token %}
+          <input type="hidden" name="islem" value="soru_durum">
+          <input type="hidden" name="soru_id" value="{{ s.id }}">
+          <button class="btn btn-mini {% if s.aktif %}btn-danger{% else %}btn-primary{% endif %}">{% if s.aktif %}Çıkar (pasif){% else %}Aktif et{% endif %}</button>
+        </form>
+      </div>
+    </div>
+    <div class="sy-soru-metin">{{ s.metin }}</div>
+    <div class="sy-siklar-goster">
+      <span class="{% if s.dogru == 'A' %}dogru{% endif %}">A) {{ s.sik_a }}</span>
+      <span class="{% if s.dogru == 'B' %}dogru{% endif %}">B) {{ s.sik_b }}</span>
+      <span class="{% if s.dogru == 'C' %}dogru{% endif %}">C) {{ s.sik_c }}</span>
+      <span class="{% if s.dogru == 'D' %}dogru{% endif %}">D) {{ s.sik_d }}</span>
+    </div>
+    <details class="sy-duzenle">
+      <summary>Düzenle</summary>
+      <form method="post" class="sy-form" style="margin-top:.7rem">{% csrf_token %}
+        <input type="hidden" name="islem" value="soru_guncelle">
+        <input type="hidden" name="soru_id" value="{{ s.id }}">
+        <label>Soru<textarea class="input" name="metin" rows="2" required>{{ s.metin }}</textarea></label>
+        <div class="sy-siklar">
+          <label>A<input class="input" name="sik_a" value="{{ s.sik_a }}" required></label>
+          <label>B<input class="input" name="sik_b" value="{{ s.sik_b }}" required></label>
+          <label>C<input class="input" name="sik_c" value="{{ s.sik_c }}" required></label>
+          <label>D<input class="input" name="sik_d" value="{{ s.sik_d }}" required></label>
+        </div>
+        <div class="sy-alt">
+          <label>Doğru şık
+            <select class="sube-sec" name="dogru">
+              <option value="A"{% if s.dogru == 'A' %} selected{% endif %}>A</option>
+              <option value="B"{% if s.dogru == 'B' %} selected{% endif %}>B</option>
+              <option value="C"{% if s.dogru == 'C' %} selected{% endif %}>C</option>
+              <option value="D"{% if s.dogru == 'D' %} selected{% endif %}>D</option>
+            </select>
+          </label>
+          <label>Kategori<input class="input" name="kategori" value="{{ s.kategori }}" list="kat-liste"></label>
+          <button class="btn btn-primary">Kaydet</button>
+        </div>
+      </form>
+    </details>
+  </div>
+  {% empty %}
+  <div class="card"><p style="margin:0;color:var(--muted)">Soru bulunamadı. Yukarıdan yeni soru ekleyebilirsiniz.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

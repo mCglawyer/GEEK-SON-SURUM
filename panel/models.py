@@ -13,6 +13,7 @@ class Rol(models.TextChoices):
     YATIRIMCI = 'Yatırımcı', 'Yatırımcı (Tam Yetkili)'
     SATIN_ALMA = 'Satın Alma', 'Satın Alma'
     SEVKIYAT = 'Sevkiyat', 'Sevkiyat'
+    EGITMEN = 'Eğitmen', 'Eğitmen'
     SEF = 'Şef', 'Şube Şefi'
     PERSONEL = 'Personel', 'Personel'
 
@@ -466,3 +467,21 @@ class GunlukSoru(models.Model):
 
     def __str__(self):
         return f"{self.personel_id} · {self.tarih}"
+
+
+class SoruAyar(models.Model):
+    """Günlük soru sisteminin genel açık/kapalı ayarı (tek satır)."""
+    aktif = models.BooleanField(default=False, verbose_name="Günlük soru sistemi aktif")
+    guncelleme = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Soru Sistemi Ayarı"
+        verbose_name_plural = "Soru Sistemi Ayarı"
+
+    def __str__(self):
+        return "Aktif" if self.aktif else "Pasif"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

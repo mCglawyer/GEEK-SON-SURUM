@@ -11,6 +11,7 @@ urlpatterns = [
     path('ekip/', views.ekip_sayfa, name='ekip'),
     path('gunluk-soru/', views.gunluk_soru, name='gunluk_soru'),
     path('bilgi-karnesi/', views.bilgi_karnesi, name='bilgi_karnesi'),
+    path('soru-yonetimi/', views.soru_yonetimi, name='soru_yonetimi'),
     path('puantaj/excel/', views.puantaj_excel_export, name='puantaj_excel_export'),
     path('zayi/', views.zayi_sayfa, name='zayi'),
     path('zayi/excel/', views.zayi_excel_export, name='zayi_excel_export'),
