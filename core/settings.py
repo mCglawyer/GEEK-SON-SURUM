@@ -99,6 +99,19 @@ DATABASES = {
     }
 }
 
+# .env içinde DB_NAME tanımlıysa PostgreSQL kullan (canlı/PythonAnywhere).
+# Tanımlı değilse SQLite'ta kal (yerel geliştirme) — böylece yerelde hiçbir şey değişmez.
+if os.environ.get('DB_NAME'):
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ['DB_NAME'],
+        'USER': os.environ.get('DB_USER', ''),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', ''),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+        'CONN_MAX_AGE': 60,
+    }
+
 
 # =========================================================================
 # ŞİFRE DOĞRULAMA
