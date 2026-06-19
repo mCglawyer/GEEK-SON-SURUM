@@ -67,6 +67,9 @@ class Personel(models.Model):
         verbose_name="Sorumlu olduğu şubeler (Bölge Müdürü)")
     rol = models.CharField(
         max_length=20, choices=Rol.choices, default=Rol.PERSONEL, verbose_name="Rol")
+    egitmen = models.BooleanField(
+        default=False, verbose_name="Eğitmen yetkisi",
+        help_text="İşaretliyse bu kişi (rolü ne olursa olsun) soru yönetimi ve bilgi karnesine erişir.")
     giris_kodu = models.CharField(
         max_length=6, unique=True, null=True, blank=True,
         verbose_name="Giriş Kodu",

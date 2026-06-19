@@ -21,7 +21,7 @@
   {% elif personel.rol == 'Satın Alma' or personel.rol == 'Sevkiyat' %}
     <a href="{% url 'sevkiyat' %}" class="{% if aktif == 'sevkiyat' %}aktif{% endif %}">Sevkiyat</a>
     <a href="{% url 'irsaliye' %}" class="{% if aktif == 'irsaliye' %}aktif{% endif %}">İrsaliye</a>
-    {% if personel.rol == 'Satın Alma' %}<a href="{% url 'sevkiyat_duzenle' %}" class="{% if aktif == 'sevkiyat_duzenle' %}aktif{% endif %}">Sevkiyat Düzenle</a><a href="{% url 'stok' %}" class="{% if aktif == 'stok' %}aktif{% endif %}">Stok</a>{% endif %}
+    {% if personel.rol == 'Satın Alma' %}<a href="{% url 'sevkiyat_duzenle' %}" class="{% if aktif == 'sevkiyat_duzenle' %}aktif{% endif %}">Sevkiyat Düzenle</a><a href="{% url 'stok' %}" class="{% if aktif == 'stok' %}aktif{% endif %}">Stok</a><a href="{% url 'stok_duzenle' %}" class="{% if aktif == 'stok_duzenle' %}aktif{% endif %}">Stok Düzenle</a>{% endif %}
     {% elif personel.rol == 'Eğitmen' %}
     <a href="{% url 'soru_yonetimi' %}" class="{% if aktif == 'soru_yonetimi' %}aktif{% endif %}">Soru Yönetimi</a>
     <a href="{% url 'bilgi_karnesi' %}" class="{% if aktif == 'bilgi_karnesi' %}aktif{% endif %}">Bilgi Karnesi</a>
@@ -31,9 +31,11 @@
     <a href="{% url 'kalibrasyon' %}" class="{% if aktif == 'kalibrasyon' %}aktif{% endif %}">Kalibrasyon</a>
     <a href="{% url 'zayi' %}" class="{% if aktif == 'zayi' %}aktif{% endif %}">Zayi</a>
     <a href="{% url 'stok' %}" class="{% if aktif == 'stok' %}aktif{% endif %}">Stok</a>
+    {% if personel.rol == 'Müdür' or personel.rol == 'Genel Müdür' or personel.rol == 'Operatör' or personel.rol == 'Yatırımcı' %}<a href="{% url 'stok_duzenle' %}" class="{% if aktif == 'stok_duzenle' %}aktif{% endif %}">Stok Düzenle</a>{% endif %}
     <a href="{% url 'sevkiyat' %}" class="{% if aktif == 'sevkiyat' %}aktif{% endif %}">Sevkiyat</a>
     {% if personel.rol == 'Genel Müdür' or personel.rol == 'Operatör' or personel.rol == 'Yatırımcı' %}<a href="{% url 'sevkiyat_duzenle' %}" class="{% if aktif == 'sevkiyat_duzenle' %}aktif{% endif %}">Sevkiyat Düzenle</a>{% endif %}
     {% if personel.rol == 'Genel Müdür' or personel.rol == 'Müdür' or personel.rol == 'Operatör' or personel.rol == 'Yatırımcı' %}<a href="{% url 'irsaliye' %}" class="{% if aktif == 'irsaliye' %}aktif{% endif %}">İrsaliye</a><a href="{% url 'ekip' %}" class="{% if aktif == 'ekip' %}aktif{% endif %}">{% if personel.rol == 'Müdür' %}Şefler{% else %}Ekip{% endif %}</a><a href="{% url 'bilgi_karnesi' %}" class="{% if aktif == 'bilgi_karnesi' %}aktif{% endif %}">Bilgi Karnesi</a>{% endif %}
   {% endif %}
+  {% if personel.egitmen and personel.rol != 'Eğitmen' %}<a href="{% url 'soru_yonetimi' %}" class="{% if aktif == 'soru_yonetimi' %}aktif{% endif %}">Soru Yönetimi</a><a href="{% url 'bilgi_karnesi' %}" class="{% if aktif == 'bilgi_karnesi' %}aktif{% endif %}">Bilgi Karnesi</a>{% endif %}
 </nav>
 {% endif %}

@@ -23,6 +23,7 @@ urlpatterns = [
     path('irsaliye/', views.irsaliye_sayfa, name='irsaliye'),
     path('stok/', views.stok_sayimi, name='stok'),
     path('stok/excel/', views.stok_excel, name='stok_excel'),
+    path('stok-duzenle/', views.stok_duzenle, name='stok_duzenle'),
     path('kvkk/', views.kvkk, name='kvkk'),
     path('kullanim-kosullari/', views.kullanim_kosullari, name='kullanim_kosullari'),
     path('gizlilik/', views.gizlilik, name='gizlilik'),

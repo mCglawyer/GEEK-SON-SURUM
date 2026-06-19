@@ -92,6 +92,35 @@
     <p style="margin:0;color:var(--muted)">Henüz Bölge Müdürü rolünde kullanıcı yok. Yukarıdan "Müdür" rolüyle ekleyebilirsiniz.</p>
     {% endif %}
   </div>
+
+  <div class="card staff-card">
+    <h3>Eğitmen Yetkisi</h3>
+    <p style="margin:.2rem 0 1rem;color:var(--muted);font-size:.9rem">Bir personel veya şefe eğitmen yetkisi verin. Eğitmen kendi 6 haneli koduyla girer; ek olarak "Soru Yönetimi" ve "Bilgi Karnesi"ne erişir. Kişi hem kendi işini yapar hem soruları yönetir.</p>
+    {% if egitmenler %}
+    <ul class="sef-list" style="margin-bottom:1rem">
+      {% for e in egitmenler %}
+      <li class="sef-row">
+        <span>{{ e.ad_soyad }} <span class="badge badge-info">{{ e.get_rol_display }}</span>{% if e.sube %} · {{ e.sube.ad }}{% endif %}</span>
+        <form method="post" onsubmit="return confirm('{{ e.ad_soyad }} eğitmen yetkisinden çıkarılsın mı?');">{% csrf_token %}
+          <input type="hidden" name="islem" value="egitmen_cikar">
+          <input type="hidden" name="personel_id" value="{{ e.id }}">
+          <button class="btn btn-danger btn-mini">Çıkar</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p style="margin:0 0 1rem;color:var(--muted)">Henüz eğitmen yok.</p>
+    {% endif %}
+    <form method="post" class="sef-ekle">{% csrf_token %}
+      <input type="hidden" name="islem" value="egitmen_ekle">
+      <select class="sube-sec" name="personel_id" required>
+        <option value="">Kişi seç (personel/şef)…</option>
+        {% for a in egitmen_adaylari %}<option value="{{ a.id }}">{{ a.ad_soyad }} — {{ a.get_rol_display }}{% if a.sube %} ({{ a.sube.ad }}){% endif %}</option>{% endfor %}
+      </select>
+      <button class="btn btn-primary">Eğitmen yap</button>
+    </form>
+  </div>
   {% endif %}
 </div>
 {% endblock %}

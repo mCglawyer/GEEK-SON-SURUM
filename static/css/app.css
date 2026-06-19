@@ -606,3 +606,7 @@ a { color:var(--brand); text-decoration:none; }
 .sy-duzenle { margin-top:.6rem; }
 .sy-duzenle summary { cursor:pointer; color:var(--brand); font-size:.88rem; }
 @media (max-width:600px){ .sy-siklar, .sy-siklar-goster { grid-template-columns:1fr; } .sy-durum { flex-direction:column; align-items:flex-start; } }
+
+/* Stok Düzenle (5 sütun: ad | kapalı | açık | kaydet | çıkar) */
+.sk-tablo { grid-template-columns:2.4fr 1fr 1fr auto auto; }
+@media (max-width:820px){ .sk-tablo { grid-template-columns:1fr; } }

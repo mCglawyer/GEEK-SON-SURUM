@@ -575,6 +575,23 @@ def ekip_sayfa(request):
                 messages.success(request, "Şef bilgileri güncellendi.")
             return redirect('ekip')
 
+        if islem == 'egitmen_ekle':
+            s = Personel.objects.filter(id=request.POST.get('personel_id'),
+                                        rol__in=[Rol.PERSONEL, Rol.SEF]).first()
+            if s:
+                s.egitmen = True
+                s.save(update_fields=['egitmen'])
+                messages.success(request, f"{s.ad_soyad} artık eğitmen (kodla girip soru yönetimine erişir).")
+            return redirect('ekip')
+
+        if islem == 'egitmen_cikar':
+            s = Personel.objects.filter(id=request.POST.get('personel_id')).first()
+            if s:
+                s.egitmen = False
+                s.save(update_fields=['egitmen'])
+                messages.success(request, f"{s.ad_soyad} eğitmen yetkisinden çıkarıldı.")
+            return redirect('ekip')
+
     yoneticiler = list(Personel.objects.filter(rol__in=OFIS_ROLLERI).select_related('user').order_by('ad_soyad'))
     sefler_qs = Personel.objects.filter(rol=Rol.SEF).select_related('sube')
     if personel.rol == Rol.MUDUR:
@@ -584,18 +601,25 @@ def ekip_sayfa(request):
     is_atayabilir = is_tam
     bolge_mudurleri = []
     tum_subeler = []
+    egitmenler = []
+    egitmen_adaylari = []
     if is_atayabilir:
         tum_subeler = list(Sube.objects.order_by('ad'))
         bolge_mudurleri = list(Personel.objects.filter(rol=Rol.MUDUR)
                                .prefetch_related('sorumlu_subeler').order_by('ad_soyad'))
         for m in bolge_mudurleri:
             m.atanan_ids = set(m.sorumlu_subeler.values_list('id', flat=True))
+        egitmenler = list(Personel.objects.filter(egitmen=True)
+                          .select_related('sube').order_by('ad_soyad'))
+        egitmen_adaylari = list(Personel.objects.filter(rol__in=[Rol.PERSONEL, Rol.SEF], egitmen=False)
+                                .select_related('sube').order_by('ad_soyad'))
     return render(request, 'ekip.html', {
         'personel': personel, 'aktif': 'ekip', 'subeler': subeler,
         'yoneticiler': yoneticiler, 'sefler': sefler,
         'yonetici_rolleri': OFIS_ROLLERI,
         'is_tam': is_tam,
         'is_atayabilir': is_atayabilir, 'bolge_mudurleri': bolge_mudurleri, 'tum_subeler': tum_subeler,
+        'egitmenler': egitmenler, 'egitmen_adaylari': egitmen_adaylari,
     })
 
 
@@ -1913,6 +1937,20 @@ def _soru_sistemi_aktif():
     return SoruAyar.get().aktif
 
 
+def _egitmen_mi(personel):
+    """Kişi eğitmen yetkisine sahip mi (işaret veya eski Eğitmen rolü)."""
+    return bool(personel) and (getattr(personel, 'egitmen', False) or personel.rol == Rol.EGITMEN)
+
+
+def _karne_gorebilir(personel):
+    return bool(personel) and (_egitmen_mi(personel) or personel.rol in
+                               [Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI])
+
+
+def _soru_yonetebilir(personel):
+    return bool(personel) and (_egitmen_mi(personel) or personel.rol == Rol.GENEL_MUDUR)
+
+
 def _bugun_calisiyor_mu(personel, gun):
     """O gün izinli/raporlu/devamsız ise False; aksi halde (kayıt yoksa da) True."""
     v = personel.vardiyalar.filter(tarih=gun).first()
@@ -2019,7 +2057,7 @@ def bilgi_karnesi(request):
     if _cikis_mi(request):
         return _logout(request)
     personel = _aktif_personel(request)
-    if personel is None or personel.rol not in KARNE_ROLLERI:
+    if personel is None or not _karne_gorebilir(personel):
         return redirect('ana_sayfa')
 
     subeler = _yon_subeler(personel)
@@ -2088,7 +2126,7 @@ def soru_yonetimi(request):
     if _cikis_mi(request):
         return _logout(request)
     personel = _aktif_personel(request)
-    if personel is None or personel.rol not in SORU_YONETIM_ROLLERI:
+    if personel is None or not _soru_yonetebilir(personel):
         return redirect('ana_sayfa')
 
     ayar = SoruAyar.get()
@@ -2166,4 +2204,93 @@ def soru_yonetimi(request):
         'arama': arama, 'sel_kategori': kategori,
         'toplam': len(sorular),
         'aktif_sayi': KahveSoru.objects.filter(aktif=True).count(),
+    })
+
+
+# =========================================================================
+# STOK DÜZENLE (ortak katalog: ürün ekle/çıkar/detay) — şeflere anında yansır
+# =========================================================================
+STOK_DUZENLE_ROLLERI = [Rol.MUDUR, Rol.SATIN_ALMA, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
+
+
+def _dec(v, vars):
+    try:
+        d = Decimal(str(v).replace(',', '.'))
+        return d if d > 0 else vars
+    except Exception:
+        return vars
+
+
+def stok_duzenle(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in STOK_DUZENLE_ROLLERI:
+        return redirect('ana_sayfa')
+
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        geri_grup = (request.POST.get('geri_grup') or '').strip()
+        geri = f"{reverse('stok_duzenle')}?grup={geri_grup}" if geri_grup else reverse('stok_duzenle')
+
+        if islem == 'urun_guncelle':
+            u = StokUrun.objects.filter(id=request.POST.get('urun_id')).first()
+            if u:
+                ad = (request.POST.get('ad') or '').strip()
+                if ad:
+                    u.ad = ad[:200]
+                u.kategori = (request.POST.get('kategori') or u.kategori).strip()[:80]
+                u.kapali_icerik = _dec(request.POST.get('kapali_icerik'), u.kapali_icerik)
+                u.acik_carpan = _dec(request.POST.get('acik_carpan'), u.acik_carpan)
+                u.save(update_fields=['ad', 'kategori', 'kapali_icerik', 'acik_carpan'])
+                messages.success(request, f"{u.ad} güncellendi.")
+            return redirect(geri)
+
+        if islem == 'urun_cikar':
+            u = StokUrun.objects.filter(id=request.POST.get('urun_id')).first()
+            if u:
+                u.aktif = False
+                u.save(update_fields=['aktif'])
+                messages.success(request, f"{u.ad} listeden çıkarıldı.")
+            return redirect(geri)
+
+        if islem == 'urun_ekle':
+            ad = (request.POST.get('ad') or '').strip()
+            kategori = (request.POST.get('kategori') or '').strip() or geri_grup
+            kapali = _dec(request.POST.get('kapali_icerik'), Decimal('1'))
+            acik = _dec(request.POST.get('acik_carpan'), Decimal('1'))
+            if ad and kategori:
+                var = StokUrun.objects.filter(ad=ad).first()
+                if var:
+                    var.kategori = kategori[:80]
+                    var.kapali_icerik = kapali
+                    var.acik_carpan = acik
+                    var.aktif = True
+                    var.save()
+                    messages.success(request, f"{ad} güncellendi (zaten vardı, yeniden eklendi).")
+                else:
+                    son = StokUrun.objects.order_by('-sira').first()
+                    StokUrun.objects.create(kategori=kategori[:80], ad=ad[:200],
+                                            kapali_icerik=kapali, acik_carpan=acik,
+                                            sira=(son.sira + 1 if son else 0), aktif=True)
+                    messages.success(request, f"{ad} eklendi.")
+                geri = f"{reverse('stok_duzenle')}?grup={kategori}"
+            else:
+                messages.error(request, "Ürün adı ve grup zorunlu.")
+            return redirect(geri)
+
+        return redirect(geri)
+
+    aktif_urunler = list(StokUrun.objects.filter(aktif=True).order_by('sira', 'ad'))
+    gruplar = []
+    for u in aktif_urunler:
+        if u.kategori not in gruplar:
+            gruplar.append(u.kategori)
+    sel_grup = request.GET.get('grup') or (gruplar[0] if gruplar else '')
+    urunler = [u for u in aktif_urunler if u.kategori == sel_grup]
+    return render(request, 'stok_duzenle.html', {
+        'personel': personel, 'aktif': 'stok_duzenle',
+        'gruplar': gruplar, 'sel_grup': sel_grup, 'urunler': urunler,
     })
