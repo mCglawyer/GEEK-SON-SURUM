@@ -2072,7 +2072,7 @@ def bilgi_karnesi(request):
     satirlar = []
     yanlislar = []
     if sel_sube:
-        kisiler = (Personel.objects.filter(sube=sel_sube, rol__in=SORU_ROLLERI, aktif=True)
+        kisiler = (Personel.objects.filter(sube=sel_sube, rol__in=SORU_ROLLERI)
                    .order_by('ad_soyad'))
         kayitlar = (GunlukSoru.objects.filter(personel__in=kisiler,
                                               tarih__gte=ay_ilk, tarih__lt=sonraki)
