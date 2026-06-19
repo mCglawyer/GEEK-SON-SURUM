@@ -8,6 +8,7 @@ urlpatterns = [
     path('', views.ana_sayfa, name='ana_sayfa'),
     path('puantaj/', views.puantaj_sayfa, name='puantaj'),
     path('mola/', views.mola_sayfa, name='mola'),
+    path('ozet/', views.gosterge, name='gosterge'),
     path('ekip/', views.ekip_sayfa, name='ekip'),
     path('gunluk-soru/', views.gunluk_soru, name='gunluk_soru'),
     path('bilgi-karnesi/', views.bilgi_karnesi, name='bilgi_karnesi'),

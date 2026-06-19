@@ -2294,3 +2294,66 @@ def stok_duzenle(request):
         'personel': personel, 'aktif': 'stok_duzenle',
         'gruplar': gruplar, 'sel_grup': sel_grup, 'urunler': urunler,
     })
+
+
+# =========================================================================
+# ÖZET PANEL (dashboard) — mevcut veriyi özetler, yeni veri tutmaz
+# =========================================================================
+def gosterge(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in UST_YONETIM:
+        return redirect('ana_sayfa')
+
+    subeler = list(_yon_subeler(personel))
+    sube_ids = [s.id for s in subeler]
+    today = timezone.localdate()
+    ay_ilk, sonraki = _ay_araligi(today.strftime('%Y-%m'))
+
+    calisan_tipler = [VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI]
+    v_today = Vardiya.objects.filter(tarih=today, personel__sube_id__in=sube_ids)
+
+    # Bugün
+    bugun = {
+        'toplam': Personel.objects.filter(sube_id__in=sube_ids, rol__in=[Rol.PERSONEL, Rol.SEF]).count(),
+        'calisan': v_today.filter(vardiya_tipi__in=calisan_tipler).count(),
+        'izinli': v_today.filter(vardiya_tipi=VardiyaTipi.IZINLI).count(),
+        'raporlu': v_today.filter(vardiya_tipi=VardiyaTipi.RAPORLU).count(),
+        'devamsiz': v_today.filter(vardiya_tipi=VardiyaTipi.DEVAMSIZ).count(),
+    }
+
+    # Bekleyen işler
+    onay_bekleyen = Vardiya.objects.filter(
+        personel__sube_id__in=sube_ids, durum=OnayDurumu.ONAY_BEKLIYOR
+    ).values('personel__sube_id', 'tarih').distinct().count()
+    acik_sevkiyat = SevkiyatTalep.objects.filter(
+        sube_id__in=sube_ids,
+        durum__in=[SevkiyatDurumu.TALEP, SevkiyatDurumu.SEVKIYATTA, SevkiyatDurumu.ONAY_BEKLIYOR]
+    ).count()
+
+    # Bu ay
+    zayi_ay = Zayi.objects.filter(
+        sube_id__in=sube_ids, olusturma__date__gte=ay_ilk, olusturma__date__lt=sonraki
+    ).count()
+    sayim_yapan = (StokSayim.objects.filter(sube_id__in=sube_ids, ay=ay_ilk)
+                   .values('sube_id').distinct().count())
+    sube_sayisi = len(subeler)
+
+    # Soru sistemi
+    ayar = SoruAyar.get()
+    soru = {'aktif': ayar.aktif, 'cevap': 0, 'dogru': 0, 'basari': 0}
+    if ayar.aktif:
+        gs = GunlukSoru.objects.filter(tarih=today, personel__sube_id__in=sube_ids, cevaplandi=True)
+        soru['cevap'] = gs.count()
+        soru['dogru'] = gs.filter(dogru_mu=True).count()
+        soru['basari'] = round(soru['dogru'] * 100 / soru['cevap']) if soru['cevap'] else 0
+
+    return render(request, 'gosterge.html', {
+        'personel': personel, 'aktif': 'gosterge',
+        'bugun': bugun, 'onay_bekleyen': onay_bekleyen, 'acik_sevkiyat': acik_sevkiyat,
+        'zayi_ay': zayi_ay, 'sayim_yapan': sayim_yapan, 'sube_sayisi': sube_sayisi,
+        'soru': soru, 'bugun_tarih': today,
+    })

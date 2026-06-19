@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Özet · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Özet Panel</h2><span class="plan-aralik">{{ bugun_tarih|date:"d.m.Y" }} · {% if personel.rol == 'Müdür' %}sorumlu şubeleriniz{% else %}tüm şubeler{% endif %} ({{ sube_sayisi }})</span></div>
+  </div>
+
+  <h3 class="gs-baslik">Bugün</h3>
+  <div class="gs-grid">
+    <div class="gs-kart"><span class="gs-buyuk">{{ bugun.calisan }}</span><span class="gs-etiket">Çalışıyor</span></div>
+    <div class="gs-kart"><span class="gs-buyuk">{{ bugun.toplam }}</span><span class="gs-etiket">Toplam personel</span></div>
+    <div class="gs-kart gs-wait"><span class="gs-buyuk">{{ bugun.izinli }}</span><span class="gs-etiket">İzinli</span></div>
+    <div class="gs-kart gs-wait"><span class="gs-buyuk">{{ bugun.raporlu }}</span><span class="gs-etiket">Raporlu</span></div>
+    <div class="gs-kart {% if bugun.devamsiz %}gs-no{% endif %}"><span class="gs-buyuk">{{ bugun.devamsiz }}</span><span class="gs-etiket">Devamsız</span></div>
+  </div>
+
+  <h3 class="gs-baslik">Bekleyen İşler</h3>
+  <div class="gs-grid">
+    <a href="{% url 'ekip' %}" class="gs-kart gs-link {% if onay_bekleyen %}gs-wait{% endif %}"><span class="gs-buyuk">{{ onay_bekleyen }}</span><span class="gs-etiket">Onay bekleyen vardiya planı</span></a>
+    <a href="{% url 'sevkiyat' %}" class="gs-kart gs-link {% if acik_sevkiyat %}gs-wait{% endif %}"><span class="gs-buyuk">{{ acik_sevkiyat }}</span><span class="gs-etiket">Açık sevkiyat siparişi</span></a>
+  </div>
+
+  <h3 class="gs-baslik">Bu Ay</h3>
+  <div class="gs-grid">
+    <a href="{% url 'zayi' %}" class="gs-kart gs-link"><span class="gs-buyuk">{{ zayi_ay }}</span><span class="gs-etiket">Zayi kaydı</span></a>
+    <a href="{% url 'stok' %}" class="gs-kart gs-link {% if sayim_yapan < sube_sayisi %}gs-wait{% endif %}"><span class="gs-buyuk">{{ sayim_yapan }}/{{ sube_sayisi }}</span><span class="gs-etiket">Şube stok sayımını yaptı</span></a>
+  </div>
+
+  <h3 class="gs-baslik">Soru Sistemi</h3>
+  <div class="gs-grid">
+    {% if soru.aktif %}
+    <div class="gs-kart gs-ok"><span class="gs-buyuk">Aktif</span><span class="gs-etiket">Günlük soru sistemi</span></div>
+    <div class="gs-kart"><span class="gs-buyuk">{{ soru.cevap }}</span><span class="gs-etiket">Bugün cevaplanan</span></div>
+    <div class="gs-kart"><span class="gs-buyuk">%{{ soru.basari }}</span><span class="gs-etiket">Bugünkü başarı</span></div>
+    {% else %}
+    <div class="gs-kart"><span class="gs-buyuk gs-pasif">Pasif</span><span class="gs-etiket">Günlük soru sistemi kapalı</span></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
