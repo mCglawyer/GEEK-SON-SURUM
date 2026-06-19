@@ -111,6 +111,10 @@ if os.environ.get('DB_NAME'):
         'PORT': os.environ.get('DB_PORT', '5432'),
         'CONN_MAX_AGE': 60,
     }
+    # Dış managed Postgres (Neon/Supabase vb.) SSL ister: .env'de DB_SSLMODE=require
+    _sslmode = os.environ.get('DB_SSLMODE')
+    if _sslmode:
+        DATABASES['default']['OPTIONS'] = {'sslmode': _sslmode}
 
 
 # =========================================================================
