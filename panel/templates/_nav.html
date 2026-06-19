@@ -26,6 +26,7 @@
     <a href="{% url 'soru_yonetimi' %}" class="{% if aktif == 'soru_yonetimi' %}aktif{% endif %}">Soru Yönetimi</a>
     <a href="{% url 'bilgi_karnesi' %}" class="{% if aktif == 'bilgi_karnesi' %}aktif{% endif %}">Bilgi Karnesi</a>
   {% else %}
+    <a href="{% url 'ana_sayfa' %}" class="{% if aktif == 'home' %}aktif{% endif %}">Vardiya</a>
     {% if personel.rol == 'Müdür' or personel.rol == 'Genel Müdür' or personel.rol == 'Operatör' or personel.rol == 'Yatırımcı' %}<a href="{% url 'gosterge' %}" class="{% if aktif == 'gosterge' %}aktif{% endif %}">Özet</a>{% endif %}
     <a href="{% url 'puantaj' %}" class="{% if aktif == 'puantaj' %}aktif{% endif %}">Puantaj</a>
     <a href="{% url 'mola' %}" class="{% if aktif == 'mola' %}aktif{% endif %}">Mola</a>
