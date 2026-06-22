@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Yedekler · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Veri Yedekleri</h2><span class="plan-aralik">Otomatik gecelik yedek · yalnızca Genel Müdür</span></div>
+    <form method="post"><input type="hidden" name="islem" value="al">{% csrf_token %}<button class="btn btn-primary">Şimdi yedek al</button></form>
+  </div>
+
+  <div class="card">
+    <div class="kn-tablo yd-tablo kn-head"><span>Yedek dosyası</span><span>Tarih</span><span>Boyut</span><span></span></div>
+    {% for k in kayitlar %}
+    <div class="kn-tablo yd-tablo kn-satir">
+      <span class="kn-ad">{{ k.ad }}</span>
+      <span>{{ k.tarih|date:"d.m.Y H:i" }}</span>
+      <span>{{ k.kb }} KB</span>
+      <span><a href="{% url 'yedek_indir' k.ad %}" class="btn btn-ghost btn-mini">İndir</a></span>
+    </div>
+    {% empty %}
+    <p style="margin:.4rem 0;color:var(--muted)">Henüz yedek yok. "Şimdi yedek al" ile ilk yedeği oluşturabilirsiniz; gecelik otomatik yedek de devrededir.</p>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Nasıl çalışır?</h3>
+    <p style="margin:.2rem 0;color:var(--muted);font-size:.9rem">
+      Her gece otomatik olarak veritabanının sıkıştırılmış (.json.gz) bir kopyası alınır ve son 14 yedek saklanır.
+      Felaket anında bu dosya <code>loaddata</code> ile geri yüklenebilir. Ekstra güvenlik için ara sıra bir yedeği
+      indirip kendi bilgisayarınızda da saklamanız önerilir (sağlayıcıdan bağımsız kopya).
+    </p>
+  </div>
+</div>
+{% endblock %}

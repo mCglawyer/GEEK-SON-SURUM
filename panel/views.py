@@ -12,7 +12,7 @@ from openpyxl.utils import get_column_letter
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib import messages
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, FileResponse, Http404
 from django.utils import timezone
 from django.db.models import Sum
 from django.core.files.base import ContentFile
@@ -2375,3 +2375,63 @@ def sevkiyat_kalem_hazirla(request):
     k.hazirlandi = (request.POST.get('hazir') == '1')
     k.save(update_fields=['hazirlandi'])
     return JsonResponse({'ok': True, 'hazirlandi': k.hazirlandi})
+
+
+# =========================================================================
+# YEDEKLER (yalnızca Genel Müdür) — günlük otomatik yedek + indir
+# =========================================================================
+import os as _os
+import re as _re
+import glob as _glob
+import datetime as _dt
+from panel.management.commands.yedek_al import yedek_dizin as _yedek_dizin
+
+_YEDEK_AD_DESEN = _re.compile(r'^yedek-\d{8}-\d{6}\.json\.gz$')
+
+
+def yedekler(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol != Rol.GENEL_MUDUR:
+        return redirect('ana_sayfa')
+
+    if request.method == 'POST' and request.POST.get('islem') == 'al':
+        try:
+            from django.core.management import call_command
+            call_command('yedek_al')
+            messages.success(request, "Yedek başarıyla alındı.")
+        except Exception as e:
+            messages.error(request, f"Yedek alınamadı: {e}")
+        return redirect('yedekler')
+
+    d = _yedek_dizin()
+    kayitlar = []
+    for yol in sorted(_glob.glob(_os.path.join(d, 'yedek-*.json.gz')), reverse=True):
+        ad = _os.path.basename(yol)
+        try:
+            boyut = _os.path.getsize(yol)
+            mtime = _dt.datetime.fromtimestamp(_os.path.getmtime(yol))
+        except OSError:
+            continue
+        kayitlar.append({'ad': ad, 'kb': round(boyut / 1024, 1), 'tarih': mtime})
+    return render(request, 'yedekler.html', {
+        'personel': personel, 'aktif': 'yedekler',
+        'kayitlar': kayitlar, 'dizin': d,
+    })
+
+
+def yedek_indir(request, ad):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol != Rol.GENEL_MUDUR:
+        raise Http404()
+    if not _YEDEK_AD_DESEN.match(ad or ''):
+        raise Http404()
+    yol = _os.path.join(_yedek_dizin(), ad)
+    if not _os.path.isfile(yol):
+        raise Http404()
+    return FileResponse(open(yol, 'rb'), as_attachment=True, filename=ad)
