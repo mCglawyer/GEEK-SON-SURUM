@@ -20,6 +20,7 @@ urlpatterns = [
     path('sevkiyat-duzenle/', views.sevkiyat_duzenle, name='sevkiyat_duzenle'),
     path('sevkiyat/<int:talep_id>/belge/<str:tip>/', views.sevkiyat_belge, name='sevkiyat_belge'),
     path('sevkiyat/<int:talep_id>/excel/', views.sevkiyat_excel, name='sevkiyat_excel'),
+    path('sevkiyat/kalem/hazirla/', views.sevkiyat_kalem_hazirla, name='sevkiyat_kalem_hazirla'),
     path('kalibrasyon/', views.kalibrasyon_sayfa, name='kalibrasyon'),
     path('irsaliye/', views.irsaliye_sayfa, name='irsaliye'),
     path('stok/', views.stok_sayimi, name='stok'),

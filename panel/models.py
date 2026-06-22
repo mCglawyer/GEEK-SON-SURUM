@@ -400,6 +400,8 @@ class SevkiyatKalem(models.Model):
     # Sevkiyatın (stoğa göre) revizyonu
     sevkiyat_miktar = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     sevkiyat_birim = models.CharField(max_length=10, blank=True, default='')
+    # Sevkiyat ekibinin hazırlık işareti (toplarken tik atılır → satır yeşile döner)
+    hazirlandi = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['id']

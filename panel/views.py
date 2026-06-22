@@ -12,7 +12,7 @@ from openpyxl.utils import get_column_letter
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.db.models import Sum
 from django.core.files.base import ContentFile
@@ -2357,3 +2357,21 @@ def gosterge(request):
         'zayi_ay': zayi_ay, 'sayim_yapan': sayim_yapan, 'sube_sayisi': sube_sayisi,
         'soru': soru, 'bugun_tarih': today,
     })
+
+
+def sevkiyat_kalem_hazirla(request):
+    """Sevkiyat ekibi: bir ürün satırına 'hazırlandı' tikini açar/kapatır (yeşil işaret).
+    Sadece Sevkiyat rolünde çalışır. JSON döner."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False}, status=403)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol != Rol.SEVKIYAT:
+        return JsonResponse({'ok': False}, status=403)
+    k = SevkiyatKalem.objects.filter(id=request.POST.get('kalem_id')).first()
+    if not k:
+        return JsonResponse({'ok': False}, status=404)
+    k.hazirlandi = (request.POST.get('hazir') == '1')
+    k.save(update_fields=['hazirlandi'])
+    return JsonResponse({'ok': True, 'hazirlandi': k.hazirlandi})

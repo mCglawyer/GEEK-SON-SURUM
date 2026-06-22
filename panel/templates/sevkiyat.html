@@ -161,4 +161,33 @@
 })();
 </script>
 {% endif %}
+{% if is_sevkiyat %}
+<script>
+(function () {
+  function token() {
+    var el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+  }
+  document.querySelectorAll('.sv-hazir-chk').forEach(function (chk) {
+    chk.addEventListener('change', function () {
+      var li = chk.closest('.sv-hazir-li');
+      var istenen = chk.checked;
+      li.classList.toggle('hazir', istenen);
+      chk.disabled = true;
+      var body = 'kalem_id=' + encodeURIComponent(chk.dataset.kalem) + '&hazir=' + (istenen ? '1' : '0');
+      fetch('{% url "sevkiyat_kalem_hazirla" %}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': token()},
+        body: body
+      }).then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d || !d.ok) { chk.checked = !istenen; li.classList.toggle('hazir', !istenen); }
+        })
+        .catch(function () { chk.checked = !istenen; li.classList.toggle('hazir', !istenen); })
+        .finally(function () { chk.disabled = false; });
+    });
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

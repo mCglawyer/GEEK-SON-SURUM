@@ -625,3 +625,10 @@ a { color:var(--brand); text-decoration:none; }
 .gs-no { border-color:#f1b0b0; background:#fdf4f4; }
 .gs-no .gs-buyuk { color:var(--no); }
 .gs-pasif { color:var(--muted); }
+
+/* Sevkiyat ekibi: ürün hazırlık tiki + yeşil satır */
+.sv-hazir-kutu { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; cursor:pointer; }
+.sv-hazir-chk { width:22px; height:22px; accent-color:var(--ok); cursor:pointer; }
+.sv-hazir-li { border-radius:10px; padding-left:.5rem !important; padding-right:.5rem !important; transition:background .15s, border-color .15s; }
+.sv-hazir-li.hazir { background:#e7f7ee; border-left:4px solid var(--ok); }
+.sv-hazir-li.hazir .sv-urun-ad { color:#1c9e5b; }

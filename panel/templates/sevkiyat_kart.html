@@ -38,7 +38,10 @@
       {% if t.red_notu %}<div class="sv-not sv-red">İade notu: {{ t.red_notu }}</div>{% endif %}
       <ul class="sv-kalemler">
         {% for k in t.kalemler.all %}
-        <li class="sv-kalem-edit">
+        <li class="sv-kalem-edit sv-hazir-li{% if k.hazirlandi %} hazir{% endif %}">
+          <label class="sv-hazir-kutu" title="Hazırlandı olarak işaretle">
+            <input type="checkbox" class="sv-hazir-chk" data-kalem="{{ k.id }}"{% if k.hazirlandi %} checked{% endif %}>
+          </label>
           <span class="sv-urun-ad">{{ k.urun_ad }}</span>
           <span class="sv-adet">Satın alma: <b>{% if k.satinalma_miktar != None %}{{ k.satinalma_miktar|floatformat:"-2" }}{% else %}{{ k.istenen_miktar|floatformat:"-2" }}{% endif %}</b> {{ k.satinalma_birim|default:k.istenen_birim }}</span>
           <div class="sv-girdi">
