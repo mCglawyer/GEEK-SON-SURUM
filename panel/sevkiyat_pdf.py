@@ -93,14 +93,18 @@ def sevkiyat_pdf_bytes(talep, tip):
     el.append(Spacer(1, 3 * mm))
 
     veri = []
-    for i, k in enumerate(talep.kalemler.all(), 1):
+    i = 0
+    for k in talep.kalemler.all():
         son = k.sevkiyat_miktar if k.sevkiyat_miktar is not None else (
             k.satinalma_miktar if k.satinalma_miktar is not None else k.istenen_miktar)
+        if not son:  # 0 veya boş → gönderilmiyor, belgeye yazma
+            continue
         bir = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
-        veri.append([str(i), k.urun_ad, _say(k.istenen_miktar), _say(son), bir])
+        i += 1
+        veri.append([str(i), k.urun_ad, _say(son), bir])
 
-    basliklar = ['#', 'Ürün', 'İstenen', 'Son', 'Birim']
-    col_w = [9 * mm, 93 * mm, 23 * mm, 23 * mm, 19 * mm]
+    basliklar = ['#', 'Ürün', 'Miktar', 'Birim']
+    col_w = [9 * mm, 116 * mm, 23 * mm, 19 * mm]
     # Tek tablo: her sayfaya sığabildiği kadar satır otomatik dizilir (başlık her sayfada tekrarlar)
     kt = Table([basliklar] + veri, colWidths=col_w, repeatRows=1)
     kt.setStyle(TableStyle([
@@ -108,7 +112,7 @@ def sevkiyat_pdf_bytes(talep, tip):
         ('LEADING', (0, 0), (-1, -1), 8),
         ('FONTNAME', (0, 0), (-1, 0), fontb),
         ('BACKGROUND', (0, 0), (-1, 0), BRAND), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (2, 0), (4, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (3, -1), 'CENTER'),
         ('GRID', (0, 0), (-1, -1), 0.4, LINE),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, ZEBRA]),
         ('TOPPADDING', (0, 0), (-1, -1), 1.0), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.0),

@@ -1667,13 +1667,21 @@ def sevkiyat_sayfa(request):
     elif is_sevkiyat:
         svt = list(SevkiyatTalep.objects.filter(durum__in=[SevkiyatDurumu.SEVKIYATTA, SevkiyatDurumu.REDDEDILDI])
                    .select_related('sube').prefetch_related('kalemler')[:100])
+        gosterilecek = []
         for t in svt:
             t.mode = 'sv'
+            kalemler = []
             for k in t.kalemler.all():
+                if k.satinalma_miktar == 0:   # satın alma 0 yazdı → sevkiyata düşmez
+                    continue
                 k.sv_def_miktar = (k.sevkiyat_miktar if k.sevkiyat_miktar is not None
                                    else (k.satinalma_miktar if k.satinalma_miktar is not None else k.istenen_miktar))
                 k.sv_def_birim = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
-        ctx['talepler'] = svt
+                kalemler.append(k)
+            t.sv_kalemler = kalemler
+            if kalemler:   # gönderilecek ürünü kalmadıysa talebi gösterme
+                gosterilecek.append(t)
+        ctx['talepler'] = gosterilecek
     else:
         subeler = _yon_subeler(personel)
         izin_ids = [s.id for s in subeler] if personel.rol == Rol.MUDUR else None
