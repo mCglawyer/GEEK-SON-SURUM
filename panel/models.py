@@ -490,3 +490,20 @@ class SoruAyar(models.Model):
     def get(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class Bildirim(models.Model):
+    """Uygulama içi bildirim. Bir olay olunca ilgili kişilere birer kayıt düşer."""
+    alici = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='bildirimler')
+    mesaj = models.CharField(max_length=200)
+    link = models.CharField(max_length=200, blank=True, default='')
+    tur = models.CharField(max_length=20, blank=True, default='')
+    okundu = models.BooleanField(default=False)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-olusturma']
+        indexes = [models.Index(fields=['alici', 'okundu'])]
+
+    def __str__(self):
+        return f'{self.alici_id}: {self.mesaj[:30]}'

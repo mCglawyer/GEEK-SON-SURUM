@@ -23,7 +23,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      StokUrun, StokSayim, StokSayimKalem,
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      SevkiyatForm, Urun, SiparisHareket,
-                     KahveSoru, GunlukSoru, SoruAyar,
+                     KahveSoru, GunlukSoru, SoruAyar, Bildirim,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -86,6 +86,35 @@ def _gun_araligi(request, bas_param, bit_param):
 
 def _aktif_personel(request):
     return Personel.objects.filter(user=request.user).select_related('sube').first()
+
+
+def _bildir(aliciler, mesaj, link='', tur=''):
+    """Verilen personellerin her birine bir bildirim oluşturur.
+    Bildirim hatası ana işlemi asla bozmamalı (try/except)."""
+    try:
+        objs = [Bildirim(alici=a, mesaj=mesaj[:200], link=link, tur=tur)
+                for a in aliciler if a is not None]
+        if objs:
+            Bildirim.objects.bulk_create(objs)
+    except Exception:
+        pass
+
+
+def _rol_personelleri(*roller):
+    return list(Personel.objects.filter(rol__in=roller))
+
+
+def _sube_sefleri(sube):
+    if not sube:
+        return []
+    return list(Personel.objects.filter(sube=sube, rol=Rol.SEF))
+
+
+def _sube_yoneticileri(sube):
+    qs = Personel.objects.filter(rol__in=[Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI])
+    if sube:
+        qs = qs | Personel.objects.filter(rol=Rol.MUDUR, sorumlu_subeler=sube)
+    return list(qs.distinct())
 
 
 def _yonetici_sube(request, subeler):
@@ -282,6 +311,8 @@ def _sef_home(request, personel):
             Vardiya.objects.filter(personel__sube=sube, tarih__range=[start, end],
                                    durum__in=[OnayDurumu.TASLAK, OnayDurumu.REDDEDILDI]
                                    ).update(durum=OnayDurumu.ONAY_BEKLIYOR, red_notu=None)
+            _bildir(_sube_yoneticileri(sube),
+                    "Vardiya planı onay bekliyor: %s" % (sube.ad if sube else ''), '/', 'vardiya')
             messages.success(request, "Vardiya programı yönetici onayına gönderildi.")
             return redirect(f'/?hafta={secili}')
         if islem == 'personel_ekle':
@@ -348,11 +379,15 @@ def _yonetici_vardiya(request, personel):
         elif islem == 'plan_onayla':
             Vardiya.objects.filter(personel__sube=sel_sube, tarih__range=[start, end],
                                    durum=OnayDurumu.ONAY_BEKLIYOR).update(durum=OnayDurumu.ONAYLANDI, red_notu=None)
+            _bildir(_sube_sefleri(sel_sube),
+                    "Vardiya planınız onaylandı: %s" % (sel_sube.ad if sel_sube else ''), '/', 'vardiya')
             messages.success(request, "Vardiya planı onaylandı.")
         elif islem == 'plan_reddet':
             neden = request.POST.get('red_notu', '').strip() or 'Neden belirtilmedi.'
             Vardiya.objects.filter(personel__sube=sel_sube, tarih__range=[start, end],
                                    durum=OnayDurumu.ONAY_BEKLIYOR).update(durum=OnayDurumu.REDDEDILDI, red_notu=neden)
+            _bildir(_sube_sefleri(sel_sube),
+                    "Vardiya planınız reddedildi: %s" % (sel_sube.ad if sel_sube else ''), '/', 'vardiya')
             messages.success(request, "Vardiya planı reddedildi ve şefe geri gönderildi.")
         return redirect(f'/?hafta={secili}')
 
@@ -1528,6 +1563,8 @@ def sevkiyat_sayfa(request):
                                           yapan_ad=personel.ad_soyad)
             messages.success(request, "Sipariş oluşturuldu (#%s, %s kalem)." % (
                 talep.id, len(secilen) + len(ekstra)))
+            _bildir(_rol_personelleri(Rol.SATIN_ALMA),
+                    "Yeni sevkiyat talebi: %s" % talep.sube.ad, '/sevkiyat/', 'sevkiyat')
         else:
             messages.error(request, "En az bir ürüne miktar girin.")
         return redirect('sevkiyat')
@@ -1558,6 +1595,8 @@ def sevkiyat_sayfa(request):
             SiparisHareket.objects.create(talep=talep, mesaj="Satın alma tamamlandı, depoya iletildi",
                                           yapan_ad=personel.ad_soyad)
             messages.success(request, "#%s sevkiyata iletildi." % talep.id)
+            _bildir(_rol_personelleri(Rol.SEVKIYAT),
+                    "Sevkiyata hazır: %s" % talep.sube.ad, '/sevkiyat/', 'sevkiyat')
         return redirect('sevkiyat')
 
     if request.method == 'POST' and is_sevkiyat and request.POST.get('islem') == 'sevkiyat_onayla':
@@ -1589,6 +1628,8 @@ def sevkiyat_sayfa(request):
             SiparisHareket.objects.create(talep=talep, mesaj="Sevkiyat hazırlandı, çıkış onayına gönderildi",
                                           yapan_ad=personel.ad_soyad)
             messages.success(request, "#%s çıkış onayına gönderildi." % talep.id)
+            _bildir(_rol_personelleri(Rol.GENEL_MUDUR, Rol.YATIRIMCI),
+                    "Sevkiyat çıkış onayı bekliyor: %s" % talep.sube.ad, '/sevkiyat/', 'sevkiyat')
         return redirect('sevkiyat')
 
     if request.method == 'POST' and cikis_yetkili and request.POST.get('islem') == 'cikis_onayla':
@@ -1600,6 +1641,8 @@ def sevkiyat_sayfa(request):
             talep.onay_tarih = timezone.now()
             talep.save()
             SiparisHareket.objects.create(talep=talep, mesaj="Çıkış onaylandı", yapan_ad=personel.ad_soyad)
+            _bildir(_sube_sefleri(talep.sube),
+                    "Sevkiyatınız onaylandı: %s" % talep.sube.ad, '/sevkiyat/', 'sevkiyat')
             messages.success(request, "#%s onaylandı." % talep.id)
         return redirect('sevkiyat')
 
@@ -1613,6 +1656,8 @@ def sevkiyat_sayfa(request):
             talep.save()
             SiparisHareket.objects.create(talep=talep, mesaj="Çıkış reddedildi", aciklama=aciklama,
                                           yapan_ad=personel.ad_soyad)
+            _bildir(_sube_sefleri(talep.sube),
+                    "Sevkiyatınız reddedildi: %s" % talep.sube.ad, '/sevkiyat/', 'sevkiyat')
             messages.success(request, "#%s reddedildi, sevkiyata geri gönderildi." % talep.id)
         return redirect('sevkiyat')
 
@@ -2502,3 +2547,37 @@ def yedek_indir(request, ad):
     if not _os.path.isfile(yol):
         raise Http404()
     return FileResponse(open(yol, 'rb'), as_attachment=True, filename=ad)
+
+
+# =========================================================================
+# BİLDİRİMLER (uygulama içi)
+# =========================================================================
+def bildirimler(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    if request.method == 'POST' and request.POST.get('islem') == 'hepsi_oku':
+        Bildirim.objects.filter(alici=personel, okundu=False).update(okundu=True)
+        return redirect('bildirimler')
+    kayitlar = list(Bildirim.objects.filter(alici=personel)[:100])
+    return render(request, 'bildirimler.html', {
+        'personel': personel, 'aktif': 'bildirimler', 'kayitlar': kayitlar})
+
+
+def bildirim_oku(request, bid):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    b = Bildirim.objects.filter(id=bid, alici=personel).first()
+    if not b:
+        return redirect('bildirimler')
+    if not b.okundu:
+        b.okundu = True
+        b.save(update_fields=['okundu'])
+    return redirect(b.link or 'bildirimler')

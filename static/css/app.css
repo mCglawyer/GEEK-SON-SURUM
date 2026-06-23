@@ -672,3 +672,22 @@ a { color:var(--brand); text-decoration:none; }
 .gs-sutun-zayi { background:#D7263D; }
 .gs-sutun-deg { font-size:.78rem; font-weight:600; color:var(--ink); }
 .gs-sutun-gun { font-size:.72rem; color:var(--muted); }
+
+/* ===== Bildirim (zil + liste) ===== */
+.topbar-zil { position:relative; display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:50%; color:var(--brand); text-decoration:none; transition:background .15s; }
+.topbar-zil:hover { background:var(--brand-050); }
+.topbar-zil.aktif { background:var(--brand-050); }
+.zil-rozet { position:absolute; top:3px; right:2px; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:#D7263D; color:#fff; font-size:.68rem; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1; }
+
+.bd-liste { padding:.3rem .4rem; }
+.bd-satir { display:flex; align-items:center; gap:.7rem; padding:.7rem .7rem; border-bottom:1px solid var(--line); text-decoration:none; color:var(--ink); border-radius:8px; }
+.bd-satir:last-child { border-bottom:none; }
+.bd-satir:hover { background:var(--brand-050); }
+.bd-yeni { background:var(--brand-050); }
+.bd-nokta { flex:0 0 auto; width:9px; height:9px; border-radius:50%; background:var(--brand); }
+.bd-sevkiyat { background:var(--brand); }
+.bd-vardiya { background:#E8A33D; }
+.bd-icerik { flex:1; display:flex; flex-direction:column; gap:.15rem; }
+.bd-mesaj { font-size:.92rem; }
+.bd-zaman { font-size:.78rem; color:var(--muted); }
+.bd-yeni-etiket { flex:0 0 auto; font-size:.68rem; font-weight:700; color:#fff; background:#D7263D; border-radius:8px; padding:.1rem .4rem; }
