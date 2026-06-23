@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse, FileResponse, Http404
 from django.utils import timezone
-from django.db.models import Sum
+from django.db.models import Sum, Count
 from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.models import User
@@ -2360,11 +2360,69 @@ def gosterge(request):
         soru['dogru'] = gs.filter(dogru_mu=True).count()
         soru['basari'] = round(soru['dogru'] * 100 / soru['cevap']) if soru['cevap'] else 0
 
+    # --- Grafik verileri ---
+    # Bugün personel durumu (yığılmış bar)
+    _durum_kalemler = [
+        ('Çalışıyor', bugun['calisan'], '#162AA3'),
+        ('İzinli', bugun['izinli'], '#E8A33D'),
+        ('Raporlu', bugun['raporlu'], '#8FA0E8'),
+        ('Devamsız', bugun['devamsiz'], '#D7263D'),
+    ]
+    durum_top = sum(v for _, v, _ in _durum_kalemler)
+    durum = [{'ad': a, 'sayi': v, 'renk': r,
+              'yuzde': round(v * 100 / durum_top, 1) if durum_top else 0}
+             for a, v, r in _durum_kalemler]
+
+    # Şube bazlı bugün çalışan
+    calisan_map = {}
+    for r in (Vardiya.objects.filter(tarih=today, personel__sube_id__in=sube_ids,
+              vardiya_tipi__in=calisan_tipler).values('personel__sube_id').annotate(c=Count('id'))):
+        calisan_map[r['personel__sube_id']] = r['c']
+    toplam_map = {}
+    for r in (Personel.objects.filter(sube_id__in=sube_ids, rol__in=[Rol.PERSONEL, Rol.SEF])
+              .values('sube_id').annotate(c=Count('id'))):
+        toplam_map[r['sube_id']] = r['c']
+    sube_durum = []
+    for s in subeler:
+        tp = toplam_map.get(s.id, 0)
+        cl = calisan_map.get(s.id, 0)
+        sube_durum.append({'ad': s.ad, 'calisan': cl, 'toplam': tp,
+                           'oran': round(cl * 100 / tp) if tp else 0})
+
+    # Son 7 gün: sevkiyat ve zayi
+    gun7 = [today - datetime.timedelta(days=i) for i in range(6, -1, -1)]
+    sevk_say = {g: 0 for g in gun7}
+    for dt in (SevkiyatTalep.objects.filter(sube_id__in=sube_ids, olusturma__date__gte=gun7[0])
+               .values_list('olusturma', flat=True)):
+        g = timezone.localtime(dt).date()
+        if g in sevk_say:
+            sevk_say[g] += 1
+    zayi_say = {g: 0 for g in gun7}
+    for dt in (Zayi.objects.filter(sube_id__in=sube_ids, olusturma__date__gte=gun7[0])
+               .values_list('olusturma', flat=True)):
+        g = timezone.localtime(dt).date()
+        if g in zayi_say:
+            zayi_say[g] += 1
+    sevk_max = max(sevk_say.values()) or 1
+    zayi_max = max(zayi_say.values()) or 1
+    _gun_kisa = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+    trend = []
+    for g in gun7:
+        trend.append({
+            'gun': _gun_kisa[g.weekday()], 'tarih': g,
+            'sevk': sevk_say[g], 'sevk_h': round(sevk_say[g] * 100 / sevk_max),
+            'zayi': zayi_say[g], 'zayi_h': round(zayi_say[g] * 100 / zayi_max),
+        })
+
+    stok_oran = round(sayim_yapan * 100 / sube_sayisi) if sube_sayisi else 0
+
     return render(request, 'gosterge.html', {
         'personel': personel, 'aktif': 'gosterge',
         'bugun': bugun, 'onay_bekleyen': onay_bekleyen, 'acik_sevkiyat': acik_sevkiyat,
         'zayi_ay': zayi_ay, 'sayim_yapan': sayim_yapan, 'sube_sayisi': sube_sayisi,
         'soru': soru, 'bugun_tarih': today,
+        'durum': durum, 'durum_top': durum_top, 'sube_durum': sube_durum,
+        'trend': trend, 'stok_oran': stok_oran,
     })
 
 

@@ -636,3 +636,39 @@ a { color:var(--brand); text-decoration:none; }
 /* Yedekler tablosu (4 sütun) */
 .yd-tablo { grid-template-columns:2.4fr 1.2fr .8fr auto; }
 @media (max-width:600px){ .yd-tablo { grid-template-columns:1fr 1fr; } }
+
+/* ===== Özet Panel grafikleri ===== */
+.gs-ikili { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:.5rem 0 .2rem; }
+@media (max-width:760px){ .gs-ikili { grid-template-columns:1fr; } }
+.gs-cizelge { padding:1rem 1.1rem; }
+.gs-c-bas { font-weight:600; color:var(--ink); margin-bottom:.85rem; font-size:.98rem; }
+.gs-c-alt { color:var(--muted); font-weight:400; font-size:.8rem; margin-left:.3rem; }
+.gs-bos-not { color:var(--muted); font-size:.88rem; margin:.3rem 0; }
+
+/* Yığılmış bar (personel durumu) */
+.gs-stack { display:flex; height:22px; border-radius:11px; overflow:hidden; background:var(--brand-050); }
+.gs-stack-seg { height:100%; transition:width .4s; }
+.gs-legend { display:flex; flex-wrap:wrap; gap:.45rem 1.1rem; margin-top:.8rem; }
+.gs-leg { display:inline-flex; align-items:center; gap:.4rem; font-size:.85rem; color:var(--muted); }
+.gs-leg i { width:11px; height:11px; border-radius:3px; display:inline-block; }
+.gs-leg b { color:var(--ink); }
+
+/* Yatay çubuklar (şube) */
+.gs-bar-satir { display:grid; grid-template-columns:108px 1fr 50px; align-items:center; gap:.6rem; margin:.5rem 0; }
+.gs-bar-ad { font-size:.85rem; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gs-bar-yol { background:var(--brand-050); border-radius:8px; height:14px; overflow:hidden; }
+.gs-bar-dolu { background:var(--brand); height:100%; border-radius:8px; min-width:2px; transition:width .4s; }
+.gs-bar-deg { font-size:.82rem; color:var(--muted); text-align:right; }
+
+/* İlerleme çubuğu (stok sayımı) */
+.gs-kart-genis .gs-prog { margin-top:.55rem; width:100%; height:8px; background:rgba(255,255,255,.55); border-radius:6px; overflow:hidden; }
+.gs-prog-dolu { height:100%; background:var(--brand); border-radius:6px; transition:width .4s; }
+
+/* Sütun grafiği (son 7 gün) */
+.gs-sutunlar { display:flex; align-items:flex-end; gap:.4rem; height:130px; }
+.gs-sutun { flex:1; display:flex; flex-direction:column; align-items:center; gap:.25rem; height:100%; justify-content:flex-end; }
+.gs-sutun-bar { width:100%; max-width:30px; flex:1; display:flex; align-items:flex-end; }
+.gs-sutun-dolu { width:100%; background:var(--brand); border-radius:6px 6px 0 0; min-height:2px; transition:height .4s; }
+.gs-sutun-zayi { background:#D7263D; }
+.gs-sutun-deg { font-size:.78rem; font-weight:600; color:var(--ink); }
+.gs-sutun-gun { font-size:.72rem; color:var(--muted); }
