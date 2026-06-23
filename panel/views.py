@@ -1449,10 +1449,11 @@ def _gecmis_hazirla(request, sel_id, izin_ids=None):
         g = timezone.localtime(t.olusturma).date()
         sayac[g] = sayac.get(g, 0) + 1
 
-    if sel_gun:
+    if sel_gun and sel_id:
         liste = [t for t in ay_listesi if timezone.localtime(t.olusturma).date() == sel_gun]
     else:
-        liste = ay_listesi
+        # Şube + gün birlikte seçilmeden detay kartları gösterilmez
+        liste = []
     return _takvim_kur(yil, ay, sel_gun, sayac), liste, sel_gun
 
 

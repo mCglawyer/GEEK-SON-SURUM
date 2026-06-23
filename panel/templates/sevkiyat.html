@@ -120,9 +120,13 @@
     {% if sel_gun %}<div class="sv-tkv-secim sv-meta">Seçili gün: <b>{{ sel_gun|date:"d.m.Y" }}</b> · {{ gecmis_talepler|length }} sevkiyat · <a href="?sube={{ sel_id|default:'' }}&ay={{ takvim.yil }}-{% if takvim.ay < 10 %}0{% endif %}{{ takvim.ay }}">ayın tümü</a></div>{% endif %}
   </div>
 
+  {% if sel_id and sel_gun %}
   {% for t in gecmis_talepler %}{% include 'sevkiyat_kart.html' %}{% empty %}
-  <div class="card sv-bos"><p style="margin:0;color:var(--muted)">Bu {% if sel_gun %}günde{% else %}ayda{% endif %} sevkiyat yok.</p></div>
+  <div class="card sv-bos"><p style="margin:0;color:var(--muted)">Bu günde sevkiyat yok.</p></div>
   {% endfor %}
+  {% else %}
+  <div class="card sv-bos"><p style="margin:0;color:var(--muted)">Detayları görmek için yukarıdan bir <b>şube</b>, ardından takvimden bir <b>gün</b> seçin.</p></div>
+  {% endif %}
   {% endif %}
 </div>
 
