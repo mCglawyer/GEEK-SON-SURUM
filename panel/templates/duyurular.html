@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Duyurular · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Duyurular</h2><span class="plan-aralik">{% if yayinci %}duyuru yayınla ve yönet{% else %}sizinle paylaşılan duyurular{% endif %}</span></div>
+  </div>
+
+  {% if yayinci %}
+  <div class="card dy-form">
+    <div class="gs-c-bas">Yeni Duyuru</div>
+    <form method="post">
+      {% csrf_token %}<input type="hidden" name="islem" value="duyuru_ekle">
+      <input class="input" type="text" name="baslik" maxlength="150" placeholder="Başlık" required>
+      <textarea class="input dy-icerik" name="icerik" rows="3" placeholder="Duyuru metni..." required></textarea>
+      <div class="dy-hedef">
+        <label>Hedef rol
+          <select class="sube-sec" name="hedef_rol">
+            <option value="">Tüm roller</option>
+            {% for v, ad in roller %}<option value="{{ v }}">{{ ad }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Hedef şube
+          <select class="sube-sec" name="hedef_sube">
+            <option value="">Tüm şubeler</option>
+            {% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}
+          </select>
+        </label>
+        <button class="btn btn-primary">Yayınla</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  {% for d in kayitlar %}
+  <div class="card dy-kart">
+    <div class="dy-bas">
+      <b>{{ d.baslik }}</b>
+      <span class="dy-meta">{{ d.olusturma|date:"d.m.Y H:i" }}{% if d.yayinlayan_ad %} · {{ d.yayinlayan_ad }}{% endif %}</span>
+    </div>
+    <p class="dy-icerik-metin">{{ d.icerik|linebreaksbr }}</p>
+    <div class="dy-alt">
+      <span class="dy-etiket">{% if d.hedef_rol %}{{ d.hedef_rol }}{% else %}Tüm roller{% endif %} · {% if d.hedef_sube %}{{ d.hedef_sube.ad }}{% else %}Tüm şubeler{% endif %}</span>
+      {% if yayinci %}<form method="post" onsubmit="return confirm('Duyuru kaldırılsın mı?')"><input type="hidden" name="islem" value="duyuru_sil"><input type="hidden" name="duyuru_id" value="{{ d.id }}">{% csrf_token %}<button class="btn btn-ghost btn-mini">Kaldır</button></form>{% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="card"><p style="margin:.3rem 0;color:var(--muted)">Henüz duyuru yok.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

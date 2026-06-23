@@ -691,3 +691,17 @@ a { color:var(--brand); text-decoration:none; }
 .bd-mesaj { font-size:.92rem; }
 .bd-zaman { font-size:.78rem; color:var(--muted); }
 .bd-yeni-etiket { flex:0 0 auto; font-size:.68rem; font-weight:700; color:#fff; background:#D7263D; border-radius:8px; padding:.1rem .4rem; }
+
+/* ===== Duyurular ===== */
+.dy-form .input { width:100%; margin-bottom:.6rem; }
+.dy-icerik { resize:vertical; font-family:inherit; }
+.dy-hedef { display:flex; flex-wrap:wrap; gap:.7rem; align-items:flex-end; }
+.dy-hedef label { font-size:.8rem; color:var(--muted); display:flex; flex-direction:column; gap:.25rem; }
+.dy-kart { border-left:4px solid var(--brand); }
+.dy-bas { display:flex; justify-content:space-between; align-items:baseline; gap:.6rem; flex-wrap:wrap; }
+.dy-bas b { font-size:1.02rem; color:var(--ink); }
+.dy-meta { font-size:.78rem; color:var(--muted); }
+.dy-icerik-metin { margin:.5rem 0 .6rem; color:var(--ink); font-size:.92rem; line-height:1.5; }
+.dy-alt { display:flex; justify-content:space-between; align-items:center; gap:.6rem; flex-wrap:wrap; }
+.dy-etiket { font-size:.76rem; color:var(--muted); background:var(--brand-050); border-radius:8px; padding:.2rem .55rem; }
+.bd-duyuru { background:#7C3AED; }

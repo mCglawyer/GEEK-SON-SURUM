@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Raporlar · Geek Panel{% endblock %}
+{% block body %}
+{% include '_nav.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Aylık Raporlar</h2><span class="plan-aralik">şube operasyon özetleri (PDF)</span></div>
+    <form method="post"><input type="hidden" name="islem" value="olustur">{% csrf_token %}<button class="btn btn-primary">Geçen ayın raporunu oluştur</button></form>
+  </div>
+
+  <div class="card">
+    <div class="kn-tablo yd-tablo kn-head"><span>Rapor</span><span>Oluşturma</span><span>Boyut</span><span></span></div>
+    {% for k in kayitlar %}
+    <div class="kn-tablo yd-tablo kn-satir">
+      <span class="kn-ad">{{ k.ad }}</span>
+      <span>{{ k.tarih|date:"d.m.Y H:i" }}</span>
+      <span>{{ k.kb }} KB</span>
+      <span><a href="{% url 'rapor_indir' k.ad %}" class="btn btn-ghost btn-mini">İndir</a></span>
+    </div>
+    {% empty %}
+    <p style="margin:.4rem 0;color:var(--muted)">Henüz rapor yok. "Geçen ayın raporunu oluştur" ile ilk raporu üretebilirsiniz; her ayın başında otomatik de üretilir.</p>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Otomatik gönderim</h3>
+    <p style="margin:.2rem 0;color:var(--muted);font-size:.9rem">
+      Her ayın 1’inde geçen ayın özeti otomatik üretilir. E-posta ayarı yapıldıysa Genel Müdür, Bölge Müdürü,
+      Operatör ve Yatırımcı rollerindeki kişilere (sistemde e-postası tanımlı olanlara) ek olarak gönderilir.
+      E-posta tanımlı değilse raporlar burada birikir ve indirilebilir.
+    </p>
+  </div>
+</div>
+{% endblock %}

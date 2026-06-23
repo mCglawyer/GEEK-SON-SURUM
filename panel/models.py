@@ -507,3 +507,20 @@ class Bildirim(models.Model):
 
     def __str__(self):
         return f'{self.alici_id}: {self.mesaj[:30]}'
+
+
+class Duyuru(models.Model):
+    """Yönetim duyurusu. Tüm şubelere veya seçili role/şubeye yayınlanır."""
+    baslik = models.CharField(max_length=150)
+    icerik = models.TextField()
+    yayinlayan_ad = models.CharField(max_length=120, blank=True, default='')
+    hedef_rol = models.CharField(max_length=20, blank=True, default='')   # '' = tüm roller
+    hedef_sube = models.ForeignKey(Sube, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    aktif = models.BooleanField(default=True)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-olusturma']
+
+    def __str__(self):
+        return self.baslik[:40]

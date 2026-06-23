@@ -23,7 +23,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      StokUrun, StokSayim, StokSayimKalem,
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      SevkiyatForm, Urun, SiparisHareket,
-                     KahveSoru, GunlukSoru, SoruAyar, Bildirim,
+                     KahveSoru, GunlukSoru, SoruAyar, Bildirim, Duyuru,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -2581,3 +2581,117 @@ def bildirim_oku(request, bid):
         b.okundu = True
         b.save(update_fields=['okundu'])
     return redirect(b.link or 'bildirimler')
+
+
+# =========================================================================
+# DUYURULAR
+# =========================================================================
+DUYURU_YAYIN = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
+
+
+def duyurular(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    yayinci = personel.rol in DUYURU_YAYIN
+
+    if request.method == 'POST' and yayinci:
+        islem = request.POST.get('islem')
+        if islem == 'duyuru_ekle':
+            baslik = (request.POST.get('baslik') or '').strip()[:150]
+            icerik = (request.POST.get('icerik') or '').strip()
+            h_rol = request.POST.get('hedef_rol') or ''
+            h_rol = h_rol if h_rol in Rol.values else ''
+            h_sube = Sube.objects.filter(id=request.POST.get('hedef_sube') or 0).first()
+            if baslik and icerik:
+                d = Duyuru.objects.create(baslik=baslik, icerik=icerik,
+                                          yayinlayan_ad=personel.ad_soyad,
+                                          hedef_rol=h_rol, hedef_sube=h_sube)
+                hedef = Personel.objects.all()
+                if d.hedef_rol:
+                    hedef = hedef.filter(rol=d.hedef_rol)
+                if d.hedef_sube:
+                    hedef = hedef.filter(sube=d.hedef_sube)
+                _bildir(list(hedef), "Yeni duyuru: %s" % d.baslik, '/duyurular/', 'duyuru')
+                messages.success(request, "Duyuru yayınlandı.")
+            else:
+                messages.error(request, "Başlık ve içerik gerekli.")
+            return redirect('duyurular')
+        if islem == 'duyuru_sil':
+            Duyuru.objects.filter(id=request.POST.get('duyuru_id')).update(aktif=False)
+            messages.success(request, "Duyuru kaldırıldı.")
+            return redirect('duyurular')
+
+    if yayinci:
+        kayitlar = list(Duyuru.objects.filter(aktif=True)[:100])
+    else:
+        from django.db.models import Q
+        kayitlar = list(Duyuru.objects.filter(aktif=True)
+                        .filter(Q(hedef_rol='') | Q(hedef_rol=personel.rol))
+                        .filter(Q(hedef_sube__isnull=True) | Q(hedef_sube=personel.sube_id))[:100])
+
+    subeler = list(Sube.objects.order_by('ad'))
+    return render(request, 'duyurular.html', {
+        'personel': personel, 'aktif': 'duyurular', 'yayinci': yayinci,
+        'kayitlar': kayitlar, 'subeler': subeler, 'roller': Rol.choices})
+
+
+# =========================================================================
+# RAPORLAR (aylık PDF — UST_YONETIM indirir / oluşturur)
+# =========================================================================
+import glob as _glob2
+import re as _re2
+import datetime as _dt2
+from panel.management.commands.aylik_rapor import rapor_dizin as _rapor_dizin
+
+_RAPOR_DESEN = _re2.compile(r'^rapor-\d{4}-\d{2}\.pdf$')
+
+
+def raporlar(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in UST_YONETIM:
+        return redirect('ana_sayfa')
+
+    if request.method == 'POST' and request.POST.get('islem') == 'olustur':
+        try:
+            from django.core.management import call_command
+            call_command('aylik_rapor', '--force')
+            messages.success(request, "Geçen ayın raporu oluşturuldu.")
+        except Exception as e:
+            messages.error(request, "Rapor oluşturulamadı: %s" % e)
+        return redirect('raporlar')
+
+    d = _rapor_dizin()
+    kayitlar = []
+    for yol in sorted(_glob2.glob(_os.path.join(d, 'rapor-*.pdf')), reverse=True):
+        ad = _os.path.basename(yol)
+        try:
+            kb = round(_os.path.getsize(yol) / 1024, 1)
+            mt = _dt2.datetime.fromtimestamp(_os.path.getmtime(yol))
+        except OSError:
+            continue
+        kayitlar.append({'ad': ad, 'kb': kb, 'tarih': mt})
+    return render(request, 'raporlar.html', {
+        'personel': personel, 'aktif': 'raporlar', 'kayitlar': kayitlar})
+
+
+def rapor_indir(request, ad):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in UST_YONETIM:
+        raise Http404()
+    if not _RAPOR_DESEN.match(ad or ''):
+        raise Http404()
+    yol = _os.path.join(_rapor_dizin(), ad)
+    if not _os.path.isfile(yol):
+        raise Http404()
+    return FileResponse(open(yol, 'rb'), as_attachment=True, filename=ad)
