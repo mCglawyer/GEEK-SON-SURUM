@@ -1,16 +1,17 @@
-"""Aylık operasyon raporu PDF üreticisi."""
+"""Aylık operasyon raporu PDF üreticisi — şube şube, personel bazında detaylı."""
 import os
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib import colors
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle)
+from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+                                KeepTogether, HRFlowable)
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.enums import TA_RIGHT
 
 BRAND = colors.HexColor("#162AA3")
-ZEBRA = colors.HexColor("#EEF1FB")
+BRAND_050 = colors.HexColor("#EEF1FB")
+ZEBRA = colors.HexColor("#F4F6FB")
 LINE = colors.HexColor("#E3E6EF")
 MUTED = colors.HexColor("#6B7280")
 
@@ -34,45 +35,88 @@ def _fonts():
             continue
 
 
-def aylik_rapor_bytes(ay_etiket, satirlar, toplam=None):
-    """satirlar: [ [sube, calisan_gun, izin, rapor, devamsiz, zayi, sevkiyat, sayim], ... ]"""
+def _dk(m):
+    """dakika -> 'Ssa Ddk' veya 'Ddk'."""
+    m = int(m or 0)
+    if m >= 60:
+        return "%dsa %ddk" % (m // 60, m % 60)
+    return "%ddk" % m
+
+
+def aylik_rapor_bytes(ay_etiket, subeler_veri, genel=None):
+    """subeler_veri: [{'ad','ozet':{'zayi','sevkiyat','sayim'},
+                       'personeller':[{'ad','calisan','izin','rapor','devamsiz','mola_say','mola_dk'}],
+                       'toplam':{...}}]"""
     _fonts()
     import io
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm,
-                            topMargin=16 * mm, bottomMargin=15 * mm,
-                            title="Aylık Operasyon Raporu")
+                            topMargin=15 * mm, bottomMargin=15 * mm, title="Aylık Operasyon Raporu")
     st_h = ParagraphStyle('h', fontName=_FONTB, fontSize=16, textColor=BRAND, leading=20)
     st_s = ParagraphStyle('s', fontName=_FONT, fontSize=9.5, textColor=MUTED, leading=14)
-    st_c = ParagraphStyle('c', fontName=_FONT, fontSize=7.5, leading=9)
-    st_cw = ParagraphStyle('cw', fontName=_FONTB, fontSize=7.5, leading=9, textColor=colors.white)
+    st_sb = ParagraphStyle('sb', fontName=_FONTB, fontSize=12, textColor=BRAND, leading=15)
+    st_oz = ParagraphStyle('oz', fontName=_FONT, fontSize=8.5, textColor=MUTED, leading=12)
+    st_c = ParagraphStyle('c', fontName=_FONT, fontSize=8, leading=10)
+    st_cw = ParagraphStyle('cw', fontName=_FONTB, fontSize=8, leading=10, textColor=colors.white)
+    st_ct = ParagraphStyle('ct', fontName=_FONTB, fontSize=8, leading=10, textColor=BRAND)
+
     el = [Paragraph("GEEK COFFEE &amp; EATERY", st_h),
-          Paragraph("Aylık Operasyon Raporu · %s" % ay_etiket, st_s),
-          Spacer(1, 8)]
-    baslik = ['Şube', 'Çalışan-gün', 'İzin', 'Rapor', 'Devamsız', 'Zayi', 'Sevkiyat', 'Sayım']
-    rows = [[Paragraph(b, st_cw) for b in baslik]]
-    for s in satirlar:
-        rows.append([Paragraph(str(x), st_c) for x in s])
-    if toplam:
-        rows.append([Paragraph('<b>%s</b>' % x, st_c) for x in toplam])
+          Paragraph("Aylık Operasyon Raporu · %s" % ay_etiket, st_s)]
+    if genel:
+        el.append(Spacer(1, 3))
+        el.append(Paragraph(
+            "Genel: Çalışan-gün <b>%s</b> · İzin <b>%s</b> · Rapor <b>%s</b> · Devamsız <b>%s</b> · "
+            "Zayi <b>%s</b> · Sevkiyat <b>%s</b>" % (
+                genel.get('calisan', 0), genel.get('izin', 0), genel.get('rapor', 0),
+                genel.get('devamsiz', 0), genel.get('zayi', 0), genel.get('sevkiyat', 0)), st_oz))
+    el.append(Spacer(1, 6))
+
+    baslik = ['Personel', 'Çalışılan gün', 'İzin', 'Rapor', 'Devamsız', 'Mola (adet)', 'Mola (süre)']
     w = doc.width
-    col = [w * 0.22, w * 0.14, w * 0.10, w * 0.10, w * 0.13, w * 0.10, w * 0.13, w * 0.08]
-    t = Table(rows, colWidths=col, repeatRows=1)
-    style = [
-        ('BACKGROUND', (0, 0), (-1, 0), BRAND),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, ZEBRA]),
-        ('GRID', (0, 0), (-1, -1), 0.4, LINE),
-        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('LEFTPADDING', (0, 0), (-1, -1), 5),
-    ]
-    if toplam:
-        style.append(('BACKGROUND', (0, -1), (-1, -1), ZEBRA))
-        style.append(('LINEABOVE', (0, -1), (-1, -1), 0.8, BRAND))
-    t.setStyle(TableStyle(style))
-    el.append(t)
-    el.append(Spacer(1, 10))
+    col = [w * 0.30, w * 0.15, w * 0.09, w * 0.09, w * 0.12, w * 0.12, w * 0.13]
+
+    for sv in subeler_veri:
+        oz = sv.get('ozet', {})
+        bas = [
+            Paragraph(sv['ad'], st_sb),
+            HRFlowable(width="100%", thickness=1, color=LINE, spaceBefore=3, spaceAfter=3),
+            Paragraph("Zayi: <b>%s</b>　·　Sevkiyat: <b>%s</b>　·　Stok sayımı: <b>%s</b>" % (
+                oz.get('zayi', 0), oz.get('sevkiyat', 0), oz.get('sayim', '-')), st_oz),
+            Spacer(1, 3),
+        ]
+        rows = [[Paragraph(b, st_cw) for b in baslik]]
+        for p in sv['personeller']:
+            rows.append([
+                Paragraph(p['ad'], st_c),
+                Paragraph(str(p['calisan']), st_c), Paragraph(str(p['izin']), st_c),
+                Paragraph(str(p['rapor']), st_c), Paragraph(str(p['devamsiz']), st_c),
+                Paragraph(str(p['mola_say']), st_c), Paragraph(_dk(p['mola_dk']), st_c),
+            ])
+        t = sv.get('toplam', {})
+        rows.append([
+            Paragraph('TOPLAM', st_ct),
+            Paragraph(str(t.get('calisan', 0)), st_ct), Paragraph(str(t.get('izin', 0)), st_ct),
+            Paragraph(str(t.get('rapor', 0)), st_ct), Paragraph(str(t.get('devamsiz', 0)), st_ct),
+            Paragraph(str(t.get('mola_say', 0)), st_ct), Paragraph(_dk(t.get('mola_dk', 0)), st_ct),
+        ])
+        tbl = Table(rows, colWidths=col, repeatRows=1)
+        tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), BRAND),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, ZEBRA]),
+            ('BACKGROUND', (0, -1), (-1, -1), BRAND_050),
+            ('LINEABOVE', (0, -1), (-1, -1), 0.7, BRAND),
+            ('GRID', (0, 0), (-1, -1), 0.3, LINE),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 3.5), ('BOTTOMPADDING', (0, 0), (-1, -1), 3.5),
+            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ]))
+        # Şube başlığı + ilk satırlar kopmasın
+        el.append(KeepTogether(bas + [tbl] if len(sv['personeller']) <= 12 else bas))
+        if len(sv['personeller']) > 12:
+            el.append(tbl)
+        el.append(Spacer(1, 12))
+
     el.append(Paragraph("Bu rapor otomatik olarak oluşturulmuştur · geekpanel.net", st_s))
     doc.build(el)
     return buf.getvalue()
