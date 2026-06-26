@@ -708,6 +708,7 @@ body.app .card { border-radius:14px; box-shadow:0 1px 2px rgba(20,30,80,.05); }
   .mb-rozet { position:absolute; top:-2px; right:-4px; width:8px; height:8px; background:#D7263D; border-radius:50%; }
 }
 
-.imza { text-align:center; color:var(--muted); font-size:.74rem; padding:20px 0 14px; letter-spacing:.02em; }
-.imza b { color:var(--text); font-weight:600; }
-body.app .imza { padding:24px 0 18px; }
+.imza { text-align:center; font-size:.66rem; letter-spacing:.06em; color:var(--muted); padding:14px 0 12px; opacity:.85; }
+.imza b { color:var(--brand); font-weight:600; }
+body.app .app-main { display:flex; flex-direction:column; }
+body.app .imza { margin-top:auto; padding:16px 0 14px; }
