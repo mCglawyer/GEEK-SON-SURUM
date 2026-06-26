@@ -8,11 +8,10 @@ güçlü bir BAŞLANGIÇ TASLAĞIDIR; hukuki danışmanlık değildir. Yürürl�
 firmaya özel alanları doldurun.
 """
 
-GUNCELLEME = "10.06.2026"
-NOT = ("Bu metin, sistemin işlediği verilere göre hazırlanmış bir başlangıç "
-       "taslağıdır ve hukuki danışmanlık yerine geçmez. Yürürlüğe almadan önce "
-       "bir hukuk danışmanına inceletin ve [köşeli parantez] içindeki firmaya "
-       "özel bilgileri doldurun.")
+GUNCELLEME = "26.06.2026"
+NOT = ("Bu metin, sistemin işlediği verilere göre hazırlanmış bir taslaktır ve "
+       "hukuki danışmanlık yerine geçmez. Yürürlüğe almadan önce bir hukuk "
+       "danışmanına inceletmeniz önerilir.")
 
 # Sistemin gerçekte işlediği veri kategorileri (tek yerden yönetilir)
 _ISLENEN_VERILER = (
@@ -30,10 +29,9 @@ HUKUKI_SAYFALAR = {
             {"baslik": "1. Veri Sorumlusu",
              "paragraflar": [
                 "6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) m.10 kapsamında, "
-                "kişisel verileriniz veri sorumlusu sıfatıyla [Firma Ünvanı] "
+                "kişisel verileriniz veri sorumlusu sıfatıyla HAFT KAHVE GIDA TİC. LTD. ŞTİ. "
                 "(\u201cŞirket\u201d) tarafından işlenmektedir.",
-                "Adres: [Firma Adresi] · İletişim: [E-posta / KEP adresi] · "
-                "Telefon: [Telefon]."]},
+                "Adres: Osmangazi Mah. Mona Roza Cad. No: 11/G, Şehitkamil / Gaziantep · İletişim: geek@geekcoffeeshop.com."]},
             {"baslik": "2. İşlenen Kişisel Veriler",
              "paragraflar": [_ISLENEN_VERILER]},
             {"baslik": "3. İşleme Amaçları",
@@ -68,7 +66,7 @@ HUKUKI_SAYFALAR = {
                 "haklarına sahipsiniz."]},
             {"baslik": "8. Başvuru",
              "paragraflar": [
-                "Haklarınıza ilişkin taleplerinizi [E-posta / KEP adresi] üzerinden "
+                "Haklarınıza ilişkin taleplerinizi geek@geekcoffeeshop.com üzerinden "
                 "Şirkete iletebilirsiniz. Başvurular mevzuatta öngörülen süre içinde "
                 "sonuçlandırılır."]},
         ],
@@ -80,7 +78,7 @@ HUKUKI_SAYFALAR = {
         "bolumler": [
             {"baslik": "1. Taraflar ve Kapsam",
              "paragraflar": [
-                "Bu koşullar, [Firma Ünvanı] tarafından sağlanan personel yönetim "
+                "Bu koşullar, HAFT KAHVE GIDA TİC. LTD. ŞTİ. tarafından sağlanan personel yönetim "
                 "sisteminin (\u201cSistem\u201d) kullanımını düzenler. Sisteme giriş yapan "
                 "her kullanıcı bu koşulları kabul etmiş sayılır."]},
             {"baslik": "2. Hesap ve Giriş Kodu",
@@ -130,7 +128,7 @@ HUKUKI_SAYFALAR = {
                 "kapsamında erişilebilir."]},
             {"baslik": "5. İletişim",
              "paragraflar": [
-                "Gizlilikle ilgili sorularınız için: [E-posta / KEP adresi]."]},
+                "Gizlilikle ilgili sorularınız için: geek@geekcoffeeshop.com."]},
         ],
     },
 }
