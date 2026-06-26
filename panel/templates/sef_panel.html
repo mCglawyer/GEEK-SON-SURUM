@@ -17,7 +17,7 @@
 
     {% include '_mola_karti.html' %}
 
-    <!-- Başlık + hafta seçimi -->
+    
     <div class="plan-head">
       <div>
         <h2>Vardiya Planı</h2>
@@ -29,7 +29,7 @@
       </div>
     </div>
 
-    <!-- Durum + onaya gönder -->
+    
     <div class="card durum-card">
       <div class="durum-row">
         <span>Durum:</span> <span class="badge {{ durum_sinif }}">{{ hafta_durum }}</span>
@@ -43,7 +43,7 @@
       {% endif %}
     </div>
 
-    <!-- Vardiya tablosu -->
+    
     {% if rows %}
     <div class="card grid-card">
       <div class="grid-wrap">
@@ -86,7 +86,7 @@
     <div class="card"><p style="margin:0;color:var(--muted)">Bu şubede henüz personel yok. Aşağıdan ekleyebilirsin.</p></div>
     {% endif %}
 
-    <!-- Personel yönetimi -->
+    
     <div class="card staff-card">
       <h3>Şube Personeli</h3>
       <ul class="staff-list">

@@ -1,8 +1,6 @@
 from .models import Personel, Bildirim
 
-
 def bildirim_ctx(request):
-    """Her sayfada zil rozeti + son bildirimler için."""
     u = getattr(request, 'user', None)
     if not u or not getattr(u, 'is_authenticated', False):
         return {}

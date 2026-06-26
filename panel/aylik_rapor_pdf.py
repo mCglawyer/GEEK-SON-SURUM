@@ -1,4 +1,3 @@
-"""Aylık operasyon raporu PDF üreticisi — şube şube, personel bazında detaylı."""
 import os
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
@@ -18,7 +17,6 @@ MUTED = colors.HexColor("#6B7280")
 _FONT = 'Helvetica'
 _FONTB = 'Helvetica-Bold'
 
-
 def _fonts():
     global _FONT, _FONTB
     adaylar = [
@@ -34,19 +32,13 @@ def _fonts():
         except Exception:
             continue
 
-
 def _dk(m):
-    """dakika -> 'Ssa Ddk' veya 'Ddk'."""
     m = int(m or 0)
     if m >= 60:
         return "%dsa %ddk" % (m // 60, m % 60)
     return "%ddk" % m
 
-
 def aylik_rapor_bytes(ay_etiket, subeler_veri, genel=None):
-    """subeler_veri: [{'ad','ozet':{'zayi','sevkiyat','sayim'},
-                       'personeller':[{'ad','calisan','izin','rapor','devamsiz','mola_say','mola_dk'}],
-                       'toplam':{...}}]"""
     _fonts()
     import io
     buf = io.BytesIO()
@@ -111,7 +103,7 @@ def aylik_rapor_bytes(ay_etiket, subeler_veri, genel=None):
             ('TOPPADDING', (0, 0), (-1, -1), 3.5), ('BOTTOMPADDING', (0, 0), (-1, -1), 3.5),
             ('LEFTPADDING', (0, 0), (-1, -1), 5),
         ]))
-        # Şube başlığı + ilk satırlar kopmasın
+
         el.append(KeepTogether(bas + [tbl] if len(sv['personeller']) <= 12 else bas))
         if len(sv['personeller']) > 12:
             el.append(tbl)

@@ -33,29 +33,23 @@ KILIT_DK = 10
 MODEL_BACKEND = 'django.contrib.auth.backends.ModelBackend'
 GUN_ADLARI = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
 UST_YONETIM = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
-# Tam yetkili roller (Ekip yönetimi, şube atama, çıkış onayı gibi GM düzeyi yetkiler)
+
 TAM_YETKILI = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
-# Şifreyle giren, şubeye bağlı olmayan ofis/birim rolleri (Ekip'ten açılır)
+
 OFIS_ROLLERI = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.SATIN_ALMA, Rol.SEVKIYAT]
 CALISMA_TIPLERI = [VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI]
 
-
-# =========================================================================
-# YARDIMCILAR
-# =========================================================================
 def _istemci_ip(request):
     xff = request.META.get('HTTP_X_FORWARDED_FOR')
     if xff:
         return xff.split(',')[0].strip()
     return request.META.get('REMOTE_ADDR', '') or 'bilinmiyor'
 
-
 def _hafta_gunleri(secili):
     today = timezone.localdate()
     bu = today - datetime.timedelta(days=today.weekday())
     start = bu if secili == 'bu' else bu + datetime.timedelta(days=7)
     return start, start + datetime.timedelta(days=6), [start + datetime.timedelta(days=i) for i in range(7)]
-
 
 def _ay_araligi(ay_str):
     try:
@@ -65,10 +59,7 @@ def _ay_araligi(ay_str):
     sonraki = ilk.replace(year=ilk.year + 1, month=1) if ilk.month == 12 else ilk.replace(month=ilk.month + 1)
     return ilk, sonraki
 
-
 def _gun_araligi(request, bas_param, bit_param):
-    """İki tarih (YYYY-MM-DD) GET parametresinden (bas, son_haric, bas_str, bit_str)
-    döndürür. İkisi de geçerli değilse None. son_haric = bitiş + 1 gün (bitiş dahil)."""
     bas_str = (request.GET.get(bas_param) or '').strip()
     bit_str = (request.GET.get(bit_param) or '').strip()
     if not bas_str or not bit_str:
@@ -83,14 +74,10 @@ def _gun_araligi(request, bas_param, bit_param):
         bas_str, bit_str = bit_str, bas_str
     return bas, bit + datetime.timedelta(days=1), bas_str, bit_str
 
-
 def _aktif_personel(request):
     return Personel.objects.filter(user=request.user).select_related('sube').first()
 
-
 def _bildir(aliciler, mesaj, link='', tur=''):
-    """Verilen personellerin her birine bir bildirim oluşturur.
-    Bildirim hatası ana işlemi asla bozmamalı (try/except)."""
     try:
         objs = [Bildirim(alici=a, mesaj=mesaj[:200], link=link, tur=tur)
                 for a in aliciler if a is not None]
@@ -99,16 +86,13 @@ def _bildir(aliciler, mesaj, link='', tur=''):
     except Exception:
         pass
 
-
 def _rol_personelleri(*roller):
     return list(Personel.objects.filter(rol__in=roller))
-
 
 def _sube_sefleri(sube):
     if not sube:
         return []
     return list(Personel.objects.filter(sube=sube, rol=Rol.SEF))
-
 
 def _sube_yoneticileri(sube):
     qs = Personel.objects.filter(rol__in=[Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI])
@@ -116,9 +100,7 @@ def _sube_yoneticileri(sube):
         qs = qs | Personel.objects.filter(rol=Rol.MUDUR, sorumlu_subeler=sube)
     return list(qs.distinct())
 
-
 def _yonetici_sube(request, subeler):
-    """Yöneticinin seçtiği şubeyi oturumda hatırlar (bölümler arası temiz URL)."""
     sid = request.GET.get('sube_id')
     if sid:
         request.session['sel_sube_id'] = sid
@@ -129,14 +111,10 @@ def _yonetici_sube(request, subeler):
         sel = next((s for s in subeler if not s.depo_mu), subeler[0] if subeler else None)
     return sel
 
-
 def _yon_subeler(personel):
-    """Yöneticinin görebileceği şubeler. Bölge Müdürü yalnızca atandığı şubeleri,
-    Genel Müdür/Operatör tüm şubeleri görür."""
     if personel and personel.rol == Rol.MUDUR:
         return list(personel.sorumlu_subeler.order_by('ad'))
     return list(Sube.objects.order_by('ad'))
-
 
 def _vardiya_tablo(personeller, start, end, gunler):
     shifts = list(Vardiya.objects.filter(personel__in=personeller, tarih__range=[start, end])) if personeller else []
@@ -162,16 +140,13 @@ def _vardiya_tablo(personeller, start, end, gunler):
         'gun_basliklari': [{'gun_adi': GUN_ADLARI[i], 'tarih': g} for i, g in enumerate(gunler)],
     }
 
-
 def _puantaj_hesapla(personel, bas, son, manuel_ay=None):
-    """[bas, son) aralığında puantaj sayıları. manuel_ay verilirse o aya ait
-    manuel düzenlenmiş kayıt öncelikli kullanılır (aylık mod)."""
     if manuel_ay is not None:
         rec = Puantaj.objects.filter(personel=personel, ay=manuel_ay).first()
         if rec and rec.manuel_duzenlendi:
             return {'calisilan': rec.calisilan_gun, 'eksik': rec.eksik_gun,
                     'izinli': rec.izinli_gun, 'raporlu': rec.raporlu_gun, 'manuel': True}
-    # Vardiya girildiği anda yansır (reddedilenler hariç)
+
     s = personel.vardiyalar.filter(tarih__gte=bas, tarih__lt=son).exclude(durum=OnayDurumu.REDDEDILDI)
     return {
         'calisilan': s.filter(vardiya_tipi__in=CALISMA_TIPLERI).count(),
@@ -181,20 +156,14 @@ def _puantaj_hesapla(personel, bas, son, manuel_ay=None):
         'manuel': False,
     }
 
-
 def _cikis_mi(request):
     return request.method == 'POST' and request.POST.get('islem') == 'cikis'
-
 
 def _logout(request):
     auth_logout(request)
     request.session.flush()
     return redirect('ana_sayfa')
 
-
-# =========================================================================
-# ANA YÖNLENDİRME ( / )
-# =========================================================================
 def ana_sayfa(request):
     if not request.user.is_authenticated:
         if request.method == 'POST':
@@ -228,10 +197,6 @@ def ana_sayfa(request):
         return _sef_home(request, personel)
     return _personel_home(request, personel)
 
-
-# =========================================================================
-# MOLA YARDIMCILARI (personel + şef ortak)
-# =========================================================================
 def _mola_toggle(request, personel):
     today = timezone.localdate()
     aktif = personel.molalar.filter(bitis_saati__isnull=True).order_by('-id').first()
@@ -245,7 +210,6 @@ def _mola_toggle(request, personel):
         tip = '1. Mola' if tamamlanan == 0 else '2. Mola'
         personel.molalar.create(tarih=today, mola_tipi=tip, baslangic_saati=simdi)
         messages.success(request, "Molan başladı.")
-
 
 def _mola_ctx(personel, today):
     aktif_mola = personel.molalar.filter(bitis_saati__isnull=True).order_by('-id').first()
@@ -261,10 +225,6 @@ def _mola_ctx(personel, today):
             'gunluk_hak': GUNLUK_TOPLAM_MOLA_DK, 'start_iso': start_iso, 'hedef_dk': hedef_dk,
             'bugun_biten_sayi': bugun_biten.count()}
 
-
-# =========================================================================
-# PERSONEL ANA SAYFA (mola + vardiyalarım)
-# =========================================================================
 def _personel_home(request, personel):
     today = timezone.localdate()
     if request.method == 'POST' and request.POST.get('islem') == 'mola_toggle':
@@ -285,10 +245,6 @@ def _personel_home(request, personel):
     ctx.update(_mola_ctx(personel, today))
     return render(request, 'personel_panel.html', ctx)
 
-
-# =========================================================================
-# ŞEF ANA SAYFA (vardiya planı + personel)
-# =========================================================================
 def _sef_home(request, personel):
     sube = personel.sube
     secili = request.GET.get('hafta', 'gelecek')
@@ -337,9 +293,7 @@ def _sef_home(request, personel):
     ctx.update(_mola_ctx(personel, timezone.localdate()))
     return render(request, 'sef_panel.html', ctx)
 
-
 def _vardiya_kaydet(request, sube):
-    """Ortak: bir hücreyi kaydet/sil. Yalnızca verilen şubedeki personel için."""
     pid = request.POST.get('target_personel_id')
     tarih_str = request.POST.get('vardiya_tarihi', '')
     tip = request.POST.get('vardiya_tipi', '')
@@ -359,10 +313,6 @@ def _vardiya_kaydet(request, sube):
             personel=hedef, tarih=t,
             defaults={'vardiya_tipi': tip, 'durum': OnayDurumu.TASLAK, 'red_notu': None})
 
-
-# =========================================================================
-# YÖNETİCİ — VARDİYA ( / )
-# =========================================================================
 def _yonetici_vardiya(request, personel):
     is_gm = personel.rol == Rol.GENEL_MUDUR
     subeler = _yon_subeler(personel)
@@ -398,10 +348,6 @@ def _yonetici_vardiya(request, personel):
     ctx.update(tablo)
     return render(request, 'yonetici_vardiya.html', ctx)
 
-
-# =========================================================================
-# PUANTAJ SAYFASI ( /puantaj/ ) — şef (kendi şubesi) + üst yönetim
-# =========================================================================
 def puantaj_sayfa(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -452,7 +398,7 @@ def puantaj_sayfa(request):
     for p in personeller:
         d = _puantaj_hesapla(p, hesap_bas, hesap_son, manuel_ay=manuel_ay)
         d['personel'] = p
-        # Hakediş: yalnızca çalışılan + izinli; raporlu ve eksik (devamsız) yansımaz
+
         d['hakedis'] = d['calisilan'] + d['izinli']
         liste.append(d)
     return render(request, 'puantaj.html', {
@@ -462,10 +408,6 @@ def puantaj_sayfa(request):
         'puantaj_bas': bas_str, 'puantaj_bit': bit_str,
     })
 
-
-# =========================================================================
-# MOLA SAYFASI ( /mola/ ) — istenilen günün mola süreleri
-# =========================================================================
 def mola_sayfa(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -501,10 +443,6 @@ def mola_sayfa(request):
         'secili_tarih': ref.strftime('%Y-%m-%d'), 'mola_limit': MOLA_LIMIT_UYARI_DK,
     })
 
-
-# =========================================================================
-# EKİP YÖNETİMİ ( /ekip/ ) — üst yönetim
-# =========================================================================
 def _kullanici_adi_uret(ad):
     t = ad.lower().strip()
     for k, v in {'ı': 'i', 'ş': 's', 'ğ': 'g', 'ü': 'u', 'ö': 'o', 'ç': 'c', 'İ': 'i'}.items():
@@ -518,10 +456,8 @@ def _kullanici_adi_uret(ad):
         uname = f"{base}{i}"
     return uname
 
-
 def _yeni_sifre():
     return secrets.token_urlsafe(6)
-
 
 def ekip_sayfa(request):
     if not request.user.is_authenticated:
@@ -657,10 +593,6 @@ def ekip_sayfa(request):
         'egitmenler': egitmenler, 'egitmen_adaylari': egitmen_adaylari,
     })
 
-
-# =========================================================================
-# EXCEL — Puantaj
-# =========================================================================
 def puantaj_excel_export(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -758,10 +690,6 @@ def puantaj_excel_export(request):
     wb.save(resp)
     return resp
 
-
-# =========================================================================
-# ZAYİ ( /zayi/ ) — personel/şef girer, üst yönetim görüntüler
-# =========================================================================
 def zayi_sayfa(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -851,7 +779,6 @@ def zayi_sayfa(request):
         'aralik_mod': aralik_mod, 'zayi_bas': bas_str, 'zayi_bit': bit_str,
     })
 
-
 def zayi_excel_export(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -925,21 +852,14 @@ def zayi_excel_export(request):
     wb.save(resp)
     return resp
 
-
-# =========================================================================
-# KALİBRASYON ( /kalibrasyon/ ) — anlık kamera çekimi, 1 ay saklanır
-# =========================================================================
 KALIBRASYON_GUN = 31
 
-
 def _kalibrasyon_temizle():
-    """1 aydan eski kalibrasyon kayıtlarını ve dosyalarını siler."""
     sinir = timezone.now() - datetime.timedelta(days=KALIBRASYON_GUN)
     for k in Kalibrasyon.objects.filter(olusturma__lt=sinir):
         if k.foto:
             k.foto.delete(save=False)
         k.delete()
-
 
 def kalibrasyon_sayfa(request):
     if not request.user.is_authenticated:
@@ -999,21 +919,14 @@ def kalibrasyon_sayfa(request):
         'bugun': today.strftime('%Y-%m-%d'), 'saklama_gun': KALIBRASYON_GUN,
     })
 
-
-# =========================================================================
-# İRSALİYE / ÜRÜN TRANSFER ( /irsaliye/ ) — sevkiyatçı yükler, yönetim görüntüler
-# =========================================================================
-IRSALIYE_GUN = 180  # 6 ay
-
+IRSALIYE_GUN = 180
 
 def _irsaliye_temizle():
-    """6 aydan eski irsaliye kayıtlarını ve dosyalarını siler."""
     sinir = timezone.now() - datetime.timedelta(days=IRSALIYE_GUN)
     for k in Irsaliye.objects.filter(olusturma__lt=sinir):
         if k.foto:
             k.foto.delete(save=False)
         k.delete()
-
 
 def irsaliye_sayfa(request):
     if not request.user.is_authenticated:
@@ -1070,10 +983,6 @@ def irsaliye_sayfa(request):
         'bugun': today.strftime('%Y-%m-%d'),
     })
 
-
-# =========================================================================
-# STOK SAYIMI ( /stok/ ) — şube şefi ay sonu stok girer; yönetim şube bazında görür
-# =========================================================================
 def stok_sayimi(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -1120,7 +1029,7 @@ def stok_sayimi(request):
                     sayim=sayim, urun=u, urun_ad=u.ad, kategori=u.kategori,
                     kapali_icerik=u.kapali_icerik, acik_carpan=u.acik_carpan,
                     kapali_adet=kap, acik_miktar=ack, aciklama=note)
-            # Şefin eklediği, katalogda olmayan ürünler
+
             ek_adlar = request.POST.getlist('ek_ad')
             ek_miktarlar = request.POST.getlist('ek_miktar')
             ek_notlar = request.POST.getlist('ek_not')
@@ -1172,9 +1081,7 @@ def stok_sayimi(request):
         'katalog_var': StokUrun.objects.filter(aktif=True).exists(),
     })
 
-
 def stok_excel(request):
-    """Seçili şube + ayın dolu stok sayımını Excel olarak indirir (yükleme şablonu düzeninde)."""
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
     personel = _aktif_personel(request)
@@ -1224,7 +1131,7 @@ def stok_excel(request):
     ws["D2"] = "ŞUBE:"; ws["E2"] = sube.ad
     for c in ("A2", "D2"):
         ws[c].font = bf
-    # Başlıklar
+
     ws.merge_cells("C3:D3"); ws["C3"] = "KAPALI KUTU"
     ws.merge_cells("E3:F3"); ws["E3"] = "AÇIK KUTU"
     hdr = ["GRUP", "ÜRÜN ADI", "MİKTAR", "ADET/ML/KG", "MİKTAR", "ADET/ML/KG", "TOPLAM", "AÇIKLAMA"]
@@ -1235,9 +1142,8 @@ def stok_excel(request):
         ws[c].font = wf; ws[c].fill = navy; ws[c].alignment = ctr
         ws[c].border = border
 
-    # Veri: katalog sırasına göre tüm kalemler (girilmeyenler boş)
     girilen = {k.urun_ad: k for k in kalemler if k.urun_id}
-    ekler = [k for k in kalemler if not k.urun_id]  # şefin eklediği listede olmayan ürünler
+    ekler = [k for k in kalemler if not k.urun_id]
 
     def _yaz(r, kategori, ad, kap, ic, ack, carp, note):
         ws.cell(row=r, column=1, value=kategori).font = nf
@@ -1246,7 +1152,7 @@ def stok_excel(request):
         ws.cell(row=r, column=4, value=float(ic)).font = nf
         ws.cell(row=r, column=5, value=(float(ack) if ack is not None else None)).font = nf
         ws.cell(row=r, column=6, value=float(carp)).font = nf
-        # TOPLAM: formül yerine hesaplanmış SAYI yazılır (her görüntüleyicide doğru görünür)
+
         toplam = float((kap or 0)) * float(ic) + float((ack or 0)) * float(carp)
         ws.cell(row=r, column=7, value=toplam).font = bf
         ws.cell(row=r, column=8, value=note).font = nf
@@ -1283,12 +1189,7 @@ def stok_excel(request):
     wb.save(resp)
     return resp
 
-
-# =========================================================================
-# SEVKİYAT ( /sevkiyat/ ) — katalog tabanlı sipariş sistemi
-# =========================================================================
 def _katalog_gruplu():
-    """Aktif ürünleri form -> kategori olarak gruplar."""
     form_map = {}
     for u in Urun.objects.filter(aktif=True).order_by('form', 'sira', 'ad'):
         form_map.setdefault(u.form, {}).setdefault(u.kategori, []).append(u)
@@ -1299,21 +1200,15 @@ def _katalog_gruplu():
             sonuc.append({'kod': form_kod, 'etiket': etiket, 'kategoriler': kats})
     return sonuc
 
-
 def _birim_secenek(urun):
     secs = [urun.birim]
     if urun.ust_birim and urun.ust_birim != urun.birim:
         secs.append(urun.ust_birim)
     return secs
 
-
-# Sevkiyat kataloğunu düzenleyebilen roller (değişiklik tüm şeflere anında yansır)
 SEVKIYAT_DUZENLE_ROLLERI = [Rol.SATIN_ALMA, Rol.OPERATOR, Rol.GENEL_MUDUR, Rol.YATIRIMCI]
 
-
 def sevkiyat_duzenle(request):
-    """Operatör/Satın Alma (ve tam yetkililer) sevkiyat kataloğunu düzenler:
-    grup seçip ürün ekler/çıkarır, koli içeriği + birimini değiştirir. Şeflere anında yansır."""
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
     if _cikis_mi(request):
@@ -1400,7 +1295,6 @@ def sevkiyat_duzenle(request):
 
         return redirect(geri)
 
-    # GET — grup listesi + seçili grubun ürünleri
     aktif_urunler = list(Urun.objects.filter(aktif=True).order_by('form', 'sira', 'ad'))
     grup_sira = []
     grup_form = {}
@@ -1418,15 +1312,12 @@ def sevkiyat_duzenle(request):
         'urunler': urunler, 'birimler': birimler, 'formlar': formlar,
     })
 
-
 import calendar as _calmod
 _AY_ADLARI = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
               'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
 _GUN_KISA = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
 
-
 def _takvim_kur(yil, ay, sel_gun, sayac):
-    """Ay grid'i: haftalar -> günler. sayac: {date: adet}."""
     cal = _calmod.Calendar(firstweekday=0)
     bugun = timezone.localdate()
     haftalar = []
@@ -1447,10 +1338,7 @@ def _takvim_kur(yil, ay, sel_gun, sayac):
         'next': '%04d-%02d' % (sonraki.year, sonraki.month),
     }
 
-
 def _gecmis_hazirla(request, sel_id, izin_ids=None):
-    """Seçili ay/gün + şubeye göre takvim verisi ve sipariş listesi döndürür.
-    izin_ids verilirse (bölge müdürü) yalnızca o şubeler kapsanır."""
     bugun = timezone.localdate()
     yil, ay = bugun.year, bugun.month
     sel_gun = None
@@ -1487,10 +1375,9 @@ def _gecmis_hazirla(request, sel_id, izin_ids=None):
     if sel_gun and sel_id:
         liste = [t for t in ay_listesi if timezone.localtime(t.olusturma).date() == sel_gun]
     else:
-        # Şube + gün birlikte seçilmeden detay kartları gösterilmez
+
         liste = []
     return _takvim_kur(yil, ay, sel_gun, sayac), liste, sel_gun
-
 
 def sevkiyat_sayfa(request):
     if not request.user.is_authenticated:
@@ -1529,7 +1416,7 @@ def sevkiyat_sayfa(request):
             if birim not in _birim_secenek(u):
                 birim = u.birim
             secilen.append((u, miktar, birim))
-        # Listede olmayan (özel) ürünler
+
         ek_urunler = request.POST.getlist('ek_urun')
         ek_miktarlar = request.POST.getlist('ek_miktar')
         ek_birimler = request.POST.getlist('ek_birim')
@@ -1718,14 +1605,14 @@ def sevkiyat_sayfa(request):
             t.mode = 'sv'
             kalemler = []
             for k in t.kalemler.all():
-                if k.satinalma_miktar == 0:   # satın alma 0 yazdı → sevkiyata düşmez
+                if k.satinalma_miktar == 0:
                     continue
                 k.sv_def_miktar = (k.sevkiyat_miktar if k.sevkiyat_miktar is not None
                                    else (k.satinalma_miktar if k.satinalma_miktar is not None else k.istenen_miktar))
                 k.sv_def_birim = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
                 kalemler.append(k)
             t.sv_kalemler = kalemler
-            if kalemler:   # gönderilecek ürünü kalmadıysa talebi gösterme
+            if kalemler:
                 gosterilecek.append(t)
         ctx['talepler'] = gosterilecek
     else:
@@ -1759,10 +1646,6 @@ def sevkiyat_sayfa(request):
 
     return render(request, 'sevkiyat.html', ctx)
 
-
-# =========================================================================
-# SEVKİYAT BELGE İNDİRME (PDF) — yükleme belgesi & teslim fişi
-# =========================================================================
 def sevkiyat_belge(request, talep_id, tip):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -1793,9 +1676,7 @@ def sevkiyat_belge(request, talep_id, tip):
     resp['Content-Disposition'] = 'inline; filename="sevkiyat_%s_%s.pdf"' % (talep.id, adi)
     return resp
 
-
 def sevkiyat_excel(request, talep_id):
-    """Onaylanan siparişi orijinal talep formu şablonuna doldurup indirir."""
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
     personel = _aktif_personel(request)
@@ -1816,10 +1697,6 @@ def sevkiyat_excel(request, talep_id):
         talep.id, talep.olusturma.strftime('%Y%m%d'))
     return resp
 
-
-# =========================================================================
-# GİRİŞ YARDIMCILARI
-# =========================================================================
 def _kod_giris(request):
     ip = _istemci_ip(request)
     kilit, _ = KodKilit.objects.get_or_create(ip=ip)
@@ -1847,7 +1724,6 @@ def _kod_giris(request):
     kilit.save()
     return redirect('ana_sayfa')
 
-
 def _sifre_giris(request):
     user = authenticate(request, username=request.POST.get('kullanici_adi', '').strip(),
                         password=request.POST.get('sifre', ''))
@@ -1856,7 +1732,6 @@ def _sifre_giris(request):
         return redirect('ana_sayfa')
     messages.error(request, 'Kullanıcı adı veya şifre hatalı.')
     return redirect('/?mod=yonetici')
-
 
 def _hukuki(request, anahtar):
     return render(request, 'hukuki.html', HUKUKI_SAYFALAR[anahtar])
@@ -1870,10 +1745,6 @@ def kullanim_kosullari(request):
 def gizlilik(request):
     return _hukuki(request, 'gizlilik')
 
-
-# ---------------------------------------------------------------------------
-# PWA: manifest + service worker (uygulama olarak yüklenebilirlik)
-# ---------------------------------------------------------------------------
 _PWA_MANIFEST = {
     "name": "Geek Coffee & Eatery Panel",
     "short_name": "Geek Panel",
@@ -1940,17 +1811,13 @@ self.addEventListener('fetch', function (e) {
 });
 """
 
-
 def pwa_manifest(request):
     return HttpResponse(json.dumps(_PWA_MANIFEST, ensure_ascii=False),
                         content_type='application/manifest+json')
 
-
 _PWA_IKON_IZIN = {'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'icon-180.png'}
 
-
 def pwa_icon(request, ad):
-    """İkonları doğrudan Django üzerinden sunar (statik eşlemeden bağımsız)."""
     import os
     from django.conf import settings
     from django.http import Http404
@@ -1966,56 +1833,41 @@ def pwa_icon(request, ad):
     resp['Cache-Control'] = 'public, max-age=604800'
     return resp
 
-
 def pwa_service_worker(request):
     resp = HttpResponse(_PWA_SW, content_type='application/javascript')
     resp['Service-Worker-Allowed'] = '/'
     resp['Cache-Control'] = 'no-cache'
     return resp
 
-
-# =========================================================================
-# GÜNLÜK KAHVE SORUSU (personel + şef)
-# =========================================================================
 SORU_ROLLERI = [Rol.PERSONEL, Rol.SEF]
-SORU_SURE = 30           # saniye (kullanıcıya gösterilen sayaç)
-SORU_SURE_PAYLI = 38     # sunucu tarafı tolerans (ağ gecikmesi)
+SORU_SURE = 30
+SORU_SURE_PAYLI = 38
 CALISMAYAN_TIPLER = [VardiyaTipi.IZINLI, VardiyaTipi.RAPORLU, VardiyaTipi.DEVAMSIZ]
-# Bilgi karnesini görebilen roller (şube bazlı)
-KARNE_ROLLERI = [Rol.EGITMEN, Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
-# Soru bankasını yönetebilen roller (ekle/çıkar/aktif-pasif)
-SORU_YONETIM_ROLLERI = [Rol.EGITMEN, Rol.GENEL_MUDUR]
 
+KARNE_ROLLERI = [Rol.EGITMEN, Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
+
+SORU_YONETIM_ROLLERI = [Rol.EGITMEN, Rol.GENEL_MUDUR]
 
 def _soru_sistemi_aktif():
     return SoruAyar.get().aktif
 
-
 def _egitmen_mi(personel):
-    """Kişi eğitmen yetkisine sahip mi (işaret veya eski Eğitmen rolü)."""
     return bool(personel) and (getattr(personel, 'egitmen', False) or personel.rol == Rol.EGITMEN)
-
 
 def _karne_gorebilir(personel):
     return bool(personel) and (_egitmen_mi(personel) or personel.rol in
                                [Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI])
 
-
 def _soru_yonetebilir(personel):
     return bool(personel) and (_egitmen_mi(personel) or personel.rol == Rol.GENEL_MUDUR)
 
-
 def _bugun_calisiyor_mu(personel, gun):
-    """O gün izinli/raporlu/devamsız ise False; aksi halde (kayıt yoksa da) True."""
     v = personel.vardiyalar.filter(tarih=gun).first()
     if v and v.vardiya_tipi in CALISMAYAN_TIPLER:
         return False
     return True
 
-
 def _gunluk_soru_getir_veya_ata(personel, gun):
-    """O güne ait GunlukSoru'yu döndürür; yoksa (ve çalışma günüyse) yeni atar.
-    Çalışma günü değilse None döner."""
     gs = GunlukSoru.objects.filter(personel=personel, tarih=gun).first()
     if gs:
         return gs
@@ -2033,9 +1885,7 @@ def _gunluk_soru_getir_veya_ata(personel, gun):
         personel=personel, sube=sube, sube_ad=(sube.ad if sube else ''),
         soru_id=soru_id, tarih=gun)
 
-
 def _gunluk_finalize(gs):
-    """Süresi dolmuş ama cevaplanmamış soruyu yanlış olarak kapatır."""
     if gs and gs.baslangic and not gs.cevaplandi:
         gecen = (timezone.now() - gs.baslangic).total_seconds()
         if gecen > SORU_SURE_PAYLI:
@@ -2044,7 +1894,6 @@ def _gunluk_finalize(gs):
             gs.dogru_mu = False
             gs.secilen = ''
             gs.save(update_fields=['cevaplandi', 'sure_doldu', 'dogru_mu', 'secilen'])
-
 
 def gunluk_soru(request):
     if not request.user.is_authenticated:
@@ -2066,7 +1915,7 @@ def gunluk_soru(request):
         return redirect('ana_sayfa')
 
     if request.method == 'POST':
-        # Sunucu tarafı süre kontrolü
+
         suresi_doldu = False
         if gs.baslangic:
             gecen = (timezone.now() - gs.baslangic).total_seconds()
@@ -2092,7 +1941,6 @@ def gunluk_soru(request):
             messages.error(request, f"Yanlış. Doğru cevap: {dogru_txt}")
         return redirect('ana_sayfa')
 
-    # GET — sayaç başlangıcını ilk gösterimde sabitle
     if gs.baslangic is None:
         gs.baslangic = timezone.now()
         gs.save(update_fields=['baslangic'])
@@ -2103,9 +1951,7 @@ def gunluk_soru(request):
         'kalan': kalan, 'sure': SORU_SURE,
     })
 
-
 def bilgi_karnesi(request):
-    """Yönetim: şube + ay seçip personelin aylık bilgi kapasitesini ve yanlışları görür."""
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
     if _cikis_mi(request):
@@ -2131,7 +1977,7 @@ def bilgi_karnesi(request):
         kayitlar = (GunlukSoru.objects.filter(personel__in=kisiler,
                                               tarih__gte=ay_ilk, tarih__lt=sonraki)
                     .select_related('soru', 'personel'))
-        # süresi geçmiş ama kapanmamışları kapat
+
         for gs in kayitlar:
             _gunluk_finalize(gs)
         per_map = {k.id: {'personel': k, 'toplam': 0, 'dogru': 0, 'yanlis': 0, 'bos': 0}
@@ -2142,7 +1988,7 @@ def bilgi_karnesi(request):
                 continue
             d['toplam'] += 1
             if not gs.cevaplandi:
-                # henüz cevaplanmamış (bugünün sorusu olabilir) — sayma
+
                 d['toplam'] -= 1
                 continue
             if gs.dogru_mu:
@@ -2172,9 +2018,7 @@ def bilgi_karnesi(request):
         'satirlar': satirlar, 'yanlislar': yanlislar,
     })
 
-
 def soru_yonetimi(request):
-    """Eğitmen (ve GM): soru bankasını yönetir — ekle/düzenle/aktif-pasif + sistemi aç/kapat."""
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
     if _cikis_mi(request):
@@ -2241,7 +2085,6 @@ def soru_yonetimi(request):
 
         return redirect('soru_yonetimi')
 
-    # GET
     arama = (request.GET.get('q') or '').strip()
     kategori = (request.GET.get('kategori') or '').strip()
     qs = KahveSoru.objects.all().order_by('-aktif', 'kategori', 'id')
@@ -2260,12 +2103,7 @@ def soru_yonetimi(request):
         'aktif_sayi': KahveSoru.objects.filter(aktif=True).count(),
     })
 
-
-# =========================================================================
-# STOK DÜZENLE (ortak katalog: ürün ekle/çıkar/detay) — şeflere anında yansır
-# =========================================================================
 STOK_DUZENLE_ROLLERI = [Rol.MUDUR, Rol.SATIN_ALMA, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
-
 
 def _dec(v, vars):
     try:
@@ -2273,7 +2111,6 @@ def _dec(v, vars):
         return d if d > 0 else vars
     except Exception:
         return vars
-
 
 def stok_duzenle(request):
     if not request.user.is_authenticated:
@@ -2349,10 +2186,6 @@ def stok_duzenle(request):
         'gruplar': gruplar, 'sel_grup': sel_grup, 'urunler': urunler,
     })
 
-
-# =========================================================================
-# ÖZET PANEL (dashboard) — mevcut veriyi özetler, yeni veri tutmaz
-# =========================================================================
 def gosterge(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -2370,7 +2203,6 @@ def gosterge(request):
     calisan_tipler = [VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI]
     v_today = Vardiya.objects.filter(tarih=today, personel__sube_id__in=sube_ids)
 
-    # Bugün
     bugun = {
         'toplam': Personel.objects.filter(sube_id__in=sube_ids, rol__in=[Rol.PERSONEL, Rol.SEF]).count(),
         'calisan': v_today.filter(vardiya_tipi__in=calisan_tipler).count(),
@@ -2379,7 +2211,6 @@ def gosterge(request):
         'devamsiz': v_today.filter(vardiya_tipi=VardiyaTipi.DEVAMSIZ).count(),
     }
 
-    # Bekleyen işler
     onay_bekleyen = Vardiya.objects.filter(
         personel__sube_id__in=sube_ids, durum=OnayDurumu.ONAY_BEKLIYOR
     ).values('personel__sube_id', 'tarih').distinct().count()
@@ -2388,7 +2219,6 @@ def gosterge(request):
         durum__in=[SevkiyatDurumu.TALEP, SevkiyatDurumu.SEVKIYATTA, SevkiyatDurumu.ONAY_BEKLIYOR]
     ).count()
 
-    # Bu ay
     zayi_ay = Zayi.objects.filter(
         sube_id__in=sube_ids, olusturma__date__gte=ay_ilk, olusturma__date__lt=sonraki
     ).count()
@@ -2396,7 +2226,6 @@ def gosterge(request):
                    .values('sube_id').distinct().count())
     sube_sayisi = len(subeler)
 
-    # Soru sistemi
     ayar = SoruAyar.get()
     soru = {'aktif': ayar.aktif, 'cevap': 0, 'dogru': 0, 'basari': 0}
     if ayar.aktif:
@@ -2405,8 +2234,6 @@ def gosterge(request):
         soru['dogru'] = gs.filter(dogru_mu=True).count()
         soru['basari'] = round(soru['dogru'] * 100 / soru['cevap']) if soru['cevap'] else 0
 
-    # --- Grafik verileri ---
-    # Bugün personel durumu (yığılmış bar)
     _durum_kalemler = [
         ('Çalışıyor', bugun['calisan'], '#162AA3'),
         ('İzinli', bugun['izinli'], '#E8A33D'),
@@ -2418,7 +2245,6 @@ def gosterge(request):
               'yuzde': round(v * 100 / durum_top, 1) if durum_top else 0}
              for a, v, r in _durum_kalemler]
 
-    # Şube bazlı bugün çalışan
     calisan_map = {}
     for r in (Vardiya.objects.filter(tarih=today, personel__sube_id__in=sube_ids,
               vardiya_tipi__in=calisan_tipler).values('personel__sube_id').annotate(c=Count('id'))):
@@ -2434,7 +2260,6 @@ def gosterge(request):
         sube_durum.append({'ad': s.ad, 'calisan': cl, 'toplam': tp,
                            'oran': round(cl * 100 / tp) if tp else 0})
 
-    # Son 7 gün: sevkiyat ve zayi
     gun7 = [today - datetime.timedelta(days=i) for i in range(6, -1, -1)]
     sevk_say = {g: 0 for g in gun7}
     for dt in (SevkiyatTalep.objects.filter(sube_id__in=sube_ids, olusturma__date__gte=gun7[0])
@@ -2470,10 +2295,7 @@ def gosterge(request):
         'trend': trend, 'stok_oran': stok_oran,
     })
 
-
 def sevkiyat_kalem_hazirla(request):
-    """Sevkiyat ekibi: bir ürün satırına 'hazırlandı' tikini açar/kapatır (yeşil işaret).
-    Sadece Sevkiyat rolünde çalışır. JSON döner."""
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
     if not request.user.is_authenticated:
@@ -2488,10 +2310,6 @@ def sevkiyat_kalem_hazirla(request):
     k.save(update_fields=['hazirlandi'])
     return JsonResponse({'ok': True, 'hazirlandi': k.hazirlandi})
 
-
-# =========================================================================
-# YEDEKLER (yalnızca Genel Müdür) — günlük otomatik yedek + indir
-# =========================================================================
 import os as _os
 import re as _re
 import glob as _glob
@@ -2499,7 +2317,6 @@ import datetime as _dt
 from panel.management.commands.yedek_al import yedek_dizin as _yedek_dizin
 
 _YEDEK_AD_DESEN = _re.compile(r'^yedek-\d{8}-\d{6}\.json\.gz$')
-
 
 def yedekler(request):
     if not request.user.is_authenticated:
@@ -2534,7 +2351,6 @@ def yedekler(request):
         'kayitlar': kayitlar, 'dizin': d,
     })
 
-
 def yedek_indir(request, ad):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -2548,10 +2364,6 @@ def yedek_indir(request, ad):
         raise Http404()
     return FileResponse(open(yol, 'rb'), as_attachment=True, filename=ad)
 
-
-# =========================================================================
-# BİLDİRİMLER (uygulama içi)
-# =========================================================================
 def bildirimler(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -2567,7 +2379,6 @@ def bildirimler(request):
     return render(request, 'bildirimler.html', {
         'personel': personel, 'aktif': 'bildirimler', 'kayitlar': kayitlar})
 
-
 def bildirim_oku(request, bid):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -2582,12 +2393,7 @@ def bildirim_oku(request, bid):
         b.save(update_fields=['okundu'])
     return redirect(b.link or 'bildirimler')
 
-
-# =========================================================================
-# DUYURULAR
-# =========================================================================
 DUYURU_YAYIN = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
-
 
 def duyurular(request):
     if not request.user.is_authenticated:
@@ -2639,17 +2445,12 @@ def duyurular(request):
         'personel': personel, 'aktif': 'duyurular', 'yayinci': yayinci,
         'kayitlar': kayitlar, 'subeler': subeler, 'roller': Rol.choices})
 
-
-# =========================================================================
-# RAPORLAR (aylık PDF — UST_YONETIM indirir / oluşturur)
-# =========================================================================
 import glob as _glob2
 import re as _re2
 import datetime as _dt2
 from panel.management.commands.aylik_rapor import rapor_dizin as _rapor_dizin
 
 _RAPOR_DESEN = _re2.compile(r'^rapor-\d{4}-\d{2}\.pdf$')
-
 
 def raporlar(request):
     if not request.user.is_authenticated:
@@ -2681,7 +2482,6 @@ def raporlar(request):
         kayitlar.append({'ad': ad, 'kb': kb, 'tarih': mt})
     return render(request, 'raporlar.html', {
         'personel': personel, 'aktif': 'raporlar', 'kayitlar': kayitlar})
-
 
 def rapor_indir(request, ad):
     if not request.user.is_authenticated:

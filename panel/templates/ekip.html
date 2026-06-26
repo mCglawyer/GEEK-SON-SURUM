@@ -7,7 +7,7 @@
   <div class="plan-head"><div><h2>{% if is_tam %}Ekip Yönetimi{% else %}Şefler{% endif %}</h2></div></div>
 
   {% if is_tam %}
-  <!-- YÖNETİCİLER -->
+  
   <div class="card staff-card">
     <h3>Yöneticiler</h3>
     <ul class="staff-list">
@@ -34,7 +34,7 @@
   </div>
   {% endif %}
 
-  <!-- ŞEFLER -->
+  
   <div class="card staff-card">
     <h3>Şefler{% if not is_tam %} <span class="badge badge-info">şubelerinize göre</span>{% endif %}</h3>
     <ul class="staff-list">

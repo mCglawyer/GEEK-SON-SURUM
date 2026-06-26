@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Sevkiyat ürün kataloğu — BAR/TEMİZLİK malzeme talep formundan üretildi.
-Her kayıt: (form, kategori, ad, koli_icerigi, birim).
-Yüklemek için: python manage.py katalog_yukle
-"""
+
 
 KATALOG = [
     ("HAMMADDE", "EKİPMAN GRUBU", "SHORT BARDAK", 2000, "ADET"),

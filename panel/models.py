@@ -2,10 +2,6 @@ import secrets
 from django.db import models
 from django.contrib.auth.models import User
 
-
-# =========================================================================
-# SEÇENEK LİSTELERİ
-# =========================================================================
 class Rol(models.TextChoices):
     GENEL_MUDUR = 'Genel Müdür', 'Genel Müdür (Tam Yetkili)'
     MUDUR = 'Müdür', 'Bölge Müdürü'
@@ -17,7 +13,6 @@ class Rol(models.TextChoices):
     SEF = 'Şef', 'Şube Şefi'
     PERSONEL = 'Personel', 'Personel'
 
-
 class VardiyaTipi(models.TextChoices):
     SABAHCI = 'Sabahçı', 'Sabahçı'
     ARACI = 'Aracı', 'Aracı'
@@ -26,21 +21,14 @@ class VardiyaTipi(models.TextChoices):
     RAPORLU = 'Raporlu', 'Raporlu'
     DEVAMSIZ = 'Devamsız', 'Devamsız'
 
-
 class OnayDurumu(models.TextChoices):
     TASLAK = 'Taslak', 'Taslak'
     ONAY_BEKLIYOR = 'Onay Bekliyor', 'Onay Bekliyor'
     ONAYLANDI = 'Onaylandı', 'Onaylandı'
     REDDEDILDI = 'Reddedildi', 'Reddedildi'
 
-
-# Yönetim rolleri (şifreyle giriş yapar); diğerleri (Personel) kod ile girer
 YONETIM_ROLLERI = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.SEF]
 
-
-# =========================================================================
-# MODELLER
-# =========================================================================
 class Sube(models.Model):
     ad = models.CharField(max_length=100, verbose_name="Şube Adı")
     depo_mu = models.BooleanField(
@@ -52,7 +40,6 @@ class Sube(models.Model):
 
     def __str__(self):
         return self.ad
-
 
 class Personel(models.Model):
     user = models.OneToOneField(
@@ -83,7 +70,6 @@ class Personel(models.Model):
 
     @staticmethod
     def benzersiz_kod_uret():
-        """Kullanımda olmayan, rastgele 6 haneli bir kod üretir."""
         while True:
             kod = f"{secrets.randbelow(1_000_000):06d}"
             if not Personel.objects.filter(giris_kodu=kod).exists():
@@ -94,19 +80,17 @@ class Personel(models.Model):
         self.save(update_fields=['giris_kodu'])
 
     def save(self, *args, **kwargs):
-        # Her personele benzersiz bir giriş kodu ata
+
         if not self.giris_kodu:
             self.giris_kodu = self.benzersiz_kod_uret()
         super().save(*args, **kwargs)
-        # Personel veya Şef rolündeyse ve bağlı kullanıcı yoksa, kod ile giriş
-        # için otomatik (şifresiz) bir kullanıcı hesabı oluştur
+
         if self.user_id is None and self.rol in (Rol.PERSONEL, Rol.SEF):
             u = User.objects.create(username=f"kod_{self.giris_kodu}")
             u.set_unusable_password()
             u.save()
             self.user = u
             super().save(update_fields=['user'])
-
 
 class Vardiya(models.Model):
     personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='vardiyalar')
@@ -124,7 +108,6 @@ class Vardiya(models.Model):
 
     def __str__(self):
         return f"{self.personel.ad_soyad} - {self.tarih} - {self.vardiya_tipi} ({self.durum})"
-
 
 class Mola(models.Model):
     personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='molalar')
@@ -149,7 +132,6 @@ class Mola(models.Model):
     def __str__(self):
         return f"{self.personel.ad_soyad} - {self.baslangic_saati}"
 
-
 class Puantaj(models.Model):
     personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='puantajlar')
     ay = models.DateField(verbose_name="Puantaj Ayı")
@@ -166,9 +148,7 @@ class Puantaj(models.Model):
     def __str__(self):
         return f"{self.personel.ad_soyad} - {self.ay.strftime('%m/%Y')}"
 
-
 class KodKilit(models.Model):
-    """Kod ile girişte kaba kuvvet (brute-force) denemelerini sınırlamak için."""
     ip = models.CharField(max_length=45, unique=True, verbose_name="IP Adresi")
     hatali_deneme = models.IntegerField(default=0)
     kilit_bitis = models.DateTimeField(null=True, blank=True)
@@ -179,14 +159,11 @@ class KodKilit(models.Model):
     def __str__(self):
         return f"{self.ip} ({self.hatali_deneme} hatalı)"
 
-
 class Birim(models.TextChoices):
     ADET = 'adet', 'adet'
     ML = 'ml', 'ml'
 
-
 class Zayi(models.Model):
-    """Şube bazlı zayi (fire) kaydı. Personel/şef girer, yönetim görüntüler."""
     sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='zayiler', verbose_name="Şube")
     giren = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
                               related_name='zayi_girisleri', verbose_name="Giren Personel")
@@ -204,9 +181,7 @@ class Zayi(models.Model):
     def __str__(self):
         return f"{self.urun_adi} - {self.miktar} {self.birim}"
 
-
 class Kalibrasyon(models.Model):
-    """Personel/şef tarafından anlık kameradan çekilip yüklenen günlük kalibrasyon görüntüsü."""
     sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='kalibrasyonlar', verbose_name="Şube")
     giren = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
                               related_name='kalibrasyonlar', verbose_name="Yükleyen")
@@ -222,10 +197,7 @@ class Kalibrasyon(models.Model):
     def __str__(self):
         return f"{self.sube} - {self.giren_ad} - {self.olusturma:%d.%m.%Y %H:%M}"
 
-
 class Irsaliye(models.Model):
-    """Sevkiyatçıların anlık kameradan çektiği ürün transfer / irsaliye görseli + açıklama.
-    Şube bazlı değildir; transfer yönü açıklamada belirtilir."""
     giren = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
                               related_name='irsaliyeler', verbose_name="Yükleyen")
     giren_ad = models.CharField(max_length=100, blank=True, verbose_name="Yükleyen (ad)")
@@ -241,9 +213,7 @@ class Irsaliye(models.Model):
     def __str__(self):
         return f"{self.giren_ad} - {self.olusturma:%d.%m.%Y %H:%M}"
 
-
 class StokUrun(models.Model):
-    """Ay sonu stok sayımında sayılacak kalemler (katalog). Excel'den 'stok_yukle' ile yüklenir."""
     kategori = models.CharField(max_length=80, blank=True, verbose_name="Grup")
     ad = models.CharField(max_length=200, verbose_name="Ürün Adı")
     kapali_icerik = models.DecimalField(max_digits=12, decimal_places=2, default=1,
@@ -261,9 +231,7 @@ class StokUrun(models.Model):
     def __str__(self):
         return self.ad
 
-
 class StokSayim(models.Model):
-    """Bir şubenin bir aya ait stok sayımı (şube şefi girer)."""
     sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='stok_sayimlari', verbose_name="Şube")
     ay = models.DateField(verbose_name="Ay (ayın 1'i)")
     giren = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
@@ -280,7 +248,6 @@ class StokSayim(models.Model):
 
     def __str__(self):
         return f"{self.sube} - {self.ay:%m.%Y}"
-
 
 class StokSayimKalem(models.Model):
     sayim = models.ForeignKey(StokSayim, on_delete=models.CASCADE, related_name='kalemler')
@@ -305,7 +272,6 @@ class StokSayimKalem(models.Model):
     def __str__(self):
         return f"{self.urun_ad}: {self.toplam}"
 
-
 class SevkiyatBirim(models.TextChoices):
     ADET = 'ADET', 'ADET'
     KOLI = 'KOLİ', 'KOLİ'
@@ -317,14 +283,11 @@ class SevkiyatBirim(models.TextChoices):
     SET = 'SET', 'SET'
     KUTU = 'KUTU', 'KUTU'
 
-
 class SevkiyatForm(models.TextChoices):
     HAMMADDE = 'HAMMADDE', 'Hammadde'
     TEMIZLIK = 'TEMIZLIK', 'Temizlik'
 
-
 class Urun(models.Model):
-    """Sevkiyat ürün kataloğu (Excel'den 'katalog_yukle' ile yüklenir)."""
     form = models.CharField(max_length=10, choices=SevkiyatForm.choices,
                             default=SevkiyatForm.HAMMADDE, verbose_name="Form")
     kategori = models.CharField(max_length=80, verbose_name="Kategori")
@@ -346,7 +309,6 @@ class Urun(models.Model):
     def __str__(self):
         return f"{self.ad} ({self.birim})"
 
-
 class SevkiyatDurumu(models.TextChoices):
     TALEP = 'Talep', 'Satın Almada'
     SEVKIYATTA = 'Sevkiyatta', 'Sevkiyatta'
@@ -355,9 +317,7 @@ class SevkiyatDurumu(models.TextChoices):
     REDDEDILDI = 'Reddedildi', 'Reddedildi (Düzeltmede)'
     TESLIM = 'Teslim Edildi', 'Teslim Edildi'
 
-
 class SevkiyatTalep(models.Model):
-    """Şube şefinin katalogdan oluşturduğu sipariş."""
     sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='sevkiyat_talepleri', verbose_name="Şube")
     olusturan = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
                                   related_name='sevkiyat_talepleri', verbose_name="Oluşturan")
@@ -382,25 +342,23 @@ class SevkiyatTalep(models.Model):
     def __str__(self):
         return f"#{self.id} {self.sube} - {self.durum}"
 
-
 class SevkiyatKalem(models.Model):
-    """Siparişteki tek ürün satırı; her aşamada miktar/birim revize edilebilir."""
     talep = models.ForeignKey(SevkiyatTalep, on_delete=models.CASCADE, related_name='kalemler')
     urun = models.ForeignKey(Urun, on_delete=models.SET_NULL, null=True, blank=True)
     urun_ad = models.CharField(max_length=160, default='')
     kategori = models.CharField(max_length=80, blank=True, default='')
     form = models.CharField(max_length=10, blank=True, default='')
     koli_icerigi = models.PositiveIntegerField(default=1)
-    # Şefin istediği
+
     istenen_miktar = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     istenen_birim = models.CharField(max_length=10, default=SevkiyatBirim.ADET)
-    # Satın almanın revizyonu
+
     satinalma_miktar = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     satinalma_birim = models.CharField(max_length=10, blank=True, default='')
-    # Sevkiyatın (stoğa göre) revizyonu
+
     sevkiyat_miktar = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     sevkiyat_birim = models.CharField(max_length=10, blank=True, default='')
-    # Sevkiyat ekibinin hazırlık işareti (toplarken tik atılır → satır yeşile döner)
+
     hazirlandi = models.BooleanField(default=False)
 
     class Meta:
@@ -409,9 +367,7 @@ class SevkiyatKalem(models.Model):
     def __str__(self):
         return f"{self.urun_ad} {self.istenen_miktar} {self.istenen_birim}"
 
-
 class SiparisHareket(models.Model):
-    """Sipariş hareket günlüğü (şef detaylı durum takibi için)."""
     talep = models.ForeignKey(SevkiyatTalep, on_delete=models.CASCADE, related_name='hareketler')
     mesaj = models.CharField(max_length=200)
     aciklama = models.CharField(max_length=400, blank=True)
@@ -424,9 +380,7 @@ class SiparisHareket(models.Model):
     def __str__(self):
         return f"#{self.talep_id} {self.mesaj}"
 
-
 class KahveSoru(models.Model):
-    """Günlük kahve kültürü soru bankası (4 şıklı)."""
     SIKLAR = [('A', 'A'), ('B', 'B'), ('C', 'C'), ('D', 'D')]
     kategori = models.CharField(max_length=40, blank=True)
     metin = models.TextField(verbose_name="Soru")
@@ -451,16 +405,14 @@ class KahveSoru(models.Model):
     def siklar(self):
         return [('A', self.sik_a), ('B', self.sik_b), ('C', self.sik_c), ('D', self.sik_d)]
 
-
 class GunlukSoru(models.Model):
-    """Bir kişiye belirli bir günde atanan soru ve verdiği cevap."""
     personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='gunluk_sorular')
     sube = models.ForeignKey(Sube, on_delete=models.SET_NULL, null=True, blank=True)
-    sube_ad = models.CharField(max_length=120, blank=True)  # şube anlık adı (snapshot)
+    sube_ad = models.CharField(max_length=120, blank=True)
     soru = models.ForeignKey(KahveSoru, on_delete=models.SET_NULL, null=True)
     tarih = models.DateField()
-    baslangic = models.DateTimeField(null=True, blank=True)  # sorunun gösterildiği an (sayaç başı)
-    secilen = models.CharField(max_length=1, blank=True)     # '' = boş bırakıldı
+    baslangic = models.DateTimeField(null=True, blank=True)
+    secilen = models.CharField(max_length=1, blank=True)
     dogru_mu = models.BooleanField(default=False)
     sure_doldu = models.BooleanField(default=False)
     cevaplandi = models.BooleanField(default=False)
@@ -473,9 +425,7 @@ class GunlukSoru(models.Model):
     def __str__(self):
         return f"{self.personel_id} · {self.tarih}"
 
-
 class SoruAyar(models.Model):
-    """Günlük soru sisteminin genel açık/kapalı ayarı (tek satır)."""
     aktif = models.BooleanField(default=False, verbose_name="Günlük soru sistemi aktif")
     guncelleme = models.DateTimeField(auto_now=True)
 
@@ -491,9 +441,7 @@ class SoruAyar(models.Model):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
 
-
 class Bildirim(models.Model):
-    """Uygulama içi bildirim. Bir olay olunca ilgili kişilere birer kayıt düşer."""
     alici = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='bildirimler')
     mesaj = models.CharField(max_length=200)
     link = models.CharField(max_length=200, blank=True, default='')
@@ -508,13 +456,11 @@ class Bildirim(models.Model):
     def __str__(self):
         return f'{self.alici_id}: {self.mesaj[:30]}'
 
-
 class Duyuru(models.Model):
-    """Yönetim duyurusu. Tüm şubelere veya seçili role/şubeye yayınlanır."""
     baslik = models.CharField(max_length=150)
     icerik = models.TextField()
     yayinlayan_ad = models.CharField(max_length=120, blank=True, default='')
-    hedef_rol = models.CharField(max_length=20, blank=True, default='')   # '' = tüm roller
+    hedef_rol = models.CharField(max_length=20, blank=True, default='')
     hedef_sube = models.ForeignKey(Sube, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     aktif = models.BooleanField(default=True)
     olusturma = models.DateTimeField(auto_now_add=True)

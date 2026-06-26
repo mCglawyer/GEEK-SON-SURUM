@@ -24,7 +24,7 @@
         {% endif %}
 
         {% with mod=request.GET.mod %}
-        <!-- PERSONEL: kod girişi -->
+        
         <div class="auth-pane{% if mod == 'yonetici' %} hidden{% endif %}" id="pane-kod">
           <span class="eyebrow">Personel / Şef girişi</span>
           <h2>Giriş kodunu yaz</h2>
@@ -42,7 +42,7 @@
           <button type="button" class="linkbtn" data-target="pane-sifre">Üst yönetici misin? Şifreyle gir →</button>
         </div>
 
-        <!-- YÖNETİM: kullanıcı adı + şifre -->
+        
         <div class="auth-pane{% if mod != 'yonetici' %} hidden{% endif %}" id="pane-sifre">
           <span class="eyebrow">Yönetici girişi</span>
           <h2>Hesabına giriş yap</h2>

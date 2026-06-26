@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Aylık stok sayım kataloğu — Excel'den gömülü. 'stok_yukle' ile DB'ye yüklenir.
-Her kalem: (kategori, ad, kapali_icerik, acik_carpan, sira)
-kapali_icerik = bir kapalı kutudaki adet/ml/kg; acik_carpan = açık kutu çarpanı (genelde 1).
-"""
+
 
 STOK_KATALOG = [
     ("ŞURUP VE SOS", "SPICED CHAI ŞURUP", 750, 1, 1),

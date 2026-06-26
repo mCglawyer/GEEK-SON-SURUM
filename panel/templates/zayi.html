@@ -31,7 +31,7 @@
   </div>
 
   {% if ekleyebilir %}
-  <!-- Giriş formu (personel / şef) -->
+  
   <div class="card">
     <form method="post" class="zayi-form">{% csrf_token %}<input type="hidden" name="islem" value="zayi_ekle">
       <label class="zf-urun">Ürün adı<input class="input" type="text" name="urun_adi" placeholder="Örn. Süt, Bardak, Espresso shot" required></label>
@@ -45,7 +45,7 @@
   {% endif %}
 
   {% if is_yon and grafik %}
-  <!-- Zayi sütun grafiği (yönetim) — sütunlar ürün miktarına oranla yükselir -->
+  
   <div class="card">
     <div class="hafta-head"><h3>{% if aralik_mod %}Zayi Grafiği{% else %}Aylık Zayi Grafiği{% endif %}</h3><span class="hafta-aralik">ürünlere göre toplam · oran</span></div>
     <div class="chart">
@@ -63,7 +63,7 @@
   <div class="card"><p style="margin:0;color:var(--muted)">Bu {% if aralik_mod %}aralıkta{% else %}ay{% endif %} bu şubede zayi kaydı yok.</p></div>
   {% endif %}
 
-  <!-- Liste -->
+  
   <div class="card">
     <div class="hafta-head"><h3>{% if is_yon %}Zayi Kayıtları{% else %}Bu Ay Girilenler{% endif %}</h3><span class="hafta-aralik">{{ kayitlar|length }} kayıt</span></div>
     {% if kayitlar %}

@@ -8,13 +8,10 @@ from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
-
 def yedek_dizin():
-    """Yedeklerin tutulacağı klasör. İstenirse YEDEK_DIZIN ortam değişkeniyle değiştirilebilir."""
     d = os.environ.get('YEDEK_DIZIN') or os.path.join(str(settings.BASE_DIR), 'yedekler')
     os.makedirs(d, exist_ok=True)
     return d
-
 
 class Command(BaseCommand):
     help = "Veritabanının tarihli (gzip) yedeğini alır ve eski yedekleri temizler."

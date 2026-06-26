@@ -3,7 +3,6 @@ from django.core.management.base import BaseCommand
 from panel.kahve_sorulari import SORULAR
 from panel.models import KahveSoru
 
-
 class Command(BaseCommand):
     help = "Kahve soru bankasını (kahve_sorulari.py) veritabanına yükler."
 
@@ -19,7 +18,7 @@ class Command(BaseCommand):
             )
             eklenen += 1 if created else 0
             guncellenen += 0 if created else 1
-        # Bankadan çıkarılanları pasifleştir
+
         pasif = 0
         for s in KahveSoru.objects.filter(aktif=True):
             if s.metin not in gelen:

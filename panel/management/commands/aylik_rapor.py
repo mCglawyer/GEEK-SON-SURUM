@@ -12,12 +12,10 @@ CALISMA = [VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI]
 AYLAR = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
          'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
 
-
 def rapor_dizin():
     d = os.environ.get('RAPOR_DIZIN') or os.path.join(str(settings.BASE_DIR), 'raporlar')
     os.makedirs(d, exist_ok=True)
     return d
-
 
 class Command(BaseCommand):
     help = "Geçen ayın detaylı operasyon raporunu (şube şube, personel bazında) PDF üretir, kaydeder, e-postalar."

@@ -1,19 +1,10 @@
-# -*- coding: utf-8 -*-
-"""
-Hukuki sayfa içerikleri.
 
-ÖNEMLİ: Bu metinler, bu sistemin işlediği gerçek verilere göre hazırlanmış
-güçlü bir BAŞLANGIÇ TASLAĞIDIR; hukuki danışmanlık değildir. Yürürlüğe almadan
-önce bir avukata/uyum danışmanına inceletin ve [köşeli parantez] içindeki
-firmaya özel alanları doldurun.
-"""
 
 GUNCELLEME = "26.06.2026"
 NOT = ("Bu metin, sistemin işlediği verilere göre hazırlanmış bir taslaktır ve "
        "hukuki danışmanlık yerine geçmez. Yürürlüğe almadan önce bir hukuk "
        "danışmanına inceletmeniz önerilir.")
 
-# Sistemin gerçekte işlediği veri kategorileri (tek yerden yönetilir)
 _ISLENEN_VERILER = (
     "Kimlik bilgisi (ad-soyad), sisteme giriş için atanan benzersiz kullanıcı/giriş "
     "kodu, görev/rol ve bağlı olunan şube bilgisi; vardiya planı kayıtları, mola "

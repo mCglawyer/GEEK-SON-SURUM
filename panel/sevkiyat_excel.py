@@ -1,22 +1,14 @@
-"""Onaylanan siparişi, fatura sistemine yüklenecek sade bir Excel'e dönüştürür.
-
-Sütunlar: Ürün Adı | Miktar | Birim | Birim Fiyat
-- Miktar/Birim: siparişin SON (çıkış) hâli (sevkiyat > satın alma > istenen).
-- Birim Fiyat: ürün ne olursa olsun her zaman 0.
-"""
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 BASLIKLAR = ['Ürün Adı', 'Miktar', 'Birim', 'Birim Fiyat']
 
-
 def _say(d):
     if d is None:
         return 0
     d = float(d)
     return int(d) if d == int(d) else round(d, 2)
-
 
 def siparis_excel_bytes(talep):
     wb = Workbook()

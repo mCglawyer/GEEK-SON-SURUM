@@ -1,8 +1,3 @@
-"""Sevkiyat belgeleri için PDF üretimi (Yükleme Belgesi + Teslim Fişi).
-
-Pillow gerektirmez: logo yerine markalı metin başlık kullanılır.
-Türkçe karakterler için DejaVu TTF gömülür (static/fonts).
-"""
 import os
 from io import BytesIO
 
@@ -23,7 +18,6 @@ ZEBRA = colors.HexColor('#eef1fb')
 
 _FONTS_OK = None
 
-
 def _fonts():
     global _FONTS_OK
     if _FONTS_OK is not None:
@@ -37,16 +31,13 @@ def _fonts():
         _FONTS_OK = False
     return _FONTS_OK
 
-
 def _say(d):
     if d is None:
         return '—'
     d = float(d)
     return str(int(d)) if d == int(d) else ('%.2f' % d)
 
-
 def sevkiyat_pdf_bytes(talep, tip):
-    """tip: 'yukleme' (Yükleme Belgesi) veya 'fis' (Teslim Fişi)."""
     ok = _fonts()
     font = 'DejaVu' if ok else 'Helvetica'
     fontb = 'DejaVu-Bold' if ok else 'Helvetica-Bold'
@@ -97,7 +88,7 @@ def sevkiyat_pdf_bytes(talep, tip):
     for k in talep.kalemler.all():
         son = k.sevkiyat_miktar if k.sevkiyat_miktar is not None else (
             k.satinalma_miktar if k.satinalma_miktar is not None else k.istenen_miktar)
-        if not son:  # 0 veya boş → gönderilmiyor, belgeye yazma
+        if not son:
             continue
         bir = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
         i += 1
@@ -105,7 +96,7 @@ def sevkiyat_pdf_bytes(talep, tip):
 
     basliklar = ['#', 'Ürün', 'Miktar', 'Birim']
     col_w = [9 * mm, 116 * mm, 23 * mm, 19 * mm]
-    # Tek tablo: her sayfaya sığabildiği kadar satır otomatik dizilir (başlık her sayfada tekrarlar)
+
     kt = Table([basliklar] + veri, colWidths=col_w, repeatRows=1)
     kt.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 7),

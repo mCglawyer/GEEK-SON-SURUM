@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Kahve kültürü/sektörü günlük soru bankası.
-Her kayıt: (kategori, soru, A, B, C, D, dogru) ; dogru: "A"/"B"/"C"/"D".
-Yüklemek için: python manage.py soru_yukle
-"""
+
 
 SORULAR = [
     ("Tarih", "Kahvenin anavatanı olarak kabul edilen ülke hangisidir?", "Brezilya", "Yemen", "Etiyopya", "Kolombiya", "C"),

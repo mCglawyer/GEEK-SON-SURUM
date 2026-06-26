@@ -1,11 +1,6 @@
-"""Ürün kataloğunu panel/sevkiyat_katalog.py içindeki KATALOG'dan yükler/günceller.
-Kullanım: python manage.py katalog_yukle
-Mevcut ürünler (form+ad) güncellenir, yenileri eklenir; tekrar çalıştırmak güvenlidir.
-"""
 from django.core.management.base import BaseCommand
 from panel.models import Urun
 from panel.sevkiyat_katalog import KATALOG
-
 
 class Command(BaseCommand):
     help = "Sevkiyat ürün kataloğunu yükler/günceller."
@@ -24,7 +19,7 @@ class Command(BaseCommand):
                 eklenen += 1
             else:
                 guncellenen += 1
-        # Katalogda olmayan eski ürünleri pasifleştir (silme; geçmiş siparişler korunur)
+
         pasif = 0
         for u in Urun.objects.filter(aktif=True):
             if (u.form, u.ad) not in gelen:

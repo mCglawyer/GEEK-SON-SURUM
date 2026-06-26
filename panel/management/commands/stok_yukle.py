@@ -2,7 +2,6 @@ from django.core.management.base import BaseCommand
 from panel.models import StokUrun
 from panel.stok_katalog import STOK_KATALOG
 
-
 class Command(BaseCommand):
     help = "Gömülü stok sayım kataloğunu (stok_katalog.py) StokUrun tablosuna yükler/günceller."
 
@@ -20,7 +19,7 @@ class Command(BaseCommand):
                 eklendi += 1
             else:
                 guncellendi += 1
-        # Katalogda olmayan eski kalemleri pasifleştir (silme; geçmiş sayımlar korunur)
+
         pasif = StokUrun.objects.filter(aktif=True).exclude(ad__in=gelen_adlar).update(aktif=False)
         self.stdout.write(self.style.SUCCESS(
             f"Stok kataloğu yüklendi: {eklendi} yeni, {guncellendi} güncellendi, {pasif} pasifleştirildi. "
