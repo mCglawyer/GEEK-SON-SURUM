@@ -2,7 +2,6 @@
 {% load static %}
 {% block title %}Ekip · Geek Panel{% endblock %}
 {% block body %}
-{% include '_nav.html' %}
 <div class="container">
   {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
   <div class="plan-head"><div><h2>{% if is_tam %}Ekip Yönetimi{% else %}Şefler{% endif %}</h2></div></div>

@@ -16,11 +16,18 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=28">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=30">
   {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body{% if personel %} class="app"{% endif %}>
+  {% if personel %}
+  {% include '_nav.html' %}
+  <main class="app-main">
+  {% endif %}
   {% block body %}{% endblock %}
+  {% if personel %}
+  </main>
+  {% endif %}
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
