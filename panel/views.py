@@ -1206,7 +1206,7 @@ def _birim_secenek(urun):
         secs.append(urun.ust_birim)
     return secs
 
-SEVKIYAT_DUZENLE_ROLLERI = [Rol.SATIN_ALMA, Rol.OPERATOR, Rol.GENEL_MUDUR, Rol.YATIRIMCI]
+SEVKIYAT_DUZENLE_ROLLERI = [Rol.SATIN_ALMA, Rol.OPERATOR, Rol.GENEL_MUDUR]
 
 def sevkiyat_duzenle(request):
     if not request.user.is_authenticated:
@@ -1475,6 +1475,27 @@ def sevkiyat_sayfa(request):
                 k.satinalma_miktar = miktar
                 k.satinalma_birim = birim
                 k.save()
+            ek_adlar = request.POST.getlist('sa_ek_ad')
+            ek_miktarlar = request.POST.getlist('sa_ek_miktar')
+            ek_birimler = request.POST.getlist('sa_ek_birim')
+            for i, ad in enumerate(ek_adlar):
+                ad = (ad or '').strip()
+                if not ad:
+                    continue
+                raw = (ek_miktarlar[i] if i < len(ek_miktarlar) else '').strip().replace(',', '.')
+                try:
+                    mik = Decimal(raw)
+                except Exception:
+                    continue
+                if mik <= 0:
+                    continue
+                bir = ek_birimler[i] if i < len(ek_birimler) else SevkiyatBirim.ADET
+                if bir not in gecerli:
+                    bir = SevkiyatBirim.ADET
+                SevkiyatKalem.objects.create(
+                    talep=talep, urun=None, urun_ad=ad[:160], kategori='DİĞER', form='',
+                    koli_icerigi=1, istenen_miktar=0, istenen_birim=bir,
+                    satinalma_miktar=mik, satinalma_birim=bir)
             talep.durum = SevkiyatDurumu.SEVKIYATTA
             talep.satin_alan_ad = personel.ad_soyad
             talep.satin_alma_tarih = timezone.now()
@@ -2103,7 +2124,7 @@ def soru_yonetimi(request):
         'aktif_sayi': KahveSoru.objects.filter(aktif=True).count(),
     })
 
-STOK_DUZENLE_ROLLERI = [Rol.MUDUR, Rol.SATIN_ALMA, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
+STOK_DUZENLE_ROLLERI = [Rol.MUDUR, Rol.SATIN_ALMA, Rol.GENEL_MUDUR, Rol.OPERATOR]
 
 def _dec(v, vars):
     try:

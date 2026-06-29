@@ -193,4 +193,32 @@
 })();
 </script>
 {% endif %}
+{% if is_satinalma %}
+<template id="sv-ek-tmpl">
+  <div class="sv-ek-satir">
+    <input class="input" type="text" name="sa_ek_ad" placeholder="Ürün adı" autocomplete="off">
+    <input class="input sv-miktar" type="number" name="sa_ek_miktar" min="0" step="any" placeholder="Miktar">
+    <select class="sube-sec sv-birim" name="sa_ek_birim">
+      {% for b in tum_birimler %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+    </select>
+    <button type="button" class="sv-ek-sil" title="Sil">✕</button>
+  </div>
+</template>
+<script>
+(function () {
+  var tmpl = document.getElementById('sv-ek-tmpl');
+  if (!tmpl) return;
+  document.addEventListener('click', function (e) {
+    var add = e.target.closest && e.target.closest('.sv-ek-btn');
+    if (add) {
+      var box = add.parentElement.querySelector('.sv-ek-satirlar');
+      if (box) box.appendChild(tmpl.content.cloneNode(true));
+      return;
+    }
+    var sil = e.target.closest && e.target.closest('.sv-ek-sil');
+    if (sil) { var row = sil.closest('.sv-ek-satir'); if (row) row.remove(); }
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}
