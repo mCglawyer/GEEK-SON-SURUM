@@ -4,11 +4,24 @@
 {% block body %}
 <div class="container egitim-wrap">
   {% include '_egitim_koruma.html' %}
-  <div class="plan-head"><div><h2>Mini Test</h2><span class="plan-aralik">{{ soru_sayisi }} soru · soru başına {{ sure }} sn · süre dolunca otomatik geçer</span></div></div>
+  <div class="plan-head"><div><h2>Mini Test</h2><span class="plan-aralik">{{ soru_sayisi }} soru · soru başına {{ sure }} sn</span></div></div>
 
-  <form method="post" id="test-form">
+  <div class="card test-karteli" id="bilgi-karteli">
+    <h3 class="egitim-bolum">Sınav Bilgi Karteli</h3>
+    <ul class="kartel-liste">
+      <li><b>{{ soru_sayisi }} soru</b> sorulacak, her soru için <b>{{ sure }} saniye</b> sürenin var.</li>
+      <li>Süre dolunca soru <b>otomatik</b> bir sonrakine geçer; geri dönüş yok.</li>
+      <li>Geçmek için en az <b>{{ gecme }}/{{ soru_sayisi }}</b> doğru gerekir.</li>
+      <li><b>Sınav sırasında uygulamadan/sayfadan çıkarsan sınav başarısız sayılır.</b></li>
+      <li>Başarısız olursan farklı sorularla yeniden denersin.</li>
+    </ul>
+    <button type="button" class="btn btn-primary" id="basla-btn">Anladım, Sınava Başla</button>
+  </div>
+
+  <form method="post" id="test-form" hidden>
     {% csrf_token %}
     <input type="hidden" name="sorular" value="{{ id_listesi }}">
+    <input type="hidden" name="cikis" id="cikis-input" value="">
     <div class="card test-kart">
       <div class="test-ust">
         <div class="test-ilerleme">Soru <span id="t-no">1</span>/{{ soru_sayisi }}</div>
@@ -34,15 +47,24 @@
   var SURE = {{ sure }};
   var sorular = Array.prototype.slice.call(document.querySelectorAll('.test-soru'));
   var form = document.getElementById('test-form');
+  var karteli = document.getElementById('bilgi-karteli');
+  var baslaBtn = document.getElementById('basla-btn');
+  var cikisInput = document.getElementById('cikis-input');
   var noEl = document.getElementById('t-no'), snEl = document.getElementById('t-sn'), bar = document.getElementById('t-bar');
-  var i = 0, kalan = SURE, timer = null, bitti = false;
+  var i = 0, kalan = SURE, timer = null, basladi = false, bitti = false;
+
   function goster(idx) { sorular.forEach(function (s, k) { s.hidden = (k !== idx); }); noEl.textContent = (idx + 1); }
   function basla() { kalan = SURE; snEl.textContent = kalan; bar.style.width = '100%'; if (timer) clearInterval(timer); timer = setInterval(tik, 1000); }
   function tik() { kalan--; snEl.textContent = (kalan < 0 ? 0 : kalan); bar.style.width = Math.max(0, kalan / SURE * 100) + '%'; if (kalan <= 0) ilerle(); }
   function ilerle() { if (bitti) return; if (i < sorular.length - 1) { i++; goster(i); basla(); } else bitir(); }
   function bitir() { if (bitti) return; bitti = true; if (timer) clearInterval(timer); form.submit(); }
+  function cikisFail() { if (bitti || !basladi) return; bitti = true; if (timer) clearInterval(timer); cikisInput.value = '1'; form.submit(); }
+
+  baslaBtn.addEventListener('click', function () {
+    karteli.hidden = true; form.hidden = false; basladi = true; goster(0); basla();
+  });
   document.querySelectorAll('.test-ileri').forEach(function (b) { b.addEventListener('click', ilerle); });
-  goster(0); basla();
+  document.addEventListener('visibilitychange', function () { if (document.hidden) cikisFail(); });
 })();
 </script>
 {% endblock %}

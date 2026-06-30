@@ -531,5 +531,11 @@ class EgitimDurum(models.Model):
     gecti = models.BooleanField(default=False)
     son_puan = models.IntegerField(default=0)
     deneme = models.IntegerField(default=0)
+    son_sorular = models.TextField(default='', blank=True)
     sozlesme_onayli = models.BooleanField(default=False)
     tarih = models.DateTimeField(auto_now=True)
+
+
+class EgitimAyar(models.Model):
+    acik = models.BooleanField(default=False)
+    guncelleme = models.DateTimeField(auto_now=True)

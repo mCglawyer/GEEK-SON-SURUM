@@ -26,7 +26,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      SevkiyatForm, Urun, SiparisHareket,
                      KahveSoru, GunlukSoru, SoruAyar, Bildirim, Duyuru,
                      GSosyalGonderi, GSosyalTepki,
-                     EgitimDokuman, EgitimSoru, EgitimDurum,
+                     EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -2639,11 +2639,20 @@ def g_sosyal(request):
 
 
 EGITIM_SORU_SAYISI = 10
-EGITIM_GECME = 8
+EGITIM_GECME = 6
 EGITIM_SURE = 20
 EGITIM_HEDEF_ROLLER = [Rol.PERSONEL, Rol.SEF]
-EGITIM_GORUNTULE_ROLLER = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
-EGITIM_DUZENLE_ROLLER = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR]
+EGITIM_GORUNTULE_ROLLER = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.EGITMEN]
+EGITIM_DUZENLE_ROLLER = [Rol.EGITMEN]
+EGITIM_ACMA_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR]
+
+
+def _egitim_acik():
+    try:
+        a = EgitimAyar.objects.first()
+        return bool(a and a.acik)
+    except Exception:
+        return False
 
 
 def _egitim_durum(personel):
@@ -2659,6 +2668,7 @@ def egitim(request):
     personel = _aktif_personel(request)
     if personel is None:
         return redirect('ana_sayfa')
+    acik = _egitim_acik()
     hedef = personel.rol in EGITIM_HEDEF_ROLLER
     yonetebilir = personel.rol in EGITIM_GORUNTULE_ROLLER
     durum = _egitim_durum(personel) if hedef else None
@@ -2671,6 +2681,7 @@ def egitim(request):
         'hedef': hedef,
         'yonetebilir': yonetebilir,
         'soru_var': soru_var,
+        'acik': acik,
         'gecme': EGITIM_GECME,
         'soru_sayisi': EGITIM_SORU_SAYISI,
     })
@@ -2684,18 +2695,24 @@ def egitim_test(request):
     personel = _aktif_personel(request)
     if personel is None or personel.rol not in EGITIM_HEDEF_ROLLER:
         return redirect('egitim')
+    if not _egitim_acik():
+        return redirect('egitim')
     durum = _egitim_durum(personel)
     if durum.tamamlandi:
         return redirect('egitim')
 
     if request.method == 'POST':
         ids = [x for x in (request.POST.get('sorular', '') or '').split(',') if x.isdigit()]
-        sorular = list(EgitimSoru.objects.filter(id__in=ids))
-        dogru_sayi = 0
-        for s in sorular:
-            if request.POST.get('soru_%d' % s.id, '') == s.dogru:
-                dogru_sayi += 1
+        durum.son_sorular = ','.join(ids)
         durum.deneme += 1
+        if request.POST.get('cikis') == '1':
+            durum.gecti = False
+            durum.son_puan = 0
+            durum.save()
+            messages.error(request, "Sınav sırasında uygulamadan ayrıldın — sınav başarısız sayıldı. Farklı sorularla tekrar dene.")
+            return redirect('egitim')
+        sorular = list(EgitimSoru.objects.filter(id__in=ids))
+        dogru_sayi = sum(1 for s in sorular if request.POST.get('soru_%d' % s.id, '') == s.dogru)
         durum.son_puan = dogru_sayi
         if dogru_sayi >= EGITIM_GECME:
             durum.gecti = True
@@ -2703,7 +2720,7 @@ def egitim_test(request):
             return redirect('egitim_sozlesme')
         durum.gecti = False
         durum.save()
-        messages.error(request, "%d/%d doğru — geçemedin. Bilgileri tekrar oku, farklı sorularla yeniden dene." % (dogru_sayi, EGITIM_SORU_SAYISI))
+        messages.error(request, "%d/%d doğru — başarısız. Bilgileri tekrar oku, farklı sorularla yeniden dene." % (dogru_sayi, EGITIM_SORU_SAYISI))
         return redirect('egitim')
 
     havuz = list(EgitimSoru.objects.filter(aktif=True))
@@ -2711,12 +2728,17 @@ def egitim_test(request):
         messages.error(request, "Test için yeterli soru tanımlı değil.")
         return redirect('egitim')
     random.shuffle(havuz)
-    secili = havuz[:EGITIM_SORU_SAYISI]
+    onceki = set(x for x in (durum.son_sorular or '').split(',') if x.isdigit())
+    yeni = [s for s in havuz if str(s.id) not in onceki]
+    aday = yeni + [s for s in havuz if str(s.id) in onceki]
+    secili = aday[:EGITIM_SORU_SAYISI]
+    random.shuffle(secili)
     return render(request, 'egitim_test.html', {
         'personel': personel,
         'sorular': secili,
         'sure': EGITIM_SURE,
         'soru_sayisi': EGITIM_SORU_SAYISI,
+        'gecme': EGITIM_GECME,
         'id_listesi': ','.join(str(s.id) for s in secili),
     })
 
@@ -2758,6 +2780,14 @@ def egitim_yonetim(request):
     if personel is None or personel.rol not in EGITIM_GORUNTULE_ROLLER:
         return redirect('egitim')
     duzenleyebilir = personel.rol in EGITIM_DUZENLE_ROLLER
+    acabilir = personel.rol in EGITIM_ACMA_ROLLER
+
+    if request.method == 'POST' and acabilir and request.POST.get('islem') in ('sistem_ac', 'sistem_kapat'):
+        ayar, _ = EgitimAyar.objects.get_or_create(id=1)
+        ayar.acik = (request.POST.get('islem') == 'sistem_ac')
+        ayar.save()
+        messages.success(request, "Eğitim sistemi %s." % ("açıldı" if ayar.acik else "kapatıldı"))
+        return redirect('egitim_yonetim')
 
     if request.method == 'POST' and duzenleyebilir:
         islem = request.POST.get('islem')
@@ -2827,4 +2857,6 @@ def egitim_yonetim(request):
         'toplam_kisi': len(kisiler),
         'gecme': EGITIM_GECME,
         'duzenleyebilir': duzenleyebilir,
+        'acabilir': acabilir,
+        'egitim_acik': _egitim_acik(),
     })

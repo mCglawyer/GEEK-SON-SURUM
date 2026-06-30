@@ -67,6 +67,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'panel.context_processors.bildirim_ctx',
                 'panel.context_processors.kalibrasyon_uyari_ctx',
+                'panel.context_processors.egitim_ctx',
             ],
         },
     },

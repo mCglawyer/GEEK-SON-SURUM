@@ -10,6 +10,16 @@
     <a href="{% url 'egitim' %}" class="btn btn-ghost btn-mini">← Eğitim</a>
   </div>
 
+  <div class="card egitim-anahtar">
+    <div class="ea-durum">Eğitim sistemi: {% if egitim_acik %}<span class="badge ok">AÇIK</span>{% else %}<span class="badge no">KAPALI</span>{% endif %}</div>
+    {% if acabilir %}
+    <form method="post">{% csrf_token %}
+      {% if egitim_acik %}<input type="hidden" name="islem" value="sistem_kapat"><button class="btn btn-danger btn-mini">Sistemi Kapat</button>
+      {% else %}<input type="hidden" name="islem" value="sistem_ac"><button class="btn btn-primary btn-mini">Sistemi Aç</button>{% endif %}
+    </form>
+    {% endif %}
+  </div>
+
   <div class="card">
     <h3 class="egitim-bolum">Takip — {{ tamamlayan }}/{{ toplam_kisi }} tamamladı</h3>
     <div class="grid-wrap"><table class="vgrid">

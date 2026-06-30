@@ -54,3 +54,15 @@ def kalibrasyon_uyari_ctx(request):
         return {}
     except Exception:
         return {}
+
+
+def egitim_ctx(request):
+    u = getattr(request, 'user', None)
+    if not u or not getattr(u, 'is_authenticated', False):
+        return {}
+    try:
+        from .models import EgitimAyar
+        a = EgitimAyar.objects.first()
+        return {'egitim_acik': bool(a and a.acik)}
+    except Exception:
+        return {}

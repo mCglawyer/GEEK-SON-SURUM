@@ -802,3 +802,13 @@ body.app .app-main, body.app .container { min-width:0; }
 .test-sik:hover { border-color:var(--brand); }
 .test-sik input { flex:0 0 auto; }
 .test-ileri { margin-top:.6rem; }
+
+.egitim-anahtar { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+.ea-durum { font-weight:600; }
+.egitim-belge { margin-bottom:1.2rem; }
+.egitim-belge-bas { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem; }
+.egitim-pdf { width:100%; height:600px; border:1px solid var(--line); border-radius:12px; background:#fff; }
+.egitim-sinav-kart { margin-top:1rem; }
+.btn.kilitli { opacity:.55; cursor:not-allowed; }
+.test-karteli .kartel-liste { margin:.5rem 0 1.2rem; padding-left:1.1rem; display:flex; flex-direction:column; gap:.55rem; color:var(--text); font-size:.93rem; }
+@media (max-width:900px){ .egitim-pdf { height:460px; } }
