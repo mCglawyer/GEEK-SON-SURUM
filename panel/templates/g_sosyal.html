@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}G Sosyal · Geek Panel{% endblock %}
+{% block title %}Geek Crew · Geek Panel{% endblock %}
 {% block body %}
 <div class="container gs-wrap">
   <div hidden>{% csrf_token %}</div>
   {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
 
   <div class="plan-head">
-    <div><h2>G Sosyal</h2><span class="plan-aralik">{% if paylasabilir %}paylaş ve ekiple etkileşime gir{% else %}ekip paylaşımlarını gör ve tepki ver{% endif %}</span></div>
+    <div><h2>Geek Crew</h2><span class="plan-aralik">{% if paylasabilir %}paylaş ve ekiple etkileşime gir{% else %}ekip paylaşımlarını gör ve tepki ver{% endif %}</span></div>
   </div>
 
   {% if paylasabilir %}

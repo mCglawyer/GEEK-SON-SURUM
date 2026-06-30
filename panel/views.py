@@ -97,10 +97,9 @@ def _sube_sefleri(sube):
     return list(Personel.objects.filter(sube=sube, rol=Rol.SEF))
 
 def _sube_yoneticileri(sube):
-    qs = Personel.objects.filter(rol__in=[Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI])
-    if sube:
-        qs = qs | Personel.objects.filter(rol=Rol.MUDUR, sorumlu_subeler=sube)
-    return list(qs.distinct())
+    if not sube:
+        return []
+    return list(Personel.objects.filter(rol=Rol.MUDUR, sorumlu_subeler=sube).distinct())
 
 def _yonetici_sube(request, subeler):
     sid = request.GET.get('sube_id')
@@ -2557,6 +2556,15 @@ def g_sosyal(request):
         return redirect('ana_sayfa')
     paylasabilir = personel.rol in UST_YONETIM
 
+    esik = timezone.now() - datetime.timedelta(days=7)
+    for _g in list(GSosyalGonderi.objects.filter(olusturma__lt=esik)):
+        if _g.gorsel:
+            try:
+                _g.gorsel.delete(save=False)
+            except Exception:
+                pass
+        _g.delete()
+
     if request.method == 'POST' and request.POST.get('islem') == 'tepki':
         g = GSosyalGonderi.objects.filter(id=request.POST.get('gonderi_id')).first()
         emoji = request.POST.get('emoji', '')
@@ -2586,6 +2594,9 @@ def g_sosyal(request):
         if metin or gorsel:
             GSosyalGonderi.objects.create(yazan=personel, yazan_ad=personel.ad_soyad,
                                           metin=metin[:4000], gorsel=gorsel)
+            _bildir(list(Personel.objects.exclude(id=personel.id)),
+                    "%s yeni bir Geek Crew paylaşımı yaptı" % personel.ad_soyad,
+                    '/g-sosyal/', 'gsosyal')
             messages.success(request, "Paylaşıldı.")
         else:
             messages.error(request, "Bir şeyler yazın ya da görsel ekleyin.")
@@ -2593,7 +2604,7 @@ def g_sosyal(request):
 
     if request.method == 'POST' and request.POST.get('islem') == 'gonderi_sil':
         g = GSosyalGonderi.objects.filter(id=request.POST.get('gonderi_id')).first()
-        if g and (g.yazan_id == personel.id or personel.rol == Rol.GENEL_MUDUR):
+        if g and (g.yazan_id == personel.id or personel.rol in UST_YONETIM):
             g.delete()
             messages.success(request, "Gönderi silindi.")
         return redirect('g_sosyal')
@@ -2609,7 +2620,7 @@ def g_sosyal(request):
         g.tepki_listesi = [(e, sayim.get(e, 0)) for e in GSOSYAL_EMOJILER]
         g.tepki_toplam = sum(sayim.values())
         g.benim_tepki = benim
-        g.silebilir = (g.yazan_id == personel.id) or (personel.rol == Rol.GENEL_MUDUR)
+        g.silebilir = (g.yazan_id == personel.id) or (personel.rol in UST_YONETIM)
 
     return render(request, 'g_sosyal.html', {
         'personel': personel,

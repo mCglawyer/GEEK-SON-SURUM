@@ -66,6 +66,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'panel.context_processors.bildirim_ctx',
+                'panel.context_processors.kalibrasyon_uyari_ctx',
             ],
         },
     },
