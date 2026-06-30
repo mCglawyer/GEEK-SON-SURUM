@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Eğitim · Geek Panel{% endblock %}
+{% block body %}
+<div class="container egitim-wrap">
+  {% include '_egitim_koruma.html' %}
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Eğitim — Oryantasyon &amp; Reçete</h2><span class="plan-aralik">önce bilgileri oku, sonra teste gir</span></div>
+    {% if yonetebilir %}<a href="{% url 'egitim_yonetim' %}" class="btn btn-ghost btn-mini">Yönetim</a>{% endif %}
+  </div>
+
+  {% if hedef and durum.tamamlandi %}
+  <div class="card egitim-tamam">✅ <b>Eğitimi tamamladın.</b> Oryantasyon ve reçete sürecini geçtin ({{ durum.son_puan }}/{{ soru_sayisi }}). Tekrar girmene gerek yok.</div>
+  {% endif %}
+
+  <div class="card">
+    <h3 class="egitim-bolum">Okunacak Bilgiler</h3>
+    {% if dokumanlar %}
+    <div class="egitim-dok-liste">
+      {% for d in dokumanlar %}
+      <a class="egitim-dok" href="{{ d.dosya.url }}" target="_blank" rel="noopener">
+        <span class="egitim-dok-kat">{{ d.get_kategori_display }}</span>
+        <span class="egitim-dok-ad">{{ d.baslik }}</span>
+        <span class="egitim-dok-ac">Aç →</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="egitim-bos">Henüz doküman yüklenmemiş.</p>
+    {% endif %}
+  </div>
+
+  {% if hedef and not durum.tamamlandi %}
+  <div class="card egitim-test-kart">
+    <h3 class="egitim-bolum">Mini Test</h3>
+    <p class="egitim-aciklama">{{ soru_sayisi }} soru · her soru için 20 saniye · geçmek için en az {{ gecme }}/{{ soru_sayisi }} doğru. Geçemezsen baştan, farklı sorularla tekrar denersin.</p>
+    {% if durum.deneme %}<p class="egitim-deneme">Son denemen: {{ durum.son_puan }}/{{ soru_sayisi }} · toplam deneme: {{ durum.deneme }}</p>{% endif %}
+    {% if soru_var %}
+    <a href="{% url 'egitim_test' %}" class="btn btn-primary">Teste Başla</a>
+    {% else %}
+    <p class="egitim-bos">Test soruları henüz hazır değil, lütfen sonra tekrar dene.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

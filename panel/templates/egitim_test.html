@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Mini Test · Geek Panel{% endblock %}
+{% block body %}
+<div class="container egitim-wrap">
+  {% include '_egitim_koruma.html' %}
+  <div class="plan-head"><div><h2>Mini Test</h2><span class="plan-aralik">{{ soru_sayisi }} soru · soru başına {{ sure }} sn · süre dolunca otomatik geçer</span></div></div>
+
+  <form method="post" id="test-form">
+    {% csrf_token %}
+    <input type="hidden" name="sorular" value="{{ id_listesi }}">
+    <div class="card test-kart">
+      <div class="test-ust">
+        <div class="test-ilerleme">Soru <span id="t-no">1</span>/{{ soru_sayisi }}</div>
+        <div class="test-sayac"><span id="t-sn">{{ sure }}</span> sn</div>
+      </div>
+      <div class="test-bar"><div class="test-bar-ic" id="t-bar"></div></div>
+
+      {% for s in sorular %}
+      <div class="test-soru" data-i="{{ forloop.counter0 }}"{% if not forloop.first %} hidden{% endif %}>
+        <div class="test-metin">{{ forloop.counter }}. {{ s.metin }}</div>
+        <label class="test-sik"><input type="radio" name="soru_{{ s.id }}" value="A"><span>{{ s.sik_a }}</span></label>
+        <label class="test-sik"><input type="radio" name="soru_{{ s.id }}" value="B"><span>{{ s.sik_b }}</span></label>
+        {% if s.sik_c %}<label class="test-sik"><input type="radio" name="soru_{{ s.id }}" value="C"><span>{{ s.sik_c }}</span></label>{% endif %}
+        {% if s.sik_d %}<label class="test-sik"><input type="radio" name="soru_{{ s.id }}" value="D"><span>{{ s.sik_d }}</span></label>{% endif %}
+        <button type="button" class="btn btn-primary btn-mini test-ileri">{% if forloop.last %}Bitir{% else %}Sonraki{% endif %}</button>
+      </div>
+      {% endfor %}
+    </div>
+  </form>
+</div>
+<script>
+(function () {
+  var SURE = {{ sure }};
+  var sorular = Array.prototype.slice.call(document.querySelectorAll('.test-soru'));
+  var form = document.getElementById('test-form');
+  var noEl = document.getElementById('t-no'), snEl = document.getElementById('t-sn'), bar = document.getElementById('t-bar');
+  var i = 0, kalan = SURE, timer = null, bitti = false;
+  function goster(idx) { sorular.forEach(function (s, k) { s.hidden = (k !== idx); }); noEl.textContent = (idx + 1); }
+  function basla() { kalan = SURE; snEl.textContent = kalan; bar.style.width = '100%'; if (timer) clearInterval(timer); timer = setInterval(tik, 1000); }
+  function tik() { kalan--; snEl.textContent = (kalan < 0 ? 0 : kalan); bar.style.width = Math.max(0, kalan / SURE * 100) + '%'; if (kalan <= 0) ilerle(); }
+  function ilerle() { if (bitti) return; if (i < sorular.length - 1) { i++; goster(i); basla(); } else bitir(); }
+  function bitir() { if (bitti) return; bitti = true; if (timer) clearInterval(timer); form.submit(); }
+  document.querySelectorAll('.test-ileri').forEach(function (b) { b.addEventListener('click', ilerle); });
+  goster(0); basla();
+})();
+</script>
+{% endblock %}

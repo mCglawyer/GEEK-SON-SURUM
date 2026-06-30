@@ -767,3 +767,38 @@ body.app .app-main, body.app .container { min-width:0; }
   body.app .card { max-width:100%; }
   body.app .plan-head, body.app .durum-row { flex-wrap:wrap; }
 }
+
+.egitim-wrap { max-width:760px; }
+.egitim-tamam { padding:1rem 1.1rem; background:var(--ok-bg); border:1px solid var(--ok); color:#0F6B47; }
+.egitim-bolum { font-size:1rem; margin-bottom:.7rem; }
+.egitim-aciklama { color:var(--muted); font-size:.9rem; margin:0 0 .5rem; }
+.egitim-deneme { color:var(--no); font-size:.85rem; margin:0 0 .7rem; font-weight:500; }
+.egitim-bos { color:var(--muted); font-size:.9rem; }
+.egitim-dok-liste { display:flex; flex-direction:column; gap:.5rem; }
+.egitim-dok { display:flex; align-items:center; gap:.7rem; padding:.7rem .9rem; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+.egitim-dok-kat { font-size:.7rem; font-weight:700; color:var(--brand); background:var(--brand-050); padding:.2rem .5rem; border-radius:999px; flex:0 0 auto; }
+.egitim-dok-ad { font-weight:600; color:var(--ink); flex:1; min-width:0; }
+.egitim-dok-ac { color:var(--brand); font-weight:600; font-size:.85rem; }
+.egitim-test-kart { margin-top:1rem; }
+.egitim-form, .egitim-soru-form { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-bottom:1rem; }
+.egitim-soru-form { flex-direction:column; align-items:stretch; }
+.egitim-soru-form .input, .egitim-soru-form textarea { width:100%; }
+.esf-satir { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; }
+.egitim-dogru { font-size:.85rem; color:var(--muted); display:inline-flex; align-items:center; gap:.4rem; }
+.egitim-soru-liste { display:flex; flex-direction:column; gap:.6rem; }
+.egitim-soru-item { padding:.7rem .9rem; border:1px solid var(--line); border-radius:12px; }
+.egitim-soru-item.pasif { opacity:.55; }
+.esi-siklar { font-size:.82rem; color:var(--muted); margin:.35rem 0; }
+.esi-islem { display:flex; gap:.5rem; align-items:center; }
+.sozlesme-metin { font-size:.95rem; color:var(--text); margin-bottom:1rem; }
+.sozlesme-onay { display:flex; align-items:center; gap:.55rem; font-weight:600; margin-bottom:1rem; cursor:pointer; }
+.test-kart { padding:1.2rem; }
+.test-ust { display:flex; justify-content:space-between; align-items:center; font-weight:600; color:var(--muted); font-size:.9rem; }
+.test-sayac { color:var(--brand); }
+.test-bar { height:6px; background:var(--brand-050); border-radius:999px; overflow:hidden; margin:.6rem 0 1.1rem; }
+.test-bar-ic { height:100%; width:100%; background:var(--brand); transition:width 1s linear; }
+.test-metin { font-weight:600; font-size:1.02rem; color:var(--ink); margin-bottom:1rem; }
+.test-sik { display:flex; align-items:center; gap:.6rem; padding:.7rem .8rem; border:1px solid var(--line); border-radius:12px; margin-bottom:.5rem; cursor:pointer; transition:border-color .15s, background .15s; }
+.test-sik:hover { border-color:var(--brand); }
+.test-sik input { flex:0 0 auto; }
+.test-ileri { margin-top:.6rem; }

@@ -1,0 +1,32 @@
+<style>
+  body.egitim-koruma, body.egitim-koruma * { -webkit-user-select:none !important; user-select:none !important; }
+  body.egitim-koruma img, body.egitim-koruma iframe { -webkit-user-drag:none; }
+  @media print { body.egitim-koruma { display:none !important; } }
+  #koruma-perde { position:fixed; inset:0; z-index:9999; display:none; align-items:center; justify-content:center;
+    text-align:center; padding:2rem; background:rgba(245,247,252,.97); backdrop-filter:blur(16px);
+    color:var(--brand); font-weight:600; font-size:1.05rem; }
+  body.koruma-acik #koruma-perde { display:flex; }
+</style>
+<div id="koruma-perde">🔒 İçerik korumalıdır.<br>Devam etmek için bu sayfaya geri dönün.</div>
+<script>
+(function () {
+  document.body.classList.add('egitim-koruma');
+  function perde(on) { document.body.classList.toggle('koruma-acik', !!on); }
+  document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  document.addEventListener('copy', function (e) { e.preventDefault(); });
+  document.addEventListener('cut', function (e) { e.preventDefault(); });
+  document.addEventListener('dragstart', function (e) { e.preventDefault(); });
+  window.addEventListener('blur', function () { perde(true); });
+  window.addEventListener('focus', function () { perde(false); });
+  document.addEventListener('visibilitychange', function () { perde(document.hidden); });
+  document.addEventListener('keyup', function (e) {
+    if (e.key === 'PrintScreen') {
+      try { navigator.clipboard.writeText(' '); } catch (_) {}
+      alert('Ekran görüntüsü almak bu sayfada yasaktır.');
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && ['p', 's', 'c'].indexOf((e.key || '').toLowerCase()) >= 0) { e.preventDefault(); }
+  });
+})();
+</script>

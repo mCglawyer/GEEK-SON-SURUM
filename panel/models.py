@@ -495,3 +495,41 @@ class GSosyalTepki(models.Model):
 
     class Meta:
         unique_together = ('gonderi', 'personel')
+
+
+class EgitimDokuman(models.Model):
+    KATEGORI = [('RECETE', 'Reçete'), ('ORYANTASYON', 'Oryantasyon')]
+    kategori = models.CharField(max_length=20, choices=KATEGORI, default='RECETE')
+    baslik = models.CharField(max_length=160, default='')
+    dosya = models.FileField(upload_to='egitim/')
+    olusturma = models.DateTimeField(auto_now_add=True)
+    aktif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['kategori', '-olusturma']
+
+
+class EgitimSoru(models.Model):
+    KATEGORI = [('RECETE', 'Reçete'), ('ORYANTASYON', 'Oryantasyon')]
+    kategori = models.CharField(max_length=20, choices=KATEGORI, default='RECETE')
+    metin = models.TextField(default='')
+    sik_a = models.CharField(max_length=300, default='')
+    sik_b = models.CharField(max_length=300, default='')
+    sik_c = models.CharField(max_length=300, default='', blank=True)
+    sik_d = models.CharField(max_length=300, default='', blank=True)
+    dogru = models.CharField(max_length=1, default='A')
+    aktif = models.BooleanField(default=True)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-olusturma']
+
+
+class EgitimDurum(models.Model):
+    personel = models.OneToOneField(Personel, on_delete=models.CASCADE, related_name='egitim_durum')
+    tamamlandi = models.BooleanField(default=False)
+    gecti = models.BooleanField(default=False)
+    son_puan = models.IntegerField(default=0)
+    deneme = models.IntegerField(default=0)
+    sozlesme_onayli = models.BooleanField(default=False)
+    tarih = models.DateTimeField(auto_now=True)

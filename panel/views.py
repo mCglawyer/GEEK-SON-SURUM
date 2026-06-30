@@ -26,6 +26,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      SevkiyatForm, Urun, SiparisHareket,
                      KahveSoru, GunlukSoru, SoruAyar, Bildirim, Duyuru,
                      GSosyalGonderi, GSosyalTepki,
+                     EgitimDokuman, EgitimSoru, EgitimDurum,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -2634,4 +2635,193 @@ def g_sosyal(request):
         'gonderiler': gonderiler,
         'paylasabilir': paylasabilir,
         'emojiler': GSOSYAL_EMOJILER,
+    })
+
+
+EGITIM_SORU_SAYISI = 10
+EGITIM_GECME = 8
+EGITIM_SURE = 20
+EGITIM_HEDEF_ROLLER = [Rol.PERSONEL, Rol.SEF]
+EGITIM_YONETICI_ROLLER = [Rol.GENEL_MUDUR, Rol.MUDUR]
+
+
+def _egitim_durum(personel):
+    d, _ = EgitimDurum.objects.get_or_create(personel=personel)
+    return d
+
+
+def egitim(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    hedef = personel.rol in EGITIM_HEDEF_ROLLER
+    yonetebilir = personel.rol in EGITIM_YONETICI_ROLLER
+    durum = _egitim_durum(personel) if hedef else None
+    soru_var = EgitimSoru.objects.filter(aktif=True).count() >= EGITIM_SORU_SAYISI
+    return render(request, 'egitim.html', {
+        'personel': personel,
+        'aktif': 'egitim',
+        'dokumanlar': list(EgitimDokuman.objects.filter(aktif=True)),
+        'durum': durum,
+        'hedef': hedef,
+        'yonetebilir': yonetebilir,
+        'soru_var': soru_var,
+        'gecme': EGITIM_GECME,
+        'soru_sayisi': EGITIM_SORU_SAYISI,
+    })
+
+
+def egitim_test(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in EGITIM_HEDEF_ROLLER:
+        return redirect('egitim')
+    durum = _egitim_durum(personel)
+    if durum.tamamlandi:
+        return redirect('egitim')
+
+    if request.method == 'POST':
+        ids = [x for x in (request.POST.get('sorular', '') or '').split(',') if x.isdigit()]
+        sorular = list(EgitimSoru.objects.filter(id__in=ids))
+        dogru_sayi = 0
+        for s in sorular:
+            if request.POST.get('soru_%d' % s.id, '') == s.dogru:
+                dogru_sayi += 1
+        durum.deneme += 1
+        durum.son_puan = dogru_sayi
+        if dogru_sayi >= EGITIM_GECME:
+            durum.gecti = True
+            durum.save()
+            return redirect('egitim_sozlesme')
+        durum.gecti = False
+        durum.save()
+        messages.error(request, "%d/%d doğru — geçemedin. Bilgileri tekrar oku, farklı sorularla yeniden dene." % (dogru_sayi, EGITIM_SORU_SAYISI))
+        return redirect('egitim')
+
+    havuz = list(EgitimSoru.objects.filter(aktif=True))
+    if len(havuz) < EGITIM_SORU_SAYISI:
+        messages.error(request, "Test için yeterli soru tanımlı değil.")
+        return redirect('egitim')
+    random.shuffle(havuz)
+    secili = havuz[:EGITIM_SORU_SAYISI]
+    return render(request, 'egitim_test.html', {
+        'personel': personel,
+        'sorular': secili,
+        'sure': EGITIM_SURE,
+        'soru_sayisi': EGITIM_SORU_SAYISI,
+        'id_listesi': ','.join(str(s.id) for s in secili),
+    })
+
+
+def egitim_sozlesme(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in EGITIM_HEDEF_ROLLER:
+        return redirect('egitim')
+    durum = _egitim_durum(personel)
+    if durum.tamamlandi:
+        return redirect('egitim')
+    if not durum.gecti:
+        return redirect('egitim')
+    if request.method == 'POST':
+        if request.POST.get('onay') == 'on':
+            durum.sozlesme_onayli = True
+            durum.tamamlandi = True
+            durum.save()
+            messages.success(request, "Eğitimi tamamladın. Teşekkürler.")
+            return redirect('egitim')
+        messages.error(request, "Devam etmek için sözleşmeyi okuyup onaylamalısın.")
+    return render(request, 'egitim_sozlesme.html', {
+        'personel': personel,
+        'puan': durum.son_puan,
+        'soru_sayisi': EGITIM_SORU_SAYISI,
+    })
+
+
+def egitim_yonetim(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in EGITIM_YONETICI_ROLLER:
+        return redirect('egitim')
+
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        if islem == 'dokuman_ekle':
+            dosya = request.FILES.get('dosya')
+            baslik = (request.POST.get('baslik') or '').strip()
+            kategori = request.POST.get('kategori') if request.POST.get('kategori') in ('RECETE', 'ORYANTASYON') else 'RECETE'
+            if dosya and baslik:
+                EgitimDokuman.objects.create(kategori=kategori, baslik=baslik[:160], dosya=dosya)
+                messages.success(request, "Doküman eklendi.")
+            else:
+                messages.error(request, "Başlık ve dosya gerekli.")
+            return redirect('egitim_yonetim')
+        if islem == 'dokuman_sil':
+            d = EgitimDokuman.objects.filter(id=request.POST.get('id')).first()
+            if d:
+                if d.dosya:
+                    try:
+                        d.dosya.delete(save=False)
+                    except Exception:
+                        pass
+                d.delete()
+                messages.success(request, "Doküman silindi.")
+            return redirect('egitim_yonetim')
+        if islem == 'soru_ekle':
+            metin = (request.POST.get('metin') or '').strip()
+            a = (request.POST.get('sik_a') or '').strip()
+            b = (request.POST.get('sik_b') or '').strip()
+            c = (request.POST.get('sik_c') or '').strip()
+            d_ = (request.POST.get('sik_d') or '').strip()
+            dogru = request.POST.get('dogru') if request.POST.get('dogru') in ('A', 'B', 'C', 'D') else 'A'
+            kategori = request.POST.get('kategori') if request.POST.get('kategori') in ('RECETE', 'ORYANTASYON') else 'RECETE'
+            if metin and a and b:
+                EgitimSoru.objects.create(kategori=kategori, metin=metin, sik_a=a[:300], sik_b=b[:300],
+                                          sik_c=c[:300], sik_d=d_[:300], dogru=dogru)
+                messages.success(request, "Soru eklendi.")
+            else:
+                messages.error(request, "Soru metni ve en az A/B şıkları gerekli.")
+            return redirect('egitim_yonetim')
+        if islem == 'soru_sil':
+            EgitimSoru.objects.filter(id=request.POST.get('id')).delete()
+            messages.success(request, "Soru silindi.")
+            return redirect('egitim_yonetim')
+        if islem == 'soru_aktif':
+            s = EgitimSoru.objects.filter(id=request.POST.get('id')).first()
+            if s:
+                s.aktif = not s.aktif
+                s.save()
+            return redirect('egitim_yonetim')
+
+    kisiler_qs = Personel.objects.filter(rol__in=EGITIM_HEDEF_ROLLER).select_related('sube')
+    if personel.rol == Rol.MUDUR:
+        kisiler_qs = kisiler_qs.filter(sube__in=personel.sorumlu_subeler.all())
+    kisiler = list(kisiler_qs.order_by('sube__ad', 'ad_soyad'))
+    durum_map = {d.personel_id: d for d in EgitimDurum.objects.filter(personel__in=kisiler)}
+    for k in kisiler:
+        k.durum_obj = durum_map.get(k.id)
+    tamamlayan = sum(1 for k in kisiler if k.durum_obj and k.durum_obj.tamamlandi)
+    return render(request, 'egitim_yonetim.html', {
+        'personel': personel,
+        'aktif': 'egitim',
+        'dokumanlar': list(EgitimDokuman.objects.all()),
+        'sorular': list(EgitimSoru.objects.all()),
+        'aktif_soru': EgitimSoru.objects.filter(aktif=True).count(),
+        'kisiler': kisiler,
+        'tamamlayan': tamamlayan,
+        'toplam_kisi': len(kisiler),
+        'gecme': EGITIM_GECME,
     })

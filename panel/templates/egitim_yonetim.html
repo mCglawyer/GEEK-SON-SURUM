@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Eğitim Yönetimi · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Eğitim Yönetimi</h2><span class="plan-aralik">doküman · soru havuzu · takip</span></div>
+    <a href="{% url 'egitim' %}" class="btn btn-ghost btn-mini">← Eğitim</a>
+  </div>
+
+  <div class="card">
+    <h3 class="egitim-bolum">Takip — {{ tamamlayan }}/{{ toplam_kisi }} tamamladı</h3>
+    <div class="grid-wrap"><table class="vgrid">
+      <thead><tr><th class="sticky">Kişi</th><th>Şube</th><th>Rol</th><th>Durum</th><th>Puan</th><th>Deneme</th></tr></thead>
+      <tbody>
+        {% for k in kisiler %}
+        <tr>
+          <th class="sticky">{{ k.ad_soyad }}</th>
+          <td>{{ k.sube.ad|default:"—" }}</td>
+          <td>{{ k.rol }}</td>
+          <td>{% if k.durum_obj.tamamlandi %}<span class="badge ok">Tamamladı</span>{% else %}<span class="badge no">Bekliyor</span>{% endif %}</td>
+          <td>{% if k.durum_obj %}{{ k.durum_obj.son_puan }}{% else %}0{% endif %}</td>
+          <td>{% if k.durum_obj %}{{ k.durum_obj.deneme }}{% else %}0{% endif %}</td>
+        </tr>
+        {% empty %}<tr><td colspan="6" class="egitim-bos">Kişi yok.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h3 class="egitim-bolum">Dokümanlar (PDF)</h3>
+    <form method="post" enctype="multipart/form-data" class="egitim-form">
+      {% csrf_token %}<input type="hidden" name="islem" value="dokuman_ekle">
+      <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option></select>
+      <input class="input" type="text" name="baslik" placeholder="Başlık" required>
+      <input class="input" type="file" name="dosya" accept="application/pdf" required>
+      <button class="btn btn-primary btn-mini">Yükle</button>
+    </form>
+    <div class="egitim-dok-liste">
+      {% for d in dokumanlar %}
+      <div class="egitim-dok">
+        <span class="egitim-dok-kat">{{ d.get_kategori_display }}</span>
+        <a class="egitim-dok-ad" href="{{ d.dosya.url }}" target="_blank" rel="noopener">{{ d.baslik }}</a>
+        <form method="post" class="gs-sil-form" onsubmit="return confirm('Doküman silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="dokuman_sil"><input type="hidden" name="id" value="{{ d.id }}"><button class="gs-sil" title="Sil">✕</button></form>
+      </div>
+      {% empty %}<p class="egitim-bos">Doküman yok.</p>{% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="egitim-bolum">Soru Havuzu — {{ aktif_soru }} aktif soru</h3>
+    <form method="post" class="egitim-soru-form">
+      {% csrf_token %}<input type="hidden" name="islem" value="soru_ekle">
+      <div class="esf-satir">
+        <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option></select>
+        <span class="egitim-dogru">Doğru şık:
+          <select name="dogru" class="sube-sec"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+        </span>
+      </div>
+      <textarea class="input" name="metin" rows="2" placeholder="Soru metni" required></textarea>
+      <input class="input" type="text" name="sik_a" placeholder="A şıkkı" required>
+      <input class="input" type="text" name="sik_b" placeholder="B şıkkı" required>
+      <input class="input" type="text" name="sik_c" placeholder="C şıkkı (isteğe bağlı)">
+      <input class="input" type="text" name="sik_d" placeholder="D şıkkı (isteğe bağlı)">
+      <button class="btn btn-primary btn-mini">Soru Ekle</button>
+    </form>
+    <div class="egitim-soru-liste">
+      {% for s in sorular %}
+      <div class="egitim-soru-item{% if not s.aktif %} pasif{% endif %}">
+        <div class="esi-ust"><span class="egitim-dok-kat">{{ s.get_kategori_display }}</span> <b>{{ s.metin }}</b></div>
+        <div class="esi-siklar">A) {{ s.sik_a }} · B) {{ s.sik_b }}{% if s.sik_c %} · C) {{ s.sik_c }}{% endif %}{% if s.sik_d %} · D) {{ s.sik_d }}{% endif %} · <b>Doğru: {{ s.dogru }}</b></div>
+        <div class="esi-islem">
+          <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="soru_aktif"><input type="hidden" name="id" value="{{ s.id }}"><button class="btn btn-ghost btn-mini">{% if s.aktif %}Pasifleştir{% else %}Aktifleştir{% endif %}</button></form>
+          <form method="post" onsubmit="return confirm('Soru silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="soru_sil"><input type="hidden" name="id" value="{{ s.id }}"><button class="gs-sil" title="Sil">✕</button></form>
+        </div>
+      </div>
+      {% empty %}<p class="egitim-bos">Henüz soru yok.</p>{% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

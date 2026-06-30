@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Gizlilik Sözleşmesi · Geek Panel{% endblock %}
+{% block body %}
+<div class="container egitim-wrap">
+  {% include '_egitim_koruma.html' %}
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head"><div><h2>Gizlilik Sözleşmesi</h2><span class="plan-aralik">testi geçtin ({{ puan }}/{{ soru_sayisi }}) · son adım</span></div></div>
+
+  <div class="card">
+    <div class="sozlesme-metin">
+      <p>Geek Coffee &amp; Eatery oryantasyon ve reçete eğitimini tamamladım. Bu kapsamda öğrendiğim tüm reçeteleri, hazırlık yöntemlerini, ölçüleri ve şirket işleyişine dair bilgileri <b>gizli</b> tutacağımı; bu bilgileri şirket dışından hiç kimseyle — sosyal medya, mesajlaşma, fotoğraf veya ekran görüntüsü dahil hiçbir yolla — <b>paylaşmayacağımı</b> kabul ve taahhüt ederim.</p>
+    </div>
+    <form method="post" id="soz-form">
+      {% csrf_token %}
+      <label class="sozlesme-onay"><input type="checkbox" name="onay" id="soz-onay"> Okudum, anladım ve onaylıyorum.</label>
+      <button type="submit" class="btn btn-primary" id="soz-btn" disabled>Onayla ve Tamamla</button>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var c = document.getElementById('soz-onay'), b = document.getElementById('soz-btn');
+  if (c && b) { c.addEventListener('change', function () { b.disabled = !c.checked; }); }
+})();
+</script>
+{% endblock %}
