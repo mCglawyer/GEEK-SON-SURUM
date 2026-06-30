@@ -31,19 +31,19 @@
 
   <div class="card">
     <h3 class="egitim-bolum">Dokümanlar (PDF)</h3>
-    <form method="post" enctype="multipart/form-data" class="egitim-form">
+    {% if duzenleyebilir %}<form method="post" enctype="multipart/form-data" class="egitim-form">
       {% csrf_token %}<input type="hidden" name="islem" value="dokuman_ekle">
       <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option></select>
       <input class="input" type="text" name="baslik" placeholder="Başlık" required>
       <input class="input" type="file" name="dosya" accept="application/pdf" required>
       <button class="btn btn-primary btn-mini">Yükle</button>
-    </form>
+    </form>{% endif %}
     <div class="egitim-dok-liste">
       {% for d in dokumanlar %}
       <div class="egitim-dok">
         <span class="egitim-dok-kat">{{ d.get_kategori_display }}</span>
         <a class="egitim-dok-ad" href="{{ d.dosya.url }}" target="_blank" rel="noopener">{{ d.baslik }}</a>
-        <form method="post" class="gs-sil-form" onsubmit="return confirm('Doküman silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="dokuman_sil"><input type="hidden" name="id" value="{{ d.id }}"><button class="gs-sil" title="Sil">✕</button></form>
+        {% if duzenleyebilir %}<form method="post" class="gs-sil-form" onsubmit="return confirm('Doküman silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="dokuman_sil"><input type="hidden" name="id" value="{{ d.id }}"><button class="gs-sil" title="Sil">✕</button></form>{% endif %}
       </div>
       {% empty %}<p class="egitim-bos">Doküman yok.</p>{% endfor %}
     </div>
@@ -51,7 +51,7 @@
 
   <div class="card">
     <h3 class="egitim-bolum">Soru Havuzu — {{ aktif_soru }} aktif soru</h3>
-    <form method="post" class="egitim-soru-form">
+    {% if duzenleyebilir %}<form method="post" class="egitim-soru-form">
       {% csrf_token %}<input type="hidden" name="islem" value="soru_ekle">
       <div class="esf-satir">
         <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option></select>
@@ -65,16 +65,16 @@
       <input class="input" type="text" name="sik_c" placeholder="C şıkkı (isteğe bağlı)">
       <input class="input" type="text" name="sik_d" placeholder="D şıkkı (isteğe bağlı)">
       <button class="btn btn-primary btn-mini">Soru Ekle</button>
-    </form>
+    </form>{% endif %}
     <div class="egitim-soru-liste">
       {% for s in sorular %}
       <div class="egitim-soru-item{% if not s.aktif %} pasif{% endif %}">
         <div class="esi-ust"><span class="egitim-dok-kat">{{ s.get_kategori_display }}</span> <b>{{ s.metin }}</b></div>
         <div class="esi-siklar">A) {{ s.sik_a }} · B) {{ s.sik_b }}{% if s.sik_c %} · C) {{ s.sik_c }}{% endif %}{% if s.sik_d %} · D) {{ s.sik_d }}{% endif %} · <b>Doğru: {{ s.dogru }}</b></div>
-        <div class="esi-islem">
+        {% if duzenleyebilir %}<div class="esi-islem">
           <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="soru_aktif"><input type="hidden" name="id" value="{{ s.id }}"><button class="btn btn-ghost btn-mini">{% if s.aktif %}Pasifleştir{% else %}Aktifleştir{% endif %}</button></form>
           <form method="post" onsubmit="return confirm('Soru silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="soru_sil"><input type="hidden" name="id" value="{{ s.id }}"><button class="gs-sil" title="Sil">✕</button></form>
-        </div>
+        </div>{% endif %}
       </div>
       {% empty %}<p class="egitim-bos">Henüz soru yok.</p>{% endfor %}
     </div>

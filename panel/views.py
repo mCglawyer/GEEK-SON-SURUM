@@ -2642,7 +2642,8 @@ EGITIM_SORU_SAYISI = 10
 EGITIM_GECME = 8
 EGITIM_SURE = 20
 EGITIM_HEDEF_ROLLER = [Rol.PERSONEL, Rol.SEF]
-EGITIM_YONETICI_ROLLER = [Rol.GENEL_MUDUR, Rol.MUDUR]
+EGITIM_GORUNTULE_ROLLER = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
+EGITIM_DUZENLE_ROLLER = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR]
 
 
 def _egitim_durum(personel):
@@ -2659,7 +2660,7 @@ def egitim(request):
     if personel is None:
         return redirect('ana_sayfa')
     hedef = personel.rol in EGITIM_HEDEF_ROLLER
-    yonetebilir = personel.rol in EGITIM_YONETICI_ROLLER
+    yonetebilir = personel.rol in EGITIM_GORUNTULE_ROLLER
     durum = _egitim_durum(personel) if hedef else None
     soru_var = EgitimSoru.objects.filter(aktif=True).count() >= EGITIM_SORU_SAYISI
     return render(request, 'egitim.html', {
@@ -2754,10 +2755,11 @@ def egitim_yonetim(request):
     if _cikis_mi(request):
         return _logout(request)
     personel = _aktif_personel(request)
-    if personel is None or personel.rol not in EGITIM_YONETICI_ROLLER:
+    if personel is None or personel.rol not in EGITIM_GORUNTULE_ROLLER:
         return redirect('egitim')
+    duzenleyebilir = personel.rol in EGITIM_DUZENLE_ROLLER
 
-    if request.method == 'POST':
+    if request.method == 'POST' and duzenleyebilir:
         islem = request.POST.get('islem')
         if islem == 'dokuman_ekle':
             dosya = request.FILES.get('dosya')
@@ -2824,4 +2826,5 @@ def egitim_yonetim(request):
         'tamamlayan': tamamlayan,
         'toplam_kisi': len(kisiler),
         'gecme': EGITIM_GECME,
+        'duzenleyebilir': duzenleyebilir,
     })
