@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}G Sosyal · Geek Panel{% endblock %}
+{% block body %}
+<div class="container gs-wrap">
+  <div hidden>{% csrf_token %}</div>
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>G Sosyal</h2><span class="plan-aralik">{% if paylasabilir %}paylaş ve ekiple etkileşime gir{% else %}ekip paylaşımlarını gör ve tepki ver{% endif %}</span></div>
+  </div>
+
+  {% if paylasabilir %}
+  <div class="card gs-form">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}<input type="hidden" name="islem" value="gonderi_ekle">
+      <textarea class="input gs-metin" name="metin" rows="3" placeholder="Ekibe bir şeyler paylaş..."></textarea>
+      <div class="gs-form-alt">
+        <label class="gs-foto-sec">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="m21 16-5-5L5 21"/></svg>
+          <span>Görsel ekle</span>
+          <input type="file" name="gorsel" accept="image/*" hidden>
+        </label>
+        <button type="submit" class="btn btn-primary btn-mini">Paylaş</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="gs-akis">
+    {% for g in gonderiler %}
+    <div class="card gs-post">
+      <div class="gs-post-bas">
+        <div class="gs-avatar">{{ g.yazan_ad|first|upper }}</div>
+        <div class="gs-kim"><b>{{ g.yazan_ad }}</b><span>{{ g.olusturma|date:"d.m.Y H:i" }}</span></div>
+        {% if g.silebilir %}
+        <form method="post" class="gs-sil-form" onsubmit="return confirm('Gönderi silinsin mi?');">
+          {% csrf_token %}<input type="hidden" name="islem" value="gonderi_sil"><input type="hidden" name="gonderi_id" value="{{ g.id }}">
+          <button type="submit" class="gs-sil" title="Sil">✕</button>
+        </form>
+        {% endif %}
+      </div>
+      {% if g.metin %}<div class="gs-metin-govde">{{ g.metin|linebreaksbr }}</div>{% endif %}
+      {% if g.gorsel %}<img class="gs-gorsel" src="{{ g.gorsel.url }}" alt="">{% endif %}
+      <div class="gs-tepki-bar" data-gid="{{ g.id }}">
+        {% for emoji, say in g.tepki_listesi %}
+        <button type="button" class="gs-tepki{% if g.benim_tepki == emoji %} aktif{% endif %}" data-emoji="{{ emoji }}">
+          <span class="gs-emoji">{{ emoji }}</span><span class="gs-say">{{ say }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="card gs-bos">Henüz paylaşım yok.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+(function () {
+  function cy(n){var v=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return v?v.pop():'';}
+  var ti = document.querySelector('[name=csrfmiddlewaretoken]');
+  var token = ti ? ti.value : cy('csrftoken');
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest && e.target.closest('.gs-tepki');
+    if (!btn) return;
+    var bar = btn.closest('.gs-tepki-bar');
+    if (!bar) return;
+    var gid = bar.getAttribute('data-gid');
+    var emoji = btn.getAttribute('data-emoji');
+    bar.querySelectorAll('.gs-tepki').forEach(function (b) { b.disabled = true; });
+    fetch(window.location.pathname, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': token, 'X-Requested-With': 'XMLHttpRequest' },
+      body: new URLSearchParams({ islem: 'tepki', gonderi_id: gid, emoji: emoji })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.ok) {
+        bar.querySelectorAll('.gs-tepki').forEach(function (b) {
+          var em = b.getAttribute('data-emoji');
+          b.querySelector('.gs-say').textContent = d.sayim[em] || 0;
+          b.classList.toggle('aktif', d.benim === em);
+        });
+      }
+    }).catch(function () {}).finally(function () {
+      bar.querySelectorAll('.gs-tepki').forEach(function (b) { b.disabled = false; });
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -49,10 +49,10 @@ def sevkiyat_pdf_bytes(talep, tip):
                             leftMargin=16 * mm, rightMargin=16 * mm,
                             title=f"Sevkiyat #{talep.id}")
     base = getSampleStyleSheet()['Normal']
-    st_marka = ParagraphStyle('marka', parent=base, fontName=fontb, fontSize=11, leading=13, textColor=BRAND)
+    st_marka = ParagraphStyle('marka', parent=base, fontName=fontb, fontSize=11, leading=13, textColor=BRAND, alignment=1)
     st_baslik = ParagraphStyle('baslik', parent=base, fontName=fontb, fontSize=14, leading=17,
-                               textColor=INK, spaceBefore=1, spaceAfter=2)
-    st_sub = ParagraphStyle('sub', parent=base, fontName=font, fontSize=8, leading=11, textColor=MUTED)
+                               textColor=INK, spaceBefore=1, spaceAfter=2, alignment=1)
+    st_sub = ParagraphStyle('sub', parent=base, fontName=font, fontSize=8, leading=11, textColor=MUTED, alignment=1)
     st_urun = ParagraphStyle('urun', parent=base, fontName=font, fontSize=7, leading=8.5, textColor=INK)
 
     baslik = 'YÜKLEME BELGESİ' if tip == 'yukleme' else 'TESLİM FİŞİ'
@@ -63,7 +63,7 @@ def sevkiyat_pdf_bytes(talep, tip):
             iw, ih = ImageReader(logo_path).getSize()
             lw = 34 * mm
             logo = Image(logo_path, width=lw, height=lw * ih / iw)
-            logo.hAlign = 'LEFT'
+            logo.hAlign = 'CENTER'
     except Exception:
         logo = None
 
@@ -82,14 +82,11 @@ def sevkiyat_pdf_bytes(talep, tip):
         ['Talep Tarihi:', talep.olusturma.strftime('%d.%m.%Y %H:%M'), 'Oluşturan:', talep.olusturan_ad or '—'],
     ]
     if talep.satin_alma_tarih:
-        bilgi.append(['Satın Alma:', talep.satin_alan_ad or '—', 'Tarih:',
-                      talep.satin_alma_tarih.strftime('%d.%m.%Y %H:%M')])
+        bilgi.append(['Satın Alma:', talep.satin_alan_ad or '—', '', ''])
     if tip == 'fis' and talep.sevkiyat_tarih:
-        bilgi.append(['Sevkiyat:', talep.sevkiyatci_ad or '—', 'Tarih:',
-                      talep.sevkiyat_tarih.strftime('%d.%m.%Y %H:%M')])
+        bilgi.append(['Sevkiyat:', talep.sevkiyatci_ad or '—', '', ''])
     if tip == 'fis' and talep.onay_tarih:
-        bilgi.append(['Onaylayan:', talep.onaylayan_ad or '—', 'Tarih:',
-                      talep.onay_tarih.strftime('%d.%m.%Y %H:%M')])
+        bilgi.append(['Onaylayan:', talep.onaylayan_ad or '—', '', ''])
     bt = Table(bilgi, colWidths=[28 * mm, 56 * mm, 28 * mm, 56 * mm])
     bt.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 8),
@@ -97,6 +94,7 @@ def sevkiyat_pdf_bytes(talep, tip):
         ('TEXTCOLOR', (0, 0), (-1, -1), INK),
         ('TOPPADDING', (0, 0), (-1, -1), 1.5), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.5),
     ]))
+    bt.hAlign = 'CENTER'
     el.append(bt)
     el.append(Spacer(1, 3 * mm))
 
@@ -115,7 +113,7 @@ def sevkiyat_pdf_bytes(talep, tip):
     col_w = [8 * mm, 96 * mm, 22 * mm, 18 * mm]
 
     kt = Table([basliklar] + veri, colWidths=col_w, repeatRows=1)
-    kt.hAlign = 'LEFT'
+    kt.hAlign = 'CENTER'
     kt.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 7),
         ('LEADING', (0, 0), (-1, -1), 8),

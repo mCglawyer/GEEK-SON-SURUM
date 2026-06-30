@@ -193,12 +193,12 @@
 })();
 </script>
 {% endif %}
-{% if is_satinalma %}
+{% if is_satinalma or is_sevkiyat %}
 <template id="sv-ek-tmpl">
   <div class="sv-ek-satir">
-    <input class="input" type="text" name="sa_ek_ad" placeholder="Ürün adı" autocomplete="off">
-    <input class="input sv-miktar" type="number" name="sa_ek_miktar" min="0" step="any" placeholder="Miktar">
-    <select class="sube-sec sv-birim" name="sa_ek_birim">
+    <input class="input" type="text" name="{% if is_sevkiyat %}sv_ek_ad{% else %}sa_ek_ad{% endif %}" placeholder="Ürün adı" autocomplete="off">
+    <input class="input sv-miktar" type="number" name="{% if is_sevkiyat %}sv_ek_miktar{% else %}sa_ek_miktar{% endif %}" min="0" step="any" placeholder="Miktar">
+    <select class="sube-sec sv-birim" name="{% if is_sevkiyat %}sv_ek_birim{% else %}sa_ek_birim{% endif %}">
       {% for b in tum_birimler %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
     </select>
     <button type="button" class="sv-ek-sil" title="Sil">✕</button>

@@ -13,6 +13,7 @@ urlpatterns = [
     path('bildirimler/', views.bildirimler, name='bildirimler'),
     path('bildirim/<int:bid>/oku/', views.bildirim_oku, name='bildirim_oku'),
     path('duyurular/', views.duyurular, name='duyurular'),
+    path('g-sosyal/', views.g_sosyal, name='g_sosyal'),
     path('raporlar/', views.raporlar, name='raporlar'),
     path('raporlar/indir/<str:ad>/', views.rapor_indir, name='rapor_indir'),
     path('yedekler/indir/<str:ad>/', views.yedek_indir, name='yedek_indir'),

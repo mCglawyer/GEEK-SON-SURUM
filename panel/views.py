@@ -25,6 +25,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      SevkiyatForm, Urun, SiparisHareket,
                      KahveSoru, GunlukSoru, SoruAyar, Bildirim, Duyuru,
+                     GSosyalGonderi, GSosyalTepki,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -1532,6 +1533,27 @@ def sevkiyat_sayfa(request):
                 k.sevkiyat_miktar = miktar
                 k.sevkiyat_birim = birim
                 k.save()
+            ek_adlar = request.POST.getlist('sv_ek_ad')
+            ek_miktarlar = request.POST.getlist('sv_ek_miktar')
+            ek_birimler = request.POST.getlist('sv_ek_birim')
+            for i, ad in enumerate(ek_adlar):
+                ad = (ad or '').strip()
+                if not ad:
+                    continue
+                raw = (ek_miktarlar[i] if i < len(ek_miktarlar) else '').strip().replace(',', '.')
+                try:
+                    mik = Decimal(raw)
+                except Exception:
+                    continue
+                if mik <= 0:
+                    continue
+                bir = ek_birimler[i] if i < len(ek_birimler) else SevkiyatBirim.ADET
+                if bir not in gecerli:
+                    bir = SevkiyatBirim.ADET
+                SevkiyatKalem.objects.create(
+                    talep=talep, urun=None, urun_ad=ad[:160], kategori='DİĞER', form='',
+                    koli_icerigi=1, istenen_miktar=0, istenen_birim=bir,
+                    sevkiyat_miktar=mik, sevkiyat_birim=bir)
             talep.durum = SevkiyatDurumu.ONAY_BEKLIYOR
             talep.sevkiyatci_ad = personel.ad_soyad
             talep.sevkiyat_tarih = timezone.now()
@@ -2520,3 +2542,79 @@ def rapor_indir(request, ad):
     if not _os.path.isfile(yol):
         raise Http404()
     return FileResponse(open(yol, 'rb'), as_attachment=True, filename=ad)
+
+
+GSOSYAL_EMOJILER = ['👍', '❤️', '😂', '😮', '😢', '👏']
+
+
+def g_sosyal(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    paylasabilir = personel.rol in UST_YONETIM
+
+    if request.method == 'POST' and request.POST.get('islem') == 'tepki':
+        g = GSosyalGonderi.objects.filter(id=request.POST.get('gonderi_id')).first()
+        emoji = request.POST.get('emoji', '')
+        if not g or emoji not in GSOSYAL_EMOJILER:
+            return JsonResponse({'ok': False})
+        mevcut = GSosyalTepki.objects.filter(gonderi=g, personel=personel).first()
+        if mevcut and mevcut.emoji == emoji:
+            mevcut.delete()
+            benim = ''
+        elif mevcut:
+            mevcut.emoji = emoji
+            mevcut.save()
+            benim = emoji
+        else:
+            GSosyalTepki.objects.create(gonderi=g, personel=personel, emoji=emoji)
+            benim = emoji
+        sayim = {}
+        for t in g.tepkiler.all():
+            sayim[t.emoji] = sayim.get(t.emoji, 0) + 1
+        return JsonResponse({'ok': True, 'benim': benim,
+                             'sayim': {e: sayim.get(e, 0) for e in GSOSYAL_EMOJILER},
+                             'toplam': sum(sayim.values())})
+
+    if request.method == 'POST' and request.POST.get('islem') == 'gonderi_ekle' and paylasabilir:
+        metin = (request.POST.get('metin') or '').strip()
+        gorsel = request.FILES.get('gorsel')
+        if metin or gorsel:
+            GSosyalGonderi.objects.create(yazan=personel, yazan_ad=personel.ad_soyad,
+                                          metin=metin[:4000], gorsel=gorsel)
+            messages.success(request, "Paylaşıldı.")
+        else:
+            messages.error(request, "Bir şeyler yazın ya da görsel ekleyin.")
+        return redirect('g_sosyal')
+
+    if request.method == 'POST' and request.POST.get('islem') == 'gonderi_sil':
+        g = GSosyalGonderi.objects.filter(id=request.POST.get('gonderi_id')).first()
+        if g and (g.yazan_id == personel.id or personel.rol == Rol.GENEL_MUDUR):
+            g.delete()
+            messages.success(request, "Gönderi silindi.")
+        return redirect('g_sosyal')
+
+    gonderiler = list(GSosyalGonderi.objects.select_related('yazan').prefetch_related('tepkiler')[:80])
+    for g in gonderiler:
+        sayim = {}
+        benim = ''
+        for t in g.tepkiler.all():
+            sayim[t.emoji] = sayim.get(t.emoji, 0) + 1
+            if t.personel_id == personel.id:
+                benim = t.emoji
+        g.tepki_listesi = [(e, sayim.get(e, 0)) for e in GSOSYAL_EMOJILER]
+        g.tepki_toplam = sum(sayim.values())
+        g.benim_tepki = benim
+        g.silebilir = (g.yazan_id == personel.id) or (personel.rol == Rol.GENEL_MUDUR)
+
+    return render(request, 'g_sosyal.html', {
+        'personel': personel,
+        'aktif': 'g_sosyal',
+        'gonderiler': gonderiler,
+        'paylasabilir': paylasabilir,
+        'emojiler': GSOSYAL_EMOJILER,
+    })

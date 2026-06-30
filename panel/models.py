@@ -470,3 +470,28 @@ class Duyuru(models.Model):
 
     def __str__(self):
         return self.baslik[:40]
+
+
+class GSosyalGonderi(models.Model):
+    yazan = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='gsosyal_gonderiler')
+    yazan_ad = models.CharField(max_length=120, default='')
+    metin = models.TextField(blank=True, default='')
+    gorsel = models.ImageField(upload_to='gsosyal/', null=True, blank=True)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-olusturma']
+
+    def __str__(self):
+        return '%s · %s' % (self.yazan_ad, self.metin[:30])
+
+
+class GSosyalTepki(models.Model):
+    gonderi = models.ForeignKey(GSosyalGonderi, on_delete=models.CASCADE, related_name='tepkiler')
+    personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='gsosyal_tepkiler')
+    emoji = models.CharField(max_length=8, default='👍')
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('gonderi', 'personel')
