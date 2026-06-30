@@ -812,3 +812,6 @@ body.app .app-main, body.app .container { min-width:0; }
 .btn.kilitli { opacity:.55; cursor:not-allowed; }
 .test-karteli .kartel-liste { margin:.5rem 0 1.2rem; padding-left:1.1rem; display:flex; flex-direction:column; gap:.55rem; color:var(--text); font-size:.93rem; }
 @media (max-width:900px){ .egitim-pdf { height:460px; } }
+
+.egitim-filtre { display:flex; align-items:center; gap:.5rem; margin-bottom:.8rem; flex-wrap:wrap; }
+.egitim-filtre label { font-size:.85rem; color:var(--muted); font-weight:600; }

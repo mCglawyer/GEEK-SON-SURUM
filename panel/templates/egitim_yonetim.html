@@ -22,8 +22,16 @@
 
   <div class="card">
     <h3 class="egitim-bolum">Takip — {{ tamamlayan }}/{{ toplam_kisi }} tamamladı</h3>
+    <form method="get" class="egitim-filtre">
+      <label for="sube-sec">Şube:</label>
+      <select id="sube-sec" name="sube" class="sube-sec" onchange="this.form.submit()">
+        <option value="">Tüm şubeler</option>
+        {% for s in subeler %}<option value="{{ s.id }}"{% if secili_sube == s.id|stringformat:"s" %} selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+      </select>
+      <noscript><button class="btn btn-mini btn-ghost">Filtrele</button></noscript>
+    </form>
     <div class="grid-wrap"><table class="vgrid">
-      <thead><tr><th class="sticky">Kişi</th><th>Şube</th><th>Rol</th><th>Durum</th><th>Puan</th><th>Deneme</th></tr></thead>
+      <thead><tr><th class="sticky">Kişi</th><th>Şube</th><th>Rol</th><th>Durum</th><th>Doğru</th><th>Yanlış</th><th>Sınav girişi</th></tr></thead>
       <tbody>
         {% for k in kisiler %}
         <tr>
@@ -31,10 +39,11 @@
           <td>{{ k.sube.ad|default:"—" }}</td>
           <td>{{ k.rol }}</td>
           <td>{% if k.durum_obj.tamamlandi %}<span class="badge ok">Tamamladı</span>{% else %}<span class="badge no">Bekliyor</span>{% endif %}</td>
-          <td>{% if k.durum_obj %}{{ k.durum_obj.son_puan }}{% else %}0{% endif %}</td>
-          <td>{% if k.durum_obj %}{{ k.durum_obj.deneme }}{% else %}0{% endif %}</td>
+          <td>{% if k.denedi %}{{ k.dogru }}{% else %}—{% endif %}</td>
+          <td>{% if k.denedi %}{{ k.yanlis }}{% else %}—{% endif %}</td>
+          <td>{% if k.giris %}{{ k.giris }}. giriş{% else %}—{% endif %}</td>
         </tr>
-        {% empty %}<tr><td colspan="6" class="egitim-bos">Kişi yok.</td></tr>{% endfor %}
+        {% empty %}<tr><td colspan="7" class="egitim-bos">Kişi yok.</td></tr>{% endfor %}
       </tbody>
     </table></div>
   </div>

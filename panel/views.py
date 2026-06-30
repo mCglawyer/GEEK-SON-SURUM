@@ -2838,13 +2838,27 @@ def egitim_yonetim(request):
                 s.save()
             return redirect('egitim_yonetim')
 
+    if personel.rol == Rol.MUDUR:
+        sube_secenek = list(personel.sorumlu_subeler.all().order_by('ad'))
+    else:
+        sube_secenek = list(Sube.objects.all().order_by('ad'))
+    secili_sube = request.GET.get('sube') or ''
+
     kisiler_qs = Personel.objects.filter(rol__in=EGITIM_HEDEF_ROLLER).select_related('sube')
     if personel.rol == Rol.MUDUR:
         kisiler_qs = kisiler_qs.filter(sube__in=personel.sorumlu_subeler.all())
+    if secili_sube.isdigit():
+        kisiler_qs = kisiler_qs.filter(sube_id=int(secili_sube))
     kisiler = list(kisiler_qs.order_by('sube__ad', 'ad_soyad'))
     durum_map = {d.personel_id: d for d in EgitimDurum.objects.filter(personel__in=kisiler)}
     for k in kisiler:
-        k.durum_obj = durum_map.get(k.id)
+        d = durum_map.get(k.id)
+        k.durum_obj = d
+        denedi = bool(d and d.deneme)
+        k.denedi = denedi
+        k.dogru = d.son_puan if denedi else None
+        k.yanlis = (EGITIM_SORU_SAYISI - d.son_puan) if denedi else None
+        k.giris = d.deneme if d else 0
     tamamlayan = sum(1 for k in kisiler if k.durum_obj and k.durum_obj.tamamlandi)
     return render(request, 'egitim_yonetim.html', {
         'personel': personel,
@@ -2855,6 +2869,8 @@ def egitim_yonetim(request):
         'kisiler': kisiler,
         'tamamlayan': tamamlayan,
         'toplam_kisi': len(kisiler),
+        'subeler': sube_secenek,
+        'secili_sube': secili_sube,
         'gecme': EGITIM_GECME,
         'duzenleyebilir': duzenleyebilir,
         'acabilir': acabilir,
