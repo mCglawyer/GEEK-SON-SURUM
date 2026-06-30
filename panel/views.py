@@ -8,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
+from .excel_logo import excel_logo
 
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -687,6 +688,7 @@ def puantaj_excel_export(request):
 
     resp = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     resp['Content-Disposition'] = f'attachment; filename="GeekPanel_Puantaj_{ay_str}.xlsx"'
+    excel_logo(ws)
     wb.save(resp)
     return resp
 
@@ -849,6 +851,7 @@ def zayi_excel_export(request):
 
     resp = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     resp['Content-Disposition'] = f'attachment; filename="GeekPanel_Zayi_{ay_str}.xlsx"'
+    excel_logo(ws)
     wb.save(resp)
     return resp
 
@@ -1186,6 +1189,7 @@ def stok_excel(request):
     resp = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     fn = f"stok_{sube.ad}_{ay_str}.xlsx".replace(' ', '_')
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    excel_logo(ws)
     wb.save(resp)
     return resp
 

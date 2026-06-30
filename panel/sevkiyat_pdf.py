@@ -8,7 +8,9 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, Image
+from reportlab.lib.utils import ImageReader
+from xml.sax.saxutils import escape
 
 BRAND = colors.HexColor('#162AA3')
 INK = colors.HexColor('#1f2430')
@@ -51,14 +53,29 @@ def sevkiyat_pdf_bytes(talep, tip):
     st_baslik = ParagraphStyle('baslik', parent=base, fontName=fontb, fontSize=14, leading=17,
                                textColor=INK, spaceBefore=1, spaceAfter=2)
     st_sub = ParagraphStyle('sub', parent=base, fontName=font, fontSize=8, leading=11, textColor=MUTED)
+    st_urun = ParagraphStyle('urun', parent=base, fontName=font, fontSize=7, leading=8.5, textColor=INK)
 
     baslik = 'YÜKLEME BELGESİ' if tip == 'yukleme' else 'TESLİM FİŞİ'
-    el = [
-        Paragraph('GEEK COFFEE &amp; EATERY', st_marka),
-        Paragraph(baslik, st_baslik),
-        Paragraph('Personel Yönetim Sistemi · Sevkiyat', st_sub),
-        Spacer(1, 3 * mm),
-    ]
+    logo = None
+    try:
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'geek_logo_blue.png')
+        if os.path.exists(logo_path):
+            iw, ih = ImageReader(logo_path).getSize()
+            lw = 34 * mm
+            logo = Image(logo_path, width=lw, height=lw * ih / iw)
+            logo.hAlign = 'LEFT'
+    except Exception:
+        logo = None
+
+    el = []
+    if logo is not None:
+        el.append(logo)
+        el.append(Spacer(1, 2 * mm))
+    else:
+        el.append(Paragraph('GEEK COFFEE &amp; EATERY', st_marka))
+    el.append(Paragraph(baslik, st_baslik))
+    el.append(Paragraph('Personel Yönetim Sistemi · Sevkiyat', st_sub))
+    el.append(Spacer(1, 3 * mm))
 
     bilgi = [
         ['Şube:', talep.sube.ad if talep.sube else '—', 'Belge No:', '#%s' % talep.id],
@@ -92,12 +109,13 @@ def sevkiyat_pdf_bytes(talep, tip):
             continue
         bir = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
         i += 1
-        veri.append([str(i), k.urun_ad, _say(son), bir])
+        veri.append([str(i), Paragraph(escape(k.urun_ad or ''), st_urun), _say(son), bir])
 
     basliklar = ['#', 'Ürün', 'Miktar', 'Birim']
-    col_w = [9 * mm, 116 * mm, 23 * mm, 19 * mm]
+    col_w = [8 * mm, 96 * mm, 22 * mm, 18 * mm]
 
     kt = Table([basliklar] + veri, colWidths=col_w, repeatRows=1)
+    kt.hAlign = 'LEFT'
     kt.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), font), ('FONTSIZE', (0, 0), (-1, -1), 7),
         ('LEADING', (0, 0), (-1, -1), 8),

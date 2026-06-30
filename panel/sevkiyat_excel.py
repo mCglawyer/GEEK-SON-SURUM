@@ -1,6 +1,7 @@
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from .excel_logo import excel_logo
 
 BASLIKLAR = ['Ürün Adı', 'Miktar', 'Birim', 'Birim Fiyat']
 
@@ -50,6 +51,7 @@ def siparis_excel_bytes(talep):
     ws.column_dimensions['C'].width = 12
     ws.column_dimensions['D'].width = 14
     ws.freeze_panes = 'A2'
+    excel_logo(ws)
 
     buf = BytesIO()
     wb.save(buf)
