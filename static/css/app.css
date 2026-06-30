@@ -753,3 +753,17 @@ body.app .container { width:100%; }
 .kalib-uyari { margin:14px 1.6rem 0; padding:.75rem 1rem; background:#FFF4E5; border:1px solid #FFD8A8; color:#8A4B00; border-radius:12px; font-size:.9rem; font-weight:500; }
 .kalib-uyari b { font-weight:700; }
 @media (max-width:900px){ .kalib-uyari { margin:12px 1rem 0; } }
+
+.gs-verenler { margin-top:.7rem; font-size:.82rem; }
+.gs-verenler summary { cursor:pointer; color:var(--muted); font-weight:600; list-style:none; }
+.gs-verenler summary::-webkit-details-marker { display:none; }
+.gs-verenler summary::before { content:"▾ "; }
+.gs-veren-liste { display:flex; flex-wrap:wrap; gap:.4rem .9rem; margin-top:.55rem; }
+.gs-veren { color:var(--text); }
+
+html, body { overflow-x:hidden; max-width:100%; }
+body.app .app-main, body.app .container { min-width:0; }
+@media (max-width:900px){
+  body.app .card { max-width:100%; }
+  body.app .plan-head, body.app .durum-row { flex-wrap:wrap; }
+}

@@ -49,6 +49,14 @@
         </button>
         {% endfor %}
       </div>
+      {% if g.sahibi and g.tepki_verenler %}
+      <details class="gs-verenler">
+        <summary>Tepki verenler ({{ g.tepki_toplam }})</summary>
+        <div class="gs-veren-liste">
+          {% for ad, em in g.tepki_verenler %}<span class="gs-veren">{{ em }} {{ ad }}</span>{% endfor %}
+        </div>
+      </details>
+      {% endif %}
     </div>
     {% empty %}
     <div class="card gs-bos">Henüz paylaşım yok.</div>

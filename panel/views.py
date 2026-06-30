@@ -2609,17 +2609,23 @@ def g_sosyal(request):
             messages.success(request, "Gönderi silindi.")
         return redirect('g_sosyal')
 
-    gonderiler = list(GSosyalGonderi.objects.select_related('yazan').prefetch_related('tepkiler')[:80])
+    gonderiler = list(GSosyalGonderi.objects.select_related('yazan').prefetch_related('tepkiler__personel')[:80])
     for g in gonderiler:
         sayim = {}
         benim = ''
+        sahibi = (g.yazan_id == personel.id)
+        verenler = []
         for t in g.tepkiler.all():
             sayim[t.emoji] = sayim.get(t.emoji, 0) + 1
             if t.personel_id == personel.id:
                 benim = t.emoji
+            if sahibi:
+                verenler.append((t.personel.ad_soyad if t.personel else '—', t.emoji))
         g.tepki_listesi = [(e, sayim.get(e, 0)) for e in GSOSYAL_EMOJILER]
         g.tepki_toplam = sum(sayim.values())
         g.benim_tepki = benim
+        g.sahibi = sahibi
+        g.tepki_verenler = verenler
         g.silebilir = (g.yazan_id == personel.id) or (personel.rol in UST_YONETIM)
 
     return render(request, 'g_sosyal.html', {
