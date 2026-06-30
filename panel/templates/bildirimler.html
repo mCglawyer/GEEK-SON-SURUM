@@ -5,7 +5,10 @@
 <div class="container">
   <div class="plan-head">
     <div><h2>Bildirimler</h2><span class="plan-aralik">son işlemler ve uyarılar</span></div>
-    {% if kayitlar %}<form method="post"><input type="hidden" name="islem" value="hepsi_oku">{% csrf_token %}<button class="btn btn-ghost btn-mini">Tümünü okundu işaretle</button></form>{% endif %}
+    {% if kayitlar %}<div class="bd-aksiyon">
+      <form method="post"><input type="hidden" name="islem" value="hepsi_oku">{% csrf_token %}<button class="btn btn-ghost btn-mini">Tümünü okundu işaretle</button></form>
+      <form method="post" onsubmit="return confirm('Tüm bildirimler kalıcı olarak silinsin mi?');"><input type="hidden" name="islem" value="hepsi_sil">{% csrf_token %}<button class="btn btn-danger btn-mini">Tümünü temizle</button></form>
+    </div>{% endif %}
   </div>
 
   <div class="card bd-liste">

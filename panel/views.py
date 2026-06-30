@@ -2422,6 +2422,9 @@ def bildirimler(request):
     if request.method == 'POST' and request.POST.get('islem') == 'hepsi_oku':
         Bildirim.objects.filter(alici=personel, okundu=False).update(okundu=True)
         return redirect('bildirimler')
+    if request.method == 'POST' and request.POST.get('islem') == 'hepsi_sil':
+        Bildirim.objects.filter(alici=personel).delete()
+        return redirect('bildirimler')
     kayitlar = list(Bildirim.objects.filter(alici=personel)[:100])
     return render(request, 'bildirimler.html', {
         'personel': personel, 'aktif': 'bildirimler', 'kayitlar': kayitlar})
