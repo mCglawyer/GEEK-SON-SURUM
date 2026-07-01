@@ -1,114 +1,74 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Geek Crew · Geek Panel<script>
-(function () {
-  var el = document.getElementById('gs-saatler');
-  if (!el) return;
-  var saatler = Array.prototype.slice.call(el.querySelectorAll('.gs-saat'));
-  function parcala(tz) {
-    var f = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    var o = {};
-    f.formatToParts(new Date()).forEach(function (p) { o[p.type] = p.value; });
-    return { h: parseInt(o.hour, 10) % 12, m: parseInt(o.minute, 10), s: parseInt(o.second, 10) };
-  }
-  function guncelle() {
-    saatler.forEach(function (elm) {
-      var tz = elm.getAttribute('data-tz');
-      try {
-        var t = parcala(tz);
-        var sDeg = t.s * 6, mDeg = t.m * 6 + t.s * 0.1, hDeg = t.h * 30 + t.m * 0.5;
-        elm.querySelector('.ibre-saat').style.transform = 'rotate(' + hDeg + 'deg)';
-        elm.querySelector('.ibre-dakika').style.transform = 'rotate(' + mDeg + 'deg)';
-        elm.querySelector('.ibre-saniye').style.transform = 'rotate(' + sDeg + 'deg)';
-      } catch (e) {}
-    });
-  }
-  guncelle();
-  setInterval(guncelle, 1000);
-})();
-</script>
-{% endblock %}
+{% block title %}Geek Crew · Geek Panel{% endblock %}
 {% block body %}
 <div class="container gs-wrap">
   <div hidden>{% csrf_token %}</div>
   {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
 
   <div class="plan-head">
-    <div><h2>Geek Crew</h2><span class="plan-aralik">{% if paylasabilir %}paylaş ve ekiple etkileşime gir{% else %}ekip paylaşımlarını gör ve tepki ver{% endif %}</span></div>
+    <div><h2>Geek Crew</h2></div>
   </div>
 
-  <div class="gs-saatler" id="gs-saatler">
-    <div class="gs-saat" data-tz="Europe/Istanbul">
-      <svg class="saat-yuz" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="47" fill="#fff" stroke="var(--brand)" stroke-width="3"/>
-        <g stroke="var(--brand)" stroke-linecap="round"><line x1="50.0" y1="10.0" x2="50.0" y2="5.0" stroke-width="3"/><line x1="70.0" y1="15.4" x2="72.5" y2="11.0" stroke-width="1.5"/><line x1="84.6" y1="30.0" x2="89.0" y2="27.5" stroke-width="1.5"/><line x1="90.0" y1="50.0" x2="95.0" y2="50.0" stroke-width="3"/><line x1="84.6" y1="70.0" x2="89.0" y2="72.5" stroke-width="1.5"/><line x1="70.0" y1="84.6" x2="72.5" y2="89.0" stroke-width="1.5"/><line x1="50.0" y1="90.0" x2="50.0" y2="95.0" stroke-width="3"/><line x1="30.0" y1="84.6" x2="27.5" y2="89.0" stroke-width="1.5"/><line x1="15.4" y1="70.0" x2="11.0" y2="72.5" stroke-width="1.5"/><line x1="10.0" y1="50.0" x2="5.0" y2="50.0" stroke-width="3"/><line x1="15.4" y1="30.0" x2="11.0" y2="27.5" stroke-width="1.5"/><line x1="30.0" y1="15.4" x2="27.5" y2="11.0" stroke-width="1.5"/></g>
-        <line class="ibre ibre-saat" x1="50" y1="50" x2="50" y2="31" stroke="var(--brand)" stroke-width="4" stroke-linecap="round"/>
-        <line class="ibre ibre-dakika" x1="50" y1="50" x2="50" y2="21" stroke="var(--brand)" stroke-width="3" stroke-linecap="round"/>
-        <line class="ibre ibre-saniye" x1="50" y1="50" x2="50" y2="17" stroke="#E4572E" stroke-width="1.5" stroke-linecap="round"/>
-        <circle cx="50" cy="50" r="3.2" fill="var(--brand)"/>
-      </svg>
-      <span class="gs-sehir">İstanbul</span>
-    </div>
-    <div class="gs-saat" data-tz="Europe/London">
-      <svg class="saat-yuz" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="47" fill="#fff" stroke="var(--brand)" stroke-width="3"/>
-        <g stroke="var(--brand)" stroke-linecap="round"><line x1="50.0" y1="10.0" x2="50.0" y2="5.0" stroke-width="3"/><line x1="70.0" y1="15.4" x2="72.5" y2="11.0" stroke-width="1.5"/><line x1="84.6" y1="30.0" x2="89.0" y2="27.5" stroke-width="1.5"/><line x1="90.0" y1="50.0" x2="95.0" y2="50.0" stroke-width="3"/><line x1="84.6" y1="70.0" x2="89.0" y2="72.5" stroke-width="1.5"/><line x1="70.0" y1="84.6" x2="72.5" y2="89.0" stroke-width="1.5"/><line x1="50.0" y1="90.0" x2="50.0" y2="95.0" stroke-width="3"/><line x1="30.0" y1="84.6" x2="27.5" y2="89.0" stroke-width="1.5"/><line x1="15.4" y1="70.0" x2="11.0" y2="72.5" stroke-width="1.5"/><line x1="10.0" y1="50.0" x2="5.0" y2="50.0" stroke-width="3"/><line x1="15.4" y1="30.0" x2="11.0" y2="27.5" stroke-width="1.5"/><line x1="30.0" y1="15.4" x2="27.5" y2="11.0" stroke-width="1.5"/></g>
-        <line class="ibre ibre-saat" x1="50" y1="50" x2="50" y2="31" stroke="var(--brand)" stroke-width="4" stroke-linecap="round"/>
-        <line class="ibre ibre-dakika" x1="50" y1="50" x2="50" y2="21" stroke="var(--brand)" stroke-width="3" stroke-linecap="round"/>
-        <line class="ibre ibre-saniye" x1="50" y1="50" x2="50" y2="17" stroke="#E4572E" stroke-width="1.5" stroke-linecap="round"/>
-        <circle cx="50" cy="50" r="3.2" fill="var(--brand)"/>
-      </svg>
-      <span class="gs-sehir">Londra</span>
-    </div>
-    <div class="gs-saat" data-tz="Europe/Berlin">
-      <svg class="saat-yuz" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="47" fill="#fff" stroke="var(--brand)" stroke-width="3"/>
-        <g stroke="var(--brand)" stroke-linecap="round"><line x1="50.0" y1="10.0" x2="50.0" y2="5.0" stroke-width="3"/><line x1="70.0" y1="15.4" x2="72.5" y2="11.0" stroke-width="1.5"/><line x1="84.6" y1="30.0" x2="89.0" y2="27.5" stroke-width="1.5"/><line x1="90.0" y1="50.0" x2="95.0" y2="50.0" stroke-width="3"/><line x1="84.6" y1="70.0" x2="89.0" y2="72.5" stroke-width="1.5"/><line x1="70.0" y1="84.6" x2="72.5" y2="89.0" stroke-width="1.5"/><line x1="50.0" y1="90.0" x2="50.0" y2="95.0" stroke-width="3"/><line x1="30.0" y1="84.6" x2="27.5" y2="89.0" stroke-width="1.5"/><line x1="15.4" y1="70.0" x2="11.0" y2="72.5" stroke-width="1.5"/><line x1="10.0" y1="50.0" x2="5.0" y2="50.0" stroke-width="3"/><line x1="15.4" y1="30.0" x2="11.0" y2="27.5" stroke-width="1.5"/><line x1="30.0" y1="15.4" x2="27.5" y2="11.0" stroke-width="1.5"/></g>
-        <line class="ibre ibre-saat" x1="50" y1="50" x2="50" y2="31" stroke="var(--brand)" stroke-width="4" stroke-linecap="round"/>
-        <line class="ibre ibre-dakika" x1="50" y1="50" x2="50" y2="21" stroke="var(--brand)" stroke-width="3" stroke-linecap="round"/>
-        <line class="ibre ibre-saniye" x1="50" y1="50" x2="50" y2="17" stroke="#E4572E" stroke-width="1.5" stroke-linecap="round"/>
-        <circle cx="50" cy="50" r="3.2" fill="var(--brand)"/>
-      </svg>
-      <span class="gs-sehir">Berlin</span>
-    </div>
-    <div class="gs-saat" data-tz="America/New_York">
-      <svg class="saat-yuz" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="47" fill="#fff" stroke="var(--brand)" stroke-width="3"/>
-        <g stroke="var(--brand)" stroke-linecap="round"><line x1="50.0" y1="10.0" x2="50.0" y2="5.0" stroke-width="3"/><line x1="70.0" y1="15.4" x2="72.5" y2="11.0" stroke-width="1.5"/><line x1="84.6" y1="30.0" x2="89.0" y2="27.5" stroke-width="1.5"/><line x1="90.0" y1="50.0" x2="95.0" y2="50.0" stroke-width="3"/><line x1="84.6" y1="70.0" x2="89.0" y2="72.5" stroke-width="1.5"/><line x1="70.0" y1="84.6" x2="72.5" y2="89.0" stroke-width="1.5"/><line x1="50.0" y1="90.0" x2="50.0" y2="95.0" stroke-width="3"/><line x1="30.0" y1="84.6" x2="27.5" y2="89.0" stroke-width="1.5"/><line x1="15.4" y1="70.0" x2="11.0" y2="72.5" stroke-width="1.5"/><line x1="10.0" y1="50.0" x2="5.0" y2="50.0" stroke-width="3"/><line x1="15.4" y1="30.0" x2="11.0" y2="27.5" stroke-width="1.5"/><line x1="30.0" y1="15.4" x2="27.5" y2="11.0" stroke-width="1.5"/></g>
-        <line class="ibre ibre-saat" x1="50" y1="50" x2="50" y2="31" stroke="var(--brand)" stroke-width="4" stroke-linecap="round"/>
-        <line class="ibre ibre-dakika" x1="50" y1="50" x2="50" y2="21" stroke="var(--brand)" stroke-width="3" stroke-linecap="round"/>
-        <line class="ibre ibre-saniye" x1="50" y1="50" x2="50" y2="17" stroke="#E4572E" stroke-width="1.5" stroke-linecap="round"/>
-        <circle cx="50" cy="50" r="3.2" fill="var(--brand)"/>
-      </svg>
-      <span class="gs-sehir">New York</span>
-    </div>
-    <div class="gs-saat" data-tz="Asia/Dubai">
-      <svg class="saat-yuz" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="47" fill="#fff" stroke="var(--brand)" stroke-width="3"/>
-        <g stroke="var(--brand)" stroke-linecap="round"><line x1="50.0" y1="10.0" x2="50.0" y2="5.0" stroke-width="3"/><line x1="70.0" y1="15.4" x2="72.5" y2="11.0" stroke-width="1.5"/><line x1="84.6" y1="30.0" x2="89.0" y2="27.5" stroke-width="1.5"/><line x1="90.0" y1="50.0" x2="95.0" y2="50.0" stroke-width="3"/><line x1="84.6" y1="70.0" x2="89.0" y2="72.5" stroke-width="1.5"/><line x1="70.0" y1="84.6" x2="72.5" y2="89.0" stroke-width="1.5"/><line x1="50.0" y1="90.0" x2="50.0" y2="95.0" stroke-width="3"/><line x1="30.0" y1="84.6" x2="27.5" y2="89.0" stroke-width="1.5"/><line x1="15.4" y1="70.0" x2="11.0" y2="72.5" stroke-width="1.5"/><line x1="10.0" y1="50.0" x2="5.0" y2="50.0" stroke-width="3"/><line x1="15.4" y1="30.0" x2="11.0" y2="27.5" stroke-width="1.5"/><line x1="30.0" y1="15.4" x2="27.5" y2="11.0" stroke-width="1.5"/></g>
-        <line class="ibre ibre-saat" x1="50" y1="50" x2="50" y2="31" stroke="var(--brand)" stroke-width="4" stroke-linecap="round"/>
-        <line class="ibre ibre-dakika" x1="50" y1="50" x2="50" y2="21" stroke="var(--brand)" stroke-width="3" stroke-linecap="round"/>
-        <line class="ibre ibre-saniye" x1="50" y1="50" x2="50" y2="17" stroke="#E4572E" stroke-width="1.5" stroke-linecap="round"/>
-        <circle cx="50" cy="50" r="3.2" fill="var(--brand)"/>
-      </svg>
-      <span class="gs-sehir">Dubai</span>
-    </div>
-    <div class="gs-saat" data-tz="Asia/Tokyo">
-      <svg class="saat-yuz" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="47" fill="#fff" stroke="var(--brand)" stroke-width="3"/>
-        <g stroke="var(--brand)" stroke-linecap="round"><line x1="50.0" y1="10.0" x2="50.0" y2="5.0" stroke-width="3"/><line x1="70.0" y1="15.4" x2="72.5" y2="11.0" stroke-width="1.5"/><line x1="84.6" y1="30.0" x2="89.0" y2="27.5" stroke-width="1.5"/><line x1="90.0" y1="50.0" x2="95.0" y2="50.0" stroke-width="3"/><line x1="84.6" y1="70.0" x2="89.0" y2="72.5" stroke-width="1.5"/><line x1="70.0" y1="84.6" x2="72.5" y2="89.0" stroke-width="1.5"/><line x1="50.0" y1="90.0" x2="50.0" y2="95.0" stroke-width="3"/><line x1="30.0" y1="84.6" x2="27.5" y2="89.0" stroke-width="1.5"/><line x1="15.4" y1="70.0" x2="11.0" y2="72.5" stroke-width="1.5"/><line x1="10.0" y1="50.0" x2="5.0" y2="50.0" stroke-width="3"/><line x1="15.4" y1="30.0" x2="11.0" y2="27.5" stroke-width="1.5"/><line x1="30.0" y1="15.4" x2="27.5" y2="11.0" stroke-width="1.5"/></g>
-        <line class="ibre ibre-saat" x1="50" y1="50" x2="50" y2="31" stroke="var(--brand)" stroke-width="4" stroke-linecap="round"/>
-        <line class="ibre ibre-dakika" x1="50" y1="50" x2="50" y2="21" stroke="var(--brand)" stroke-width="3" stroke-linecap="round"/>
-        <line class="ibre ibre-saniye" x1="50" y1="50" x2="50" y2="17" stroke="#E4572E" stroke-width="1.5" stroke-linecap="round"/>
-        <circle cx="50" cy="50" r="3.2" fill="var(--brand)"/>
-      </svg>
-      <span class="gs-sehir">Tokyo</span>
-    </div>
+  <div class="gs-duzen">
+    <div class="gs-ana">
+  {% if paylasabilir %}
+  <div class="card gs-form">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}<input type="hidden" name="islem" value="gonderi_ekle">
+      <textarea class="input gs-metin" name="metin" rows="3" placeholder="Ekibe bir şeyler paylaş..."></textarea>
+      <div class="gs-form-alt">
+        <label class="gs-foto-sec">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="m21 16-5-5L5 21"/></svg>
+          <span>Görsel ekle</span>
+          <input type="file" name="gorsel" accept="image/*" hidden>
+        </label>
+        <button type="submit" class="btn btn-primary btn-mini">Paylaş</button>
+      </div>
+    </form>
   </div>
+  {% endif %}
 
-  <div class="gs-subeler">
-    <div class="gs-subeler-bas">Şubelerimiz</div>
-    <div class="gs-sube-serit">
+  <div class="gs-akis">
+    {% for g in gonderiler %}
+    <div class="card gs-post">
+      <div class="gs-post-bas">
+        <div class="gs-avatar">{{ g.yazan_ad|first|upper }}</div>
+        <div class="gs-kim"><b>{{ g.yazan_ad }}</b><span>{{ g.olusturma|date:"d.m.Y H:i" }}</span></div>
+        {% if g.silebilir %}
+        <form method="post" class="gs-sil-form" onsubmit="return confirm('Gönderi silinsin mi?');">
+          {% csrf_token %}<input type="hidden" name="islem" value="gonderi_sil"><input type="hidden" name="gonderi_id" value="{{ g.id }}">
+          <button type="submit" class="gs-sil" title="Sil">✕</button>
+        </form>
+        {% endif %}
+      </div>
+      {% if g.metin %}<div class="gs-metin-govde">{{ g.metin|linebreaksbr }}</div>{% endif %}
+      {% if g.gorsel %}<img class="gs-gorsel" src="{{ g.gorsel.url }}" alt="">{% endif %}
+      <div class="gs-tepki-bar" data-gid="{{ g.id }}">
+        {% for emoji, say in g.tepki_listesi %}
+        <button type="button" class="gs-tepki{% if g.benim_tepki == emoji %} aktif{% endif %}" data-emoji="{{ emoji }}">
+          <span class="gs-emoji">{{ emoji }}</span><span class="gs-say">{{ say }}</span>
+        </button>
+        {% endfor %}
+      </div>
+      {% if g.sahibi and g.tepki_verenler %}
+      <details class="gs-verenler">
+        <summary>Tepki verenler ({{ g.tepki_toplam }})</summary>
+        <div class="gs-veren-liste">
+          {% for ad, em in g.tepki_verenler %}<span class="gs-veren">{{ em }} {{ ad }}</span>{% endfor %}
+        </div>
+      </details>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div class="card gs-bos">Henüz paylaşım yok.</div>
+    {% endfor %}
+  </div>
+    </div>
+
+    <aside class="gs-yan">
+      <div class="gs-subeler-bas">Şubelerimiz</div>
+      <div class="gs-sube-liste">
       <a class="gs-sube-kart" href="https://maps.app.goo.gl/K1nYYpi2vpNQAX1E9" target="_blank" rel="noopener">
         <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1LRswnq8UdkV_oHmj3Q5H5AW6r62Nfqs6" alt="Gaziantep Üniversite Eatery" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
         <div class="gs-sube-ad">Gaziantep Üniversite Eatery</div>
@@ -202,61 +162,8 @@
         <div class="gs-sube-ad">Over Blue</div>
         <div class="gs-sube-saat">Çok Yakında</div>
       </div>
-    </div>
-  </div>
-
-
-  {% if paylasabilir %}
-  <div class="card gs-form">
-    <form method="post" enctype="multipart/form-data">
-      {% csrf_token %}<input type="hidden" name="islem" value="gonderi_ekle">
-      <textarea class="input gs-metin" name="metin" rows="3" placeholder="Ekibe bir şeyler paylaş..."></textarea>
-      <div class="gs-form-alt">
-        <label class="gs-foto-sec">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="m21 16-5-5L5 21"/></svg>
-          <span>Görsel ekle</span>
-          <input type="file" name="gorsel" accept="image/*" hidden>
-        </label>
-        <button type="submit" class="btn btn-primary btn-mini">Paylaş</button>
       </div>
-    </form>
-  </div>
-  {% endif %}
-
-  <div class="gs-akis">
-    {% for g in gonderiler %}
-    <div class="card gs-post">
-      <div class="gs-post-bas">
-        <div class="gs-avatar">{{ g.yazan_ad|first|upper }}</div>
-        <div class="gs-kim"><b>{{ g.yazan_ad }}</b><span>{{ g.olusturma|date:"d.m.Y H:i" }}</span></div>
-        {% if g.silebilir %}
-        <form method="post" class="gs-sil-form" onsubmit="return confirm('Gönderi silinsin mi?');">
-          {% csrf_token %}<input type="hidden" name="islem" value="gonderi_sil"><input type="hidden" name="gonderi_id" value="{{ g.id }}">
-          <button type="submit" class="gs-sil" title="Sil">✕</button>
-        </form>
-        {% endif %}
-      </div>
-      {% if g.metin %}<div class="gs-metin-govde">{{ g.metin|linebreaksbr }}</div>{% endif %}
-      {% if g.gorsel %}<img class="gs-gorsel" src="{{ g.gorsel.url }}" alt="">{% endif %}
-      <div class="gs-tepki-bar" data-gid="{{ g.id }}">
-        {% for emoji, say in g.tepki_listesi %}
-        <button type="button" class="gs-tepki{% if g.benim_tepki == emoji %} aktif{% endif %}" data-emoji="{{ emoji }}">
-          <span class="gs-emoji">{{ emoji }}</span><span class="gs-say">{{ say }}</span>
-        </button>
-        {% endfor %}
-      </div>
-      {% if g.sahibi and g.tepki_verenler %}
-      <details class="gs-verenler">
-        <summary>Tepki verenler ({{ g.tepki_toplam }})</summary>
-        <div class="gs-veren-liste">
-          {% for ad, em in g.tepki_verenler %}<span class="gs-veren">{{ em }} {{ ad }}</span>{% endfor %}
-        </div>
-      </details>
-      {% endif %}
-    </div>
-    {% empty %}
-    <div class="card gs-bos">Henüz paylaşım yok.</div>
-    {% endfor %}
+    </aside>
   </div>
 </div>
 

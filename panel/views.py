@@ -2687,7 +2687,7 @@ def g_sosyal(request):
             messages.success(request, "Gönderi silindi.")
         return redirect('g_sosyal')
 
-    gonderiler = list(GSosyalGonderi.objects.select_related('yazan').prefetch_related('tepkiler__personel')[:80])
+    gonderiler = list(GSosyalGonderi.objects.select_related('yazan').prefetch_related('tepkiler__personel').order_by('-olusturma')[:80])
     for g in gonderiler:
         sayim = {}
         benim = ''
@@ -2782,13 +2782,14 @@ def egitim_test(request):
         ids = [x for x in (request.POST.get('sorular', '') or '').split(',') if x.isdigit()]
         durum.son_sorular = ','.join(ids)
         durum.deneme += 1
+        sorular = list(EgitimSoru.objects.filter(id__in=ids))
+        durum.son_cevaplar = json.dumps({str(s.id): request.POST.get('soru_%d' % s.id, '') for s in sorular})
         if request.POST.get('cikis') == '1':
             durum.gecti = False
             durum.son_puan = 0
             durum.save()
             messages.error(request, "Sınav sırasında uygulamadan ayrıldın — sınav başarısız sayıldı. Farklı sorularla tekrar dene.")
             return redirect('egitim')
-        sorular = list(EgitimSoru.objects.filter(id__in=ids))
         dogru_sayi = sum(1 for s in sorular if request.POST.get('soru_%d' % s.id, '') == s.dogru)
         durum.son_puan = dogru_sayi
         if dogru_sayi >= EGITIM_GECME:
@@ -2971,4 +2972,49 @@ def egitim_yonetim(request):
         'duzenleyebilir': duzenleyebilir,
         'acabilir': acabilir,
         'egitim_acik': _egitim_acik(),
+    })
+
+
+def egitim_kisi_detay(request, pid):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in EGITIM_GORUNTULE_ROLLER:
+        return redirect('egitim')
+    kisi = Personel.objects.filter(id=pid).select_related('sube').first()
+    if kisi is None:
+        return redirect('egitim_yonetim')
+    if personel.rol == Rol.MUDUR and kisi.sube_id not in [s.id for s in personel.sorumlu_subeler.all()]:
+        return redirect('egitim_yonetim')
+    durum = EgitimDurum.objects.filter(personel=kisi).first()
+    detay = []
+    if durum and durum.son_sorular:
+        ids = [x for x in durum.son_sorular.split(',') if x.isdigit()]
+        soru_map = {str(s.id): s for s in EgitimSoru.objects.filter(id__in=ids)}
+        try:
+            cevaplar = json.loads(durum.son_cevaplar or '{}')
+        except Exception:
+            cevaplar = {}
+        for sid in ids:
+            s = soru_map.get(sid)
+            if not s:
+                continue
+            verilen = cevaplar.get(sid, '')
+            siklar = [('A', s.sik_a), ('B', s.sik_b)]
+            if s.sik_c:
+                siklar.append(('C', s.sik_c))
+            if s.sik_d:
+                siklar.append(('D', s.sik_d))
+            detay.append({'metin': s.metin, 'siklar': siklar, 'dogru': s.dogru,
+                          'verilen': verilen, 'dogru_mu': (verilen == s.dogru)})
+    yanlis_sayi = sum(1 for d in detay if not d['dogru_mu'])
+    return render(request, 'egitim_kisi_detay.html', {
+        'personel': personel,
+        'kisi': kisi,
+        'durum': durum,
+        'detay': detay,
+        'yanlis_sayi': yanlis_sayi,
+        'soru_sayisi': EGITIM_SORU_SAYISI,
     })

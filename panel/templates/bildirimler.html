@@ -1,6 +1,34 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Bildirimler · Geek Panel<script>
+{% block title %}Bildirimler · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Bildirimler</h2></div>
+    {% if kayitlar %}<div class="bd-aksiyon">
+      <form method="post"><input type="hidden" name="islem" value="hepsi_oku">{% csrf_token %}<button class="btn btn-ghost btn-mini">Tümünü okundu işaretle</button></form>
+      <form method="post" onsubmit="return confirm('Tüm bildirimler kalıcı olarak silinsin mi?');"><input type="hidden" name="islem" value="hepsi_sil">{% csrf_token %}<button class="btn btn-danger btn-mini">Tümünü temizle</button></form>
+    </div>{% endif %}
+  </div>
+
+  <button id="push-ac" class="btn btn-ghost btn-mini push-ac" hidden>🔔 Bu cihazda bildirimleri aç</button>
+
+  <div class="card bd-liste">
+    {% for b in kayitlar %}
+    <a href="{% url 'bildirim_oku' b.id %}" class="bd-satir{% if not b.okundu %} bd-yeni{% endif %}">
+      <span class="bd-nokta bd-{{ b.tur }}"></span>
+      <span class="bd-icerik">
+        <span class="bd-mesaj">{{ b.mesaj }}</span>
+        <span class="bd-zaman">{{ b.olusturma|date:"d.m.Y H:i" }}</span>
+      </span>
+      {% if not b.okundu %}<span class="bd-yeni-etiket">yeni</span>{% endif %}
+    </a>
+    {% empty %}
+    <p style="margin:.4rem 0;color:var(--muted)">Henüz bildirim yok.</p>
+    {% endfor %}
+  </div>
+</div>
+<script>
 (function () {
   var VAPID_PUBLIC = 'BC65Z7BXa5XLsUA86fC7NU3ocCF1gd9JuPkhkutdN_EFN3dIGpP4Jlmq7ImmOCOvpV0vfINfEJj2iowBgttJZ5c';
   var btn = document.getElementById('push-ac');
@@ -29,47 +57,29 @@
       });
     });
   }
-  if (Notification.permission === 'granted') {
+
+  btn.hidden = false;
+  var izin = Notification.permission;
+  if (izin === 'granted') {
+    btn.textContent = 'Bildirimler açık ✓';
+    btn.disabled = true;
     abone().catch(function () {});
-  } else if (Notification.permission === 'default') {
-    btn.hidden = false;
+  } else if (izin === 'denied') {
+    btn.textContent = 'Bildirimler tarayıcıda engelli';
+    btn.disabled = true;
+  } else {
     btn.addEventListener('click', function () {
       Notification.requestPermission().then(function (p) {
         if (p === 'granted') {
           abone().then(function () { btn.textContent = 'Bildirimler açık ✓'; btn.disabled = true; })
                  .catch(function () { btn.textContent = 'Açılamadı, tekrar dene'; });
+        } else if (p === 'denied') {
+          btn.textContent = 'Bildirimler tarayıcıda engelli';
+          btn.disabled = true;
         }
       });
     });
   }
 })();
 </script>
-{% endblock %}
-{% block body %}
-<div class="container">
-  <div class="plan-head">
-    <div><h2>Bildirimler</h2><span class="plan-aralik">son işlemler ve uyarılar</span></div>
-    {% if kayitlar %}<div class="bd-aksiyon">
-      <form method="post"><input type="hidden" name="islem" value="hepsi_oku">{% csrf_token %}<button class="btn btn-ghost btn-mini">Tümünü okundu işaretle</button></form>
-      <form method="post" onsubmit="return confirm('Tüm bildirimler kalıcı olarak silinsin mi?');"><input type="hidden" name="islem" value="hepsi_sil">{% csrf_token %}<button class="btn btn-danger btn-mini">Tümünü temizle</button></form>
-    </div>{% endif %}
-  </div>
-
-  <button id="push-ac" class="btn btn-ghost btn-mini push-ac" hidden>🔔 Bu cihazda bildirimleri aç</button>
-
-  <div class="card bd-liste">
-    {% for b in kayitlar %}
-    <a href="{% url 'bildirim_oku' b.id %}" class="bd-satir{% if not b.okundu %} bd-yeni{% endif %}">
-      <span class="bd-nokta bd-{{ b.tur }}"></span>
-      <span class="bd-icerik">
-        <span class="bd-mesaj">{{ b.mesaj }}</span>
-        <span class="bd-zaman">{{ b.olusturma|date:"d.m.Y H:i" }}</span>
-      </span>
-      {% if not b.okundu %}<span class="bd-yeni-etiket">yeni</span>{% endif %}
-    </a>
-    {% empty %}
-    <p style="margin:.4rem 0;color:var(--muted)">Henüz bildirim yok.</p>
-    {% endfor %}
-  </div>
-</div>
 {% endblock %}

@@ -35,7 +35,7 @@
       <tbody>
         {% for k in kisiler %}
         <tr>
-          <th class="sticky">{{ k.ad_soyad }}</th>
+          <th class="sticky"><a href="{% url 'egitim_kisi_detay' k.id %}" class="egitim-kisi-lnk">{{ k.ad_soyad }}</a></th>
           <td>{{ k.sube.ad|default:"—" }}</td>
           <td>{{ k.rol }}</td>
           <td>{% if k.durum_obj.tamamlandi %}<span class="badge ok">Tamamladı</span>{% else %}<span class="badge no">Bekliyor</span>{% endif %}</td>

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ kisi.ad_soyad }} · Sınav Detayı{% endblock %}
+{% block body %}
+<div class="container egitim-wrap">
+  <div class="plan-head">
+    <div><h2>{{ kisi.ad_soyad }}</h2></div>
+    <a href="{% url 'egitim_yonetim' %}" class="btn btn-ghost btn-mini">← Takip</a>
+  </div>
+
+  <p class="egitim-detay-ozet">
+    {{ kisi.sube.ad|default:"—" }} · {{ kisi.rol }} ·
+    {% if durum and durum.deneme %}Son deneme: <b>{{ durum.son_puan }}/{{ soru_sayisi }}</b> doğru · <b>{{ yanlis_sayi }}</b> yanlış · {{ durum.deneme }}. giriş{% else %}Henüz sınava girmemiş{% endif %}
+    {% if durum.tamamlandi %} · <span class="badge ok">Tamamladı</span>{% endif %}
+  </p>
+
+  {% if detay %}
+  <p class="egitim-detay-not">Aşağıda son sınavdaki sorular; <b>yanlış</b> işaretlenenler kişinin hatalı cevaplarıdır.</p>
+  <div class="egitim-detay-liste">
+    {% for d in detay %}
+    <div class="ed-soru{% if not d.dogru_mu %} ed-yanlis{% endif %}">
+      <div class="ed-metin"><span class="ed-no">{{ forloop.counter }}.</span> {{ d.metin }}
+        {% if d.dogru_mu %}<span class="badge ok">Doğru</span>{% else %}<span class="badge no">Yanlış</span>{% endif %}
+      </div>
+      <div class="ed-siklar">
+        {% for harf, metin in d.siklar %}
+        <div class="ed-sik{% if harf == d.dogru %} ed-dogru{% endif %}{% if harf == d.verilen and harf != d.dogru %} ed-secilen-yanlis{% endif %}">
+          <span class="ed-harf">{{ harf }}</span> {{ metin }}
+          {% if harf == d.dogru %}<span class="ed-etiket ed-et-dogru">doğru cevap</span>{% endif %}
+          {% if harf == d.verilen %}<span class="ed-etiket ed-et-secilen">kişinin cevabı</span>{% endif %}
+        </div>
+        {% endfor %}
+        {% if not d.verilen %}<div class="ed-bos">Bu soru boş/cevapsız bırakılmış.</div>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="egitim-bos">Bu kişi için gösterilecek sınav kaydı yok.</p>
+  {% endif %}
+</div>
+{% endblock %}

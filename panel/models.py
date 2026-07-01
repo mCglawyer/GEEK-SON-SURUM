@@ -532,6 +532,7 @@ class EgitimDurum(models.Model):
     son_puan = models.IntegerField(default=0)
     deneme = models.IntegerField(default=0)
     son_sorular = models.TextField(default='', blank=True)
+    son_cevaplar = models.TextField(default='', blank=True)
     sozlesme_onayli = models.BooleanField(default=False)
     tarih = models.DateTimeField(auto_now=True)
 

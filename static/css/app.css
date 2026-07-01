@@ -871,3 +871,35 @@ body.app .app-main, body.app .container { min-width:0; }
 .gs-sube-serit { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:1rem; overflow:visible; }
 .gs-sube-kart { width:auto; }
 .push-ac { margin-bottom:1rem; }
+
+/* Geek Crew iki kolon */
+.gs-duzen { display:grid; grid-template-columns:1fr; gap:1.4rem; align-items:start; }
+@media (min-width:900px){ .gs-duzen { grid-template-columns:minmax(0,1fr) 310px; } .gs-yan { position:sticky; top:1rem; } }
+.gs-ana { min-width:0; }
+.gs-sube-liste { display:flex; flex-direction:column; gap:.7rem; }
+@media (min-width:900px){ .gs-sube-liste { max-height:calc(100vh - 130px); overflow-y:auto; padding-right:.3rem; } }
+.gs-yan .gs-sube-kart { display:grid; grid-template-columns:56px 1fr; grid-template-rows:auto auto auto; gap:0 .6rem; align-items:center; padding:.5rem; width:auto; }
+.gs-yan .gs-sube-foto { grid-row:1 / span 3; width:56px; height:56px; border-radius:10px; }
+.gs-yan .gs-sube-ad { grid-column:2; padding:0; font-size:.82rem; }
+.gs-yan .gs-sube-saat { grid-column:2; padding:0; font-size:.72rem; }
+.gs-yan .gs-sube-harita { grid-column:2; padding:.1rem 0 0; font-size:.72rem; margin-top:0; }
+
+/* Eğitim kişi detay (yanlış cevaplar) */
+.egitim-kisi-lnk { color:var(--brand); font-weight:600; text-decoration:none; }
+.egitim-kisi-lnk:hover { text-decoration:underline; }
+.egitim-detay-ozet { color:var(--text); margin-bottom:.6rem; }
+.egitim-detay-not { color:var(--muted); font-size:.85rem; margin-bottom:1rem; }
+.egitim-detay-liste { display:flex; flex-direction:column; gap:.9rem; }
+.ed-soru { border:1px solid var(--line); border-radius:12px; padding:.8rem .9rem; }
+.ed-soru.ed-yanlis { border-color:var(--no); background:var(--no-bg); }
+.ed-metin { font-weight:600; margin-bottom:.6rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+.ed-no { color:var(--muted); }
+.ed-siklar { display:flex; flex-direction:column; gap:.35rem; }
+.ed-sik { padding:.4rem .6rem; border-radius:8px; font-size:.9rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+.ed-sik.ed-dogru { background:var(--ok-bg); }
+.ed-sik.ed-secilen-yanlis { background:var(--no-bg); }
+.ed-harf { font-weight:700; color:var(--brand); }
+.ed-etiket { font-size:.68rem; font-weight:700; padding:.1rem .4rem; border-radius:999px; }
+.ed-et-dogru { background:var(--ok); color:#fff; }
+.ed-et-secilen { background:var(--brand); color:#fff; }
+.ed-bos { font-size:.8rem; color:var(--no); font-style:italic; }
