@@ -832,3 +832,7 @@ body.app .app-main, body.app .container { min-width:0; }
 .ist-yanlis { background:var(--no); }
 .ist-deneme { background:var(--brand); }
 .ist-deger { width:34px; text-align:right; font-size:.82rem; font-weight:600; flex:0 0 auto; }
+
+.egitim-hero-ic { margin-bottom:1.2rem; }
+.egitim-aksiyon { display:flex; gap:.6rem; flex-wrap:wrap; margin-top:.2rem; }
+.egitim-belgeler { margin-top:.4rem; }
