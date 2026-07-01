@@ -836,3 +836,8 @@ body.app .app-main, body.app .container { min-width:0; }
 .egitim-hero-ic { margin-bottom:1.2rem; }
 .egitim-aksiyon { display:flex; gap:.6rem; flex-wrap:wrap; margin-top:.2rem; }
 .egitim-belgeler { margin-top:.4rem; }
+
+/* === Boxless tema (tüm sayfalar) === */
+.card { background:transparent; border:none; box-shadow:none; }
+.container > .card { margin-bottom:1.5rem; }
+.plan-aralik { display:none; }
