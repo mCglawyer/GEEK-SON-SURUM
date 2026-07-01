@@ -3,6 +3,7 @@
 {% block title %}Bildirimler · Geek Panel{% endblock %}
 {% block body %}
 <div class="container">
+  <div hidden>{% csrf_token %}</div>
   <div class="plan-head">
     <div><h2>Bildirimler</h2></div>
     {% if kayitlar %}<div class="bd-aksiyon">
@@ -49,7 +50,7 @@
     for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
     return arr;
   }
-  function csrf() { var m = document.cookie.match(/csrftoken=([^;]+)/); return m ? m[1] : ''; }
+  function csrf() { var el = document.querySelector('input[name=csrfmiddlewaretoken]'); if (el && el.value) return el.value; var m = document.cookie.match(/csrftoken=([^;]+)/); return m ? m[1] : ''; }
   function abone() {
     return navigator.serviceWorker.ready.then(function (reg) {
       return reg.pushManager.getSubscription().then(function (sub) {
@@ -93,11 +94,21 @@
   var tb = document.getElementById('push-test');
   var ts = document.getElementById('push-test-sonuc');
   if (!tb || !ts) return;
-  function csrf() { var m = document.cookie.match(/csrftoken=([^;]+)/); return m ? m[1] : ''; }
+  function csrf() { var el = document.querySelector('input[name=csrfmiddlewaretoken]'); if (el && el.value) return el.value; var m = document.cookie.match(/csrftoken=([^;]+)/); return m ? m[1] : ''; }
   tb.addEventListener('click', function () {
     tb.disabled = true; tb.textContent = 'Gönderiliyor...'; ts.hidden = true;
     fetch('{% url "push_test" %}', { method: 'POST', headers: { 'X-CSRFToken': csrf() } })
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        return r.text().then(function (t) {
+          try { var j = JSON.parse(t); return j; }
+          catch (e) {
+            var ipucu = r.status === 403 ? 'CSRF veya oturum sorunu.' :
+                        r.status === 404 ? 'Adres bulunamadı — güncel sürüm yüklü/Reload yapıldı mı?' :
+                        r.status >= 500 ? 'Sunucu hatası (loglara bakın).' : '';
+            return { ok: false, mesaj: 'Sunucu beklenen yanıtı vermedi (HTTP ' + r.status + '). ' + ipucu };
+          }
+        });
+      })
       .then(function (d) {
         ts.hidden = false;
         ts.textContent = (d.mesaj || '') + (d.detay ? '  (' + d.detay + ')' : '');
