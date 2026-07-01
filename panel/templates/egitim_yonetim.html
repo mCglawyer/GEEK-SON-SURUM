@@ -48,6 +48,22 @@
     </table></div>
   </div>
 
+  {% if grafik %}
+  <div class="card">
+    <h3 class="egitim-bolum">Şube İstatistikleri <span class="ist-not">(sınava giren kişilerin ortalaması)</span></h3>
+    <div class="ist-grafik">
+      {% for g in grafik %}
+      <div class="ist-sube">
+        <div class="ist-ad">{{ g.ad }}</div>
+        <div class="ist-bar-satir"><span class="ist-etiket">Doğru</span><div class="ist-bar"><div class="ist-bar-ic ist-dogru" style="width:{% widthratio g.dogru 10 100 %}%"></div></div><span class="ist-deger">{{ g.dogru }}</span></div>
+        <div class="ist-bar-satir"><span class="ist-etiket">Yanlış</span><div class="ist-bar"><div class="ist-bar-ic ist-yanlis" style="width:{% widthratio g.yanlis 10 100 %}%"></div></div><span class="ist-deger">{{ g.yanlis }}</span></div>
+        <div class="ist-bar-satir"><span class="ist-etiket">Giriş</span><div class="ist-bar"><div class="ist-bar-ic ist-deneme" style="width:{% widthratio g.deneme deneme_max 100 %}%"></div></div><span class="ist-deger">{{ g.deneme }}</span></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <div class="card">
     <h3 class="egitim-bolum">Dokümanlar (PDF)</h3>
     {% if duzenleyebilir %}<form method="post" enctype="multipart/form-data" class="egitim-form">

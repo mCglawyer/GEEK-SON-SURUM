@@ -2863,6 +2863,23 @@ def egitim_yonetim(request):
         k.yanlis = (EGITIM_SORU_SAYISI - d.son_puan) if denedi else None
         k.giris = d.deneme if d else 0
     tamamlayan = sum(1 for k in kisiler if k.durum_obj and k.durum_obj.tamamlandi)
+
+    grup = {}
+    for k in kisiler:
+        if not k.denedi:
+            continue
+        g = grup.setdefault(k.sube_id, {'ad': (k.sube.ad if k.sube else '—'), 'dogru': 0, 'yanlis': 0, 'deneme': 0, 'n': 0})
+        g['dogru'] += k.dogru
+        g['yanlis'] += k.yanlis
+        g['deneme'] += k.giris
+        g['n'] += 1
+    grafik = []
+    for _sid, g in grup.items():
+        n = g['n'] or 1
+        grafik.append({'ad': g['ad'], 'dogru': round(g['dogru'] / n, 1),
+                       'yanlis': round(g['yanlis'] / n, 1), 'deneme': round(g['deneme'] / n, 1)})
+    grafik.sort(key=lambda x: x['ad'])
+    deneme_max = max([g['deneme'] for g in grafik] + [1])
     return render(request, 'egitim_yonetim.html', {
         'personel': personel,
         'aktif': 'egitim',
@@ -2874,6 +2891,8 @@ def egitim_yonetim(request):
         'toplam_kisi': len(kisiler),
         'subeler': sube_secenek,
         'secili_sube': secili_sube,
+        'grafik': grafik,
+        'deneme_max': deneme_max,
         'gecme': EGITIM_GECME,
         'duzenleyebilir': duzenleyebilir,
         'acabilir': acabilir,

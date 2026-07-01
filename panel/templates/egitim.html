@@ -7,72 +7,93 @@
   {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
 
   <div class="plan-head">
-    <div><h2>Oryantasyon &amp; Reçeteler</h2><span class="plan-aralik">önce bilgileri oku, en aşağıda sınava başla</span></div>
+    <div><h2>Oryantasyon &amp; Reçeteler</h2><span class="plan-aralik">eğitim materyalleri ve mini test</span></div>
     {% if yonetebilir %}<a href="{% url 'egitim_yonetim' %}" class="btn btn-ghost btn-mini">Yönetim</a>{% endif %}
   </div>
 
   {% if hedef %}
-    {% if durum.tamamlandi %}
-    <div class="card egitim-tamam">✅ <b>Eğitimi tamamladın.</b> ({{ durum.son_puan }}/{{ soru_sayisi }}) Tekrar girmene gerek yok.</div>
-    {% elif not acik %}
-    <div class="card"><p class="egitim-bos">Eğitim sistemi şu an kapalı. Açıldığında oryantasyon ve reçeteler burada görünecek.</p></div>
-    {% else %}
-    <div class="card">
-      <h3 class="egitim-bolum">Okunacak Bilgiler</h3>
-      {% if dokumanlar %}
-      {% for d in dokumanlar %}
-      <div class="egitim-belge">
-        <div class="egitim-belge-bas"><span class="egitim-dok-kat">{{ d.get_kategori_display }}</span> <b>{{ d.baslik }}</b> <a href="{{ d.dosya.url }}" target="_blank" rel="noopener" class="egitim-dok-ac">Yeni sekmede aç →</a></div>
-        <iframe class="egitim-pdf" src="{{ d.dosya.url }}#toolbar=0&navpanes=0" title="{{ d.baslik }}" loading="lazy"></iframe>
+  <div class="card egitim-hero">
+    <div class="egitim-hero-ic">
+      <div class="egitim-hero-yazi">
+        <h3 class="egitim-bolum">Oryantasyon &amp; Reçete Eğitimi</h3>
+        {% if durum.tamamlandi %}
+        <p class="egitim-tamam-not">✅ Eğitimi tamamladın. Bilgiler güncellenmiş olabilir; dilediğin zaman tekrar açıp okuyabilirsin.</p>
+        {% else %}
+        <p class="egitim-aciklama">Önce oryantasyon ve reçete bilgilerini aç ve oku; ardından mini teste gir.</p>
+        {% endif %}
+        <button type="button" class="btn btn-primary" id="ac-btn">Oryantasyon ve Eğitimi Aç</button>
       </div>
-      {% endfor %}
-      {% else %}
-      <p class="egitim-bos">Henüz doküman yüklenmemiş.</p>
-      {% endif %}
+      <svg class="barista-svg" viewBox="0 0 140 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <g stroke="var(--brand)" stroke-width="3.5" stroke-linecap="round" fill="none" opacity=".45">
+          <path d="M55 26c-5-6 5-9 0-16"/><path d="M70 24c-5-6 5-9 0-16"/><path d="M85 26c-5-6 5-9 0-16"/>
+        </g>
+        <rect x="34" y="40" width="72" height="14" rx="7" fill="var(--brand-700)"/>
+        <path d="M40 54h60l-7 76a9 9 0 0 1-9 8H56a9 9 0 0 1-9-8L40 54Z" fill="var(--brand)"/>
+        <rect x="44" y="78" width="52" height="26" rx="3" fill="#fff"/>
+        <circle cx="60" cy="90" r="3.4" fill="var(--brand)"/><circle cx="80" cy="90" r="3.4" fill="var(--brand)"/>
+        <path d="M60 96q10 7 20 0" stroke="var(--brand)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+        <circle cx="54" cy="95" r="2.8" fill="#F5A9BC" opacity=".85"/><circle cx="86" cy="95" r="2.8" fill="#F5A9BC" opacity=".85"/>
+      </svg>
     </div>
+  </div>
 
-    <div class="card egitim-sinav-kart">
-      <h3 class="egitim-bolum">Mini Test</h3>
-      <p class="egitim-aciklama">{{ soru_sayisi }} soru · soru başına 20 saniye · geçmek için en az {{ gecme }}/{{ soru_sayisi }} doğru. Sınav sırasında uygulamadan çıkarsan başarısız sayılırsın.</p>
-      {% if durum.deneme %}<p class="egitim-deneme">Son denemen: {{ durum.son_puan }}/{{ soru_sayisi }} · toplam deneme: {{ durum.deneme }}</p>{% endif %}
-      {% if soru_var %}
-      <button id="sinav-btn" class="btn btn-primary kilitli" disabled>Önce bilgileri en aşağı kaydır</button>
-      {% else %}
-      <p class="egitim-bos">Test soruları henüz hazır değil, lütfen sonra tekrar dene.</p>
-      {% endif %}
+  <div class="card egitim-belgeler" id="egitim-belgeler" hidden>
+    {% if dokumanlar %}
+    {% for d in dokumanlar %}
+    <div class="egitim-belge">
+      <div class="egitim-belge-bas"><span class="egitim-dok-kat">{{ d.get_kategori_display }}</span> <b>{{ d.baslik }}</b> <a href="{{ d.dosya.url }}" target="_blank" rel="noopener" class="egitim-dok-ac">Yeni sekmede aç →</a></div>
+      <iframe class="egitim-pdf" src="{{ d.dosya.url }}#toolbar=0&navpanes=0" title="{{ d.baslik }}" loading="lazy"></iframe>
     </div>
+    {% endfor %}
+    {% else %}
+    <p class="egitim-bos">Henüz doküman yüklenmemiş.</p>
     {% endif %}
+  </div>
+
+  {% if not durum.tamamlandi and acik %}
+  <div class="card egitim-sinav-kart">
+    <h3 class="egitim-bolum">Mini Test</h3>
+    <p class="egitim-aciklama">{{ soru_sayisi }} soru · soru başına 20 saniye. Sınav sırasında uygulamadan çıkarsan başarısız sayılırsın.</p>
+    {% if durum.deneme %}<p class="egitim-deneme">Son denemen: {{ durum.son_puan }}/{{ soru_sayisi }} · toplam giriş: {{ durum.deneme }}</p>{% endif %}
+    {% if soru_var %}
+    <button id="sinav-btn" class="btn btn-primary kilitli" disabled>Önce eğitimi aç</button>
+    {% else %}
+    <p class="egitim-bos">Test soruları henüz hazır değil, lütfen sonra tekrar dene.</p>
+    {% endif %}
+  </div>
+  {% endif %}
   {% else %}
-    <div class="card">
-      <h3 class="egitim-bolum">Dokümanlar</h3>
-      {% if dokumanlar %}
-      <div class="egitim-dok-liste">
-        {% for d in dokumanlar %}
-        <a class="egitim-dok" href="{{ d.dosya.url }}" target="_blank" rel="noopener">
-          <span class="egitim-dok-kat">{{ d.get_kategori_display }}</span>
-          <span class="egitim-dok-ad">{{ d.baslik }}</span>
-          <span class="egitim-dok-ac">Aç →</span>
-        </a>
-        {% endfor %}
-      </div>
-      {% else %}<p class="egitim-bos">Henüz doküman yok.</p>{% endif %}
+  <div class="card">
+    <h3 class="egitim-bolum">Dokümanlar</h3>
+    {% if dokumanlar %}
+    <div class="egitim-dok-liste">
+      {% for d in dokumanlar %}
+      <a class="egitim-dok" href="{{ d.dosya.url }}" target="_blank" rel="noopener">
+        <span class="egitim-dok-kat">{{ d.get_kategori_display }}</span>
+        <span class="egitim-dok-ad">{{ d.baslik }}</span>
+        <span class="egitim-dok-ac">Aç →</span>
+      </a>
+      {% endfor %}
     </div>
+    {% else %}<p class="egitim-bos">Henüz doküman yok.</p>{% endif %}
+  </div>
   {% endif %}
 </div>
 <script>
 (function () {
-  var btn = document.getElementById('sinav-btn');
-  if (!btn) return;
+  var acBtn = document.getElementById('ac-btn');
+  var belg = document.getElementById('egitim-belgeler');
+  var sinavBtn = document.getElementById('sinav-btn');
   var url = "{% url 'egitim_test' %}";
-  function kontrol() {
-    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 120) {
-      btn.disabled = false; btn.classList.remove('kilitli'); btn.textContent = 'Sınava Başla';
-    }
+  if (acBtn && belg) {
+    acBtn.addEventListener('click', function () {
+      belg.hidden = false;
+      acBtn.textContent = 'Eğitim açıldı ✓';
+      belg.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (sinavBtn) { sinavBtn.disabled = false; sinavBtn.classList.remove('kilitli'); sinavBtn.textContent = 'Sınava Başla'; }
+    });
   }
-  btn.addEventListener('click', function () { if (!btn.disabled) location.href = url; });
-  window.addEventListener('scroll', kontrol);
-  window.addEventListener('resize', kontrol);
-  setTimeout(kontrol, 1000);
+  if (sinavBtn) { sinavBtn.addEventListener('click', function () { if (!sinavBtn.disabled) location.href = url; }); }
 })();
 </script>
 {% endblock %}

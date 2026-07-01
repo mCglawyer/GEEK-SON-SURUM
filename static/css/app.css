@@ -815,3 +815,20 @@ body.app .app-main, body.app .container { min-width:0; }
 
 .egitim-filtre { display:flex; align-items:center; gap:.5rem; margin-bottom:.8rem; flex-wrap:wrap; }
 .egitim-filtre label { font-size:.85rem; color:var(--muted); font-weight:600; }
+
+.egitim-hero-ic { display:flex; align-items:center; justify-content:space-between; gap:1.2rem; }
+.egitim-hero-yazi { flex:1; min-width:0; }
+.barista-svg { width:118px; height:auto; flex:0 0 auto; }
+@media (max-width:640px){ .barista-svg { width:84px; } }
+.egitim-tamam-not { color:#0F6B47; font-weight:600; margin:0 0 .8rem; }
+.ist-not { font-weight:400; font-size:.8rem; color:var(--muted); }
+.ist-grafik { display:flex; flex-direction:column; gap:1.1rem; }
+.ist-ad { font-weight:600; margin-bottom:.45rem; }
+.ist-bar-satir { display:flex; align-items:center; gap:.6rem; margin-bottom:.35rem; }
+.ist-etiket { width:52px; font-size:.8rem; color:var(--muted); flex:0 0 auto; }
+.ist-bar { flex:1; height:14px; background:var(--brand-050); border-radius:999px; overflow:hidden; }
+.ist-bar-ic { height:100%; border-radius:999px; min-width:2px; }
+.ist-dogru { background:var(--ok); }
+.ist-yanlis { background:var(--no); }
+.ist-deneme { background:var(--brand); }
+.ist-deger { width:34px; text-align:right; font-size:.82rem; font-weight:600; flex:0 0 auto; }

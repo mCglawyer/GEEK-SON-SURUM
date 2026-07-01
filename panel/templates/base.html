@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=40">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=41">
   {% block extra_head %}{% endblock %}
 </head>
 <body{% if personel %} class="app"{% endif %}>
@@ -26,7 +26,7 @@
   {% if kalibrasyon_uyari %}<div class="kalib-uyari">⚠ Kalibrasyon zamanı ({{ kalibrasyon_pencere }}) — <b>{{ kalibrasyon_uyari|join:", " }}</b> şubesi bu pencerede henüz kalibrasyon yapmadı.</div>{% endif %}
   {% endif %}
   {% block body %}{% endblock %}
-  <footer class="imza">Powered by <b>Emir Gögebakan</b></footer>
+  <footer class="imza">Crafted by <b>GEEK IT</b></footer>
   {% if personel %}
   </main>
   {% endif %}
