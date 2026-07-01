@@ -163,6 +163,66 @@
   </div>
 </div>
 
+<div id="geek-playlist" class="geek-playlist">
+  <div id="gp-panel" class="gp-panel" hidden>
+    <div class="gp-baslik">
+      <span class="gp-nota">♪</span> Geek Playlist <span class="gp-mod">karışık</span>
+      <button id="gp-kapat" type="button" class="gp-kapat" aria-label="Kapat">×</button>
+    </div>
+    <div id="gp-yt" class="gp-yt"></div>
+    <a class="gp-dis" href="https://music.youtube.com/playlist?list=PLcjE-NS8TqoGBbL_eKKj6CgE-rlhuA1Ho" target="_blank" rel="noopener">Çalmazsa YouTube Music'te aç →</a>
+  </div>
+  <button id="gp-btn" type="button" class="gp-btn">♪ Geek Playlist</button>
+</div>
+<script>
+(function () {
+  var LIST = 'PLcjE-NS8TqoGBbL_eKKj6CgE-rlhuA1Ho';
+  var btn = document.getElementById('gp-btn');
+  var panel = document.getElementById('gp-panel');
+  var kapat = document.getElementById('gp-kapat');
+  if (!btn || !panel) return;
+  var player = null;
+  function apiYukle(cb) {
+    if (window.YT && window.YT.Player) { cb(); return; }
+    var mevcut = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = function () { if (mevcut) { try { mevcut(); } catch (e) {} } cb(); };
+    if (!document.getElementById('yt-iframe-api')) {
+      var t = document.createElement('script');
+      t.id = 'yt-iframe-api'; t.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(t);
+    }
+  }
+  function baslat() {
+    panel.hidden = false;
+    btn.textContent = '♪ Çalıyor…';
+    if (player) { try { player.playVideo(); } catch (e) {} return; }
+    apiYukle(function () {
+      player = new YT.Player('gp-yt', {
+        height: '140', width: '100%',
+        playerVars: { listType: 'playlist', list: LIST, autoplay: 1, rel: 0, playsinline: 1 },
+        events: {
+          onReady: function (e) {
+            try {
+              e.target.setShuffle(true);
+              e.target.setLoop(true);
+              e.target.nextVideo();
+              e.target.playVideo();
+            } catch (err) {}
+          }
+        }
+      });
+    });
+  }
+  function durdur() {
+    panel.hidden = true;
+    btn.textContent = '♪ Geek Playlist';
+    if (player) { try { player.pauseVideo(); } catch (e) {} }
+  }
+  btn.addEventListener('click', function () { if (panel.hidden) baslat(); else durdur(); });
+  kapat.addEventListener('click', durdur);
+})();
+</script>
+
 <script>
 (function () {
   function cy(n){var v=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return v?v.pop():'';}
