@@ -1,5 +1,6 @@
 import json
 import datetime
+import os
 import random
 import secrets
 import unicodedata
@@ -10,6 +11,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 from .excel_logo import excel_logo
 
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib import messages
