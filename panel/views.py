@@ -435,6 +435,9 @@ def _yonetici_vardiya(request, personel):
                                    durum=OnayDurumu.ONAY_BEKLIYOR).update(durum=OnayDurumu.ONAYLANDI, red_notu=None)
             _bildir(_sube_sefleri(sel_sube),
                     "Vardiya planınız onaylandı: %s" % (sel_sube.ad if sel_sube else ''), '/', 'vardiya')
+            if sel_sube:
+                _bildir(list(Personel.objects.filter(sube=sel_sube, rol=Rol.PERSONEL)),
+                        "Bu haftaki vardiya planınız yayınlandı.", '/', 'vardiya')
             messages.success(request, "Vardiya planı onaylandı.")
         elif islem == 'plan_reddet':
             neden = request.POST.get('red_notu', '').strip() or 'Neden belirtilmedi.'
@@ -1028,6 +1031,9 @@ def kalibrasyon_sayfa(request):
                 fname = f"kal_{sel_sube.id}_{personel.id}_{timezone.now():%Y%m%d_%H%M%S}.jpg"
                 k.foto.save(fname, ContentFile(raw), save=True)
                 messages.success(request, "Kalibrasyon görüntüsü yüklendi.")
+                _bildir(_sube_yoneticileri(sel_sube),
+                        "%s şubesi kalibrasyon görüntüsü yükledi (%s)." % (sel_sube.ad, personel.ad_soyad),
+                        '/kalibrasyon/', 'kalibrasyon')
             else:
                 messages.error(request, "Görüntü alınamadı. Lütfen kameradan tekrar çekin.")
         return redirect('kalibrasyon')
