@@ -26,7 +26,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      SevkiyatForm, Urun, SiparisHareket,
                      KahveSoru, GunlukSoru, SoruAyar, Bildirim, Duyuru,
                      GSosyalGonderi, GSosyalTepki,
-                     EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar,
+                     EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, PushAbonelik,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -81,13 +81,66 @@ def _aktif_personel(request):
     return Personel.objects.filter(user=request.user).select_related('sube').first()
 
 def _bildir(aliciler, mesaj, link='', tur=''):
+    aliciler = [a for a in aliciler if a is not None]
     try:
         objs = [Bildirim(alici=a, mesaj=mesaj[:200], link=link, tur=tur)
-                for a in aliciler if a is not None]
+                for a in aliciler]
         if objs:
             Bildirim.objects.bulk_create(objs)
     except Exception:
         pass
+    try:
+        _push_gonder(aliciler, mesaj, link)
+    except Exception:
+        pass
+
+
+def _push_gonder(aliciler, mesaj, link=''):
+    try:
+        from pywebpush import webpush, WebPushException
+    except Exception:
+        return
+    priv = getattr(settings, 'VAPID_PRIVATE_KEY', '')
+    if not priv or not os.path.exists(priv):
+        return
+    ids = [a.id for a in aliciler if a is not None]
+    if not ids:
+        return
+    claims = dict(getattr(settings, 'VAPID_CLAIMS', {'sub': 'mailto:info@geekcoffeeshop.com'}))
+    payload = json.dumps({'baslik': 'Geek Panel', 'mesaj': (mesaj or '')[:150],
+                          'link': link or '/bildirimler/'})
+    for ab in PushAbonelik.objects.filter(personel_id__in=ids)[:400]:
+        try:
+            webpush(subscription_info=json.loads(ab.veri), data=payload,
+                    vapid_private_key=priv, vapid_claims=dict(claims))
+        except WebPushException as e:
+            try:
+                if getattr(e, 'response', None) is not None and e.response.status_code in (404, 410):
+                    ab.delete()
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+
+def push_kaydet(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False}, status=403)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return JsonResponse({'ok': False}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        endpoint = data.get('endpoint')
+        if not endpoint:
+            return JsonResponse({'ok': False}, status=400)
+        PushAbonelik.objects.update_or_create(
+            endpoint=endpoint, defaults={'personel': personel, 'veri': json.dumps(data)})
+        return JsonResponse({'ok': True})
+    except Exception:
+        return JsonResponse({'ok': False}, status=400)
 
 def _rol_personelleri(*roller):
     return list(Personel.objects.filter(rol__in=roller))
@@ -1855,6 +1908,27 @@ self.addEventListener('fetch', function (e) {
     );
     return;
   }
+});
+self.addEventListener('push', function (e) {
+  var d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { d = {}; }
+  var baslik = d.baslik || 'Geek Panel';
+  var govde = d.mesaj || '';
+  var link = d.link || '/bildirimler/';
+  e.waitUntil(self.registration.showNotification(baslik, {
+    body: govde, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png',
+    data: { link: link }, vibrate: [80, 40, 80]
+  }));
+});
+self.addEventListener('notificationclick', function (e) {
+  e.notification.close();
+  var link = (e.notification.data && e.notification.data.link) || '/bildirimler/';
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (cs) {
+    for (var i = 0; i < cs.length; i++) {
+      if ('focus' in cs[i]) { try { cs[i].navigate(link); } catch (x) {} return cs[i].focus(); }
+    }
+    if (clients.openWindow) return clients.openWindow(link);
+  }));
 });
 """
 

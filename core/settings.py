@@ -137,3 +137,8 @@ if EMAIL_HOST:
     EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
     EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', '1') == '1'
     DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@geekpanel.net')
+
+# --- Web Push (VAPID) ---
+VAPID_PUBLIC_KEY = 'BC65Z7BXa5XLsUA86fC7NU3ocCF1gd9JuPkhkutdN_EFN3dIGpP4Jlmq7ImmOCOvpV0vfINfEJj2iowBgttJZ5c'
+VAPID_PRIVATE_KEY = str(BASE_DIR / 'private_key.pem')
+VAPID_CLAIMS = {'sub': 'mailto:info@geekcoffeeshop.com'}

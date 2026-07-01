@@ -539,3 +539,10 @@ class EgitimDurum(models.Model):
 class EgitimAyar(models.Model):
     acik = models.BooleanField(default=False)
     guncelleme = models.DateTimeField(auto_now=True)
+
+
+class PushAbonelik(models.Model):
+    personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='push_abonelikleri')
+    endpoint = models.TextField(unique=True)
+    veri = models.TextField()
+    olusturma = models.DateTimeField(auto_now_add=True)

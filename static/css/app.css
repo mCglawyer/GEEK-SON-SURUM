@@ -859,3 +859,15 @@ body.app .app-main, body.app .container { min-width:0; }
 .gs-sube-ad { font-weight:600; font-size:.9rem; padding:.6rem .7rem .1rem; }
 .gs-sube-saat { font-size:.76rem; color:var(--muted); padding:0 .7rem .1rem; }
 .gs-sube-harita { font-size:.76rem; color:var(--brand); font-weight:600; padding:.3rem .7rem .7rem; margin-top:auto; }
+
+/* Analog kadran saatler (dijitali ezer) */
+.gs-saatler { flex-wrap:wrap; justify-content:space-around; gap:1rem 1.2rem; overflow:visible; }
+.gs-saat { background:transparent; color:var(--ink); padding:0; min-width:0; flex:0 0 auto; width:96px; gap:.4rem; }
+.saat-yuz { width:88px; height:88px; display:block; }
+.saat-yuz .ibre { transform-box:view-box; transform-origin:50px 50px; }
+.gs-saat .gs-sehir { color:var(--brand); font-weight:600; font-size:.8rem; opacity:1; }
+@media (min-width:720px){ .gs-saatler { justify-content:flex-start; gap:1.4rem 2.2rem; } .saat-yuz { width:96px; height:96px; } .gs-saat { width:104px; } }
+/* Şubeler masaüstünde yayılır (grid) */
+.gs-sube-serit { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:1rem; overflow:visible; }
+.gs-sube-kart { width:auto; }
+.push-ac { margin-bottom:1rem; }
