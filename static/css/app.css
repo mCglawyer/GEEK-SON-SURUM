@@ -911,3 +911,9 @@ body.app .app-main, body.app .container { min-width:0; }
 .gs-sube-serit { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:1rem; overflow:visible; }
 .gs-sube-kart { width:auto; flex-direction:column; }
 .gs-sube-foto { height:130px; }
+
+/* Push test butonu + sonuç */
+.push-ust { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.push-test-sonuc { margin:.7rem 0 0; padding:.7rem .9rem; border-radius:var(--radius-sm); font-size:.92rem; line-height:1.4; }
+.push-test-sonuc.ok { background:var(--ok-bg); color:var(--ok); border:1px solid var(--ok); }
+.push-test-sonuc.hata { background:var(--no-bg); color:var(--no); border:1px solid var(--no); }

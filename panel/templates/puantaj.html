@@ -41,6 +41,7 @@
           <span>Çalışılan <b>{{ r.calisilan }}</b></span>
           <span>Eksik <b>{{ r.eksik }}</b></span>
           <span>İzinli <b>{{ r.izinli }}</b></span>
+          <span>Yıllık <b>{{ r.yillik }}</b></span>
           <span>Raporlu <b>{{ r.raporlu }}</b></span>
           <span class="pz-hak">Hakediş <b>{{ r.hakedis }}</b></span>
         </div>
@@ -49,7 +50,8 @@
           {% csrf_token %}<input type="hidden" name="islem" value="puantaj_kaydet"><input type="hidden" name="target_personel_id" value="{{ r.personel.id }}">
           <label>Çalışılan<input type="number" min="0" name="calisilan_gun" value="{{ r.calisilan }}"></label>
           <label>Eksik<input type="number" min="0" name="eksik_gun" value="{{ r.eksik }}"></label>
-          <label>İzinli<input type="number" min="0" name="izinli_gun" value="{{ r.izinli }}"></label>
+          <label>Haftalık İzin<input type="number" min="0" name="izinli_gun" value="{{ r.izinli }}"></label>
+          <label>Yıllık İzin<input type="number" min="0" name="yillik_gun" value="{{ r.yillik }}"></label>
           <label>Raporlu<input type="number" min="0" name="raporlu_gun" value="{{ r.raporlu }}"></label>
           <span class="pz-hak">Hakediş <b>{{ r.hakedis }}</b></span>
           <button type="submit" class="btn btn-primary btn-mini">Kaydet</button>

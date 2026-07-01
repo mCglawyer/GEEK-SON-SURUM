@@ -11,7 +11,13 @@
     </div>{% endif %}
   </div>
 
-  <button id="push-ac" class="btn btn-ghost btn-mini push-ac" hidden>🔔 Bu cihazda bildirimleri aç</button>
+  <div class="push-ust">
+    <button id="push-ac" class="btn btn-ghost btn-mini push-ac" hidden>🔔 Bu cihazda bildirimleri aç</button>
+    {% if personel.rol == 'Operatör' or personel.rol == 'Genel Müdür' %}
+    <button id="push-test" type="button" class="btn btn-ghost btn-mini push-ac">🧪 Test bildirimi gönder</button>
+    {% endif %}
+  </div>
+  <div id="push-test-sonuc" class="push-test-sonuc" hidden></div>
 
   <div class="card bd-liste">
     {% for b in kayitlar %}
@@ -80,6 +86,29 @@
       });
     });
   }
+})();
+</script>
+<script>
+(function () {
+  var tb = document.getElementById('push-test');
+  var ts = document.getElementById('push-test-sonuc');
+  if (!tb || !ts) return;
+  function csrf() { var m = document.cookie.match(/csrftoken=([^;]+)/); return m ? m[1] : ''; }
+  tb.addEventListener('click', function () {
+    tb.disabled = true; tb.textContent = 'Gönderiliyor...'; ts.hidden = true;
+    fetch('{% url "push_test" %}', { method: 'POST', headers: { 'X-CSRFToken': csrf() } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        ts.hidden = false;
+        ts.textContent = (d.mesaj || '') + (d.detay ? '  (' + d.detay + ')' : '');
+        ts.className = 'push-test-sonuc ' + (d.ok ? 'ok' : 'hata');
+      })
+      .catch(function (e) {
+        ts.hidden = false; ts.textContent = 'İstek başarısız: ' + e;
+        ts.className = 'push-test-sonuc hata';
+      })
+      .finally(function () { tb.disabled = false; tb.textContent = '🧪 Test bildirimi gönder'; });
+  });
 })();
 </script>
 {% endblock %}

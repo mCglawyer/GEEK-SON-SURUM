@@ -12,6 +12,7 @@ urlpatterns = [
     path('yedekler/', views.yedekler, name='yedekler'),
     path('bildirimler/', views.bildirimler, name='bildirimler'),
     path('push/kaydet/', views.push_kaydet, name='push_kaydet'),
+    path('push/test/', views.push_test, name='push_test'),
     path('bildirim/<int:bid>/oku/', views.bildirim_oku, name='bildirim_oku'),
     path('duyurular/', views.duyurular, name='duyurular'),
     path('g-sosyal/', views.g_sosyal, name='g_sosyal'),

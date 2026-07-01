@@ -17,7 +17,8 @@ class VardiyaTipi(models.TextChoices):
     SABAHCI = 'Sabahçı', 'Sabahçı'
     ARACI = 'Aracı', 'Aracı'
     AKSAMCI = 'Akşamcı', 'Akşamcı'
-    IZINLI = 'İzinli', 'İzinli'
+    IZINLI = 'İzinli', 'Haftalık İzin'
+    YILLIK_IZIN = 'Yıllık İzin', 'Yıllık İzin'
     RAPORLU = 'Raporlu', 'Raporlu'
     DEVAMSIZ = 'Devamsız', 'Devamsız'
 
@@ -138,6 +139,7 @@ class Puantaj(models.Model):
     calisilan_gun = models.IntegerField(default=0, verbose_name="Çalışılan Gün")
     eksik_gun = models.IntegerField(default=0, verbose_name="Eksik Gün")
     izinli_gun = models.IntegerField(default=0, verbose_name="İzinli Gün")
+    yillik_gun = models.IntegerField(default=0, verbose_name="Yıllık İzin Gün")
     raporlu_gun = models.IntegerField(default=0, verbose_name="Raporlu Gün")
     manuel_duzenlendi = models.BooleanField(default=False, verbose_name="Manuel Düzenlendi mi?")
 

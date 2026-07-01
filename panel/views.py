@@ -123,6 +123,51 @@ def _push_gonder(aliciler, mesaj, link=''):
             pass
 
 
+def push_test(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'mesaj': 'Oturum bulunamadı.'}, status=403)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in [Rol.OPERATOR, Rol.GENEL_MUDUR]:
+        return JsonResponse({'ok': False, 'mesaj': 'Bu işlem için yetkiniz yok.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'mesaj': 'Geçersiz istek.'}, status=405)
+    try:
+        from pywebpush import webpush, WebPushException
+    except Exception as e:
+        return JsonResponse({'ok': False, 'mesaj': 'Sunucuda pywebpush kurulu değil. PythonAnywhere Bash: pip install pywebpush', 'detay': str(e)[:200]})
+    priv = getattr(settings, 'VAPID_PRIVATE_KEY', '')
+    if not priv:
+        return JsonResponse({'ok': False, 'mesaj': 'VAPID_PRIVATE_KEY ayarı boş görünüyor (settings).'})
+    if not os.path.exists(priv):
+        return JsonResponse({'ok': False, 'mesaj': 'private_key.pem sunucuda bulunamadı. Anahtar dosyasını ~/personel_takip içine yükleyin.', 'detay': str(priv)})
+    abonelikler = list(PushAbonelik.objects.filter(personel=personel))
+    if not abonelikler:
+        return JsonResponse({'ok': False, 'mesaj': 'Bu hesap için kayıtlı cihaz yok. Önce aşağıdaki "Bu cihazda bildirimleri aç" butonuna basın, sonra tekrar test edin.'})
+    claims = dict(getattr(settings, 'VAPID_CLAIMS', {'sub': 'mailto:info@geekcoffeeshop.com'}))
+    payload = json.dumps({'baslik': 'Geek Panel — Test', 'mesaj': 'Test bildirimi. Bunu gördüysen push çalışıyor ✔', 'link': '/bildirimler/'})
+    basari, hatalar = 0, []
+    for ab in abonelikler:
+        try:
+            webpush(subscription_info=json.loads(ab.veri), data=payload,
+                    vapid_private_key=priv, vapid_claims=dict(claims))
+            basari += 1
+        except WebPushException as e:
+            kod = None
+            try:
+                if getattr(e, 'response', None) is not None:
+                    kod = e.response.status_code
+                    if kod in (404, 410):
+                        ab.delete()
+            except Exception:
+                pass
+            hatalar.append(f'WebPush (kod {kod}): {str(e)[:160]}')
+        except Exception as e:
+            hatalar.append(str(e)[:160])
+    if basari:
+        return JsonResponse({'ok': True, 'mesaj': f'{basari} cihaza test bildirimi gönderildi. Birkaç saniyede gelmezse cihaz/tarayıcı bildirim iznini kontrol edin. (iPhone: uygulama ana ekrana eklenmiş olmalı.)'})
+    return JsonResponse({'ok': False, 'mesaj': 'Gönderim başarısız oldu.', 'detay': ' | '.join(hatalar)[:400]})
+
+
 def push_kaydet(request):
     if not request.user.is_authenticated:
         return JsonResponse({'ok': False}, status=403)
@@ -200,12 +245,14 @@ def _puantaj_hesapla(personel, bas, son, manuel_ay=None):
         rec = Puantaj.objects.filter(personel=personel, ay=manuel_ay).first()
         if rec and rec.manuel_duzenlendi:
             return {'calisilan': rec.calisilan_gun, 'eksik': rec.eksik_gun,
-                    'izinli': rec.izinli_gun, 'raporlu': rec.raporlu_gun, 'manuel': True}
+                    'izinli': rec.izinli_gun, 'yillik': rec.yillik_gun,
+                    'raporlu': rec.raporlu_gun, 'manuel': True}
 
     s = personel.vardiyalar.filter(tarih__gte=bas, tarih__lt=son).exclude(durum=OnayDurumu.REDDEDILDI)
     return {
         'calisilan': s.filter(vardiya_tipi__in=CALISMA_TIPLERI).count(),
         'izinli': s.filter(vardiya_tipi=VardiyaTipi.IZINLI).count(),
+        'yillik': s.filter(vardiya_tipi=VardiyaTipi.YILLIK_IZIN).count(),
         'raporlu': s.filter(vardiya_tipi=VardiyaTipi.RAPORLU).count(),
         'eksik': s.filter(vardiya_tipi=VardiyaTipi.DEVAMSIZ).count(),
         'manuel': False,
@@ -431,7 +478,8 @@ def puantaj_sayfa(request):
             Puantaj.objects.update_or_create(
                 personel=hedef, ay=ay_ilk,
                 defaults={'calisilan_gun': _say('calisilan_gun'), 'eksik_gun': _say('eksik_gun'),
-                          'izinli_gun': _say('izinli_gun'), 'raporlu_gun': _say('raporlu_gun'),
+                          'izinli_gun': _say('izinli_gun'), 'yillik_gun': _say('yillik_gun'),
+                          'raporlu_gun': _say('raporlu_gun'),
                           'manuel_duzenlendi': True})
             messages.success(request, f"{hedef.ad_soyad} puantajı elle güncellendi.")
         elif hedef and islem == 'puantaj_sifirla':
@@ -454,7 +502,8 @@ def puantaj_sayfa(request):
         d = _puantaj_hesapla(p, hesap_bas, hesap_son, manuel_ay=manuel_ay)
         d['personel'] = p
 
-        d['hakedis'] = d['calisilan'] + d['izinli']
+        d['yillik'] = d.get('yillik', 0)
+        d['hakedis'] = d['calisilan'] + d['izinli'] + d['yillik']
         liste.append(d)
     return render(request, 'puantaj.html', {
         'personel': personel, 'aktif': 'puantaj', 'is_gm': is_gm, 'is_yon': is_yon,
@@ -688,10 +737,11 @@ def puantaj_excel_export(request):
     thin = Side(border_style="thin", color="DDDDDD")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-    ws.merge_cells("A1:H1")
+    ws.merge_cells("A1:I1")
     ws["A1"] = f"GEEK PANEL — Puantaj ({donem_etiket})"
     ws["A1"].font = Font(size=14, bold=True, color="162AA3")
-    basliklar = ["Ad Soyad", "Görev", "Çalışılan", "Eksik (Devamsız)", "İzinli", "Raporlu", "Hakediş", "Kaynak"]
+    basliklar = ["Ad Soyad", "Görev", "Çalışılan", "Eksik (Devamsız)", "Haftalık İzin", "Yıllık İzin", "Raporlu", "Hakediş", "Kaynak"]
+    NKOL = len(basliklar)
     for c, t in enumerate(basliklar, 1):
         cell = ws.cell(row=3, column=c, value=t)
         cell.font = head_font
@@ -703,38 +753,52 @@ def puantaj_excel_export(request):
         plist = Personel.objects.filter(sube=s).order_by('ad_soyad')
         if not plist.exists():
             continue
-        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=8)
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=NKOL)
         bc = ws.cell(row=r, column=1, value=f"Şube: {s.ad}")
         bc.font = branch_font
         bc.alignment = left
-        for c in range(1, 9):
+        for c in range(1, NKOL + 1):
             ws.cell(row=r, column=c).fill = branch_fill
             ws.cell(row=r, column=c).border = border
         r += 1
-        bas = r
+        toplam = {'calisilan': 0, 'eksik': 0, 'izinli': 0, 'yillik': 0, 'raporlu': 0, 'hakedis': 0}
         for pp in plist:
-            d = _puantaj_hesapla(pp, hbas, hson, manuel_ay=manuel_ay)
+            try:
+                d = _puantaj_hesapla(pp, hbas, hson, manuel_ay=manuel_ay)
+            except Exception:
+                d = {}
+            calisilan = int(d.get('calisilan', 0) or 0)
+            eksik = int(d.get('eksik', 0) or 0)
+            izinli = int(d.get('izinli', 0) or 0)
+            yillik = int(d.get('yillik', 0) or 0)
+            raporlu = int(d.get('raporlu', 0) or 0)
+            hakedis = calisilan + izinli + yillik
             ws.cell(row=r, column=1, value=pp.ad_soyad).alignment = left
             ws.cell(row=r, column=2, value=pp.rol).alignment = center
-            ws.cell(row=r, column=3, value=d['calisilan']).alignment = center
-            ws.cell(row=r, column=4, value=d['eksik']).alignment = center
-            ws.cell(row=r, column=5, value=d['izinli']).alignment = center
-            ws.cell(row=r, column=6, value=d['raporlu']).alignment = center
-            hc = ws.cell(row=r, column=7, value=f"=C{r}+E{r}")
+            ws.cell(row=r, column=3, value=calisilan).alignment = center
+            ws.cell(row=r, column=4, value=eksik).alignment = center
+            ws.cell(row=r, column=5, value=izinli).alignment = center
+            ws.cell(row=r, column=6, value=yillik).alignment = center
+            ws.cell(row=r, column=7, value=raporlu).alignment = center
+            hc = ws.cell(row=r, column=8, value=hakedis)
             hc.alignment = center
             hc.font = bold
-            ws.cell(row=r, column=8, value="Manuel" if d['manuel'] else "Otomatik").alignment = center
-            for c in range(1, 9):
+            ws.cell(row=r, column=9, value=("Manuel" if d.get('manuel') else "Otomatik")).alignment = center
+            for c in range(1, NKOL + 1):
                 ws.cell(row=r, column=c).border = border
+            toplam['calisilan'] += calisilan
+            toplam['eksik'] += eksik
+            toplam['izinli'] += izinli
+            toplam['yillik'] += yillik
+            toplam['raporlu'] += raporlu
+            toplam['hakedis'] += hakedis
             r += 1
-        son = r - 1
         ws.cell(row=r, column=1, value=f"{s.ad} Toplam").font = bold
-        for c in range(3, 8):
-            L = get_column_letter(c)
-            tc = ws.cell(row=r, column=c, value=f"=SUM({L}{bas}:{L}{son})")
+        for c, key in [(3, 'calisilan'), (4, 'eksik'), (5, 'izinli'), (6, 'yillik'), (7, 'raporlu'), (8, 'hakedis')]:
+            tc = ws.cell(row=r, column=c, value=toplam[key])
             tc.font = bold
             tc.alignment = center
-        for c in range(1, 9):
+        for c in range(1, NKOL + 1):
             ws.cell(row=r, column=c).border = border
         r += 2
     for i, c in enumerate(basliklar, 1):
@@ -909,7 +973,7 @@ def zayi_excel_export(request):
     wb.save(resp)
     return resp
 
-KALIBRASYON_GUN = 31
+KALIBRASYON_GUN = 35
 
 def _kalibrasyon_temizle():
     sinir = timezone.now() - datetime.timedelta(days=KALIBRASYON_GUN)
@@ -931,6 +995,7 @@ def kalibrasyon_sayfa(request):
     is_yon = personel.rol in UST_YONETIM
     subeler = _yon_subeler(personel) if is_yon else []
     sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
+    _kalibrasyon_temizle()
 
     today = timezone.localdate()
     en_eski = today - datetime.timedelta(days=KALIBRASYON_GUN)
@@ -1963,7 +2028,7 @@ def pwa_service_worker(request):
 SORU_ROLLERI = [Rol.PERSONEL, Rol.SEF]
 SORU_SURE = 30
 SORU_SURE_PAYLI = 38
-CALISMAYAN_TIPLER = [VardiyaTipi.IZINLI, VardiyaTipi.RAPORLU, VardiyaTipi.DEVAMSIZ]
+CALISMAYAN_TIPLER = [VardiyaTipi.IZINLI, VardiyaTipi.YILLIK_IZIN, VardiyaTipi.RAPORLU, VardiyaTipi.DEVAMSIZ]
 
 KARNE_ROLLERI = [Rol.EGITMEN, Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
 
@@ -2327,7 +2392,7 @@ def gosterge(request):
     bugun = {
         'toplam': Personel.objects.filter(sube_id__in=sube_ids, rol__in=[Rol.PERSONEL, Rol.SEF]).count(),
         'calisan': v_today.filter(vardiya_tipi__in=calisan_tipler).count(),
-        'izinli': v_today.filter(vardiya_tipi=VardiyaTipi.IZINLI).count(),
+        'izinli': v_today.filter(vardiya_tipi__in=[VardiyaTipi.IZINLI, VardiyaTipi.YILLIK_IZIN]).count(),
         'raporlu': v_today.filter(vardiya_tipi=VardiyaTipi.RAPORLU).count(),
         'devamsiz': v_today.filter(vardiya_tipi=VardiyaTipi.DEVAMSIZ).count(),
     }

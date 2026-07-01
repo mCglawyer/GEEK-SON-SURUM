@@ -34,7 +34,7 @@
             <div class="hafta-gun"><b>{{ g.gun_adi }}</b><span>{{ g.tarih|date:"d.m" }}</span></div>
             {% if g.vardiya %}
               {% with t=g.vardiya.vardiya_tipi %}
-              <span class="badge {% if t == 'İzinli' %}badge-info{% elif t == 'Raporlu' %}badge-wait{% elif t == 'Devamsız' %}badge-no{% else %}badge-work{% endif %}">{{ t }}</span>
+              <span class="badge {% if t == 'İzinli' or t == 'Yıllık İzin' %}badge-info{% elif t == 'Raporlu' %}badge-wait{% elif t == 'Devamsız' %}badge-no{% else %}badge-work{% endif %}">{{ g.vardiya.get_vardiya_tipi_display }}</span>
               {% endwith %}
             {% else %}
               <span class="hafta-bos">—</span>
@@ -56,7 +56,7 @@
             <div class="hafta-gun"><b>{{ g.gun_adi }}</b><span>{{ g.tarih|date:"d.m" }}</span></div>
             {% if g.vardiya %}
               {% with t=g.vardiya.vardiya_tipi %}
-              <span class="badge {% if t == 'İzinli' %}badge-info{% elif t == 'Raporlu' %}badge-wait{% elif t == 'Devamsız' %}badge-no{% else %}badge-work{% endif %}">{{ t }}</span>
+              <span class="badge {% if t == 'İzinli' or t == 'Yıllık İzin' %}badge-info{% elif t == 'Raporlu' %}badge-wait{% elif t == 'Devamsız' %}badge-no{% else %}badge-work{% endif %}">{{ g.vardiya.get_vardiya_tipi_display }}</span>
               {% endwith %}
             {% else %}
               <span class="hafta-bos">—</span>
