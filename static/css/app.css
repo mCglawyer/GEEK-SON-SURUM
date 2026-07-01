@@ -903,3 +903,11 @@ body.app .app-main, body.app .container { min-width:0; }
 .ed-et-dogru { background:var(--ok); color:#fff; }
 .ed-et-secilen { background:var(--brand); color:#fff; }
 .ed-bos { font-size:.8rem; color:var(--no); font-style:italic; }
+
+/* Geek Crew: geniş tek sütun + alt şube galerisi */
+.gs-wrap { max-width:960px; }
+.gs-subeler { margin-top:2rem; }
+.gs-subeler-bas { font-weight:600; margin-bottom:.8rem; font-size:1.05rem; }
+.gs-sube-serit { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:1rem; overflow:visible; }
+.gs-sube-kart { width:auto; flex-direction:column; }
+.gs-sube-foto { height:130px; }

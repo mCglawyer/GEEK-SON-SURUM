@@ -35,8 +35,10 @@
     </div>
     {% endfor %}
   </div>
+  {% elif durum and durum.deneme %}
+  <p class="egitim-bos">Bu kişinin son sınavı, detaylı cevap kaydı sisteme eklenmeden önce yapılmış. Skoru: <b>{{ durum.son_puan }}/{{ soru_sayisi }}</b>. Kişi <b>yeni bir sınava girdiğinde</b> hangi soruları doğru/yanlış yaptığı burada tek tek görünecek.</p>
   {% else %}
-  <p class="egitim-bos">Bu kişi için gösterilecek sınav kaydı yok.</p>
+  <p class="egitim-bos">Bu kişi henüz sınava girmemiş.</p>
   {% endif %}
 </div>
 {% endblock %}

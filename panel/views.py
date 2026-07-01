@@ -2989,8 +2989,9 @@ def egitim_kisi_detay(request, pid):
     if personel.rol == Rol.MUDUR and kisi.sube_id not in [s.id for s in personel.sorumlu_subeler.all()]:
         return redirect('egitim_yonetim')
     durum = EgitimDurum.objects.filter(personel=kisi).first()
+    cevap_var = bool(durum and durum.son_cevaplar and durum.son_sorular)
     detay = []
-    if durum and durum.son_sorular:
+    if cevap_var:
         ids = [x for x in durum.son_sorular.split(',') if x.isdigit()]
         soru_map = {str(s.id): s for s in EgitimSoru.objects.filter(id__in=ids)}
         try:
@@ -3015,6 +3016,7 @@ def egitim_kisi_detay(request, pid):
         'kisi': kisi,
         'durum': durum,
         'detay': detay,
+        'cevap_var': cevap_var,
         'yanlis_sayi': yanlis_sayi,
         'soru_sayisi': EGITIM_SORU_SAYISI,
     })
