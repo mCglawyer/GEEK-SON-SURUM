@@ -1,6 +1,25 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Geek Crew · Geek Panel{% endblock %}
+{% block title %}Geek Crew · Geek Panel<script>
+(function () {
+  var el = document.getElementById('gs-saatler');
+  if (!el) return;
+  var saatler = Array.prototype.slice.call(el.querySelectorAll('.gs-saat'));
+  function guncelle() {
+    var now = new Date();
+    saatler.forEach(function (s) {
+      var tz = s.getAttribute('data-tz');
+      try {
+        var t = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: tz }).format(now);
+        s.querySelector('.gs-vakit').textContent = t;
+      } catch (e) {}
+    });
+  }
+  guncelle();
+  setInterval(guncelle, 1000);
+})();
+</script>
+{% endblock %}
 {% block body %}
 <div class="container gs-wrap">
   <div hidden>{% csrf_token %}</div>
@@ -9,6 +28,115 @@
   <div class="plan-head">
     <div><h2>Geek Crew</h2><span class="plan-aralik">{% if paylasabilir %}paylaş ve ekiple etkileşime gir{% else %}ekip paylaşımlarını gör ve tepki ver{% endif %}</span></div>
   </div>
+
+  <div class="gs-saatler" id="gs-saatler">
+    <div class="gs-saat" data-tz="Europe/Istanbul"><span class="gs-sehir">İstanbul</span><span class="gs-vakit">--:--:--</span></div>
+    <div class="gs-saat" data-tz="Europe/London"><span class="gs-sehir">Londra</span><span class="gs-vakit">--:--:--</span></div>
+    <div class="gs-saat" data-tz="Europe/Berlin"><span class="gs-sehir">Berlin</span><span class="gs-vakit">--:--:--</span></div>
+    <div class="gs-saat" data-tz="America/New_York"><span class="gs-sehir">New York</span><span class="gs-vakit">--:--:--</span></div>
+    <div class="gs-saat" data-tz="Asia/Dubai"><span class="gs-sehir">Dubai</span><span class="gs-vakit">--:--:--</span></div>
+    <div class="gs-saat" data-tz="Asia/Tokyo"><span class="gs-sehir">Tokyo</span><span class="gs-vakit">--:--:--</span></div>
+  </div>
+
+  <div class="gs-subeler">
+    <div class="gs-subeler-bas">Şubelerimiz</div>
+    <div class="gs-sube-serit">
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/K1nYYpi2vpNQAX1E9" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1LRswnq8UdkV_oHmj3Q5H5AW6r62Nfqs6" alt="Gaziantep Üniversite Eatery" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Gaziantep Üniversite Eatery</div>
+        <div class="gs-sube-saat">Her Gün 07:30–00:30</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/dfVZrds8Kwt2o7W1A" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1_Nacy2RJvN_Q4ZXzNegjFheDXVMkCA6J" alt="Sanat Eatery" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Sanat Eatery</div>
+        <div class="gs-sube-saat">Her Gün 07:30–00:30</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/YmF7AVU4SqDjzTTQ9" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1MnZCyhqpWZFIf5HMzQYRIDElRbbcqG4o" alt="Naci Topçuoğlu" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Naci Topçuoğlu</div>
+        <div class="gs-sube-saat">Her Gün 07:30–00:30</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/R13wqZFsq3eyYhGL7" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1EnZDIMuMP4M3lPTCx6UiwnyWXclKOq3x" alt="Osmangazi Eatery" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Osmangazi Eatery</div>
+        <div class="gs-sube-saat">Her Gün 07:30–00:30</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/ckXo5LdKdWww6uYB8" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/13expz0suubD21fa-LZYjjBDu1exPFXRC" alt="Vadipark Eatery" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Vadipark Eatery</div>
+        <div class="gs-sube-saat">Her Gün 07:30–00:30</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/jogDNqfELeY1FXvo9" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1DIZSlKyobi-wpuCL7gRuYLw4rXZri3V8" alt="Bağdat Caddesi Koza Home" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Bağdat Caddesi Koza Home</div>
+        <div class="gs-sube-saat">Her Gün 10:00–19:00</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/UHqrqQQKvjvmuUeD7" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1nZ95vp6CdV9XRIke_BgUsE5SETAVxLhD" alt="Konak Eatery" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Konak Eatery</div>
+        <div class="gs-sube-saat">Her Gün 07:30–00:30</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/KzGn2t1zFEYW15xw8" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1iYWf74KexwaPB1PKrUSsj62LDNMHtQGD" alt="Millet Bahçesi" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Millet Bahçesi</div>
+        <div class="gs-sube-saat">Her Gün 07:30–00:30</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/HG4rWTMyDevq31ge6" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1285-ChUnYpkdXiJZ7Af0zDS7gRAUx-7P" alt="Birecik Eatery" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Birecik Eatery</div>
+        <div class="gs-sube-saat">Her Gün 07:30–00:30</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/Jh29Ec9PwpkxsFvn9" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1aBI4M9ohQvwdFZaFrPwxHTiwEjM7aRoE" alt="Gatem" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Gatem</div>
+        <div class="gs-sube-saat">Her Gün 08:00–17:00 (Paz. Kapalı)</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/1ivAMs1FL7QkiNP76" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1cdiCVTztshhLPeniynscbkc8SjYWf3-H" alt="Panorama" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Panorama</div>
+        <div class="gs-sube-saat">Her Gün 08:00–18:00</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/3b7DdMVnL6VXc2TA6" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1z-Nl7sJODcfZ6pzfEYDm0nTSGAfHblg6" alt="Karataş" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Karataş</div>
+        <div class="gs-sube-saat">Her Gün 07:30–00:30</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <a class="gs-sube-kart" href="https://maps.app.goo.gl/FJsh11H6hdxPFdv26" target="_blank" rel="noopener">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/19FwAweiFSqf9r9puLfa9BDIPtH79obzp" alt="Bey Mahallesi" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"></div>
+        <div class="gs-sube-ad">Bey Mahallesi</div>
+        <div class="gs-sube-saat">Her Gün 10:00–19:00 (Pzt. Kapalı)</div>
+        <div class="gs-sube-harita">Haritada bul →</div>
+      </a>
+      <div class="gs-sube-kart">
+        <div class="gs-sube-foto"><img src="https://i.imgur.com/n5qLtYK.jpg" alt="Lara Eatery" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"><span class="gs-sube-rozet">Çok Yakında</span></div>
+        <div class="gs-sube-ad">Lara Eatery</div>
+        <div class="gs-sube-saat">Çok Yakında</div>
+      </div>
+      <div class="gs-sube-kart">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1q6PYvw_XajQA-WFMKfTXPeVeBJZUYL1w" alt="Hatay" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"><span class="gs-sube-rozet">Çok Yakında</span></div>
+        <div class="gs-sube-ad">Hatay</div>
+        <div class="gs-sube-saat">Çok Yakında</div>
+      </div>
+      <div class="gs-sube-kart">
+        <div class="gs-sube-foto"><img src="https://lh3.googleusercontent.com/d/1O4Qco1wRWM5Y97N0KErbJrzSdsDRQmmw" alt="Over Blue" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('yok')"><span class="gs-sube-rozet">Çok Yakında</span></div>
+        <div class="gs-sube-ad">Over Blue</div>
+        <div class="gs-sube-saat">Çok Yakında</div>
+      </div>
+    </div>
+  </div>
+
 
   {% if paylasabilir %}
   <div class="card gs-form">
