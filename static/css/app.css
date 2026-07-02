@@ -950,3 +950,25 @@ body.app .app-main, body.app .container { min-width:0; }
 .bk-nasil { background:none; border:none; color:var(--brand); font-size:.85rem; cursor:pointer; text-decoration:underline; }
 .bk-rehber { margin-top:.7rem; padding-top:.7rem; border-top:1px dashed var(--brand-100); font-size:.85rem; color:var(--text); }
 .bk-rehber ol { margin:.4rem 0 0; padding-left:1.2rem; display:flex; flex-direction:column; gap:.35rem; }
+
+/* Geek Crew — Instagram-story tarzı şampiyon şeridi */
+.gs-story-serit { display:flex; gap:.9rem; overflow-x:auto; padding:.3rem .1rem 1rem; margin-bottom:.3rem; -webkit-overflow-scrolling:touch; }
+.gs-story { flex:0 0 auto; width:76px; text-align:center; }
+.gs-story-ring { width:64px; height:64px; margin:0 auto; border-radius:50%; padding:3px; background:conic-gradient(from 210deg, var(--brand), #7b8cff, var(--brand)); display:flex; align-items:center; justify-content:center; }
+.gs-story-ring.sube { background:conic-gradient(from 210deg, #e6a800, #ffd970, #e6a800); }
+.gs-story-ic { width:100%; height:100%; border-radius:50%; background:var(--surface); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.4rem; color:var(--brand); text-transform:uppercase; }
+.gs-story-sube .gs-story-ic { color:#b98400; }
+.gs-story-ad { font-size:.72rem; font-weight:600; color:var(--ink); margin-top:.35rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gs-story-alt { font-size:.66rem; color:var(--muted); }
+
+/* Eğitim yönetim: şube aç/kapat + etiket + şampiyonlar */
+.ea-not { font-size:.82rem; color:var(--muted); font-weight:400; }
+.ea-sube-liste { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:.6rem; }
+.ea-sube { display:flex; align-items:center; gap:.6rem; padding:.45rem .7rem; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface); }
+.ea-sube.on { border-color:var(--ok); background:var(--ok-bg); }
+.egitim-sube-etiket { display:inline-block; font-size:.68rem; font-weight:600; color:var(--brand); background:var(--brand-050); border:1px solid var(--brand-100); padding:.05rem .4rem; border-radius:999px; margin-right:.3rem; }
+.egitim-sube-etiket.genel { color:var(--muted); background:var(--bg); border-color:var(--line); }
+.samp-sube { font-size:.9rem; margin:.2rem 0 .6rem; }
+.samp-liste { display:flex; flex-direction:column; gap:.35rem; }
+.samp-kisi { display:flex; align-items:center; gap:.45rem; font-size:.9rem; }
+.samp-madalya { font-size:1rem; }

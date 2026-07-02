@@ -20,6 +20,38 @@
     {% endif %}
   </div>
 
+  {% if acabilir %}
+  <div class="card">
+    <h3 class="egitim-bolum">Şube bazlı aç / kapat</h3>
+    <p class="ea-not">Sistem açıkken yalnız <b>açık şubelerin</b> personeline eğitim zorunlu olur. Hiç şube seçilmezse tüm şubeler açık sayılır.</p>
+    <div class="ea-sube-liste">
+      {% for s in subeler %}
+      <div class="ea-sube{% if s.egitim_acik %} on{% endif %}">
+        <span>{{ s.ad }} {% if s.egitim_acik %}<span class="badge ok">açık</span>{% endif %}</span>
+        <form method="post">{% csrf_token %}<input type="hidden" name="sube_id" value="{{ s.id }}">
+          {% if s.egitim_acik %}<input type="hidden" name="islem" value="sube_kapat"><button class="btn btn-ghost btn-mini">Kapat</button>
+          {% else %}<input type="hidden" name="islem" value="sube_ac"><button class="btn btn-primary btn-mini">Aç</button>{% endif %}
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h3 class="egitim-bolum">🏆 Eğitim Şampiyonları <span class="ea-not">({{ sampiyon_esik }}+ doğru)</span></h3>
+    {% if sampiyon_sube %}<p class="samp-sube">Şampiyon Şube: <b>{{ sampiyon_sube.ad }}</b> — tamamlama %{{ sampiyon_sube.oran }} ({{ sampiyon_sube.tamam }}/{{ sampiyon_sube.toplam }})</p>{% endif %}
+    {% if sampiyonlar %}
+    <div class="samp-liste">
+      {% for s in sampiyonlar %}
+      <div class="samp-kisi"><span class="samp-madalya">🎓</span> <b>{{ s.ad }}</b> <span class="ea-not">{{ s.sube }}</span> <span class="badge ok">{{ s.puan }}/10</span></div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="ea-not">Henüz {{ sampiyon_esik }}+ doğru yapan yok. İlk şampiyonu bekliyoruz!</p>
+    {% endif %}
+  </div>
+
   <div class="card">
     <h3 class="egitim-bolum">Takip — {{ tamamlayan }}/{{ toplam_kisi }} tamamladı</h3>
     <form method="get" class="egitim-filtre">
@@ -69,6 +101,7 @@
     {% if duzenleyebilir %}<form method="post" enctype="multipart/form-data" class="egitim-form">
       {% csrf_token %}<input type="hidden" name="islem" value="dokuman_ekle">
       <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option></select>
+      <select name="sube_id" class="sube-sec"><option value="">Tüm şubeler</option>{% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}</select>
       <input class="input" type="text" name="baslik" placeholder="Başlık" required>
       <input class="input" type="file" name="dosya" accept="application/pdf" required>
       <button class="btn btn-primary btn-mini">Yükle</button>
@@ -77,6 +110,7 @@
       {% for d in dokumanlar %}
       <div class="egitim-dok">
         <span class="egitim-dok-kat">{{ d.get_kategori_display }}</span>
+        {% if d.sube %}<span class="egitim-sube-etiket">{{ d.sube.ad }}</span>{% else %}<span class="egitim-sube-etiket genel">Tüm şubeler</span>{% endif %}
         <a class="egitim-dok-ad" href="{{ d.dosya.url }}" target="_blank" rel="noopener">{{ d.baslik }}</a>
         {% if duzenleyebilir %}<form method="post" class="gs-sil-form" onsubmit="return confirm('Doküman silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="dokuman_sil"><input type="hidden" name="id" value="{{ d.id }}"><button class="gs-sil" title="Sil">✕</button></form>{% endif %}
       </div>
@@ -90,6 +124,7 @@
       {% csrf_token %}<input type="hidden" name="islem" value="soru_ekle">
       <div class="esf-satir">
         <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option></select>
+        <select name="sube_id" class="sube-sec"><option value="">Tüm şubeler</option>{% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}</select>
         <span class="egitim-dogru">Doğru şık:
           <select name="dogru" class="sube-sec"><option>A</option><option>B</option><option>C</option><option>D</option></select>
         </span>
@@ -104,7 +139,7 @@
     <div class="egitim-soru-liste">
       {% for s in sorular %}
       <div class="egitim-soru-item{% if not s.aktif %} pasif{% endif %}">
-        <div class="esi-ust"><span class="egitim-dok-kat">{{ s.get_kategori_display }}</span> <b>{{ s.metin }}</b></div>
+        <div class="esi-ust"><span class="egitim-dok-kat">{{ s.get_kategori_display }}</span> {% if s.sube %}<span class="egitim-sube-etiket">{{ s.sube.ad }}</span>{% endif %}<b>{{ s.metin }}</b></div>
         <div class="esi-siklar">A) {{ s.sik_a }} · B) {{ s.sik_b }}{% if s.sik_c %} · C) {{ s.sik_c }}{% endif %}{% if s.sik_d %} · D) {{ s.sik_d }}{% endif %} · <b>Doğru: {{ s.dogru }}</b></div>
         {% if duzenleyebilir %}<div class="esi-islem">
           <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="soru_aktif"><input type="hidden" name="id" value="{{ s.id }}"><button class="btn btn-ghost btn-mini">{% if s.aktif %}Pasifleştir{% else %}Aktifleştir{% endif %}</button></form>

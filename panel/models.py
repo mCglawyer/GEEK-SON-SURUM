@@ -504,6 +504,8 @@ class EgitimDokuman(models.Model):
     kategori = models.CharField(max_length=20, choices=KATEGORI, default='RECETE')
     baslik = models.CharField(max_length=160, default='')
     dosya = models.FileField(upload_to='egitim/')
+    sube = models.ForeignKey(Sube, null=True, blank=True, on_delete=models.SET_NULL,
+                             related_name='egitim_dokumanlari', verbose_name="Şube (boş=tüm şubeler)")
     olusturma = models.DateTimeField(auto_now_add=True)
     aktif = models.BooleanField(default=True)
 
@@ -520,6 +522,8 @@ class EgitimSoru(models.Model):
     sik_c = models.CharField(max_length=300, default='', blank=True)
     sik_d = models.CharField(max_length=300, default='', blank=True)
     dogru = models.CharField(max_length=1, default='A')
+    sube = models.ForeignKey(Sube, null=True, blank=True, on_delete=models.SET_NULL,
+                             related_name='egitim_sorulari', verbose_name="Şube (boş=tüm şubeler)")
     aktif = models.BooleanField(default=True)
     olusturma = models.DateTimeField(auto_now_add=True)
 
@@ -541,6 +545,7 @@ class EgitimDurum(models.Model):
 
 class EgitimAyar(models.Model):
     acik = models.BooleanField(default=False)
+    acik_subeler = models.ManyToManyField(Sube, blank=True, related_name='egitim_acik')
     guncelleme = models.DateTimeField(auto_now=True)
 
 

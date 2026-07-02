@@ -10,6 +10,25 @@
     <div><h2>Geek Crew</h2></div>
   </div>
 
+  {% if sampiyon_sube or sampiyonlar %}
+  <div class="gs-story-serit">
+    {% if sampiyon_sube %}
+    <div class="gs-story gs-story-sube" title="Eğitim tamamlama: %{{ sampiyon_sube.oran }}">
+      <div class="gs-story-ring sube"><span class="gs-story-ic">🏆</span></div>
+      <div class="gs-story-ad">{{ sampiyon_sube.ad }}</div>
+      <div class="gs-story-alt">Şampiyon Şube</div>
+    </div>
+    {% endif %}
+    {% for s in sampiyonlar %}
+    <div class="gs-story" title="{{ s.sube }} · {{ s.puan }}/10 doğru">
+      <div class="gs-story-ring"><span class="gs-story-ic">{{ s.ad|make_list|first }}</span></div>
+      <div class="gs-story-ad">{{ s.ad }}</div>
+      <div class="gs-story-alt">🎓 {{ s.puan }}/10</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   {% if paylasabilir %}
   <div class="card gs-form">
     <form method="post" enctype="multipart/form-data">

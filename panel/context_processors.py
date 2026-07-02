@@ -61,8 +61,16 @@ def egitim_ctx(request):
     if not u or not getattr(u, 'is_authenticated', False):
         return {}
     try:
-        from .models import EgitimAyar
+        from .models import EgitimAyar, Personel
         a = EgitimAyar.objects.first()
-        return {'egitim_acik': bool(a and a.acik)}
+        if not a or not a.acik:
+            return {'egitim_acik': False}
+        acik_ids = set(a.acik_subeler.values_list('id', flat=True))
+        if not acik_ids:
+            return {'egitim_acik': True}
+        p = Personel.objects.filter(user=u).only('sube').first()
+        if p is None:
+            return {'egitim_acik': True}
+        return {'egitim_acik': (p.sube_id in acik_ids)}
     except Exception:
         return {}
