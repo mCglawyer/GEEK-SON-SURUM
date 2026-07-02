@@ -554,3 +554,27 @@ class PushAbonelik(models.Model):
     endpoint = models.TextField(unique=True)
     veri = models.TextField()
     olusturma = models.DateTimeField(auto_now_add=True)
+
+
+class MolaQRAyar(models.Model):
+    acik = models.BooleanField(default=False)
+    guncelleme = models.DateTimeField(auto_now=True)
+
+
+class SubeMolaToken(models.Model):
+    sube = models.OneToOneField(Sube, on_delete=models.CASCADE, related_name='mola_token')
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+
+class MolaOturum(models.Model):
+    personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='mola_oturumlari')
+    sube = models.ForeignKey(Sube, null=True, blank=True, on_delete=models.SET_NULL, related_name='mola_oturumlari')
+    sure_dk = models.IntegerField(default=45)
+    baslangic = models.DateTimeField()
+    bitis = models.DateTimeField(null=True, blank=True)
+    kullanilan_dk = models.IntegerField(null=True, blank=True, verbose_name="Kullanılan Süre (dk)")
+    uyarildi = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-baslangic']

@@ -29,6 +29,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      KahveSoru, GunlukSoru, SoruAyar, Bildirim, Duyuru,
                      GSosyalGonderi, GSosyalTepki,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, PushAbonelik,
+                     MolaQRAyar, SubeMolaToken, MolaOturum,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -2403,6 +2404,117 @@ def sube_yeni(request):
     veriler = [{'sube': s, 'sayi': Personel.objects.filter(sube=s).count()} for s in subeler]
     return render(request, 'sube_yonetim.html', {
         'personel': personel, 'aktif': 'sube_yeni', 'veriler': veriler,
+    })
+
+
+MOLA_QR_YETKI = [Rol.GENEL_MUDUR, Rol.OPERATOR]
+MOLA_SURELER = [45, 15]
+
+
+def _mola_qr_acik():
+    try:
+        a = MolaQRAyar.objects.first()
+        return bool(a and a.acik)
+    except Exception:
+        return False
+
+
+def _sube_mola_token(sube):
+    tok = SubeMolaToken.objects.filter(sube=sube).first()
+    if tok is None:
+        tok = SubeMolaToken.objects.create(sube=sube, token=secrets.token_urlsafe(12))
+    return tok
+
+
+def _aktif_mola(personel):
+    return MolaOturum.objects.filter(personel=personel, bitis__isnull=True).order_by('-baslangic').first()
+
+
+def mola_qr_yonetim(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in MOLA_QR_YETKI:
+        return redirect('ana_sayfa')
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        if islem in ('sistem_ac', 'sistem_kapat'):
+            a, _ = MolaQRAyar.objects.get_or_create(id=1)
+            a.acik = (islem == 'sistem_ac')
+            a.save()
+            messages.success(request, "Mola QR sistemi %s." % ("açıldı" if a.acik else "kapatıldı"))
+        elif islem == 'token_yenile':
+            sb = Sube.objects.filter(id=request.POST.get('sube_id')).first()
+            if sb:
+                SubeMolaToken.objects.filter(sube=sb).delete()
+                _sube_mola_token(sb)
+                messages.success(request, "%s için yeni QR üretildi (eski QR geçersiz)." % sb.ad)
+        return redirect('mola_qr_yonetim')
+    veriler = []
+    for s in Sube.objects.filter(depo_mu=False).order_by('ad'):
+        tok = _sube_mola_token(s)
+        veriler.append({'sube': s, 'url': request.build_absolute_uri('/mola/qr/%s/' % tok.token)})
+    return render(request, 'mola_qr_yonetim.html', {
+        'personel': personel, 'aktif': 'mola_qr', 'acik': _mola_qr_acik(),
+        'veriler': veriler,
+    })
+
+
+def mola_qr_giris(request, token):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    tok = SubeMolaToken.objects.filter(token=token).select_related('sube').first()
+    if tok is None:
+        return render(request, 'mola_qr_giris.html', {'personel': personel, 'hata': 'Geçersiz veya güncelliğini yitirmiş QR kodu.'})
+    if not _mola_qr_acik():
+        return render(request, 'mola_qr_giris.html', {'personel': personel, 'sube': tok.sube, 'kapali': True})
+    aktif = _aktif_mola(personel)
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        if islem == 'baslat' and aktif is None:
+            try:
+                sure = int(request.POST.get('sure', '45'))
+            except (TypeError, ValueError):
+                sure = 45
+            if sure not in MOLA_SURELER:
+                sure = 45
+            MolaOturum.objects.create(personel=personel, sube=tok.sube, sure_dk=sure, baslangic=timezone.now())
+            messages.success(request, "Molan başladı (%d dk). Döndüğünde bu QR'ı tekrar okut." % sure)
+        elif islem == 'bitir' and aktif is not None:
+            aktif.bitis = timezone.now()
+            gecen = max(0, int((aktif.bitis - aktif.baslangic).total_seconds() // 60))
+            aktif.kullanilan_dk = gecen
+            aktif.save(update_fields=['bitis', 'kullanilan_dk'])
+            messages.success(request, "Molan bitti. Toplam %d dk mola kullandın." % gecen)
+        return redirect('mola_qr_giris', token=token)
+    aktif = _aktif_mola(personel)
+    kalan = None
+    if aktif is not None:
+        bitecek = aktif.baslangic + datetime.timedelta(minutes=aktif.sure_dk)
+        kalan = int((bitecek - timezone.now()).total_seconds() // 60)
+    return render(request, 'mola_qr_giris.html', {
+        'personel': personel, 'sube': tok.sube, 'token': token,
+        'aktif': aktif, 'kalan': kalan, 'sureler': MOLA_SURELER,
+    })
+
+
+def mola_tara(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    return render(request, 'mola_tara.html', {
+        'personel': personel, 'aktif': 'mola_tara', 'acik': _mola_qr_acik(),
     })
 
 

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Mola · Geek Panel{% endblock %}
+{% block body %}
+<div class="container mola-giris">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  {% if hata %}
+  <div class="card mola-kart">
+    <div class="mola-ikon">⚠</div>
+    <h2>{{ hata }}</h2>
+    <p class="ea-not">Lütfen şubendeki güncel QR kodu okut.</p>
+    <a href="{% url 'mola_tara' %}" class="btn btn-primary">Tekrar Tara</a>
+  </div>
+  {% elif kapali %}
+  <div class="card mola-kart">
+    <div class="mola-ikon">⏸</div>
+    <h2>Mola QR sistemi şu an kapalı</h2>
+    <p class="ea-not">{{ sube.ad }} · Sistem yönetici tarafından açıldığında molanı buradan başlatabilirsin.</p>
+  </div>
+  {% elif aktif %}
+  <div class="card mola-kart mola-aktif">
+    <div class="mola-ikon">☕</div>
+    <h2>Moladasın</h2>
+    <p class="mola-sube">{{ sube.ad }} · {{ aktif.sure_dk }} dakikalık mola</p>
+    <p class="mola-kalan">{% if kalan > 0 %}Kalan süre yaklaşık <b>{{ kalan }} dk</b>{% else %}Süren doldu{% endif %}</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="bitir">
+      <button class="btn btn-primary mola-btn">Molayı Bitir</button>
+    </form>
+    <p class="ea-not">Döndüğünü bildirmek için QR'ı tekrar okutup "Molayı Bitir"e basabilirsin.</p>
+  </div>
+  {% else %}
+  <div class="card mola-kart">
+    <div class="mola-ikon">☕</div>
+    <h2>Molaya çık</h2>
+    <p class="mola-sube">{{ sube.ad }}</p>
+    <p class="ea-not">Ne kadar mola kullanacaksın?</p>
+    <div class="mola-sure-btn">
+      {% for s in sureler %}
+      <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="baslat"><input type="hidden" name="sure" value="{{ s }}">
+        <button class="btn btn-primary mola-btn">{{ s }} dk</button>
+      </form>
+      {% endfor %}
+    </div>
+    <p class="ea-not">Bitmesine 5 dakika kala telefonuna bildirim gelir.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

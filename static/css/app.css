@@ -953,13 +953,13 @@ body.app .app-main, body.app .container { min-width:0; }
 
 /* Geek Crew — Instagram-story tarzı şampiyon şeridi */
 .gs-story-serit { display:flex; gap:.9rem; overflow-x:auto; padding:.3rem .1rem 1rem; margin-bottom:.3rem; -webkit-overflow-scrolling:touch; }
-.gs-story { flex:0 0 auto; width:76px; text-align:center; }
+.gs-story { flex:0 0 auto; width:84px; text-align:center; }
 .gs-story-ring { width:64px; height:64px; margin:0 auto; border-radius:50%; padding:3px; background:conic-gradient(from 210deg, var(--brand), #7b8cff, var(--brand)); display:flex; align-items:center; justify-content:center; }
 .gs-story-ring.sube { background:conic-gradient(from 210deg, #e6a800, #ffd970, #e6a800); }
 .gs-story-ic { width:100%; height:100%; border-radius:50%; background:var(--surface); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.4rem; color:var(--brand); text-transform:uppercase; }
 .gs-story-sube .gs-story-ic { color:#b98400; }
-.gs-story-ad { font-size:.72rem; font-weight:600; color:var(--ink); margin-top:.35rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.gs-story-alt { font-size:.66rem; color:var(--muted); }
+.gs-story-ad { font-size:.72rem; font-weight:600; color:var(--ink); margin-top:.35rem; line-height:1.15; word-break:break-word; }
+.gs-story-alt { font-size:.66rem; color:var(--muted); margin-top:.1rem; }
 
 /* Eğitim yönetim: şube aç/kapat + etiket + şampiyonlar */
 .ea-not { font-size:.82rem; color:var(--muted); font-weight:400; }
@@ -972,3 +972,35 @@ body.app .app-main, body.app .container { min-width:0; }
 .samp-liste { display:flex; flex-direction:column; gap:.35rem; }
 .samp-kisi { display:flex; align-items:center; gap:.45rem; font-size:.9rem; }
 .samp-madalya { font-size:1rem; }
+
+/* Mola QR yönetim */
+.qr-arac { margin:.4rem 0 1rem; }
+.qr-liste { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:1rem; }
+.qr-kart { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:1rem; text-align:center; }
+.qr-sube { font-weight:700; color:var(--ink); margin-bottom:.6rem; }
+.qr-kod { display:flex; justify-content:center; min-height:190px; }
+.qr-kod img, .qr-kod canvas { display:block; }
+.qr-url { font-size:.62rem; color:var(--muted); word-break:break-all; margin:.5rem 0; }
+.qr-yenile { margin-top:.3rem; }
+
+/* Mola giriş / tarama */
+.mola-giris { max-width:520px; }
+.mola-kart { text-align:center; padding:1.6rem 1.2rem; }
+.mola-ikon { font-size:2.6rem; line-height:1; margin-bottom:.4rem; }
+.mola-kart h2 { margin:.2rem 0 .3rem; }
+.mola-sube { font-weight:600; color:var(--brand); }
+.mola-kalan { font-size:1.05rem; margin:.4rem 0; }
+.mola-aktif { border:1px solid var(--brand-100); background:var(--brand-050); }
+.mola-btn { min-width:120px; margin:.3rem; }
+.mola-sure-btn { display:flex; gap:.6rem; justify-content:center; flex-wrap:wrap; margin:.6rem 0; }
+.tara-alan { position:relative; margin:.8rem auto; max-width:360px; border-radius:var(--radius); overflow:hidden; background:#000; }
+.tara-alan video { width:100%; display:block; }
+.tara-hedef { position:absolute; inset:18% 18%; border:3px solid rgba(255,255,255,.85); border-radius:14px; box-shadow:0 0 0 2000px rgba(0,0,0,.25); }
+.tara-durum { font-size:.9rem; color:var(--muted); min-height:1.2em; margin:.5rem 0; }
+
+@media print {
+  .yan-nav, .top-bar, .mobil-bar, aside, footer, .imza, .no-print, .qr-arac, .bildirim-karti, .kalib-uyari { display:none !important; }
+  .qr-liste { grid-template-columns:repeat(2, 1fr); }
+  .qr-kart { break-inside:avoid; border:1px solid #999; }
+  .app-main { margin:0 !important; padding:0 !important; }
+}
