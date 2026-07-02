@@ -16,13 +16,34 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=50">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=51">
   {% block extra_head %}{% endblock %}
 </head>
 <body{% if personel %} class="app"{% endif %}>
   {% if personel %}
+  <div hidden>{% csrf_token %}</div>
   {% include '_nav.html' %}
   <main class="app-main">
+  <div id="bildirim-karti" class="bildirim-karti" hidden>
+    <div class="bk-satir">
+      <span class="bk-ikon">🔔</span>
+      <div class="bk-metin">
+        <b>Bildirimleri aç</b>
+        <span id="bk-alt">Vardiya, duyuru ve önemli güncellemeleri kaçırmamak için bu cihazda bildirimlere izin ver.</span>
+      </div>
+      <button id="bk-izin" type="button" class="btn btn-primary btn-mini">İzin ver</button>
+      <button id="bk-nasil" type="button" class="bk-nasil">Nasıl?</button>
+    </div>
+    <div id="bk-rehber" class="bk-rehber" hidden>
+      <b>Bildirim izni nasıl verilir?</b>
+      <ol>
+        <li><b>"İzin ver"</b>e bas, çıkan tarayıcı penceresinde <b>İzin Ver / Allow</b>'a dokun.</li>
+        <li><b>iPhone'da:</b> uygulamanın <b>ana ekrana eklenmiş</b> olması gerekir (Safari → Paylaş → "Ana Ekrana Ekle"), sonra uygulamayı oradan aç.</li>
+        <li><b>Daha önce reddettiysen:</b> adres çubuğundaki <b>🔒 kilit</b> simgesi → Bildirimler → <b>İzin Ver</b>.</li>
+        <li>Telefon ayarlarından uygulamanın bildirimlerinin <b>açık</b> olduğundan emin ol.</li>
+      </ol>
+    </div>
+  </div>
   {% if kalibrasyon_uyari %}<div class="kalib-uyari">⚠ Kalibrasyon zamanı ({{ kalibrasyon_pencere }}) — <b>{{ kalibrasyon_uyari|join:", " }}</b> şubesi bu pencerede henüz kalibrasyon yapmadı.</div>{% endif %}
   {% endif %}
   {% block body %}{% endblock %}
@@ -37,5 +58,58 @@
       });
     }
   </script>
+  {% if personel %}
+  <script>
+  (function () {
+    var kart = document.getElementById('bildirim-karti');
+    if (!kart) return;
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    var VAPID = 'BC65Z7BXa5XLsUA86fC7NU3ocCF1gd9JuPkhkutdN_EFN3dIGpP4Jlmq7ImmOCOvpV0vfINfEJj2iowBgttJZ5c';
+    var izinBtn = document.getElementById('bk-izin');
+    var nasilBtn = document.getElementById('bk-nasil');
+    var rehber = document.getElementById('bk-rehber');
+    var alt = document.getElementById('bk-alt');
+    function u8(b64) {
+      var pad = '='.repeat((4 - b64.length % 4) % 4);
+      var b = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+      var raw = atob(b), arr = new Uint8Array(raw.length);
+      for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+      return arr;
+    }
+    function csrf() { var el = document.querySelector('input[name=csrfmiddlewaretoken]'); if (el && el.value) return el.value; var m = document.cookie.match(/csrftoken=([^;]+)/); return m ? m[1] : ''; }
+    function abone() {
+      return navigator.serviceWorker.ready.then(function (reg) {
+        return reg.pushManager.getSubscription().then(function (sub) {
+          return sub || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(VAPID) });
+        });
+      }).then(function (sub) {
+        return fetch('{% url "push_kaydet" %}', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+          body: JSON.stringify(sub)
+        });
+      });
+    }
+    function guncelle() {
+      var p = Notification.permission;
+      if (p === 'granted') { kart.hidden = true; abone().catch(function () {}); return; }
+      kart.hidden = false;
+      if (p === 'denied') {
+        alt.textContent = 'Bildirimler şu an bu cihazda engelli görünüyor. Açmak için "Nasıl?" adımlarını izle.';
+        izinBtn.textContent = 'Nasıl açılır';
+      }
+      try { if (!localStorage.getItem('geek_bildirim_rehber')) { rehber.hidden = false; localStorage.setItem('geek_bildirim_rehber', '1'); } } catch (e) {}
+    }
+    izinBtn.addEventListener('click', function () {
+      if (Notification.permission === 'denied') { rehber.hidden = !rehber.hidden; return; }
+      Notification.requestPermission().then(function (p) {
+        if (p === 'granted') { abone().catch(function () {}).finally(guncelle); }
+        else { rehber.hidden = false; guncelle(); }
+      });
+    });
+    nasilBtn.addEventListener('click', function () { rehber.hidden = !rehber.hidden; });
+    guncelle();
+  })();
+  </script>
+  {% endif %}
 </body>
 </html>

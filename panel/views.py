@@ -2380,6 +2380,32 @@ def stok_duzenle(request):
         'gruplar': gruplar, 'sel_grup': sel_grup, 'urunler': urunler,
     })
 
+def sube_yeni(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in [Rol.GENEL_MUDUR, Rol.OPERATOR]:
+        return redirect('ana_sayfa')
+    if request.method == 'POST':
+        ad = (request.POST.get('ad') or '').strip()
+        depo_mu = request.POST.get('depo_mu') == 'on'
+        if not ad:
+            messages.error(request, "Şube adı boş olamaz.")
+        elif Sube.objects.filter(ad__iexact=ad).exists():
+            messages.error(request, "Bu isimde bir şube zaten var.")
+        else:
+            Sube.objects.create(ad=ad, depo_mu=depo_mu)
+            messages.success(request, "Yeni şube eklendi: %s" % ad)
+        return redirect('sube_yeni')
+    subeler = Sube.objects.all().order_by('ad')
+    veriler = [{'sube': s, 'sayi': Personel.objects.filter(sube=s).count()} for s in subeler]
+    return render(request, 'sube_yonetim.html', {
+        'personel': personel, 'aktif': 'sube_yeni', 'veriler': veriler,
+    })
+
+
 def gosterge(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')

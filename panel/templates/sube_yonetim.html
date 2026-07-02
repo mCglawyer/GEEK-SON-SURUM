@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Şubeler · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Şubeler</h2></div>
+  </div>
+
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="card sube-ekle">
+    <h3>Yeni Şube Aç</h3>
+    <form method="post" class="sube-form">
+      {% csrf_token %}
+      <label>Şube Adı<input type="text" name="ad" maxlength="100" placeholder="Örn. Şehitkamil Eatery" required></label>
+      <label class="sube-depo"><input type="checkbox" name="depo_mu"> Bu bir depo (vardiya planına dahil edilmez)</label>
+      <button type="submit" class="btn btn-primary">Şube Ekle</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Mevcut Şubeler ({{ veriler|length }})</h3>
+    <table class="tbl sube-tbl">
+      <thead><tr><th>Şube</th><th>Tür</th><th>Personel</th></tr></thead>
+      <tbody>
+        {% for v in veriler %}
+        <tr>
+          <td>{{ v.sube.ad }}</td>
+          <td>{% if v.sube.depo_mu %}<span class="badge badge-info">Depo</span>{% else %}<span class="badge badge-work">Şube</span>{% endif %}</td>
+          <td>{{ v.sayi }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3">Henüz şube yok.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
