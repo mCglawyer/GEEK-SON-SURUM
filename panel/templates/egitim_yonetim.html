@@ -26,10 +26,10 @@
     <p class="ea-not">Sistem açıkken yalnız <b>açık şubelerin</b> personeline eğitim zorunlu olur. Hiç şube seçilmezse tüm şubeler açık sayılır.</p>
     <div class="ea-sube-liste">
       {% for s in subeler %}
-      <div class="ea-sube{% if s.egitim_acik %} on{% endif %}">
-        <span>{{ s.ad }} {% if s.egitim_acik %}<span class="badge ok">açık</span>{% endif %}</span>
+      <div class="ea-sube{% if s.acik_mi %} on{% endif %}">
+        <span>{{ s.ad }} {% if s.acik_mi %}<span class="badge ok">açık</span>{% endif %}</span>
         <form method="post">{% csrf_token %}<input type="hidden" name="sube_id" value="{{ s.id }}">
-          {% if s.egitim_acik %}<input type="hidden" name="islem" value="sube_kapat"><button class="btn btn-ghost btn-mini">Kapat</button>
+          {% if s.acik_mi %}<input type="hidden" name="islem" value="sube_kapat"><button class="btn btn-ghost btn-mini">Kapat</button>
           {% else %}<input type="hidden" name="islem" value="sube_ac"><button class="btn btn-primary btn-mini">Aç</button>{% endif %}
         </form>
       </div>

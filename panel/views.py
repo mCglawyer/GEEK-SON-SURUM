@@ -3144,7 +3144,7 @@ def egitim_yonetim(request):
     acik_sube_ids = list(ayar_obj.acik_subeler.values_list('id', flat=True)) if ayar_obj else []
     sistem_acik = bool(ayar_obj and ayar_obj.acik)
     for s in sube_secenek:
-        s.egitim_acik = (s.id in acik_sube_ids)
+        s.acik_mi = (s.id in acik_sube_ids)
     sampiyonlar, sampiyon_sube = _egitim_sampiyon_verisi()
     return render(request, 'egitim_yonetim.html', {
         'personel': personel,
