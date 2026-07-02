@@ -978,7 +978,7 @@ body.app .app-main, body.app .container { min-width:0; }
 .qr-liste { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:1rem; }
 .qr-kart { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:1rem; text-align:center; }
 .qr-sube { font-weight:700; color:var(--ink); margin-bottom:.6rem; }
-.qr-kod { display:flex; justify-content:center; min-height:190px; }
+.qr-kod { display:inline-flex; justify-content:center; align-items:center; background:#fff; padding:16px; border:2px solid #111; border-radius:10px; margin:0 auto; }
 .qr-kod img, .qr-kod canvas { display:block; }
 .qr-url { font-size:.62rem; color:var(--muted); word-break:break-all; margin:.5rem 0; }
 .qr-yenile { margin-top:.3rem; }

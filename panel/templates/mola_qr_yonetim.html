@@ -38,19 +38,31 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 (function () {
+  var kaynaklar = [
+    'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+    'https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js'
+  ];
+  var i = 0;
   function ciz() {
-    if (typeof QRCode === 'undefined') { setTimeout(ciz, 300); return; }
     document.querySelectorAll('.qr-kod').forEach(function (el) {
       if (el.dataset.cizildi) return;
       el.dataset.cizildi = '1';
-      try { new QRCode(el, { text: el.getAttribute('data-url'), width: 190, height: 190, correctLevel: QRCode.CorrectLevel.M }); }
+      try { new QRCode(el, { text: el.getAttribute('data-url'), width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H }); }
       catch (e) { el.textContent = 'QR oluşturulamadı'; }
     });
   }
-  ciz();
+  function yukle() {
+    if (window.QRCode) { ciz(); return; }
+    if (i >= kaynaklar.length) { document.querySelectorAll('.qr-kod').forEach(function (el) { el.textContent = 'QR kütüphanesi yüklenemedi'; }); return; }
+    var s = document.createElement('script');
+    s.src = kaynaklar[i++];
+    s.onload = function () { window.QRCode ? ciz() : yukle(); };
+    s.onerror = yukle;
+    document.head.appendChild(s);
+  }
+  yukle();
 })();
 </script>
 {% endblock %}
