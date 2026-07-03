@@ -30,7 +30,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      GSosyalGonderi, GSosyalTepki,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, PushAbonelik,
                      MolaQRAyar, SubeMolaToken, MolaOturum,
-                     InsaatProje, InsaatMadde, InsaatMaddeDurum,
+                     InsaatProje, InsaatMadde, InsaatMaddeDurum, InsaatKategori,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -2628,6 +2628,12 @@ def insaat_detay(request, pid):
         return redirect('insaat_liste')
     yonet = _insaat_yonetebilir(personel, proje)
     atayabilir = personel.rol in INSAAT_ATAMA_ROLLER
+
+    def _geri(anchor=''):
+        from django.urls import reverse
+        url = reverse('insaat_detay', args=[pid])
+        return redirect(url + ('#' + anchor if anchor else ''))
+
     if request.method == 'POST':
         islem = request.POST.get('islem')
         if islem == 'proje_sil' and atayabilir:
@@ -2639,34 +2645,49 @@ def insaat_detay(request, pid):
             proje.sorumlu = m
             proje.save(update_fields=['sorumlu'])
             messages.success(request, "Sorumlu müdür güncellendi.")
-            return redirect('insaat_detay', pid=pid)
+            return _geri()
         if yonet:
             if islem == 'madde_ekle':
                 metin = (request.POST.get('metin') or '').strip()
+                kategori = request.POST.get('kategori')
+                if kategori not in dict(InsaatKategori.choices):
+                    kategori = InsaatKategori.URUN
                 if metin:
-                    InsaatMadde.objects.create(proje=proje, metin=metin[:300], sira=proje.maddeler.count())
+                    yeni = InsaatMadde.objects.create(proje=proje, metin=metin[:300],
+                                                      kategori=kategori, sira=proje.maddeler.count())
+                    return _geri('madde-%d' % yeni.id)
+                return _geri('ekle')
             elif islem == 'madde_sil':
                 InsaatMadde.objects.filter(id=request.POST.get('madde_id'), proje=proje).delete()
+                return _geri('liste')
             elif islem == 'durum':
                 md = InsaatMadde.objects.filter(id=request.POST.get('madde_id'), proje=proje).first()
-                yeni = request.POST.get('durum')
-                if md and yeni in dict(InsaatMaddeDurum.choices):
-                    md.durum = yeni
+                yd = request.POST.get('durum')
+                if md and yd in dict(InsaatMaddeDurum.choices):
+                    md.durum = yd
                     md.save(update_fields=['durum'])
+                    return _geri('madde-%d' % md.id)
             elif islem == 'not_kaydet':
                 md = InsaatMadde.objects.filter(id=request.POST.get('madde_id'), proje=proje).first()
                 if md:
                     md.aciklama = (request.POST.get('aciklama') or '')[:2000]
                     md.save(update_fields=['aciklama'])
+                    return _geri('madde-%d' % md.id)
             elif islem == 'proje_tamamla':
                 proje.tamamlandi = not proje.tamamlandi
                 proje.save(update_fields=['tamamlandi'])
-        return redirect('insaat_detay', pid=pid)
+        return _geri()
     maddeler = list(proje.maddeler.all())
     toplam, tamam, yuzde = _insaat_ilerleme(maddeler)
+    gruplar = []
+    for kod, ad in InsaatKategori.choices:
+        gm = [m for m in maddeler if m.kategori == kod]
+        gt, gtm, gy = _insaat_ilerleme(gm)
+        gruplar.append({'kod': kod, 'ad': ad, 'maddeler': gm, 'toplam': gt, 'tamam': gtm, 'yuzde': gy})
     mudurler = Personel.objects.filter(rol=Rol.MUDUR).order_by('ad_soyad') if atayabilir else []
     return render(request, 'insaat_detay.html', {
-        'personel': personel, 'aktif': 'insaat', 'proje': proje, 'maddeler': maddeler,
+        'personel': personel, 'aktif': 'insaat', 'proje': proje,
+        'gruplar': gruplar, 'kategoriler': InsaatKategori.choices,
         'toplam': toplam, 'tamam': tamam, 'yuzde': yuzde, 'yonet': yonet,
         'atayabilir': atayabilir, 'mudurler': mudurler,
     })

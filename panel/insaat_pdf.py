@@ -72,27 +72,34 @@ def insaat_pdf_uret(proje, maddeler):
         el.append(Paragraph('<b>Durum: PROJE TAMAMLANDI</b>', normal))
     el.append(Spacer(1, 10))
 
-    data = [[Paragraph('#', cellb), Paragraph('Görev', cellb), Paragraph('Durum', cellb), Paragraph('Not', cellb)]]
-    for i, m in enumerate(maddeler, 1):
-        data.append([Paragraph(str(i), normal), Paragraph(_esc(m.metin), normal),
-                     Paragraph(DURUM_METIN.get(m.durum, m.durum), normal),
-                     Paragraph(_esc(m.aciklama or ''), small)])
-    if toplam == 0:
-        data.append([Paragraph('—', normal), Paragraph('Henüz madde eklenmemiş.', normal),
-                     Paragraph('', normal), Paragraph('', normal)])
+    kategori_adlari = [('urun', 'Ürün ve Ekipman'), ('insaat', 'İnşaat Süreci')]
+    kat_h = ParagraphStyle('kh', parent=normal, fontName=fontb, fontSize=11, textColor=colors.HexColor('#162AA3'))
 
-    tbl = Table(data, colWidths=[9 * mm, 79 * mm, 33 * mm, 53 * mm], repeatRows=1)
-    ts = [
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#162AA3')),
-        ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#cccccc')),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('LEFTPADDING', (0, 0), (-1, -1), 5), ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-    ]
-    for r, m in enumerate(maddeler, 1):
-        ts.append(('TEXTCOLOR', (2, r), (2, r), colors.HexColor(DURUM_RENK.get(m.durum, '#333333'))))
-    tbl.setStyle(TableStyle(ts))
-    el.append(tbl)
+    for kod, kad in kategori_adlari:
+        grup = [m for m in maddeler if getattr(m, 'kategori', 'urun') == kod]
+        el.append(Spacer(1, 6))
+        el.append(Paragraph(kad, kat_h))
+        el.append(Spacer(1, 3))
+        data = [[Paragraph('#', cellb), Paragraph('Görev', cellb), Paragraph('Durum', cellb), Paragraph('Not', cellb)]]
+        for i, m in enumerate(grup, 1):
+            data.append([Paragraph(str(i), normal), Paragraph(_esc(m.metin), normal),
+                         Paragraph(DURUM_METIN.get(m.durum, m.durum), normal),
+                         Paragraph(_esc(m.aciklama or ''), small)])
+        if not grup:
+            data.append([Paragraph('—', normal), Paragraph('Bu kategoride madde yok.', normal),
+                         Paragraph('', normal), Paragraph('', normal)])
+        tbl = Table(data, colWidths=[9 * mm, 79 * mm, 33 * mm, 53 * mm], repeatRows=1)
+        ts = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#162AA3')),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#cccccc')),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 5), ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+        ]
+        for r, m in enumerate(grup, 1):
+            ts.append(('TEXTCOLOR', (2, r), (2, r), colors.HexColor(DURUM_RENK.get(m.durum, '#333333'))))
+        tbl.setStyle(TableStyle(ts))
+        el.append(tbl)
     el.append(Spacer(1, 30))
 
     imza = Table([

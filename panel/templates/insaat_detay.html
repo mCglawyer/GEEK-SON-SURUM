@@ -40,21 +40,26 @@
   </div>
 
   {% if yonet %}
-  <div class="card ins-ekle">
+  <div class="card ins-ekle" id="ekle">
     <h3>Madde Ekle</h3>
     <form method="post" class="ins-form">{% csrf_token %}<input type="hidden" name="islem" value="madde_ekle">
+      <select name="kategori" class="sube-sec">
+        {% for kod, ad in kategoriler %}<option value="{{ kod }}">{{ ad }}</option>{% endfor %}
+      </select>
       <input class="input" type="text" name="metin" maxlength="300" placeholder="Görev / kontrol maddesi" required>
       <button class="btn btn-primary">Ekle</button>
     </form>
   </div>
   {% endif %}
 
-  <div class="card">
-    <h3 class="egitim-bolum">Denetim Maddeleri</h3>
-    {% if maddeler %}
+  <div id="liste">
+  {% for g in gruplar %}
+  <div class="card" id="kategori-{{ g.kod }}">
+    <h3 class="egitim-bolum">{{ g.ad }} <span class="ea-not">({{ g.tamam }}/{{ g.toplam }} · %{{ g.yuzde }})</span></h3>
+    {% if g.maddeler %}
     <div class="ins-madde-liste">
-      {% for m in maddeler %}
-      <div class="ins-madde durum-{{ m.durum }}">
+      {% for m in g.maddeler %}
+      <div class="ins-madde durum-{{ m.durum }}" id="madde-{{ m.id }}">
         <div class="im-ust">
           <span class="im-metin">{{ forloop.counter }}. {{ m.metin }}</span>
           <span class="badge im-rozet
@@ -80,8 +85,10 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="egitim-bos">Henüz madde eklenmemiş.{% if yonet %} Yukarıdan madde ekleyebilirsin.{% endif %}</p>
+    <p class="egitim-bos">Bu kategoride madde yok.{% if yonet %} Yukarıdan bu kategoriye madde ekleyebilirsin.{% endif %}</p>
     {% endif %}
+  </div>
+  {% endfor %}
   </div>
 </div>
 {% endblock %}

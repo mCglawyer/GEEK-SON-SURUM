@@ -603,8 +603,15 @@ class InsaatMaddeDurum(models.TextChoices):
     TAMAM = 'tamam', 'Tamamlandı'
 
 
+class InsaatKategori(models.TextChoices):
+    URUN = 'urun', 'Ürün ve Ekipman'
+    SUREC = 'insaat', 'İnşaat Süreci'
+
+
 class InsaatMadde(models.Model):
     proje = models.ForeignKey(InsaatProje, on_delete=models.CASCADE, related_name='maddeler')
+    kategori = models.CharField(max_length=12, choices=InsaatKategori.choices,
+                                default=InsaatKategori.URUN, verbose_name="Kategori")
     metin = models.CharField(max_length=300, verbose_name="Görev")
     durum = models.CharField(max_length=12, choices=InsaatMaddeDurum.choices,
                              default=InsaatMaddeDurum.YAPILMADI)
