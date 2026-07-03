@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Mola İzleme · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Mola İzleme</h2></div>
+  </div>
+  <p class="ea-not" style="margin:-.4rem 0 1rem">Şu an molada olan personel canlı görünür. Süreler saniye saniye güncellenir; liste her 15 saniyede bir yenilenir.</p>
+
+  <div id="mola-ozet" class="mola-ozet"></div>
+  <div id="mola-liste" class="mola-izle-liste">
+    <p class="egitim-bos" id="mola-bos">Yükleniyor…</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var liste = document.getElementById('mola-liste');
+  var ozet = document.getElementById('mola-ozet');
+  var veri = [];
+
+  function ikiHane(n) { return (n < 10 ? '0' : '') + n; }
+
+  function ciz() {
+    var now = Date.now();
+    if (!veri.length) {
+      liste.innerHTML = '<p class="egitim-bos">Şu an molada kimse yok.</p>';
+      ozet.textContent = '';
+      return;
+    }
+    ozet.textContent = veri.length + ' kişi molada';
+    var html = '';
+    veri.forEach(function (m) {
+      var bas = new Date(m.baslangic).getTime();
+      var gecenSn = Math.max(0, Math.floor((now - bas) / 1000));
+      var gecenDk = Math.floor(gecenSn / 60);
+      var kalanSn = m.sure_dk * 60 - gecenSn;
+      var asti = kalanSn < 0;
+      var mmss = ikiHane(Math.floor(gecenSn / 60)) + ':' + ikiHane(gecenSn % 60);
+      var kalanMetin = asti
+        ? ('Süre aşıldı +' + Math.abs(Math.ceil(kalanSn / 60)) + ' dk')
+        : ('Kalan ~' + Math.ceil(kalanSn / 60) + ' dk');
+      html += '<div class="mola-izle-kart' + (asti ? ' asti' : '') + '">'
+        + '<div class="mi-ust"><b>' + m.ad + '</b><span class="mi-sube">' + m.sube + '</span></div>'
+        + '<div class="mi-alt"><span class="mi-sayac">' + mmss + '</span>'
+        + '<span class="mi-tip">' + m.sure_dk + ' dk mola</span>'
+        + '<span class="mi-kalan' + (asti ? ' asti' : '') + '">' + kalanMetin + '</span></div>'
+        + '</div>';
+    });
+    liste.innerHTML = html;
+  }
+
+  function getir() {
+    fetch('{% url "mola_izleme_json" %}', { headers: { 'X-Requested-With': 'fetch' } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { veri = (d && d.molalar) || []; ciz(); })
+      .catch(function () {});
+  }
+
+  getir();
+  setInterval(getir, 15000);
+  setInterval(ciz, 1000);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}İnşaat Denetim · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head"><div><h2>İnşaat Denetim</h2></div></div>
+
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  {% if atayabilir %}
+  <div class="card ins-ekle">
+    <h3>Yeni Proje Ata</h3>
+    <form method="post" class="ins-form">
+      {% csrf_token %}<input type="hidden" name="islem" value="proje_ekle">
+      <input class="input" type="text" name="ad" maxlength="160" placeholder="Yeni şube / proje adı" required>
+      <select name="sorumlu_id" class="sube-sec">
+        <option value="">Sorumlu müdür seç (opsiyonel)</option>
+        {% for m in mudurler %}<option value="{{ m.id }}">{{ m.ad_soyad }}</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary">Proje Oluştur</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if veriler %}
+  <div class="ins-liste">
+    {% for v in veriler %}
+    <a class="ins-kart" href="{% url 'insaat_detay' v.proje.id %}">
+      <div class="ins-kart-ust">
+        <b>{{ v.proje.ad }}</b>
+        {% if v.proje.tamamlandi %}<span class="badge ok">Tamamlandı</span>{% endif %}
+      </div>
+      <div class="ins-kart-alt">
+        <span class="ea-not">Sorumlu: {% if v.proje.sorumlu %}{{ v.proje.sorumlu.ad_soyad }}{% else %}—{% endif %}</span>
+        <span class="ea-not">{{ v.tamam }}/{{ v.toplam }} · %{{ v.yuzde }}</span>
+      </div>
+      <div class="ins-bar"><div class="ins-bar-ic" style="width:{{ v.yuzde }}%"></div></div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="egitim-bos">Henüz proje yok.{% if atayabilir %} Yukarıdan yeni bir proje oluşturabilirsin.{% endif %}</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -19,7 +19,15 @@
   </div>
   {% elif aktif %}
   <div class="card mola-kart mola-aktif">
-    <div class="mola-ikon">☕</div>
+    <div class="mola-ikon"><svg class="mola-barista" viewBox="0 0 64 64" fill="none" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="24" cy="15" r="7"/>
+      <path d="M12 50v-6a12 12 0 0 1 24 0v6"/>
+      <path d="M18 31h12"/>
+      <path d="M20 31l4 11 4-11"/>
+      <path d="M40 33h10v9a5 5 0 0 1-5 5 5 5 0 0 1-5-5z"/>
+      <path d="M50 35h3a3 3 0 0 1 0 6h-3"/>
+      <path d="M43 26c0-2 2-2 2-4M48 26c0-2 2-2 2-4"/>
+    </svg></div>
     <h2>Moladasın</h2>
     <p class="mola-sube">{{ sube.ad }} · {{ aktif.sure_dk }} dakikalık mola</p>
     <p class="mola-kalan">{% if kalan > 0 %}Kalan süre yaklaşık <b>{{ kalan }} dk</b>{% else %}Süren doldu{% endif %}</p>
@@ -30,7 +38,15 @@
   </div>
   {% else %}
   <div class="card mola-kart">
-    <div class="mola-ikon">☕</div>
+    <div class="mola-ikon"><svg class="mola-barista" viewBox="0 0 64 64" fill="none" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="24" cy="15" r="7"/>
+      <path d="M12 50v-6a12 12 0 0 1 24 0v6"/>
+      <path d="M18 31h12"/>
+      <path d="M20 31l4 11 4-11"/>
+      <path d="M40 33h10v9a5 5 0 0 1-5 5 5 5 0 0 1-5-5z"/>
+      <path d="M50 35h3a3 3 0 0 1 0 6h-3"/>
+      <path d="M43 26c0-2 2-2 2-4M48 26c0-2 2-2 2-4"/>
+    </svg></div>
     <h2>Molaya çık</h2>
     <p class="mola-sube">{{ sube.ad }}</p>
     <p class="ea-not">Ne kadar mola kullanacaksın?</p>

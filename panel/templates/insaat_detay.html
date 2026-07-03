@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}{{ proje.ad }} · İnşaat Denetim{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>{{ proje.ad }}</h2></div>
+    <a href="{% url 'insaat_liste' %}" class="btn btn-ghost btn-mini">← Projeler</a>
+  </div>
+
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="card">
+    <div class="ins-kart-alt">
+      <span class="ea-not">Sorumlu: {% if proje.sorumlu %}{{ proje.sorumlu.ad_soyad }}{% else %}—{% endif %}</span>
+      <span class="ea-not">{{ tamam }}/{{ toplam }} madde · %{{ yuzde }}{% if proje.tamamlandi %} · <b>Tamamlandı</b>{% endif %}</span>
+    </div>
+    <div class="ins-bar"><div class="ins-bar-ic" style="width:{{ yuzde }}%"></div></div>
+    <div class="ins-aksiyon">
+      <a href="{% url 'insaat_pdf' proje.id %}" target="_blank" rel="noopener" class="btn btn-ghost btn-mini">📄 PDF (imzalı form)</a>
+      {% if yonet %}
+      <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="islem" value="proje_tamamla">
+        <button class="btn btn-mini {% if proje.tamamlandi %}btn-ghost{% else %}btn-primary{% endif %}">{% if proje.tamamlandi %}Tamamlandıyı geri al{% else %}Projeyi tamamla{% endif %}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% if atayabilir %}
+    <div class="ins-yonetim">
+      <form method="post" class="ins-ata">{% csrf_token %}<input type="hidden" name="islem" value="ata">
+        <select name="sorumlu_id" class="sube-sec">
+          <option value="">Sorumlu müdür seç</option>
+          {% for m in mudurler %}<option value="{{ m.id }}" {% if proje.sorumlu_id == m.id %}selected{% endif %}>{{ m.ad_soyad }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-ghost btn-mini">Sorumluyu güncelle</button>
+      </form>
+      <form method="post" onsubmit="return confirm('Proje ve tüm maddeleri silinsin mi?');" style="display:inline">{% csrf_token %}<input type="hidden" name="islem" value="proje_sil">
+        <button class="btn btn-danger btn-mini">Projeyi sil</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if yonet %}
+  <div class="card ins-ekle">
+    <h3>Madde Ekle</h3>
+    <form method="post" class="ins-form">{% csrf_token %}<input type="hidden" name="islem" value="madde_ekle">
+      <input class="input" type="text" name="metin" maxlength="300" placeholder="Görev / kontrol maddesi" required>
+      <button class="btn btn-primary">Ekle</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h3 class="egitim-bolum">Denetim Maddeleri</h3>
+    {% if maddeler %}
+    <div class="ins-madde-liste">
+      {% for m in maddeler %}
+      <div class="ins-madde durum-{{ m.durum }}">
+        <div class="im-ust">
+          <span class="im-metin">{{ forloop.counter }}. {{ m.metin }}</span>
+          <span class="badge im-rozet
+            {% if m.durum == 'tamam' %}ok{% elif m.durum == 'devam' %}wait{% else %}no{% endif %}">
+            {% if m.durum == 'tamam' %}✓ Tamamlandı{% elif m.durum == 'devam' %}● Devam Ediyor{% else %}✗ Yapılmadı{% endif %}
+          </span>
+        </div>
+        {% if yonet %}
+        <div class="im-durum-btn">
+          <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="durum"><input type="hidden" name="madde_id" value="{{ m.id }}"><input type="hidden" name="durum" value="tamam"><button class="im-db im-db-ok{% if m.durum == 'tamam' %} akt{% endif %}">✓ Tamam</button></form>
+          <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="durum"><input type="hidden" name="madde_id" value="{{ m.id }}"><input type="hidden" name="durum" value="devam"><button class="im-db im-db-wait{% if m.durum == 'devam' %} akt{% endif %}">● Devam</button></form>
+          <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="durum"><input type="hidden" name="madde_id" value="{{ m.id }}"><input type="hidden" name="durum" value="yapilmadi"><button class="im-db im-db-no{% if m.durum == 'yapilmadi' %} akt{% endif %}">✗ Yapılmadı</button></form>
+          <form method="post" onsubmit="return confirm('Madde silinsin mi?');" class="im-sil">{% csrf_token %}<input type="hidden" name="islem" value="madde_sil"><input type="hidden" name="madde_id" value="{{ m.id }}"><button class="btn btn-ghost btn-mini">Sil</button></form>
+        </div>
+        <form method="post" class="im-not">{% csrf_token %}<input type="hidden" name="islem" value="not_kaydet"><input type="hidden" name="madde_id" value="{{ m.id }}">
+          <textarea name="aciklama" rows="1" placeholder="Not ekle (opsiyonel)…">{{ m.aciklama }}</textarea>
+          <button class="btn btn-ghost btn-mini">Notu kaydet</button>
+        </form>
+        {% elif m.aciklama %}
+        <div class="im-not-oku">Not: {{ m.aciklama }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="egitim-bos">Henüz madde eklenmemiş.{% if yonet %} Yukarıdan madde ekleyebilirsin.{% endif %}</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

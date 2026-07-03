@@ -578,3 +578,42 @@ class MolaOturum(models.Model):
 
     class Meta:
         ordering = ['-baslangic']
+
+
+class InsaatProje(models.Model):
+    ad = models.CharField(max_length=160, verbose_name="Yeni Şube / Proje Adı")
+    sorumlu = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='insaat_projeleri', verbose_name="Sorumlu Bölge Müdürü")
+    olusturan = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='olusturdugu_insaat')
+    tamamlandi = models.BooleanField(default=False, verbose_name="Proje Tamamlandı")
+    olusturma = models.DateTimeField(auto_now_add=True)
+    guncelleme = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-olusturma']
+
+    def __str__(self):
+        return self.ad
+
+
+class InsaatMaddeDurum(models.TextChoices):
+    YAPILMADI = 'yapilmadi', 'Yapılmadı'
+    DEVAM = 'devam', 'Devam Ediyor'
+    TAMAM = 'tamam', 'Tamamlandı'
+
+
+class InsaatMadde(models.Model):
+    proje = models.ForeignKey(InsaatProje, on_delete=models.CASCADE, related_name='maddeler')
+    metin = models.CharField(max_length=300, verbose_name="Görev")
+    durum = models.CharField(max_length=12, choices=InsaatMaddeDurum.choices,
+                             default=InsaatMaddeDurum.YAPILMADI)
+    aciklama = models.TextField(blank=True, default='', verbose_name="Not")
+    sira = models.IntegerField(default=0)
+    guncelleme = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sira', 'id']
+
+    def __str__(self):
+        return self.metin

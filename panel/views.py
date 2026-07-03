@@ -30,6 +30,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      GSosyalGonderi, GSosyalTepki,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, PushAbonelik,
                      MolaQRAyar, SubeMolaToken, MolaOturum,
+                     InsaatProje, InsaatMadde, InsaatMaddeDurum,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -2516,6 +2517,175 @@ def mola_tara(request):
     return render(request, 'mola_tara.html', {
         'personel': personel, 'aktif': 'mola_tara', 'acik': _mola_qr_acik(),
     })
+
+
+MOLA_IZLEME_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.MUDUR, Rol.SEF]
+
+
+def _mola_izleme_subeler(personel):
+    if personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI):
+        return list(Sube.objects.filter(depo_mu=False).values_list('id', flat=True))
+    if personel.rol == Rol.MUDUR:
+        return list(personel.sorumlu_subeler.values_list('id', flat=True))
+    if personel.rol == Rol.SEF and personel.sube_id:
+        return [personel.sube_id]
+    return []
+
+
+def mola_izleme(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in MOLA_IZLEME_ROLLER:
+        return redirect('ana_sayfa')
+    return render(request, 'mola_izleme.html', {'personel': personel, 'aktif': 'mola_izleme'})
+
+
+def mola_izleme_json(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'molalar': []}, status=403)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in MOLA_IZLEME_ROLLER:
+        return JsonResponse({'molalar': []}, status=403)
+    sube_ids = _mola_izleme_subeler(personel)
+    now = timezone.now()
+    out = []
+    qs = (MolaOturum.objects.filter(bitis__isnull=True, sube_id__in=sube_ids)
+          .select_related('personel', 'sube').order_by('baslangic'))
+    for m in qs:
+        gecen = max(0, int((now - m.baslangic).total_seconds() // 60))
+        out.append({
+            'ad': m.personel.ad_soyad if m.personel else '—',
+            'sube': m.sube.ad if m.sube else '—',
+            'sure_dk': m.sure_dk,
+            'baslangic': m.baslangic.isoformat(),
+            'gecen_dk': gecen,
+            'kalan_dk': m.sure_dk - gecen,
+        })
+    return JsonResponse({'molalar': out, 'zaman': now.isoformat()})
+
+
+INSAAT_ATAMA_ROLLER = [Rol.GENEL_MUDUR, Rol.YATIRIMCI, Rol.OPERATOR]
+INSAAT_GORUNTULE_ROLLER = [Rol.GENEL_MUDUR, Rol.YATIRIMCI, Rol.OPERATOR, Rol.MUDUR]
+
+
+def _insaat_yonetebilir(personel, proje):
+    if personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR):
+        return True
+    if personel.rol == Rol.MUDUR and proje.sorumlu_id == personel.id:
+        return True
+    return False
+
+
+def _insaat_ilerleme(maddeler):
+    toplam = len(maddeler)
+    tamam = sum(1 for m in maddeler if m.durum == InsaatMaddeDurum.TAMAM)
+    return toplam, tamam, (round(tamam * 100 / toplam) if toplam else 0)
+
+
+def insaat_liste(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in INSAAT_GORUNTULE_ROLLER:
+        return redirect('ana_sayfa')
+    atayabilir = personel.rol in INSAAT_ATAMA_ROLLER
+    if request.method == 'POST' and atayabilir and request.POST.get('islem') == 'proje_ekle':
+        ad = (request.POST.get('ad') or '').strip()
+        mudur = Personel.objects.filter(id=request.POST.get('sorumlu_id'), rol=Rol.MUDUR).first() if (request.POST.get('sorumlu_id') or '').isdigit() else None
+        if ad:
+            InsaatProje.objects.create(ad=ad[:160], sorumlu=mudur, olusturan=personel)
+            messages.success(request, "Proje oluşturuldu: %s" % ad)
+        else:
+            messages.error(request, "Proje adı boş olamaz.")
+        return redirect('insaat_liste')
+    veriler = []
+    for p in InsaatProje.objects.select_related('sorumlu').all():
+        toplam, tamam, yuzde = _insaat_ilerleme(list(p.maddeler.all()))
+        veriler.append({'proje': p, 'toplam': toplam, 'tamam': tamam, 'yuzde': yuzde,
+                        'yonet': _insaat_yonetebilir(personel, p)})
+    mudurler = Personel.objects.filter(rol=Rol.MUDUR).order_by('ad_soyad') if atayabilir else []
+    return render(request, 'insaat_liste.html', {
+        'personel': personel, 'aktif': 'insaat', 'veriler': veriler,
+        'atayabilir': atayabilir, 'mudurler': mudurler,
+    })
+
+
+def insaat_detay(request, pid):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in INSAAT_GORUNTULE_ROLLER:
+        return redirect('ana_sayfa')
+    proje = InsaatProje.objects.filter(id=pid).select_related('sorumlu').first()
+    if proje is None:
+        return redirect('insaat_liste')
+    yonet = _insaat_yonetebilir(personel, proje)
+    atayabilir = personel.rol in INSAAT_ATAMA_ROLLER
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        if islem == 'proje_sil' and atayabilir:
+            proje.delete()
+            messages.success(request, "Proje silindi.")
+            return redirect('insaat_liste')
+        if islem == 'ata' and atayabilir:
+            m = Personel.objects.filter(id=request.POST.get('sorumlu_id'), rol=Rol.MUDUR).first() if (request.POST.get('sorumlu_id') or '').isdigit() else None
+            proje.sorumlu = m
+            proje.save(update_fields=['sorumlu'])
+            messages.success(request, "Sorumlu müdür güncellendi.")
+            return redirect('insaat_detay', pid=pid)
+        if yonet:
+            if islem == 'madde_ekle':
+                metin = (request.POST.get('metin') or '').strip()
+                if metin:
+                    InsaatMadde.objects.create(proje=proje, metin=metin[:300], sira=proje.maddeler.count())
+            elif islem == 'madde_sil':
+                InsaatMadde.objects.filter(id=request.POST.get('madde_id'), proje=proje).delete()
+            elif islem == 'durum':
+                md = InsaatMadde.objects.filter(id=request.POST.get('madde_id'), proje=proje).first()
+                yeni = request.POST.get('durum')
+                if md and yeni in dict(InsaatMaddeDurum.choices):
+                    md.durum = yeni
+                    md.save(update_fields=['durum'])
+            elif islem == 'not_kaydet':
+                md = InsaatMadde.objects.filter(id=request.POST.get('madde_id'), proje=proje).first()
+                if md:
+                    md.aciklama = (request.POST.get('aciklama') or '')[:2000]
+                    md.save(update_fields=['aciklama'])
+            elif islem == 'proje_tamamla':
+                proje.tamamlandi = not proje.tamamlandi
+                proje.save(update_fields=['tamamlandi'])
+        return redirect('insaat_detay', pid=pid)
+    maddeler = list(proje.maddeler.all())
+    toplam, tamam, yuzde = _insaat_ilerleme(maddeler)
+    mudurler = Personel.objects.filter(rol=Rol.MUDUR).order_by('ad_soyad') if atayabilir else []
+    return render(request, 'insaat_detay.html', {
+        'personel': personel, 'aktif': 'insaat', 'proje': proje, 'maddeler': maddeler,
+        'toplam': toplam, 'tamam': tamam, 'yuzde': yuzde, 'yonet': yonet,
+        'atayabilir': atayabilir, 'mudurler': mudurler,
+    })
+
+
+def insaat_pdf(request, pid):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in INSAAT_GORUNTULE_ROLLER:
+        return redirect('ana_sayfa')
+    proje = InsaatProje.objects.filter(id=pid).select_related('sorumlu').first()
+    if proje is None:
+        return redirect('insaat_liste')
+    from .insaat_pdf import insaat_pdf_uret
+    icerik = insaat_pdf_uret(proje, list(proje.maddeler.all()))
+    resp = HttpResponse(icerik, content_type='application/pdf')
+    resp['Content-Disposition'] = 'inline; filename="insaat_denetim_%d.pdf"' % proje.id
+    return resp
 
 
 def gosterge(request):
