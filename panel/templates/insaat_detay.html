@@ -41,54 +41,111 @@
 
   {% if yonet %}
   <div class="card ins-ekle" id="ekle">
-    <h3>Madde Ekle</h3>
     <form method="post" class="ins-form">{% csrf_token %}<input type="hidden" name="islem" value="madde_ekle">
       <select name="kategori" class="sube-sec">
         {% for kod, ad in kategoriler %}<option value="{{ kod }}">{{ ad }}</option>{% endfor %}
       </select>
-      <input class="input" type="text" name="metin" maxlength="300" placeholder="Görev / kontrol maddesi" required>
+      <input class="input" type="text" name="metin" maxlength="300" placeholder="Yeni madde ekle…" required>
       <button class="btn btn-primary">Ekle</button>
     </form>
   </div>
   {% endif %}
 
-  <div id="liste">
+  <div class="ins-sekme-bar" id="liste">
+    {% for g in gruplar %}
+    <button type="button" class="ins-sekme" data-panel="panel-{{ g.kod }}">{{ g.ad }} <span class="ins-sekme-say">{{ g.tamam }}/{{ g.toplam }}</span></button>
+    {% endfor %}
+  </div>
+
   {% for g in gruplar %}
-  <div class="card" id="kategori-{{ g.kod }}">
-    <h3 class="egitim-bolum">{{ g.ad }} <span class="ea-not">({{ g.tamam }}/{{ g.toplam }} · %{{ g.yuzde }})</span></h3>
+  <div class="card ins-panel" id="panel-{{ g.kod }}">
+    <div class="ins-panel-bas">
+      <div class="ins-bar sm"><div class="ins-bar-ic" style="width:{{ g.yuzde }}%"></div></div>
+      <span class="ea-not">%{{ g.yuzde }}</span>
+    </div>
+    <div class="ins-filtre">
+      <button type="button" class="ins-fb akt" data-f="hepsi">Tümü</button>
+      <button type="button" class="ins-fb" data-f="tamam">✓ Tamam</button>
+      <button type="button" class="ins-fb" data-f="devam">● Devam</button>
+      <button type="button" class="ins-fb" data-f="yapilmadi">✗ Yapılmadı</button>
+    </div>
     {% if g.maddeler %}
-    <div class="ins-madde-liste">
+    <div class="ins-satirlar">
       {% for m in g.maddeler %}
-      <div class="ins-madde durum-{{ m.durum }}" id="madde-{{ m.id }}">
-        <div class="im-ust">
-          <span class="im-metin">{{ forloop.counter }}. {{ m.metin }}</span>
-          <span class="badge im-rozet
-            {% if m.durum == 'tamam' %}ok{% elif m.durum == 'devam' %}wait{% else %}no{% endif %}">
-            {% if m.durum == 'tamam' %}✓ Tamamlandı{% elif m.durum == 'devam' %}● Devam Ediyor{% else %}✗ Yapılmadı{% endif %}
-          </span>
+      <div class="ins-satir durum-{{ m.durum }}" id="madde-{{ m.id }}" data-durum="{{ m.durum }}">
+        <span class="is-dot"></span>
+        <div class="is-govde">
+          <div class="is-metin">{{ forloop.counter }}. {{ m.metin }}</div>
+          {% if m.aciklama %}<div class="is-not-onizleme">📝 {{ m.aciklama }}</div>{% endif %}
         </div>
         {% if yonet %}
-        <div class="im-durum-btn">
-          <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="durum"><input type="hidden" name="madde_id" value="{{ m.id }}"><input type="hidden" name="durum" value="tamam"><button class="im-db im-db-ok{% if m.durum == 'tamam' %} akt{% endif %}">✓ Tamam</button></form>
-          <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="durum"><input type="hidden" name="madde_id" value="{{ m.id }}"><input type="hidden" name="durum" value="devam"><button class="im-db im-db-wait{% if m.durum == 'devam' %} akt{% endif %}">● Devam</button></form>
-          <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="durum"><input type="hidden" name="madde_id" value="{{ m.id }}"><input type="hidden" name="durum" value="yapilmadi"><button class="im-db im-db-no{% if m.durum == 'yapilmadi' %} akt{% endif %}">✗ Yapılmadı</button></form>
-          <form method="post" onsubmit="return confirm('Madde silinsin mi?');" class="im-sil">{% csrf_token %}<input type="hidden" name="islem" value="madde_sil"><input type="hidden" name="madde_id" value="{{ m.id }}"><button class="btn btn-ghost btn-mini">Sil</button></form>
+        <div class="is-kontrol">
+          <div class="is-seg">
+            <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="durum"><input type="hidden" name="madde_id" value="{{ m.id }}"><input type="hidden" name="durum" value="tamam"><button class="is-sb ok{% if m.durum == 'tamam' %} akt{% endif %}" title="Tamamlandı">✓</button></form>
+            <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="durum"><input type="hidden" name="madde_id" value="{{ m.id }}"><input type="hidden" name="durum" value="devam"><button class="is-sb wait{% if m.durum == 'devam' %} akt{% endif %}" title="Devam Ediyor">●</button></form>
+            <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="durum"><input type="hidden" name="madde_id" value="{{ m.id }}"><input type="hidden" name="durum" value="yapilmadi"><button class="is-sb no{% if m.durum == 'yapilmadi' %} akt{% endif %}" title="Yapılmadı">✗</button></form>
+          </div>
+          <button type="button" class="is-ikon is-not-ac{% if m.aciklama %} dolu{% endif %}" title="Not ekle/düzenle">📝</button>
+          <form method="post" onsubmit="return confirm('Madde silinsin mi?');" style="display:inline">{% csrf_token %}<input type="hidden" name="islem" value="madde_sil"><input type="hidden" name="madde_id" value="{{ m.id }}"><button class="is-ikon" title="Sil">×</button></form>
         </div>
-        <form method="post" class="im-not">{% csrf_token %}<input type="hidden" name="islem" value="not_kaydet"><input type="hidden" name="madde_id" value="{{ m.id }}">
-          <textarea name="aciklama" rows="1" placeholder="Not ekle (opsiyonel)…">{{ m.aciklama }}</textarea>
-          <button class="btn btn-ghost btn-mini">Notu kaydet</button>
+        <form method="post" class="is-not-form" hidden>{% csrf_token %}<input type="hidden" name="islem" value="not_kaydet"><input type="hidden" name="madde_id" value="{{ m.id }}">
+          <textarea name="aciklama" rows="1" placeholder="Not…">{{ m.aciklama }}</textarea>
+          <button class="btn btn-ghost btn-mini">Kaydet</button>
         </form>
-        {% elif m.aciklama %}
-        <div class="im-not-oku">Not: {{ m.aciklama }}</div>
+        {% else %}
+        <span class="badge is-rozet {% if m.durum == 'tamam' %}ok{% elif m.durum == 'devam' %}wait{% else %}no{% endif %}">{% if m.durum == 'tamam' %}✓{% elif m.durum == 'devam' %}●{% else %}✗{% endif %}</span>
         {% endif %}
       </div>
       {% endfor %}
     </div>
     {% else %}
-    <p class="egitim-bos">Bu kategoride madde yok.{% if yonet %} Yukarıdan bu kategoriye madde ekleyebilirsin.{% endif %}</p>
+    <p class="egitim-bos">Bu kategoride madde yok.{% if yonet %} Yukarıdan ekleyebilirsin.{% endif %}</p>
     {% endif %}
   </div>
   {% endfor %}
-  </div>
 </div>
+
+<script>
+(function () {
+  var sekmeler = Array.prototype.slice.call(document.querySelectorAll('.ins-sekme'));
+  var paneller = Array.prototype.slice.call(document.querySelectorAll('.ins-panel'));
+  function panelGoster(id) {
+    paneller.forEach(function (p) { p.style.display = (p.id === id) ? '' : 'none'; });
+    sekmeler.forEach(function (s) { s.classList.toggle('akt', s.dataset.panel === id); });
+  }
+  sekmeler.forEach(function (s) { s.addEventListener('click', function () { panelGoster(s.dataset.panel); }); });
+  if (sekmeler.length) panelGoster(sekmeler[0].dataset.panel);
+
+  paneller.forEach(function (panel) {
+    var fbs = Array.prototype.slice.call(panel.querySelectorAll('.ins-fb'));
+    fbs.forEach(function (fb) {
+      fb.addEventListener('click', function () {
+        fbs.forEach(function (x) { x.classList.remove('akt'); });
+        fb.classList.add('akt');
+        var f = fb.dataset.f;
+        panel.querySelectorAll('.ins-satir').forEach(function (row) {
+          row.style.display = (f === 'hepsi' || row.dataset.durum === f) ? '' : 'none';
+        });
+      });
+    });
+  });
+
+  document.querySelectorAll('.is-not-ac').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var row = btn.closest('.ins-satir');
+      var form = row ? row.querySelector('.is-not-form') : null;
+      if (form) { form.hidden = !form.hidden; if (!form.hidden) { var t = form.querySelector('textarea'); if (t) t.focus(); } }
+    });
+  });
+
+  if (location.hash && location.hash.indexOf('#madde-') === 0) {
+    var el = document.querySelector(location.hash);
+    if (el) {
+      var panel = el.closest('.ins-panel');
+      if (panel) panelGoster(panel.id);
+      setTimeout(function () { el.scrollIntoView({ block: 'center' }); el.classList.add('vurgu'); }, 60);
+    }
+  }
+})();
+</script>
 {% endblock %}
