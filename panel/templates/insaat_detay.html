@@ -35,6 +35,9 @@
       <form method="post" onsubmit="return confirm('Proje ve tüm maddeleri silinsin mi?');" style="display:inline">{% csrf_token %}<input type="hidden" name="islem" value="proje_sil">
         <button class="btn btn-danger btn-mini">Projeyi sil</button>
       </form>
+      <form method="post" onsubmit="return confirm('Bu projedeki tüm maddeler yeni projeler için varsayılan şablon yapılacak. Mevcut şablonun yerini alır. Onaylıyor musun?');" style="display:inline">{% csrf_token %}<input type="hidden" name="islem" value="sablon_yap">
+        <button class="btn btn-ghost btn-mini" title="Yeni açılan her projeye bu maddeler otomatik eklenir">★ Varsayılan şablon yap</button>
+      </form>
     </div>
     {% endif %}
   </div>

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Mola Geçmişi · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Mola Geçmişi</h2></div>
+    <a href="{% url 'mola_izleme' %}" class="btn btn-ghost btn-mini">← Canlı İzleme</a>
+  </div>
+  <p class="ea-not" style="margin:-.4rem 0 1rem">Biten molalar: giriş–çıkış saati ve kullanılan süre. Son 14 gün.</p>
+
+  {% if subeler %}
+  <form method="get" class="mola-sube-sec">
+    <select name="sube" class="sube-sec" onchange="this.form.submit()">
+      <option value="">Tüm şubeler</option>
+      {% for s in subeler %}<option value="{{ s.id }}" {% if secili == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+    </select>
+    <noscript><button class="btn btn-ghost btn-mini">Göster</button></noscript>
+  </form>
+  {% endif %}
+
+  <div class="card">
+    {% if kayitlar %}
+    <div class="tbl-kaydir">
+      <table class="tbl mola-gecmis-tbl">
+        <thead><tr><th>Personel</th><th>Şube</th><th>Giriş</th><th>Çıkış</th><th>Süre</th></tr></thead>
+        <tbody>
+          {% for k in kayitlar %}
+          <tr>
+            <td>{{ k.ad }}</td>
+            <td>{{ k.sube }}</td>
+            <td>{{ k.giris|date:"d.m.Y H:i" }}</td>
+            <td>{{ k.cikis|date:"d.m.Y H:i" }}</td>
+            <td><span class="mg-sure{% if k.asti %} asti{% endif %}">{{ k.sure_dk }} dk</span> <span class="ea-not">/ {{ k.limit }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="egitim-bos">Bu aralıkta biten mola kaydı yok.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

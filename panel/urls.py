@@ -20,6 +20,7 @@ urlpatterns = [
     path('mola/tara/', views.mola_tara, name='mola_tara'),
     path('mola/izleme/', views.mola_izleme, name='mola_izleme'),
     path('mola/izleme/veri/', views.mola_izleme_json, name='mola_izleme_json'),
+    path('mola/gecmis/', views.mola_gecmis, name='mola_gecmis'),
     path('mola/qr/<str:token>/', views.mola_qr_giris, name='mola_qr_giris'),
     path('push/test/', views.push_test, name='push_test'),
     path('bildirim/<int:bid>/oku/', views.bildirim_oku, name='bildirim_oku'),

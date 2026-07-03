@@ -30,7 +30,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      GSosyalGonderi, GSosyalTepki,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, PushAbonelik,
                      MolaQRAyar, SubeMolaToken, MolaOturum,
-                     InsaatProje, InsaatMadde, InsaatMaddeDurum, InsaatKategori,
+                     InsaatProje, InsaatMadde, InsaatMaddeDurum, InsaatKategori, InsaatSablonMadde,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -826,7 +826,7 @@ def zayi_sayfa(request):
     if personel is None:
         return redirect('ana_sayfa')
 
-    ekleyebilir = personel.rol in (Rol.PERSONEL, Rol.SEF)
+    ekleyebilir = personel.rol in (Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU)
     is_yon = personel.rol in UST_YONETIM
     subeler = _yon_subeler(personel) if is_yon else []
     sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
@@ -851,7 +851,7 @@ def zayi_sayfa(request):
                 messages.success(request, f"{urun} ({miktar:g} {birim}) zayi olarak kaydedildi.")
             else:
                 messages.error(request, "Ürün adı, geçerli bir miktar ve birim gerekli.")
-        elif personel.rol == Rol.SEF and islem in ('zayi_duzenle', 'zayi_sil'):
+        elif personel.rol in (Rol.SEF, Rol.MAGAZA_MUDURU) and islem in ('zayi_duzenle', 'zayi_sil'):
             z = Zayi.objects.filter(id=request.POST.get('zayi_id'), sube=sel_sube).first()
             bugun_mu = z and timezone.localtime(z.olusturma).date() == timezone.localdate()
             if not z or not bugun_mu:
@@ -998,7 +998,7 @@ def kalibrasyon_sayfa(request):
     if personel is None:
         return redirect('ana_sayfa')
 
-    ekleyebilir = personel.rol in (Rol.PERSONEL, Rol.SEF)
+    ekleyebilir = personel.rol in (Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU)
     is_yon = personel.rol in UST_YONETIM
     subeler = _yon_subeler(personel) if is_yon else []
     sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
@@ -1124,7 +1124,7 @@ def stok_sayimi(request):
     if personel is None:
         return redirect('ana_sayfa')
 
-    is_sef = personel.rol == Rol.SEF
+    is_sef = personel.rol in (Rol.SEF, Rol.MAGAZA_MUDURU)
     is_viewer = personel.rol in (Rol.MUDUR, Rol.GENEL_MUDUR, Rol.SATIN_ALMA, Rol.OPERATOR, Rol.YATIRIMCI)
     if not (is_sef or is_viewer):
         return redirect('ana_sayfa')
@@ -1220,7 +1220,7 @@ def stok_excel(request):
     if personel is None:
         return redirect('ana_sayfa')
     rol = personel.rol
-    if rol not in (Rol.SEF, Rol.MUDUR, Rol.GENEL_MUDUR, Rol.SATIN_ALMA, Rol.OPERATOR, Rol.YATIRIMCI):
+    if rol not in (Rol.SEF, Rol.MAGAZA_MUDURU, Rol.MUDUR, Rol.GENEL_MUDUR, Rol.SATIN_ALMA, Rol.OPERATOR, Rol.YATIRIMCI):
         return redirect('ana_sayfa')
 
     ay_str = request.GET.get('stok_ay') or timezone.localdate().strftime('%Y-%m')
@@ -1521,7 +1521,7 @@ def sevkiyat_sayfa(request):
     if personel is None:
         return redirect('ana_sayfa')
     rol = personel.rol
-    is_sef = rol == Rol.SEF
+    is_sef = rol in (Rol.SEF, Rol.MAGAZA_MUDURU)
     is_satinalma = rol == Rol.SATIN_ALMA
     is_sevkiyat = rol == Rol.SEVKIYAT
     is_yon = rol in UST_YONETIM
@@ -1827,7 +1827,7 @@ def sevkiyat_belge(request, talep_id, tip):
     personel = _aktif_personel(request)
     if personel is None:
         return redirect('ana_sayfa')
-    if personel.rol in (Rol.SEF, Rol.MUDUR):
+    if personel.rol in (Rol.SEF, Rol.MAGAZA_MUDURU, Rol.MUDUR):
         return redirect('sevkiyat')
     if tip not in ('yukleme', 'fis'):
         return redirect('sevkiyat')
@@ -1836,7 +1836,7 @@ def sevkiyat_belge(request, talep_id, tip):
     if talep is None:
         return redirect('sevkiyat')
     rol = personel.rol
-    yetkili = rol in OFIS_ROLLERI or (rol == Rol.SEF and personel.sube_id == talep.sube_id)
+    yetkili = rol in OFIS_ROLLERI or (rol in (Rol.SEF, Rol.MAGAZA_MUDURU) and personel.sube_id == talep.sube_id)
     if not yetkili:
         return redirect('ana_sayfa')
     if tip == 'yukleme' and talep.durum not in (SevkiyatDurumu.SEVKIYATTA,
@@ -1857,7 +1857,7 @@ def sevkiyat_excel(request, talep_id):
     personel = _aktif_personel(request)
     if personel is None:
         return redirect('ana_sayfa')
-    if personel.rol in (Rol.SEF, Rol.MUDUR):
+    if personel.rol in (Rol.SEF, Rol.MAGAZA_MUDURU, Rol.MUDUR):
         return redirect('sevkiyat')
     talep = (SevkiyatTalep.objects.filter(id=talep_id, durum=SevkiyatDurumu.ONAYLANDI)
              .select_related('sube').prefetch_related('kalemler').first())
@@ -2519,7 +2519,7 @@ def mola_tara(request):
     })
 
 
-MOLA_IZLEME_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.MUDUR, Rol.SEF]
+MOLA_IZLEME_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.MUDUR, Rol.MAGAZA_MUDURU, Rol.SEF]
 
 
 def _mola_izleme_subeler(personel):
@@ -2527,7 +2527,7 @@ def _mola_izleme_subeler(personel):
         return list(Sube.objects.filter(depo_mu=False).values_list('id', flat=True))
     if personel.rol == Rol.MUDUR:
         return list(personel.sorumlu_subeler.values_list('id', flat=True))
-    if personel.rol == Rol.SEF and personel.sube_id:
+    if personel.rol in (Rol.MAGAZA_MUDURU, Rol.SEF) and personel.sube_id:
         return [personel.sube_id]
     return []
 
@@ -2540,7 +2540,11 @@ def mola_izleme(request):
     personel = _aktif_personel(request)
     if personel is None or personel.rol not in MOLA_IZLEME_ROLLER:
         return redirect('ana_sayfa')
-    return render(request, 'mola_izleme.html', {'personel': personel, 'aktif': 'mola_izleme'})
+    sube_ids = _mola_izleme_subeler(personel)
+    subeler = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if len(sube_ids) > 1 else []
+    return render(request, 'mola_izleme.html', {
+        'personel': personel, 'aktif': 'mola_izleme', 'subeler': subeler,
+    })
 
 
 def mola_izleme_json(request):
@@ -2550,6 +2554,9 @@ def mola_izleme_json(request):
     if personel is None or personel.rol not in MOLA_IZLEME_ROLLER:
         return JsonResponse({'molalar': []}, status=403)
     sube_ids = _mola_izleme_subeler(personel)
+    sec = request.GET.get('sube')
+    if sec and sec.isdigit() and int(sec) in sube_ids:
+        sube_ids = [int(sec)]
     now = timezone.now()
     out = []
     qs = (MolaOturum.objects.filter(bitis__isnull=True, sube_id__in=sube_ids)
@@ -2565,6 +2572,47 @@ def mola_izleme_json(request):
             'kalan_dk': m.sure_dk - gecen,
         })
     return JsonResponse({'molalar': out, 'zaman': now.isoformat()})
+
+
+def mola_gecmis(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in MOLA_IZLEME_ROLLER:
+        return redirect('ana_sayfa')
+    sube_ids = _mola_izleme_subeler(personel)
+    subeler = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if len(sube_ids) > 1 else []
+    sec = request.GET.get('sube')
+    if sec and sec.isdigit() and int(sec) in sube_ids:
+        gecmis_ids = [int(sec)]
+        secili = int(sec)
+    else:
+        gecmis_ids = sube_ids
+        secili = 0
+    sinir = timezone.now() - datetime.timedelta(days=14)
+    kayitlar = (MolaOturum.objects.filter(bitis__isnull=False, sube_id__in=gecmis_ids, baslangic__gte=sinir)
+                .select_related('personel', 'sube').order_by('-baslangic')[:300])
+    liste = []
+    for m in kayitlar:
+        if m.kullanilan_dk is not None:
+            dk = m.kullanilan_dk
+        else:
+            dk = max(0, int((m.bitis - m.baslangic).total_seconds() // 60))
+        liste.append({
+            'ad': m.personel.ad_soyad if m.personel else '—',
+            'sube': m.sube.ad if m.sube else '—',
+            'giris': timezone.localtime(m.baslangic),
+            'cikis': timezone.localtime(m.bitis),
+            'sure_dk': dk,
+            'limit': m.sure_dk,
+            'asti': dk > m.sure_dk,
+        })
+    return render(request, 'mola_gecmis.html', {
+        'personel': personel, 'aktif': 'mola_gecmis',
+        'subeler': subeler, 'secili': secili, 'kayitlar': liste,
+    })
 
 
 INSAAT_ATAMA_ROLLER = [Rol.GENEL_MUDUR, Rol.YATIRIMCI, Rol.OPERATOR]
@@ -2598,8 +2646,14 @@ def insaat_liste(request):
         ad = (request.POST.get('ad') or '').strip()
         mudur = Personel.objects.filter(id=request.POST.get('sorumlu_id'), rol=Rol.MUDUR).first() if (request.POST.get('sorumlu_id') or '').isdigit() else None
         if ad:
-            InsaatProje.objects.create(ad=ad[:160], sorumlu=mudur, olusturan=personel)
-            messages.success(request, "Proje oluşturuldu: %s" % ad)
+            proje = InsaatProje.objects.create(ad=ad[:160], sorumlu=mudur, olusturan=personel)
+            sablonlar = list(InsaatSablonMadde.objects.all())
+            if sablonlar:
+                InsaatMadde.objects.bulk_create([
+                    InsaatMadde(proje=proje, kategori=s.kategori, metin=s.metin, sira=s.sira)
+                    for s in sablonlar
+                ])
+            messages.success(request, "Proje oluşturuldu: %s%s" % (ad, (" (%d şablon madde eklendi)" % len(sablonlar)) if sablonlar else ""))
         else:
             messages.error(request, "Proje adı boş olamaz.")
         return redirect('insaat_liste')
@@ -2645,6 +2699,14 @@ def insaat_detay(request, pid):
             proje.sorumlu = m
             proje.save(update_fields=['sorumlu'])
             messages.success(request, "Sorumlu müdür güncellendi.")
+            return _geri()
+        if islem == 'sablon_yap' and atayabilir:
+            InsaatSablonMadde.objects.all().delete()
+            InsaatSablonMadde.objects.bulk_create([
+                InsaatSablonMadde(kategori=m.kategori, metin=m.metin, sira=m.sira)
+                for m in proje.maddeler.all()
+            ])
+            messages.success(request, "Bu projedeki maddeler yeni projeler için varsayılan şablon yapıldı.")
             return _geri()
         if yonet:
             if islem == 'madde_ekle':

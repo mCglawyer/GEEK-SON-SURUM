@@ -4,8 +4,18 @@
 <div class="container">
   <div class="plan-head">
     <div><h2>Mola İzleme</h2></div>
+    <a href="{% url 'mola_gecmis' %}" class="btn btn-ghost btn-mini">Mola Geçmişi →</a>
   </div>
   <p class="ea-not" style="margin:-.4rem 0 1rem">Şu an molada olan personel canlı görünür. Süreler saniye saniye güncellenir; liste her 15 saniyede bir yenilenir.</p>
+
+  {% if subeler %}
+  <div class="mola-sube-sec">
+    <select id="mola-sube" class="sube-sec">
+      <option value="">Tüm şubeler</option>
+      {% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endif %}
 
   <div id="mola-ozet" class="mola-ozet"></div>
   <div id="mola-liste" class="mola-izle-liste">
@@ -51,11 +61,16 @@
   }
 
   function getir() {
-    fetch('{% url "mola_izleme_json" %}', { headers: { 'X-Requested-With': 'fetch' } })
+    var secEl = document.getElementById('mola-sube');
+    var q = (secEl && secEl.value) ? ('?sube=' + encodeURIComponent(secEl.value)) : '';
+    fetch('{% url "mola_izleme_json" %}' + q, { headers: { 'X-Requested-With': 'fetch' } })
       .then(function (r) { return r.json(); })
       .then(function (d) { veri = (d && d.molalar) || []; ciz(); })
       .catch(function () {});
   }
+
+  var secEl0 = document.getElementById('mola-sube');
+  if (secEl0) secEl0.addEventListener('change', getir);
 
   getir();
   setInterval(getir, 15000);

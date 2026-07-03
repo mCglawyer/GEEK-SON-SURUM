@@ -1086,3 +1086,11 @@ body.app .app-main, body.app .container { min-width:0; }
 .is-not-form { flex-basis:100%; display:flex; gap:.5rem; margin-top:.4rem; }
 .is-not-form textarea { flex:1; resize:vertical; min-height:2em; padding:.35rem .6rem; border:1px solid var(--line); border-radius:var(--radius-sm); font:inherit; font-size:.85rem; }
 .is-rozet { flex:0 0 auto; }
+
+/* Mola şube seçici + geçmiş tablosu */
+.mola-sube-sec { margin:0 0 1rem; }
+.mola-sube-sec .sube-sec { min-width:200px; }
+.mola-gecmis-tbl th, .mola-gecmis-tbl td { white-space:nowrap; }
+.mg-sure { font-weight:700; color:var(--ok); }
+.mg-sure.asti { color:var(--no); }
+.tbl-kaydir { overflow-x:auto; -webkit-overflow-scrolling:touch; }

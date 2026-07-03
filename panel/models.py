@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 class Rol(models.TextChoices):
     GENEL_MUDUR = 'Genel Müdür', 'Genel Müdür (Tam Yetkili)'
     MUDUR = 'Müdür', 'Bölge Müdürü'
+    MAGAZA_MUDURU = 'Mağaza Müdürü', 'Mağaza Müdürü'
     OPERATOR = 'Operatör', 'Operatör (Tam Yetkili)'
     YATIRIMCI = 'Yatırımcı', 'Yatırımcı (Tam Yetkili)'
     SATIN_ALMA = 'Satın Alma', 'Satın Alma'
@@ -621,6 +622,20 @@ class InsaatMadde(models.Model):
 
     class Meta:
         ordering = ['sira', 'id']
+
+    def __str__(self):
+        return self.metin
+
+
+class InsaatSablonMadde(models.Model):
+    """Yeni projelere otomatik eklenecek varsayılan denetim maddeleri."""
+    kategori = models.CharField(max_length=12, choices=InsaatKategori.choices,
+                                default=InsaatKategori.URUN, verbose_name="Kategori")
+    metin = models.CharField(max_length=300, verbose_name="Görev")
+    sira = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['kategori', 'sira', 'id']
 
     def __str__(self):
         return self.metin
