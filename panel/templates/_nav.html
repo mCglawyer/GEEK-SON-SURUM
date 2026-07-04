@@ -5,6 +5,15 @@
   </button>
   <a href="{% url 'ana_sayfa' %}" class="topbar-brand"><img class="topbar-logo" src="{% static 'images/geek_logo_blue.png' %}" alt="Geek"></a>
   <div class="topbar-user">
+    {% if ust_subeler %}
+    <form method="get" action="{% url 'sube_sec' %}" class="ust-sube-form">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <span class="ust-sube-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg></span>
+      <select name="sube_id" class="ust-sube-sec" onchange="this.form.submit()" aria-label="Şube seç">
+        {% for s in ust_subeler %}<option value="{{ s.id }}"{% if s.id|stringformat:'s' == ust_secili_sube_id %} selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+      </select>
+    </form>
+    {% endif %}
     {% if personel %}
     <a href="{% url 'duyurular' %}" class="topbar-zil{% if aktif == 'duyurular' %} aktif{% endif %}" title="Duyurular" aria-label="Duyurular">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"></path><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path></svg>

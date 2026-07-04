@@ -74,3 +74,28 @@ def egitim_ctx(request):
         return {'egitim_acik': (p.sube_id in acik_ids)}
     except Exception:
         return {}
+
+
+def sube_secici_ctx(request):
+    """Üst bardaki global şube seçici için: kullanıcının şubeleri + seçili şube."""
+    u = getattr(request, 'user', None)
+    if not u or not getattr(u, 'is_authenticated', False):
+        return {}
+    try:
+        from .models import Personel, Sube, Rol
+        p = Personel.objects.filter(user=u).only('rol', 'id').first()
+        if p is None or p.rol not in (Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI):
+            return {}
+        if p.rol == Rol.MUDUR:
+            subeler = list(p.sorumlu_subeler.order_by('ad'))
+        else:
+            subeler = list(Sube.objects.order_by('ad'))
+        if len(subeler) < 2:
+            return {}
+        sid = str(request.session.get('sel_sube_id') or '')
+        if not any(str(s.id) == sid for s in subeler):
+            varsayilan = next((s for s in subeler if not s.depo_mu), subeler[0])
+            sid = str(varsayilan.id)
+        return {'ust_subeler': subeler, 'ust_secili_sube_id': sid}
+    except Exception:
+        return {}

@@ -13,6 +13,7 @@ urlpatterns = [
     path('bildirimler/', views.bildirimler, name='bildirimler'),
     path('push/kaydet/', views.push_kaydet, name='push_kaydet'),
     path('sube/yeni/', views.sube_yeni, name='sube_yeni'),
+    path('sube-sec/', views.sube_sec, name='sube_sec'),
     path('insaat/', views.insaat_liste, name='insaat_liste'),
     path('insaat/<int:pid>/', views.insaat_detay, name='insaat_detay'),
     path('insaat/<int:pid>/pdf/', views.insaat_pdf, name='insaat_pdf'),

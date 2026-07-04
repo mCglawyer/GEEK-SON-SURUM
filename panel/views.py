@@ -2800,6 +2800,18 @@ def insaat_pdf(request, pid):
     return resp
 
 
+def sube_sec(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    sid = request.GET.get('sube_id', '')
+    if sid.isdigit():
+        request.session['sel_sube_id'] = sid
+    geri = request.GET.get('next', '') or '/'
+    if not geri.startswith('/') or geri.startswith('//'):
+        geri = '/'
+    return redirect(geri)
+
+
 def gosterge(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')

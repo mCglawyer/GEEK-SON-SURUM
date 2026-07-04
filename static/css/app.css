@@ -1101,3 +1101,9 @@ body.app .app-main, body.app .container { min-width:0; }
   color:rgba(255,255,255,.42); padding:15px 12px 5px; margin-top:4px;
   border-top:1px solid rgba(255,255,255,.10); }
 .yan-nav > .yan-bolum:first-child, .yan-nav > .yan-link:first-child + .yan-bolum { border-top:none; }
+
+/* Üst bar — global şube seçici */
+.ust-sube-form { display:flex; align-items:center; gap:5px; background:var(--brand-050); border:1px solid var(--brand-100); border-radius:999px; padding:4px 6px 4px 11px; }
+.ust-sube-ikon { color:var(--brand); display:flex; align-items:center; }
+.ust-sube-sec { border:none; background:transparent; font:inherit; font-size:.85rem; font-weight:600; color:var(--brand); cursor:pointer; padding:2px 2px; max-width:160px; outline:none; }
+@media (max-width:640px){ .ust-sube-sec { max-width:108px; font-size:.8rem; } .ust-sube-form { padding-left:8px; } }
