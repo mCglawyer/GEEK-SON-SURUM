@@ -74,6 +74,14 @@
   
   {% endif %}
   {% if personel.egitmen and personel.rol != 'Eğitmen' %}<a href="{% url 'soru_yonetimi' %}" class="yan-link{% if aktif == 'soru_yonetimi' %} akt{% endif %}"><svg viewBox="0 0 24 24" class="yi" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .8-1 1.7"/><path d="M12 17h.01"/></svg><span>Soru Yönetimi</span></a><a href="{% url 'bilgi_karnesi' %}" class="yan-link{% if aktif == 'bilgi_karnesi' %} akt{% endif %}"><svg viewBox="0 0 24 24" class="yi" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></svg><span>Bilgi Karnesi</span></a>{% endif %}
+    {% if personel %}
+    <div class="yan-cikis-alan">
+      <form method="post" action="{% url 'ana_sayfa' %}" class="yan-cikis-form">
+        {% csrf_token %}<input type="hidden" name="islem" value="cikis">
+        <button type="submit" class="yan-link yan-cikis"><svg viewBox="0 0 24 24" class="yi" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span>Çıkış Yap</span></button>
+      </form>
+    </div>
+    {% endif %}
   </nav>
 </aside>
 

@@ -1097,7 +1097,14 @@ body.app .app-main, body.app .container { min-width:0; }
 .tbl-kaydir { overflow-x:auto; -webkit-overflow-scrolling:touch; }
 
 /* Menü — açılır gruplar */
-/* Menü — bölüm başlıkları (lacivert kenar çubuğu) */
+/* Menü alt Çıkış (mobilde birincil, masaüstünde ikincil) */
+.yan-cikis-alan { margin-top:auto; padding-top:10px; border-top:1px solid rgba(255,255,255,.14); }
+.yan-cikis-form { margin:0; }
+.yan-cikis { width:100%; background:none; border:none; cursor:pointer; color:rgba(255,255,255,.75); }
+.yan-cikis:hover { background:rgba(255,255,255,.10); color:#fff; }
+@media (max-width:900px) {
+  .topbar .cikis-form { display:none; }
+}
 .yan-bolum { font-size:.63rem; font-weight:700; text-transform:uppercase; letter-spacing:.09em;
   color:rgba(255,255,255,.42); padding:15px 12px 5px; margin-top:4px;
   border-top:1px solid rgba(255,255,255,.10); }

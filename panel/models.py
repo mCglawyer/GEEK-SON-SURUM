@@ -1,6 +1,8 @@
 import secrets
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
 
 class Rol(models.TextChoices):
     GENEL_MUDUR = 'Genel Müdür', 'Genel Müdür (Tam Yetkili)'
@@ -135,7 +137,8 @@ class Mola(models.Model):
         return f"{self.personel.ad_soyad} - {self.baslangic_saati}"
 
 class Puantaj(models.Model):
-    personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='puantajlar')
+    personel = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True, related_name='puantajlar')
+    personel_ad_soyad_arsiv = models.CharField(max_length=160, blank=True, default='', verbose_name="Personel (arşiv)")
     ay = models.DateField(verbose_name="Puantaj Ayı")
     calisilan_gun = models.IntegerField(default=0, verbose_name="Çalışılan Gün")
     eksik_gun = models.IntegerField(default=0, verbose_name="Eksik Gün")
@@ -640,3 +643,9 @@ class InsaatSablonMadde(models.Model):
 
     def __str__(self):
         return self.metin
+
+
+@receiver(pre_delete, sender=Personel)
+def _personel_silinmeden_once_puantaj_arsivle(sender, instance, **kwargs):
+    """Personel silindiğinde geçmiş puantaj kayıtları korunur; ad soyad arşive kopyalanır."""
+    Puantaj.objects.filter(personel=instance).update(personel_ad_soyad_arsiv=instance.ad_soyad)
