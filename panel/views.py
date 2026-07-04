@@ -299,7 +299,7 @@ def ana_sayfa(request):
             _gunluk_finalize(_gs)
             if not _gs.cevaplandi:
                 return redirect('gunluk_soru')
-    if personel.rol == Rol.SEF:
+    if personel.rol in (Rol.SEF, Rol.MAGAZA_MUDURU):
         return _sef_home(request, personel)
     return _personel_home(request, personel)
 
@@ -1899,7 +1899,7 @@ def _kod_giris(request):
         messages.error(request, f"Çok fazla hatalı deneme. Lütfen {kalan} dakika sonra tekrar deneyin.")
         return redirect('ana_sayfa')
     kod = request.POST.get('kod', '').strip()
-    personel = Personel.objects.filter(giris_kodu=kod, rol__in=[Rol.PERSONEL, Rol.SEF]).select_related('user').first()
+    personel = Personel.objects.filter(giris_kodu=kod, rol__in=[Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU]).select_related('user').first()
     if personel and personel.user:
         kilit.hatali_deneme = 0
         kilit.kilit_bitis = None
