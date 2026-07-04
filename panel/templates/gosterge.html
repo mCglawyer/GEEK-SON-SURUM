@@ -43,7 +43,6 @@
 
   <h3 class="gs-baslik">Bekleyen İşler</h3>
   <div class="gs-grid">
-    <a href="{% url 'ekip' %}" class="gs-kart gs-link {% if onay_bekleyen %}gs-wait{% endif %}"><span class="gs-buyuk">{{ onay_bekleyen }}</span><span class="gs-etiket">Onay bekleyen vardiya planı</span></a>
     <a href="{% url 'sevkiyat' %}" class="gs-kart gs-link {% if acik_sevkiyat %}gs-wait{% endif %}"><span class="gs-buyuk">{{ acik_sevkiyat }}</span><span class="gs-etiket">Açık sevkiyat siparişi</span></a>
   </div>
 
