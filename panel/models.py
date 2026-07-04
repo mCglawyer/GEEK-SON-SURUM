@@ -87,7 +87,7 @@ class Personel(models.Model):
             self.giris_kodu = self.benzersiz_kod_uret()
         super().save(*args, **kwargs)
 
-        if self.user_id is None and self.rol in (Rol.PERSONEL, Rol.SEF):
+        if self.user_id is None and self.rol in (Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU):
             u = User.objects.create(username=f"kod_{self.giris_kodu}")
             u.set_unusable_password()
             u.save()

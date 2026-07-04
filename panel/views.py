@@ -288,7 +288,7 @@ def ana_sayfa(request):
     if personel is None:
         return render(request, 'personel_panel.html', {'personel': None, 'yonetici_bekliyor': True, 'aktif': 'home'})
     if personel.rol in UST_YONETIM:
-        return _yonetici_vardiya(request, personel)
+        return redirect('gosterge')
     if personel.rol in (Rol.SATIN_ALMA, Rol.SEVKIYAT):
         return redirect('sevkiyat')
     if personel.rol == Rol.EGITMEN:
@@ -418,6 +418,17 @@ def _vardiya_kaydet(request, sube):
         Vardiya.objects.update_or_create(
             personel=hedef, tarih=t,
             defaults={'vardiya_tipi': tip, 'durum': OnayDurumu.TASLAK, 'red_notu': None})
+
+def vardiya_home(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in UST_YONETIM:
+        return redirect('ana_sayfa')
+    return _yonetici_vardiya(request, personel)
+
 
 def _yonetici_vardiya(request, personel):
     is_gm = personel.rol == Rol.GENEL_MUDUR
