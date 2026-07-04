@@ -68,6 +68,28 @@
     {% endif %}
   </div>
 
+  {% if magaza_atayabilir %}
+  <div class="card staff-card">
+    <h3>Mağaza Müdürü (Franchise Şubeler)</h3>
+    <p style="margin:.2rem 0 1rem;color:var(--muted);font-size:.9rem">Yalnızca franchise şubelere atanır. Mağaza müdürü kendi şubesinin tüm bilgilerini görür ve şef yetkilerine sahiptir.</p>
+    <ul class="staff-list">
+      {% for m in magaza_mudurleri %}
+      <li>
+        <span class="staff-ad">{{ m.ad_soyad }} <span class="badge badge-info">{{ m.sube.ad }}</span> <span class="ea-not">Giriş kodu: {{ m.giris_kodu }}</span></span>
+        <form method="post" onsubmit="return confirm('{{ m.ad_soyad }} mağaza müdürlükten çıkarılsın mı?');" style="display:inline">{% csrf_token %}<input type="hidden" name="islem" value="magaza_muduru_cikar"><input type="hidden" name="personel_id" value="{{ m.id }}"><button class="btn btn-ghost btn-mini">Çıkar</button></form>
+      </li>
+      {% empty %}
+      <li><span class="staff-ad" style="color:var(--muted)">Henüz mağaza müdürü yok.</span></li>
+      {% endfor %}
+    </ul>
+    <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="magaza_muduru_ekle">
+      <input class="input" type="text" name="ad_soyad" placeholder="Mağaza müdürü ad soyad" required>
+      <select name="mm_sube_id" class="sube-sec" required>{% for sb in subeler %}<option value="{{ sb.id }}">{{ sb.ad }}</option>{% endfor %}</select>
+      <button class="btn btn-primary">Mağaza müdürü ekle</button>
+    </form>
+  </div>
+  {% endif %}
+
   {% if is_atayabilir %}
   <div class="card staff-card">
     <h3>Bölge Müdürü — Şube Atama</h3>

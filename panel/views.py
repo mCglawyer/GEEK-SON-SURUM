@@ -582,9 +582,25 @@ def ekip_sayfa(request):
     subeler = _yon_subeler(personel)
     is_tam = personel.rol in TAM_YETKILI
     if request.method == 'POST':
+        islem = request.POST.get('islem')
+        if islem in ('magaza_muduru_ekle', 'magaza_muduru_cikar') and personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.MUDUR):
+            sube_id_list = [s.id for s in subeler]
+            if islem == 'magaza_muduru_ekle':
+                ad = request.POST.get('ad_soyad', '').strip()
+                sid = request.POST.get('mm_sube_id') or ''
+                if ad and sid.isdigit() and int(sid) in sube_id_list:
+                    yeni = Personel.objects.create(ad_soyad=ad, sube_id=int(sid), rol=Rol.MAGAZA_MUDURU)
+                    messages.success(request, f"{ad} mağaza müdürü olarak eklendi. Giriş kodu: {yeni.giris_kodu} (kodla giriş yapar).")
+                else:
+                    messages.error(request, "Ad soyad ve yetkili olduğunuz bir şube zorunlu.")
+            else:
+                s = Personel.objects.filter(id=request.POST.get('personel_id'), rol=Rol.MAGAZA_MUDURU).first()
+                if s and s.sube_id in sube_id_list:
+                    (s.user or s).delete()
+                    messages.success(request, "Mağaza müdürü çıkarıldı.")
+            return redirect('ekip')
         if not is_tam:
             return redirect('ekip')
-        islem = request.POST.get('islem')
 
         if islem == 'yonetici_ekle':
             ad = request.POST.get('ad_soyad', '').strip()
@@ -700,6 +716,8 @@ def ekip_sayfa(request):
         'yoneticiler': yoneticiler, 'sefler': sefler,
         'yonetici_rolleri': OFIS_ROLLERI,
         'is_tam': is_tam,
+        'magaza_atayabilir': personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.MUDUR),
+        'magaza_mudurleri': list(Personel.objects.filter(rol=Rol.MAGAZA_MUDURU, sube__in=subeler).select_related('sube').order_by('ad_soyad')),
         'is_atayabilir': is_atayabilir, 'bolge_mudurleri': bolge_mudurleri, 'tum_subeler': tum_subeler,
         'egitmenler': egitmenler, 'egitmen_adaylari': egitmen_adaylari,
     })
