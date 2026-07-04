@@ -1096,9 +1096,8 @@ body.app .app-main, body.app .container { min-width:0; }
 .tbl-kaydir { overflow-x:auto; -webkit-overflow-scrolling:touch; }
 
 /* Menü — açılır gruplar */
-.yan-grup { border-top:1px solid var(--line); margin-top:.25rem; }
-.yan-grup-bas { list-style:none; cursor:pointer; padding:.55rem .9rem .4rem; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:flex; align-items:center; justify-content:space-between; user-select:none; }
-.yan-grup-bas::-webkit-details-marker { display:none; }
-.yan-grup-bas::after { content:'⌄'; font-size:.95rem; line-height:1; transition:transform .2s; opacity:.65; }
-.yan-grup[open] > .yan-grup-bas::after { transform:rotate(180deg); }
-.yan-grup[open] > .yan-grup-bas { color:var(--brand); }
+/* Menü — bölüm başlıkları (lacivert kenar çubuğu) */
+.yan-bolum { font-size:.63rem; font-weight:700; text-transform:uppercase; letter-spacing:.09em;
+  color:rgba(255,255,255,.42); padding:15px 12px 5px; margin-top:4px;
+  border-top:1px solid rgba(255,255,255,.10); }
+.yan-nav > .yan-bolum:first-child, .yan-nav > .yan-link:first-child + .yan-bolum { border-top:none; }
