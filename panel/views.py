@@ -248,9 +248,18 @@ def _puantaj_hesapla(personel, bas, son, manuel_ay=None):
     if manuel_ay is not None:
         rec = Puantaj.objects.filter(personel=personel, ay=manuel_ay).first()
         if rec and rec.manuel_duzenlendi:
-            return {'calisilan': rec.calisilan_gun, 'eksik': rec.eksik_gun,
-                    'izinli': rec.izinli_gun, 'yillik': rec.yillik_gun,
-                    'raporlu': rec.raporlu_gun, 'manuel': True}
+            # Manuel kayıt, düzenleme anına kadarki tabanı temsil eder.
+            # Düzenlemeden SONRA eklenen/değişen vardiyalar otomatik olarak üstüne eklenir.
+            esik = rec.guncelleme.date() if rec.guncelleme else bas
+            ek = personel.vardiyalar.filter(tarih__gt=esik, tarih__lt=son).exclude(durum=OnayDurumu.REDDEDILDI)
+            return {
+                'calisilan': rec.calisilan_gun + ek.filter(vardiya_tipi__in=CALISMA_TIPLERI).count(),
+                'eksik': rec.eksik_gun + ek.filter(vardiya_tipi=VardiyaTipi.DEVAMSIZ).count(),
+                'izinli': rec.izinli_gun + ek.filter(vardiya_tipi=VardiyaTipi.IZINLI).count(),
+                'yillik': rec.yillik_gun + ek.filter(vardiya_tipi=VardiyaTipi.YILLIK_IZIN).count(),
+                'raporlu': rec.raporlu_gun + ek.filter(vardiya_tipi=VardiyaTipi.RAPORLU).count(),
+                'manuel': True,
+            }
 
     s = personel.vardiyalar.filter(tarih__gte=bas, tarih__lt=son).exclude(durum=OnayDurumu.REDDEDILDI)
     return {
@@ -479,12 +488,15 @@ def puantaj_sayfa(request):
 
     is_gm = personel.rol == Rol.GENEL_MUDUR
     is_yon = personel.rol in UST_YONETIM
+    puantaj_duzenleyebilir = personel.rol in (Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR)
     subeler = _yon_subeler(personel) if is_yon else []
     sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
     ay_str = request.GET.get('puantaj_ay') or timezone.localdate().strftime('%Y-%m')
     ay_ilk, ay_son = _ay_araligi(ay_str)
 
     if request.method == 'POST' and sel_sube:
+        if not puantaj_duzenleyebilir:
+            return redirect(f'/puantaj/?puantaj_ay={ay_str}')
         islem = request.POST.get('islem')
         hedef = Personel.objects.filter(id=request.POST.get('target_personel_id'), sube=sel_sube).first()
         if hedef and islem == 'puantaj_kaydet':
@@ -525,6 +537,7 @@ def puantaj_sayfa(request):
         liste.append(d)
     return render(request, 'puantaj.html', {
         'personel': personel, 'aktif': 'puantaj', 'is_gm': is_gm, 'is_yon': is_yon,
+        'puantaj_duzenleyebilir': puantaj_duzenleyebilir,
         'subeler': subeler, 'sel_sube': sel_sube, 'puantaj_listesi': liste,
         'selected_ay_str': ay_str, 'aralik_mod': aralik_mod,
         'puantaj_bas': bas_str, 'puantaj_bit': bit_str,
@@ -2570,7 +2583,8 @@ def mola_izleme(request):
     if personel is None or personel.rol not in MOLA_IZLEME_ROLLER:
         return redirect('ana_sayfa')
     sube_ids = _mola_izleme_subeler(personel)
-    subeler = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if len(sube_ids) > 1 else []
+    tekli_rol = personel.rol in (Rol.SEF, Rol.MAGAZA_MUDURU)
+    subeler = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if (len(sube_ids) > 1 and not tekli_rol) else []
     return render(request, 'mola_izleme.html', {
         'personel': personel, 'aktif': 'mola_izleme', 'subeler': subeler,
     })
@@ -2583,9 +2597,10 @@ def mola_izleme_json(request):
     if personel is None or personel.rol not in MOLA_IZLEME_ROLLER:
         return JsonResponse({'molalar': []}, status=403)
     sube_ids = _mola_izleme_subeler(personel)
-    sec = request.GET.get('sube')
-    if sec and sec.isdigit() and int(sec) in sube_ids:
-        sube_ids = [int(sec)]
+    if personel.rol not in (Rol.SEF, Rol.MAGAZA_MUDURU):
+        sec = request.GET.get('sube')
+        if sec and sec.isdigit() and int(sec) in sube_ids:
+            sube_ids = [int(sec)]
     now = timezone.now()
     out = []
     qs = (MolaOturum.objects.filter(bitis__isnull=True, sube_id__in=sube_ids)
@@ -2612,17 +2627,42 @@ def mola_gecmis(request):
     if personel is None or personel.rol not in MOLA_IZLEME_ROLLER:
         return redirect('ana_sayfa')
     sube_ids = _mola_izleme_subeler(personel)
-    subeler = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if len(sube_ids) > 1 else []
+    tekli_rol = personel.rol in (Rol.SEF, Rol.MAGAZA_MUDURU)
+    subeler = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if (len(sube_ids) > 1 and not tekli_rol) else []
     sec = request.GET.get('sube')
-    if sec and sec.isdigit() and int(sec) in sube_ids:
+    if tekli_rol:
+        gecmis_ids = sube_ids
+        secili = personel.sube_id or 0
+    elif sec and sec.isdigit() and int(sec) in sube_ids:
         gecmis_ids = [int(sec)]
         secili = int(sec)
     else:
         gecmis_ids = sube_ids
         secili = 0
-    sinir = timezone.now() - datetime.timedelta(days=14)
-    kayitlar = (MolaOturum.objects.filter(bitis__isnull=False, sube_id__in=gecmis_ids, baslangic__gte=sinir)
-                .select_related('personel', 'sube').order_by('-baslangic')[:300])
+    aralik = _gun_araligi(request, 'mg_bas', 'mg_bit')
+    hizli = request.GET.get('hizli', '14')
+    if aralik:
+        bas, bit_ust, bas_str, bit_str = aralik
+        sinir, ust = bas, bit_ust
+        hizli = ''
+    else:
+        bugun = timezone.localdate()
+        if hizli == 'bugun':
+            bas_g = bugun
+        elif hizli == 'hafta':
+            bas_g = bugun - datetime.timedelta(days=bugun.weekday())
+        elif hizli == 'ay':
+            bas_g = bugun.replace(day=1)
+        else:
+            hizli = '14'
+            bas_g = bugun - datetime.timedelta(days=13)
+        sinir = datetime.datetime.combine(bas_g, datetime.time.min, tzinfo=timezone.get_current_timezone())
+        ust = timezone.now() + datetime.timedelta(days=1)
+        bas_str = bas_g.strftime('%Y-%m-%d')
+        bit_str = bugun.strftime('%Y-%m-%d')
+    kayitlar = (MolaOturum.objects.filter(bitis__isnull=False, sube_id__in=gecmis_ids,
+                                          baslangic__gte=sinir, baslangic__lt=ust)
+                .select_related('personel', 'sube').order_by('-baslangic')[:500])
     liste = []
     for m in kayitlar:
         if m.kullanilan_dk is not None:
@@ -2638,9 +2678,13 @@ def mola_gecmis(request):
             'limit': m.sure_dk,
             'asti': dk > m.sure_dk,
         })
+    toplam_kisi = len(set(k['ad'] for k in liste))
+    asan_sayisi = sum(1 for k in liste if k['asti'])
     return render(request, 'mola_gecmis.html', {
         'personel': personel, 'aktif': 'mola_gecmis',
         'subeler': subeler, 'secili': secili, 'kayitlar': liste,
+        'hizli': hizli, 'mg_bas': bas_str, 'mg_bit': bit_str,
+        'toplam_kayit': len(liste), 'toplam_kisi': toplam_kisi, 'asan_sayisi': asan_sayisi,
     })
 
 

@@ -1,44 +1,142 @@
 {% extends 'base.html' %}
-{% block title %}Mola Geçmişi · Geek Panel{% endblock %}
+{% block title %}Mola Takibi · Geek Panel{% endblock %}
 {% block body %}
 <div class="container">
   <div class="plan-head">
-    <div><h2>Mola Geçmişi</h2></div>
-    <a href="{% url 'mola_izleme' %}" class="btn btn-ghost btn-mini">← Canlı İzleme</a>
+    <div><h2>Mola Takibi</h2></div>
   </div>
-  <p class="ea-not" style="margin:-.4rem 0 1rem">Biten molalar: giriş–çıkış saati ve kullanılan süre. Son 14 gün.</p>
 
-  {% if subeler %}
-  <form method="get" class="mola-sube-sec">
-    <select name="sube" class="sube-sec" onchange="this.form.submit()">
-      <option value="">Tüm şubeler</option>
-      {% for s in subeler %}<option value="{{ s.id }}" {% if secili == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
-    </select>
-    <noscript><button class="btn btn-ghost btn-mini">Göster</button></noscript>
-  </form>
-  {% endif %}
+  <!-- Canlı izleme — arka planda, küçük ve açılır -->
+  <div class="mt-canli" id="mt-canli">
+    <button type="button" class="mt-canli-bas" id="mt-canli-toggle">
+      <span class="mt-canli-nokta" id="mt-nokta"></span>
+      <span id="mt-canli-metin">Şu an molada: <b id="mt-sayi">0</b> kişi</span>
+      <span class="mt-canli-ok">▾</span>
+    </button>
+    <div class="mt-canli-panel" id="mt-canli-panel" hidden>
+      {% if subeler %}
+      <select id="mt-sube" class="sube-sec mt-sube-mini">
+        <option value="">Tüm şubeler</option>
+        {% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}
+      </select>
+      {% endif %}
+      <div id="mt-liste" class="mt-liste"><p class="egitim-bos" style="margin:.4rem 0">Yükleniyor…</p></div>
+    </div>
+  </div>
 
+  <!-- Özet sayaçlar -->
+  <div class="mg-ozet-grid">
+    <div class="mg-ozet-kart"><span class="mg-ozet-sayi">{{ toplam_kayit }}</span><span class="mg-ozet-etiket">Kayıt</span></div>
+    <div class="mg-ozet-kart"><span class="mg-ozet-sayi">{{ toplam_kisi }}</span><span class="mg-ozet-etiket">Farklı Kişi</span></div>
+    <div class="mg-ozet-kart{% if asan_sayisi %} uyari{% endif %}"><span class="mg-ozet-sayi">{{ asan_sayisi }}</span><span class="mg-ozet-etiket">Süre Aşımı</span></div>
+  </div>
+
+  <!-- Takvim / hızlı filtre -->
+  <div class="mg-filtre-card">
+    {% if subeler %}
+    <form method="get" class="mg-sube-form" id="mg-sube-form">
+      <input type="hidden" name="hizli" value="{{ hizli }}">
+      <input type="hidden" name="mg_bas" value="{{ mg_bas }}">
+      <input type="hidden" name="mg_bit" value="{{ mg_bit }}">
+      <select name="sube" class="sube-sec" onchange="this.form.submit()">
+        <option value="">Tüm şubeler</option>
+        {% for s in subeler %}<option value="{{ s.id }}" {% if secili == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+      </select>
+    </form>
+    {% endif %}
+    <div class="mg-chip-satir">
+      <a class="mg-chip{% if hizli == 'bugun' %} akt{% endif %}" href="?hizli=bugun{% if secili %}&sube={{ secili }}{% endif %}">Bugün</a>
+      <a class="mg-chip{% if hizli == 'hafta' %} akt{% endif %}" href="?hizli=hafta{% if secili %}&sube={{ secili }}{% endif %}">Bu Hafta</a>
+      <a class="mg-chip{% if hizli == '14' %} akt{% endif %}" href="?hizli=14{% if secili %}&sube={{ secili }}{% endif %}">Son 14 Gün</a>
+      <a class="mg-chip{% if hizli == 'ay' %} akt{% endif %}" href="?hizli=ay{% if secili %}&sube={{ secili }}{% endif %}">Bu Ay</a>
+    </div>
+    <form method="get" class="mg-takvim">
+      {% if secili %}<input type="hidden" name="sube" value="{{ secili }}">{% endif %}
+      <input type="date" name="mg_bas" value="{{ mg_bas }}" class="input mg-tarih">
+      <span class="mg-tire">–</span>
+      <input type="date" name="mg_bit" value="{{ mg_bit }}" class="input mg-tarih">
+      <button class="btn btn-ghost btn-mini">📅 Uygula</button>
+    </form>
+  </div>
+
+  <!-- Geçmiş — öncelikli içerik -->
   <div class="card">
     {% if kayitlar %}
-    <div class="tbl-kaydir">
-      <table class="tbl mola-gecmis-tbl">
-        <thead><tr><th>Personel</th><th>Şube</th><th>Giriş</th><th>Çıkış</th><th>Süre</th></tr></thead>
-        <tbody>
-          {% for k in kayitlar %}
-          <tr>
-            <td>{{ k.ad }}</td>
-            <td>{{ k.sube }}</td>
-            <td>{{ k.giris|date:"d.m.Y H:i" }}</td>
-            <td>{{ k.cikis|date:"d.m.Y H:i" }}</td>
-            <td><span class="mg-sure{% if k.asti %} asti{% endif %}">{{ k.sure_dk }} dk</span> <span class="ea-not">/ {{ k.limit }}</span></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="mg-liste">
+      {% for k in kayitlar %}
+      <div class="mg-satir{% if k.asti %} asti{% endif %}">
+        <div class="mg-avatar">{{ k.ad|slice:":1" }}</div>
+        <div class="mg-govde">
+          <div class="mg-ust"><b>{{ k.ad }}</b><span class="mg-sube-adi">{{ k.sube }}</span></div>
+          <div class="mg-alt">{{ k.giris|date:"d.m.Y H:i" }} — {{ k.cikis|date:"H:i" }}</div>
+        </div>
+        <div class="mg-sure-blok">
+          <span class="mg-sure{% if k.asti %} asti{% endif %}">{{ k.sure_dk }} dk</span>
+          <span class="ea-not">/ {{ k.limit }} dk</span>
+          {% if k.asti %}<span class="badge no mg-badge">Aşım</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
     </div>
     {% else %}
     <p class="egitim-bos">Bu aralıkta biten mola kaydı yok.</p>
     {% endif %}
   </div>
 </div>
+
+<script>
+(function () {
+  var toggle = document.getElementById('mt-canli-toggle');
+  var panel = document.getElementById('mt-canli-panel');
+  var wrap = document.getElementById('mt-canli');
+  var liste = document.getElementById('mt-liste');
+  var sayi = document.getElementById('mt-sayi');
+  var nokta = document.getElementById('mt-nokta');
+  var subeSec = document.getElementById('mt-sube');
+  var veri = [];
+  var acik = false;
+
+  function ikiHane(n) { return (n < 10 ? '0' : '') + n; }
+
+  function ciz() {
+    if (!veri.length) { liste.innerHTML = '<p class="egitim-bos" style="margin:.4rem 0">Şu an molada kimse yok.</p>'; return; }
+    var now = Date.now();
+    var html = '';
+    veri.forEach(function (m) {
+      var bas = new Date(m.baslangic).getTime();
+      var gecenSn = Math.max(0, Math.floor((now - bas) / 1000));
+      var kalanSn = m.sure_dk * 60 - gecenSn;
+      var asti = kalanSn < 0;
+      var mmss = ikiHane(Math.floor(gecenSn / 60)) + ':' + ikiHane(gecenSn % 60);
+      html += '<div class="mt-satir' + (asti ? ' asti' : '') + '"><b>' + m.ad + '</b><span class="ea-not">' + m.sube + '</span><span class="mt-sayac">' + mmss + '</span></div>';
+    });
+    liste.innerHTML = html;
+  }
+
+  function getir() {
+    var q = (subeSec && subeSec.value) ? ('?sube=' + encodeURIComponent(subeSec.value)) : '';
+    fetch('{% url "mola_izleme_json" %}' + q, { headers: { 'X-Requested-With': 'fetch' } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        veri = (d && d.molalar) || [];
+        sayi.textContent = veri.length;
+        nokta.classList.toggle('mt-aktif', veri.length > 0);
+        if (acik) ciz();
+      })
+      .catch(function () {});
+  }
+
+  toggle.addEventListener('click', function () {
+    acik = !acik;
+    panel.hidden = !acik;
+    wrap.classList.toggle('acik', acik);
+    if (acik) ciz();
+  });
+  if (subeSec) subeSec.addEventListener('change', function () { getir(); if (acik) ciz(); });
+
+  getir();
+  setInterval(getir, 15000);
+  setInterval(function () { if (acik) ciz(); }, 1000);
+})();
+</script>
 {% endblock %}

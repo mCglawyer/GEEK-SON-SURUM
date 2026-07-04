@@ -36,7 +36,7 @@
         <div class="pz-ad">{{ r.personel.ad_soyad }}
           {% if not aralik_mod %}{% if r.manuel %}<span class="badge badge-wait">manuel</span>{% else %}<span class="badge badge-info">otomatik</span>{% endif %}{% endif %}
         </div>
-        {% if aralik_mod %}
+        {% if aralik_mod or not puantaj_duzenleyebilir %}
         <div class="pz-oku">
           <span>Çalışılan <b>{{ r.calisilan }}</b></span>
           <span>Eksik <b>{{ r.eksik }}</b></span>

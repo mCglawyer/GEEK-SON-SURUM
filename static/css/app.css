@@ -999,9 +999,10 @@ body.app .app-main, body.app .container { min-width:0; }
 .tara-durum { font-size:.9rem; color:var(--muted); min-height:1.2em; margin:.5rem 0; }
 
 @media print {
-  .yan-nav, .top-bar, .mobil-bar, aside, footer, .imza, .no-print, .qr-arac, .bildirim-karti, .kalib-uyari { display:none !important; }
+  .yan-nav, .topbar, .mobil-bar, aside, footer, .imza, .no-print, .qr-arac, .bildirim-karti, .kalib-uyari { display:none !important; }
   .qr-liste { grid-template-columns:repeat(2, 1fr); }
-  .qr-kart { break-inside:avoid; border:1px solid #999; }
+  .qr-kart { break-inside:avoid; border:1px solid #999; display:flex; flex-direction:column; align-items:center; padding:16px 0; }
+  .qr-kart .qr-sube { font-size:1.05rem; font-weight:700; margin-bottom:8px; }
   .app-main { margin:0 !important; padding:0 !important; }
 }
 
@@ -1107,3 +1108,49 @@ body.app .app-main, body.app .container { min-width:0; }
 .ust-sube-ikon { color:var(--brand); display:flex; align-items:center; }
 .ust-sube-sec { border:none; background:transparent; font:inherit; font-size:.85rem; font-weight:600; color:var(--brand); cursor:pointer; padding:2px 2px; max-width:160px; outline:none; }
 @media (max-width:640px){ .ust-sube-sec { max-width:108px; font-size:.8rem; } .ust-sube-form { padding-left:8px; } }
+
+/* Mola Takibi — canlı izleme (arka planda, açılır) */
+.mt-canli { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:1rem; overflow:hidden; }
+.mt-canli-bas { width:100%; display:flex; align-items:center; gap:.6rem; padding:.7rem 1rem; background:none; border:none; cursor:pointer; font:inherit; font-size:.88rem; color:var(--ink); text-align:left; }
+.mt-canli-nokta { width:9px; height:9px; border-radius:50%; background:var(--line); flex:0 0 auto; }
+.mt-canli-nokta.mt-aktif { background:var(--ok); box-shadow:0 0 0 3px var(--ok-bg); }
+.mt-canli-ok { margin-left:auto; color:var(--muted); transition:transform .2s; }
+.mt-canli.acik .mt-canli-ok { transform:rotate(180deg); }
+.mt-canli-panel { padding:0 1rem 1rem; border-top:1px solid var(--line); }
+.mt-sube-mini { margin:.7rem 0 .5rem; max-width:220px; }
+.mt-liste { display:flex; flex-direction:column; gap:.3rem; }
+.mt-satir { display:flex; align-items:center; gap:.6rem; padding:.4rem .6rem; border-radius:var(--radius-sm); background:var(--bg); font-size:.85rem; }
+.mt-satir.asti { background:var(--no-bg); }
+.mt-satir .ea-not { flex:1; }
+.mt-sayac { font-variant-numeric:tabular-nums; font-weight:700; color:var(--brand); }
+.mt-satir.asti .mt-sayac { color:var(--no); }
+
+/* Özet sayaçlar */
+.mg-ozet-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:.7rem; margin-bottom:1rem; }
+.mg-ozet-kart { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:.8rem; text-align:center; }
+.mg-ozet-kart.uyari { border-color:var(--no); background:var(--no-bg); }
+.mg-ozet-sayi { display:block; font-size:1.5rem; font-weight:700; color:var(--brand); }
+.mg-ozet-kart.uyari .mg-ozet-sayi { color:var(--no); }
+.mg-ozet-etiket { font-size:.75rem; color:var(--muted); }
+
+/* Takvim / filtre kartı */
+.mg-filtre-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:.9rem 1rem; margin-bottom:1rem; display:flex; flex-direction:column; gap:.7rem; }
+.mg-chip-satir { display:flex; gap:.4rem; flex-wrap:wrap; }
+.mg-chip { background:var(--bg); border:1px solid var(--line); border-radius:999px; padding:.35rem .85rem; font-size:.82rem; color:var(--muted); text-decoration:none; }
+.mg-chip.akt { background:var(--brand); border-color:var(--brand); color:#fff; font-weight:600; }
+.mg-takvim { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+.mg-tarih { max-width:150px; }
+.mg-tire { color:var(--muted); }
+
+/* Geçmiş listesi — kart satırlar */
+.mg-liste { display:flex; flex-direction:column; }
+.mg-satir { display:flex; align-items:center; gap:.7rem; padding:.65rem .1rem; border-bottom:1px solid var(--line); }
+.mg-satir:last-child { border-bottom:none; }
+.mg-satir.asti { background:var(--no-bg); border-radius:var(--radius-sm); }
+.mg-avatar { width:34px; height:34px; border-radius:50%; background:var(--brand-050); color:var(--brand); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.9rem; flex:0 0 auto; }
+.mg-govde { flex:1; min-width:0; }
+.mg-ust { display:flex; align-items:baseline; gap:.5rem; flex-wrap:wrap; }
+.mg-sube-adi { font-size:.75rem; color:var(--muted); }
+.mg-alt { font-size:.78rem; color:var(--muted); margin-top:.1rem; }
+.mg-sure-blok { display:flex; align-items:center; gap:.4rem; flex:0 0 auto; }
+.mg-badge { margin-left:.2rem; }

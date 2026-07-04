@@ -143,6 +143,7 @@ class Puantaj(models.Model):
     yillik_gun = models.IntegerField(default=0, verbose_name="Yıllık İzin Gün")
     raporlu_gun = models.IntegerField(default=0, verbose_name="Raporlu Gün")
     manuel_duzenlendi = models.BooleanField(default=False, verbose_name="Manuel Düzenlendi mi?")
+    guncelleme = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     class Meta:
         verbose_name = "Puantaj"; verbose_name_plural = "Puantajlar"; ordering = ['-ay']
