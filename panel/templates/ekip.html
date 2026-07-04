@@ -4,144 +4,140 @@
 {% block body %}
 <div class="container">
   {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
-  <div class="plan-head"><div><h2>{% if is_tam %}Ekip Yönetimi{% else %}Şefler{% endif %}</h2></div></div>
+  <div class="plan-head"><div><h2>Ekip Yönetimi</h2></div></div>
 
-  {% if is_tam %}
-  
-  <div class="card staff-card">
-    <h3>Yöneticiler</h3>
-    <ul class="staff-list">
-      {% for y in yoneticiler %}
-      <li class="sef-row">
-        <span class="staff-ad">{{ y.ad_soyad }} <em>· {{ y.get_rol_display }}</em></span>
-        <span class="staff-kod">{% if y.user %}kullanıcı: <code>{{ y.user.username }}</code>{% endif %}</span>
-        <div class="sef-aks">
-          <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="yonetici_sifre_yenile"><input type="hidden" name="personel_id" value="{{ y.id }}"><button class="btn btn-ghost btn-mini">Şifre yenile</button></form>
-          <form method="post" onsubmit="return confirm('{{ y.ad_soyad }} çıkarılsın mı?');">{% csrf_token %}<input type="hidden" name="islem" value="yonetici_cikar"><input type="hidden" name="personel_id" value="{{ y.id }}"><button class="btn btn-danger btn-mini">Çıkar</button></form>
-        </div>
-      </li>
-      {% empty %}
-      <li><span class="staff-ad" style="color:var(--muted)">Henüz başka yönetici yok.</span></li>
-      {% endfor %}
-    </ul>
-    <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="yonetici_ekle">
-      <input class="input" type="text" name="ad_soyad" placeholder="Yönetici ad soyad" required>
-      <select name="rol" class="sube-sec" required>
-        {% for r in yonetici_rolleri %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
-      </select>
-      <button class="btn btn-primary">Yönetici ekle</button>
-    </form>
-  </div>
-  {% endif %}
+  <div class="ekip-grid">
 
-  
-  <div class="card staff-card">
-    <h3>Şefler{% if not is_tam %} <span class="badge badge-info">şubelerinize göre</span>{% endif %}</h3>
-    <ul class="staff-list">
-      {% for s in sefler %}
-      {% if is_tam %}
-      <li class="sef-row">
-        <form method="post" class="sef-form">{% csrf_token %}<input type="hidden" name="islem" value="sef_degistir"><input type="hidden" name="sef_id" value="{{ s.id }}">
-          <input class="input" type="text" name="yeni_ad_soyad" value="{{ s.ad_soyad }}">
-          <select name="yeni_sube_id" class="sube-sec">{% for sb in subeler %}<option value="{{ sb.id }}"{% if s.sube_id == sb.id %} selected{% endif %}>{{ sb.ad }}</option>{% endfor %}</select>
-          <span class="staff-kod">kod: <code>{{ s.giris_kodu }}</code></span>
-          <button class="btn btn-ghost btn-mini">Güncelle</button>
-        </form>
-        <form method="post" onsubmit="return confirm('{{ s.ad_soyad }} silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="sef_cikar"><input type="hidden" name="sef_id" value="{{ s.id }}"><button class="btn btn-danger btn-mini">Çıkar</button></form>
-      </li>
-      {% else %}
-      <li class="sef-row">
-        <span class="staff-ad">{{ s.ad_soyad }}</span>
-        <span class="staff-kod">{% if s.sube %}{{ s.sube.ad }}{% else %}—{% endif %}</span>
-      </li>
-      {% endif %}
-      {% empty %}
-      <li><span class="staff-ad" style="color:var(--muted)">{% if is_tam %}Henüz şef yok.{% else %}Şubelerinizde tanımlı şef yok.{% endif %}</span></li>
-      {% endfor %}
-    </ul>
-    {% if is_tam %}
-    <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="sef_ekle">
-      <input class="input" type="text" name="ad_soyad" placeholder="Yeni şef ad soyad" required>
-      <select name="sef_sube_id" class="sube-sec" required>{% for sb in subeler %}<option value="{{ sb.id }}">{{ sb.ad }}</option>{% endfor %}</select>
-      <button class="btn btn-primary">Şef ekle</button>
-    </form>
+    <div class="card staff-card">
+      <div class="staff-card-bas"><h3>Yöneticiler</h3><span class="badge badge-info">{{ yoneticiler|length }}</span></div>
+      <ul class="staff-list">
+        {% for y in yoneticiler %}
+        <li class="sef-row">
+          <span class="staff-ad">{{ y.ad_soyad }} <em>· {{ y.get_rol_display }}</em></span>
+          <span class="staff-kod">{% if y.user %}kullanıcı: <code>{{ y.user.username }}</code>{% endif %}</span>
+          <div class="sef-aks">
+            <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="yonetici_sifre_yenile"><input type="hidden" name="personel_id" value="{{ y.id }}"><button class="btn btn-ghost btn-mini">Şifre yenile</button></form>
+            <form method="post" onsubmit="return confirm('{{ y.ad_soyad }} çıkarılsın mı?');">{% csrf_token %}<input type="hidden" name="islem" value="yonetici_cikar"><input type="hidden" name="personel_id" value="{{ y.id }}"><button class="btn btn-danger btn-mini">Çıkar</button></form>
+          </div>
+        </li>
+        {% empty %}
+        <li><span class="staff-ad" style="color:var(--muted)">Henüz başka yönetici yok.</span></li>
+        {% endfor %}
+      </ul>
+      <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="yonetici_ekle">
+        <input class="input" type="text" name="ad_soyad" placeholder="Yönetici ad soyad" required>
+        <select name="rol" class="sube-sec" required>
+          {% for r in yonetici_rolleri %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-primary">Yönetici ekle</button>
+      </form>
+    </div>
+
+    <div class="card staff-card">
+      <div class="staff-card-bas"><h3>Şefler</h3><span class="badge badge-info">{{ sefler|length }}</span></div>
+      <ul class="staff-list">
+        {% for s in sefler %}
+        <li class="sef-row">
+          <form method="post" class="sef-form">{% csrf_token %}<input type="hidden" name="islem" value="sef_degistir"><input type="hidden" name="sef_id" value="{{ s.id }}">
+            <input class="input" type="text" name="yeni_ad_soyad" value="{{ s.ad_soyad }}">
+            <select name="yeni_sube_id" class="sube-sec">{% for sb in subeler %}<option value="{{ sb.id }}"{% if s.sube_id == sb.id %} selected{% endif %}>{{ sb.ad }}</option>{% endfor %}</select>
+            <span class="staff-kod">kod: <code>{{ s.giris_kodu }}</code></span>
+            <button class="btn btn-ghost btn-mini">Güncelle</button>
+          </form>
+          <form method="post" onsubmit="return confirm('{{ s.ad_soyad }} silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="sef_cikar"><input type="hidden" name="sef_id" value="{{ s.id }}"><button class="btn btn-danger btn-mini">Çıkar</button></form>
+        </li>
+        {% empty %}
+        <li><span class="staff-ad" style="color:var(--muted)">Henüz şef yok.</span></li>
+        {% endfor %}
+      </ul>
+      <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="sef_ekle">
+        <input class="input" type="text" name="ad_soyad" placeholder="Yeni şef ad soyad" required>
+        <select name="sef_sube_id" class="sube-sec" required>{% for sb in subeler %}<option value="{{ sb.id }}">{{ sb.ad }}</option>{% endfor %}</select>
+        <button class="btn btn-primary">Şef ekle</button>
+      </form>
+    </div>
+
+    {% if magaza_atayabilir %}
+    <div class="card staff-card">
+      <div class="staff-card-bas"><h3>Mağaza Müdürü <span class="ea-not">(Franchise)</span></h3><span class="badge badge-info">{{ magaza_mudurleri|length }}</span></div>
+      <p class="staff-aciklama">Yalnızca franchise şubelere atanır. Kendi şubesinin tüm bilgilerini görür, şef yetkilerine sahiptir.</p>
+      <ul class="staff-list">
+        {% for m in magaza_mudurleri %}
+        <li class="sef-row">
+          <span class="staff-ad">{{ m.ad_soyad }} <span class="badge badge-info">{{ m.sube.ad }}</span></span>
+          <span class="staff-kod">kod: <code>{{ m.giris_kodu }}</code></span>
+          <form method="post" onsubmit="return confirm('{{ m.ad_soyad }} mağaza müdürlükten çıkarılsın mı?');">{% csrf_token %}<input type="hidden" name="islem" value="magaza_muduru_cikar"><input type="hidden" name="personel_id" value="{{ m.id }}"><button class="btn btn-ghost btn-mini">Çıkar</button></form>
+        </li>
+        {% empty %}
+        <li><span class="staff-ad" style="color:var(--muted)">Henüz mağaza müdürü yok.</span></li>
+        {% endfor %}
+      </ul>
+      <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="magaza_muduru_ekle">
+        <input class="input" type="text" name="ad_soyad" placeholder="Mağaza müdürü ad soyad" required>
+        <select name="mm_sube_id" class="sube-sec" required>{% for sb in subeler %}<option value="{{ sb.id }}">{{ sb.ad }}</option>{% endfor %}</select>
+        <button class="btn btn-primary">Mağaza müdürü ekle</button>
+      </form>
+    </div>
     {% endif %}
-  </div>
 
-  {% if magaza_atayabilir %}
-  <div class="card staff-card">
-    <h3>Mağaza Müdürü (Franchise Şubeler)</h3>
-    <p style="margin:.2rem 0 1rem;color:var(--muted);font-size:.9rem">Yalnızca franchise şubelere atanır. Mağaza müdürü kendi şubesinin tüm bilgilerini görür ve şef yetkilerine sahiptir.</p>
-    <ul class="staff-list">
-      {% for m in magaza_mudurleri %}
-      <li>
-        <span class="staff-ad">{{ m.ad_soyad }} <span class="badge badge-info">{{ m.sube.ad }}</span> <span class="ea-not">Giriş kodu: {{ m.giris_kodu }}</span></span>
-        <form method="post" onsubmit="return confirm('{{ m.ad_soyad }} mağaza müdürlükten çıkarılsın mı?');" style="display:inline">{% csrf_token %}<input type="hidden" name="islem" value="magaza_muduru_cikar"><input type="hidden" name="personel_id" value="{{ m.id }}"><button class="btn btn-ghost btn-mini">Çıkar</button></form>
-      </li>
-      {% empty %}
-      <li><span class="staff-ad" style="color:var(--muted)">Henüz mağaza müdürü yok.</span></li>
-      {% endfor %}
-    </ul>
-    <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="magaza_muduru_ekle">
-      <input class="input" type="text" name="ad_soyad" placeholder="Mağaza müdürü ad soyad" required>
-      <select name="mm_sube_id" class="sube-sec" required>{% for sb in subeler %}<option value="{{ sb.id }}">{{ sb.ad }}</option>{% endfor %}</select>
-      <button class="btn btn-primary">Mağaza müdürü ekle</button>
-    </form>
-  </div>
-  {% endif %}
-
-  {% if is_atayabilir %}
-  <div class="card staff-card">
-    <h3>Bölge Müdürü — Şube Atama</h3>
-    <p style="margin:.2rem 0 1rem;color:var(--muted);font-size:.9rem">Her bölge müdürünün hangi şubeleri görebileceğini buradan belirleyin. Bir şubeye birden fazla müdür atanabilir.</p>
-    {% if bolge_mudurleri %}
-    {% for m in bolge_mudurleri %}
-    <form method="post" class="bm-ata">
-      {% csrf_token %}
-      <input type="hidden" name="islem" value="bolge_sube_ata">
-      <input type="hidden" name="mudur_id" value="{{ m.id }}">
-      <div class="bm-ad">{{ m.ad_soyad }} <span class="badge badge-info">{{ m.atanan_ids|length }} şube</span></div>
-      <div class="bm-subeler">
-        {% for sb in tum_subeler %}
-        <label class="bm-chk"><input type="checkbox" name="sube_idler" value="{{ sb.id }}"{% if sb.id in m.atanan_ids %} checked{% endif %}> {{ sb.ad }}{% if sb.depo_mu %} (depo){% endif %}</label>
+    {% if is_atayabilir %}
+    <div class="card staff-card">
+      <div class="staff-card-bas"><h3>Bölge Müdürü — Şube Atama</h3></div>
+      <p class="staff-aciklama">Her bölge müdürünün hangi şubeleri görebileceğini belirleyin. Bir şubeye birden fazla müdür atanabilir.</p>
+      {% if bolge_mudurleri %}
+      <div class="bm-liste">
+        {% for m in bolge_mudurleri %}
+        <form method="post" class="bm-ata">
+          {% csrf_token %}
+          <input type="hidden" name="islem" value="bolge_sube_ata">
+          <input type="hidden" name="mudur_id" value="{{ m.id }}">
+          <div class="bm-ad">{{ m.ad_soyad }} <span class="badge badge-info">{{ m.atanan_ids|length }} şube</span></div>
+          <div class="bm-subeler">
+            {% for sb in tum_subeler %}
+            <label class="bm-chk"><input type="checkbox" name="sube_idler" value="{{ sb.id }}"{% if sb.id in m.atanan_ids %} checked{% endif %}> {{ sb.ad }}{% if sb.depo_mu %} (depo){% endif %}</label>
+            {% endfor %}
+          </div>
+          <button class="btn btn-primary btn-mini">Kaydet</button>
+        </form>
         {% endfor %}
       </div>
-      <button class="btn btn-primary btn-mini">Kaydet</button>
-    </form>
-    {% endfor %}
-    {% else %}
-    <p style="margin:0;color:var(--muted)">Henüz Bölge Müdürü rolünde kullanıcı yok. Yukarıdan "Müdür" rolüyle ekleyebilirsiniz.</p>
+      {% else %}
+      <p class="staff-aciklama">Henüz Bölge Müdürü rolünde kullanıcı yok. Yukarıdan "Müdür" rolüyle ekleyebilirsiniz.</p>
+      {% endif %}
+    </div>
     {% endif %}
-  </div>
 
-  <div class="card staff-card">
-    <h3>Eğitmen Yetkisi</h3>
-    <p style="margin:.2rem 0 1rem;color:var(--muted);font-size:.9rem">Bir personel veya şefe eğitmen yetkisi verin. Eğitmen kendi 6 haneli koduyla girer; ek olarak "Soru Yönetimi" ve "Bilgi Karnesi"ne erişir. Kişi hem kendi işini yapar hem soruları yönetir.</p>
-    {% if egitmenler %}
-    <ul class="sef-list" style="margin-bottom:1rem">
-      {% for e in egitmenler %}
-      <li class="sef-row">
-        <span>{{ e.ad_soyad }} <span class="badge badge-info">{{ e.get_rol_display }}</span>{% if e.sube %} · {{ e.sube.ad }}{% endif %}</span>
-        <form method="post" onsubmit="return confirm('{{ e.ad_soyad }} eğitmen yetkisinden çıkarılsın mı?');">{% csrf_token %}
-          <input type="hidden" name="islem" value="egitmen_cikar">
-          <input type="hidden" name="personel_id" value="{{ e.id }}">
-          <button class="btn btn-danger btn-mini">Çıkar</button>
-        </form>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p style="margin:0 0 1rem;color:var(--muted)">Henüz eğitmen yok.</p>
+    {% if is_atayabilir %}
+    <div class="card staff-card">
+      <div class="staff-card-bas"><h3>Eğitmen Yetkisi</h3><span class="badge badge-info">{{ egitmenler|length }}</span></div>
+      <p class="staff-aciklama">Bir personel veya şefe eğitmen yetkisi verin. Eğitmen kendi 6 haneli koduyla girer; ek olarak "Soru Yönetimi" ve "Bilgi Karnesi"ne erişir.</p>
+      <ul class="staff-list">
+        {% for e in egitmenler %}
+        <li class="sef-row">
+          <span class="staff-ad">{{ e.ad_soyad }} <span class="badge badge-info">{{ e.get_rol_display }}</span>{% if e.sube %} · {{ e.sube.ad }}{% endif %}</span>
+          <form method="post" onsubmit="return confirm('{{ e.ad_soyad }} eğitmen yetkisinden çıkarılsın mı?');">
+            {% csrf_token %}
+            <input type="hidden" name="islem" value="egitmen_cikar">
+            <input type="hidden" name="personel_id" value="{{ e.id }}">
+            <button class="btn btn-danger btn-mini">Çıkar</button>
+          </form>
+        </li>
+        {% empty %}
+        <li><span class="staff-ad" style="color:var(--muted)">Henüz eğitmen yok.</span></li>
+        {% endfor %}
+      </ul>
+      <form method="post" class="sef-ekle">
+        {% csrf_token %}
+        <input type="hidden" name="islem" value="egitmen_ekle">
+        <select class="sube-sec" name="personel_id" required>
+          <option value="">Kişi seç (personel/şef)…</option>
+          {% for a in egitmen_adaylari %}<option value="{{ a.id }}">{{ a.ad_soyad }} — {{ a.get_rol_display }}{% if a.sube %} ({{ a.sube.ad }}){% endif %}</option>{% endfor %}
+        </select>
+        <button class="btn btn-primary">Eğitmen yap</button>
+      </form>
+    </div>
     {% endif %}
-    <form method="post" class="sef-ekle">{% csrf_token %}
-      <input type="hidden" name="islem" value="egitmen_ekle">
-      <select class="sube-sec" name="personel_id" required>
-        <option value="">Kişi seç (personel/şef)…</option>
-        {% for a in egitmen_adaylari %}<option value="{{ a.id }}">{{ a.ad_soyad }} — {{ a.get_rol_display }}{% if a.sube %} ({{ a.sube.ad }}){% endif %}</option>{% endfor %}
-      </select>
-      <button class="btn btn-primary">Eğitmen yap</button>
-    </form>
+
   </div>
-  {% endif %}
 </div>
 {% endblock %}

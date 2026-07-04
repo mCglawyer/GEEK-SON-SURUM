@@ -3,6 +3,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
+from django.utils import timezone
 
 class Rol(models.TextChoices):
     GENEL_MUDUR = 'Genel Müdür', 'Genel Müdür (Tam Yetkili)'
@@ -139,6 +140,7 @@ class Mola(models.Model):
 class Puantaj(models.Model):
     personel = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True, related_name='puantajlar')
     personel_ad_soyad_arsiv = models.CharField(max_length=160, blank=True, default='', verbose_name="Personel (arşiv)")
+    sube_arsiv = models.ForeignKey('Sube', on_delete=models.SET_NULL, null=True, blank=True, related_name='+', verbose_name="Şube (arşiv)")
     ay = models.DateField(verbose_name="Puantaj Ayı")
     calisilan_gun = models.IntegerField(default=0, verbose_name="Çalışılan Gün")
     eksik_gun = models.IntegerField(default=0, verbose_name="Eksik Gün")
@@ -505,7 +507,7 @@ class GSosyalTepki(models.Model):
 
 
 class EgitimDokuman(models.Model):
-    KATEGORI = [('RECETE', 'Reçete'), ('ORYANTASYON', 'Oryantasyon')]
+    KATEGORI = [('RECETE', 'Reçete'), ('ORYANTASYON', 'Oryantasyon'), ('ICECEK', 'İçecek Hazırlama')]
     kategori = models.CharField(max_length=20, choices=KATEGORI, default='RECETE')
     baslik = models.CharField(max_length=160, default='')
     dosya = models.FileField(upload_to='egitim/')
@@ -516,6 +518,11 @@ class EgitimDokuman(models.Model):
 
     class Meta:
         ordering = ['kategori', '-olusturma']
+
+    @property
+    def is_video(self):
+        ad = (self.dosya.name or '').lower()
+        return ad.endswith(('.mp4', '.webm', '.mov', '.m4v', '.ogv'))
 
 
 class EgitimSoru(models.Model):
@@ -647,5 +654,52 @@ class InsaatSablonMadde(models.Model):
 
 @receiver(pre_delete, sender=Personel)
 def _personel_silinmeden_once_puantaj_arsivle(sender, instance, **kwargs):
-    """Personel silindiğinde geçmiş puantaj kayıtları korunur; ad soyad arşive kopyalanır."""
-    Puantaj.objects.filter(personel=instance).update(personel_ad_soyad_arsiv=instance.ad_soyad)
+    """Personel silindiğinde: geçmiş manuel puantaj kayıtları korunur (ad/şube arşive kopyalanır)
+    ve ayrıldığı ayın puantajı, o ana kadarki fiili vardiyalarından hesaplanıp donuk olarak kaydedilir."""
+    Puantaj.objects.filter(personel=instance).update(
+        personel_ad_soyad_arsiv=instance.ad_soyad, sube_arsiv=instance.sube_id)
+
+    bugun = timezone.localdate()
+    ay_ilk = bugun.replace(day=1)
+    if bugun.month == 12:
+        ay_son = bugun.replace(year=bugun.year + 1, month=1, day=1)
+    else:
+        ay_son = bugun.replace(month=bugun.month + 1, day=1)
+
+    mevcut = Puantaj.objects.filter(personel=instance, ay=ay_ilk).first()
+    if mevcut and mevcut.manuel_duzenlendi:
+        mevcut.personel_ad_soyad_arsiv = instance.ad_soyad
+        mevcut.sube_arsiv = instance.sube
+        mevcut.save(update_fields=['personel_ad_soyad_arsiv', 'sube_arsiv'])
+        return
+
+    s = instance.vardiyalar.filter(tarih__gte=ay_ilk, tarih__lt=ay_son).exclude(durum=OnayDurumu.REDDEDILDI)
+    Puantaj.objects.update_or_create(
+        personel=instance, ay=ay_ilk,
+        defaults={
+            'calisilan_gun': s.filter(vardiya_tipi__in=[VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI]).count(),
+            'eksik_gun': s.filter(vardiya_tipi=VardiyaTipi.DEVAMSIZ).count(),
+            'izinli_gun': s.filter(vardiya_tipi=VardiyaTipi.IZINLI).count(),
+            'yillik_gun': s.filter(vardiya_tipi=VardiyaTipi.YILLIK_IZIN).count(),
+            'raporlu_gun': s.filter(vardiya_tipi=VardiyaTipi.RAPORLU).count(),
+            'manuel_duzenlendi': True,
+            'personel_ad_soyad_arsiv': instance.ad_soyad,
+            'sube_arsiv': instance.sube,
+        })
+
+
+class LavaboDenetim(models.Model):
+    sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='lavabo_denetimleri', verbose_name="Şube")
+    giren = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='lavabo_denetimleri', verbose_name="Yükleyen")
+    giren_ad = models.CharField(max_length=100, blank=True, verbose_name="Yükleyen (ad)")
+    foto = models.FileField(upload_to='lavabo/%Y/%m/%d/', verbose_name="Görüntü")
+    olusturma = models.DateTimeField(auto_now_add=True, verbose_name="Yüklendiği An")
+
+    class Meta:
+        verbose_name = "Lavabo Denetimi"
+        verbose_name_plural = "Lavabo Denetimleri"
+        ordering = ['-olusturma']
+
+    def __str__(self):
+        return f"{self.sube} - {self.giren_ad} - {self.olusturma:%d.%m.%Y %H:%M}"

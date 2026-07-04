@@ -33,10 +33,10 @@
     <div class="puantaj-list">
       {% for r in puantaj_listesi %}
       <div class="pz-row">
-        <div class="pz-ad">{{ r.personel.ad_soyad }}
-          {% if not aralik_mod %}{% if r.manuel %}<span class="badge badge-wait">manuel</span>{% else %}<span class="badge badge-info">otomatik</span>{% endif %}{% endif %}
+        <div class="pz-ad">{% if r.ayrilan %}{{ r.ayrilan_ad }}{% else %}{{ r.personel.ad_soyad }}{% endif %}
+          {% if r.ayrilan %}<span class="badge badge-no">ayrıldı</span>{% elif not aralik_mod %}{% if r.manuel %}<span class="badge badge-wait">manuel</span>{% else %}<span class="badge badge-info">otomatik</span>{% endif %}{% endif %}
         </div>
-        {% if aralik_mod or not puantaj_duzenleyebilir %}
+        {% if aralik_mod or not puantaj_duzenleyebilir or r.ayrilan %}
         <div class="pz-oku">
           <span>Çalışılan <b>{{ r.calisilan }}</b></span>
           <span>Eksik <b>{{ r.eksik }}</b></span>

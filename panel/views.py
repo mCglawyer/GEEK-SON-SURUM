@@ -31,6 +31,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, PushAbonelik,
                      MolaQRAyar, SubeMolaToken, MolaOturum,
                      InsaatProje, InsaatMadde, InsaatMaddeDurum, InsaatKategori, InsaatSablonMadde,
+                     LavaboDenetim,
                      Rol, OnayDurumu, VardiyaTipi)
 from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -531,10 +532,21 @@ def puantaj_sayfa(request):
     for p in personeller:
         d = _puantaj_hesapla(p, hesap_bas, hesap_son, manuel_ay=manuel_ay)
         d['personel'] = p
+        d['ayrilan'] = False
 
         d['yillik'] = d.get('yillik', 0)
         d['hakedis'] = d['calisilan'] + d['izinli'] + d['yillik']
         liste.append(d)
+
+    if not aralik_mod and sel_sube:
+        ayrilanlar = Puantaj.objects.filter(personel__isnull=True, sube_arsiv=sel_sube, ay=ay_ilk)
+        for r in ayrilanlar:
+            liste.append({
+                'calisilan': r.calisilan_gun, 'eksik': r.eksik_gun, 'izinli': r.izinli_gun,
+                'yillik': r.yillik_gun, 'raporlu': r.raporlu_gun, 'manuel': True,
+                'hakedis': r.calisilan_gun + r.izinli_gun + r.yillik_gun,
+                'personel': None, 'ayrilan': True, 'ayrilan_ad': r.personel_ad_soyad_arsiv,
+            })
     return render(request, 'puantaj.html', {
         'personel': personel, 'aktif': 'puantaj', 'is_gm': is_gm, 'is_yon': is_yon,
         'puantaj_duzenleyebilir': puantaj_duzenleyebilir,
@@ -600,14 +612,14 @@ def ekip_sayfa(request):
     if _cikis_mi(request):
         return _logout(request)
     personel = _aktif_personel(request)
-    if personel is None or personel.rol not in UST_YONETIM:
+    if personel is None or personel.rol not in TAM_YETKILI:
         return redirect('ana_sayfa')
 
     subeler = _yon_subeler(personel)
     is_tam = personel.rol in TAM_YETKILI
     if request.method == 'POST':
         islem = request.POST.get('islem')
-        if islem in ('magaza_muduru_ekle', 'magaza_muduru_cikar') and personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.MUDUR):
+        if islem in ('magaza_muduru_ekle', 'magaza_muduru_cikar') and personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR):
             sube_id_list = [s.id for s in subeler]
             if islem == 'magaza_muduru_ekle':
                 ad = request.POST.get('ad_soyad', '').strip()
@@ -740,7 +752,7 @@ def ekip_sayfa(request):
         'yoneticiler': yoneticiler, 'sefler': sefler,
         'yonetici_rolleri': OFIS_ROLLERI,
         'is_tam': is_tam,
-        'magaza_atayabilir': personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.MUDUR),
+        'magaza_atayabilir': personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR),
         'magaza_mudurleri': list(Personel.objects.filter(rol=Rol.MAGAZA_MUDURU, sube__in=subeler).select_related('sube').order_by('ad_soyad')),
         'is_atayabilir': is_atayabilir, 'bolge_mudurleri': bolge_mudurleri, 'tum_subeler': tum_subeler,
         'egitmenler': egitmenler, 'egitmen_adaylari': egitmen_adaylari,
@@ -1094,6 +1106,87 @@ def kalibrasyon_sayfa(request):
     })
 
 IRSALIYE_GUN = 180
+
+LAVABO_GUN = 7
+
+def _lavabo_temizle():
+    sinir = timezone.now() - datetime.timedelta(days=LAVABO_GUN)
+    for k in LavaboDenetim.objects.filter(olusturma__lt=sinir):
+        if k.foto:
+            k.foto.delete(save=False)
+        k.delete()
+
+
+def lavabo_sayfa(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+
+    ekleyebilir = personel.rol in (Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU)
+    is_yon = personel.rol in UST_YONETIM
+    subeler = _yon_subeler(personel) if is_yon else []
+    sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
+    _lavabo_temizle()
+
+    if request.method == 'POST' and ekleyebilir:
+        if not sel_sube:
+            messages.error(request, "Şubeniz tanımlı değil. Yöneticinize başvurun.")
+            return redirect('lavabo')
+        if request.POST.get('islem') == 'lavabo_yukle':
+            data = request.POST.get('foto_data', '')
+            raw = None
+            if data.startswith('data:image'):
+                try:
+                    raw = base64.b64decode(data.split(',', 1)[1])
+                except (ValueError, IndexError):
+                    raw = None
+            if raw and 100 < len(raw) <= 8 * 1024 * 1024:
+                _lavabo_temizle()
+                k = LavaboDenetim(sube=sel_sube, giren=personel, giren_ad=personel.ad_soyad)
+                fname = f"lavabo_{sel_sube.id}_{personel.id}_{timezone.now():%Y%m%d_%H%M%S}.jpg"
+                k.foto.save(fname, ContentFile(raw), save=True)
+                messages.success(request, "Lavabo denetim görüntüsü yüklendi.")
+                _bildir(_sube_yoneticileri(sel_sube),
+                        "%s şubesi lavabo denetim görüntüsü yükledi (%s)." % (sel_sube.ad, personel.ad_soyad),
+                        '/lavabo/', 'lavabo')
+            else:
+                messages.error(request, "Görüntü alınamadı. Lütfen kameradan tekrar çekin.")
+        return redirect('lavabo')
+
+    gorseller = []
+    if sel_sube:
+        gorseller = list(LavaboDenetim.objects.filter(sube=sel_sube).select_related('giren')[:60])
+
+    return render(request, 'lavabo.html', {
+        'personel': personel, 'aktif': 'lavabo', 'ekleyebilir': ekleyebilir, 'is_yon': is_yon,
+        'subeler': subeler, 'sel_sube': sel_sube, 'gorseller': gorseller,
+        'saklama_gun': LAVABO_GUN,
+    })
+
+
+def lavabo_json(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'gorseller': []}, status=403)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return JsonResponse({'gorseller': []}, status=403)
+    is_yon = personel.rol in UST_YONETIM
+    if is_yon:
+        subeler = _yon_subeler(personel)
+        sel_sube = _yonetici_sube(request, subeler)
+    else:
+        sel_sube = personel.sube
+    if not sel_sube:
+        return JsonResponse({'gorseller': []})
+    qs = LavaboDenetim.objects.filter(sube=sel_sube).select_related('giren')[:60]
+    out = [{'url': g.foto.url, 'ad': g.giren_ad or '—',
+            'zaman': timezone.localtime(g.olusturma).strftime('%d.%m.%Y %H:%M')} for g in qs]
+    return JsonResponse({'gorseller': out})
+
 
 def _irsaliye_temizle():
     sinir = timezone.now() - datetime.timedelta(days=IRSALIYE_GUN)
@@ -3183,15 +3276,6 @@ def g_sosyal(request):
         return redirect('ana_sayfa')
     paylasabilir = personel.rol in UST_YONETIM
 
-    esik = timezone.now() - datetime.timedelta(days=7)
-    for _g in list(GSosyalGonderi.objects.filter(olusturma__lt=esik)):
-        if _g.gorsel:
-            try:
-                _g.gorsel.delete(save=False)
-            except Exception:
-                pass
-        _g.delete()
-
     if request.method == 'POST' and request.POST.get('islem') == 'tepki':
         g = GSosyalGonderi.objects.filter(id=request.POST.get('gonderi_id')).first()
         emoji = request.POST.get('emoji', '')
@@ -3501,7 +3585,7 @@ def egitim_yonetim(request):
         if islem == 'dokuman_ekle':
             dosya = request.FILES.get('dosya')
             baslik = (request.POST.get('baslik') or '').strip()
-            kategori = request.POST.get('kategori') if request.POST.get('kategori') in ('RECETE', 'ORYANTASYON') else 'RECETE'
+            kategori = request.POST.get('kategori') if request.POST.get('kategori') in ('RECETE', 'ORYANTASYON', 'ICECEK') else 'RECETE'
             if dosya and baslik:
                 sb = Sube.objects.filter(id=request.POST.get('sube_id')).first() if (request.POST.get('sube_id') or '').isdigit() else None
                 if sb and personel.rol == Rol.MUDUR and not personel.sorumlu_subeler.filter(id=sb.id).exists():
@@ -3529,7 +3613,7 @@ def egitim_yonetim(request):
             c = (request.POST.get('sik_c') or '').strip()
             d_ = (request.POST.get('sik_d') or '').strip()
             dogru = request.POST.get('dogru') if request.POST.get('dogru') in ('A', 'B', 'C', 'D') else 'A'
-            kategori = request.POST.get('kategori') if request.POST.get('kategori') in ('RECETE', 'ORYANTASYON') else 'RECETE'
+            kategori = request.POST.get('kategori') if request.POST.get('kategori') in ('RECETE', 'ORYANTASYON', 'ICECEK') else 'RECETE'
             if metin and a and b:
                 sb = Sube.objects.filter(id=request.POST.get('sube_id')).first() if (request.POST.get('sube_id') or '').isdigit() else None
                 if sb and personel.rol == Rol.MUDUR and not personel.sorumlu_subeler.filter(id=sb.id).exists():

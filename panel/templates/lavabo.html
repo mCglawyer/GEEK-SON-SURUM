@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Lavabo Denetimi · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Lavabo Denetimi</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% endif %}</span></div>
+    {% if is_yon and subeler|length > 1 %}
+    <div class="yon-secimler">
+      <select class="sube-sec" onchange="location.href='?sube_id='+this.value">
+        {% for s in subeler %}<option value="{{ s.id }}"{% if sel_sube and s.id == sel_sube.id %} selected{% endif %}>{{ s.ad }}{% if s.depo_mu %} (depo){% endif %}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
+  </div>
+  <p class="ea-not" style="margin:-.4rem 0 1rem">Fotoğraflar yalnızca canlı kamerayla çekilir (galeriden yükleme yok) ve {{ saklama_gun }} günde bir otomatik silinir.</p>
+
+  {% if ekleyebilir %}
+  <div class="card kal-cam">
+    <div class="kal-video-wrap">
+      <video id="kamera" autoplay playsinline muted></video>
+    </div>
+    <canvas id="tuval" hidden></canvas>
+    <div id="kamera-hata" class="kal-hata" hidden></div>
+    <form method="post" id="kal-form">{% csrf_token %}
+      <input type="hidden" name="islem" value="lavabo_yukle">
+      <input type="hidden" name="foto_data" id="foto_data">
+      <button type="button" id="cek-btn" class="btn btn-primary kal-cek">📸 Çek ve Yükle</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="hafta-head">
+      <h3>Görüntüler <span class="lav-canli-nokta" title="Canlı güncelleniyor"></span></h3>
+      <span class="hafta-aralik" id="lav-sayi">{{ gorseller|length }} görüntü</span>
+    </div>
+    <div class="kal-galeri" id="lav-galeri">
+      {% for g in gorseller %}
+      <figure class="kal-item">
+        <a href="{{ g.foto.url }}" target="_blank"><img src="{{ g.foto.url }}" alt="Lavabo denetim görüntüsü" loading="lazy"></a>
+        <figcaption>{{ g.giren_ad|default:"—" }}<span>{{ g.olusturma|date:"d.m.Y H:i" }}</span></figcaption>
+      </figure>
+      {% empty %}
+      <p class="egitim-bos" id="lav-bos">Henüz görüntü yok.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+{% if ekleyebilir %}
+<script>
+(function () {
+  var video = document.getElementById('kamera');
+  var hata = document.getElementById('kamera-hata');
+  var btn = document.getElementById('cek-btn');
+  var foto = document.getElementById('foto_data');
+  var form = document.getElementById('kal-form');
+  var stream = null;
+  function hataGoster(msg) { hata.hidden = false; hata.textContent = msg; btn.disabled = true; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    hataGoster('Bu cihaz/tarayıcı canlı kamerayı desteklemiyor.'); return;
+  }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+    .then(function (s) { stream = s; video.srcObject = s; })
+    .catch(function () { hataGoster('Kameraya erişilemedi. İzin verin (telefonda HTTPS gerekir).'); });
+  btn.addEventListener('click', function () {
+    if (!stream || !video.videoWidth) { return; }
+    var maxw = 1024, scale = Math.min(1, maxw / video.videoWidth);
+    var cw = Math.round(video.videoWidth * scale), ch = Math.round(video.videoHeight * scale);
+    var cv = document.getElementById('tuval'); cv.width = cw; cv.height = ch;
+    cv.getContext('2d').drawImage(video, 0, 0, cw, ch);
+    foto.value = cv.toDataURL('image/jpeg', 0.7);
+    btn.disabled = true; btn.textContent = 'Yükleniyor...';
+    stream.getTracks().forEach(function (t) { t.stop(); });
+    form.submit();
+  });
+})();
+</script>
+{% endif %}
+
+<script>
+(function () {
+  var galeri = document.getElementById('lav-galeri');
+  var sayi = document.getElementById('lav-sayi');
+  function ciz(gorseller) {
+    if (!gorseller.length) { galeri.innerHTML = '<p class="egitim-bos">Henüz görüntü yok.</p>'; return; }
+    var html = '';
+    gorseller.forEach(function (g) {
+      html += '<figure class="kal-item"><a href="' + g.url + '" target="_blank"><img src="' + g.url + '" alt="Lavabo denetim görüntüsü" loading="lazy"></a><figcaption>' + g.ad + '<span>' + g.zaman + '</span></figcaption></figure>';
+    });
+    galeri.innerHTML = html;
+  }
+  function getir() {
+    fetch('{% url "lavabo_json" %}{% if sel_sube %}?sube_id={{ sel_sube.id }}{% endif %}', { headers: { 'X-Requested-With': 'fetch' } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var g = (d && d.gorseller) || [];
+        sayi.textContent = g.length + ' görüntü';
+        ciz(g);
+      })
+      .catch(function () {});
+  }
+  setInterval(getir, 15000);
+})();
+</script>
+{% endblock %}

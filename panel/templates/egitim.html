@@ -41,7 +41,11 @@
     {% for d in dokumanlar %}
     <div class="egitim-belge">
       <div class="egitim-belge-bas"><span class="egitim-dok-kat">{{ d.get_kategori_display }}</span> <b>{{ d.baslik }}</b> <a href="{{ d.dosya.url }}" target="_blank" rel="noopener" class="egitim-dok-ac">Yeni sekmede aç →</a></div>
+      {% if d.is_video %}
+      <video class="egitim-video" src="{{ d.dosya.url }}" controls preload="metadata" title="{{ d.baslik }}"></video>
+      {% else %}
       <iframe class="egitim-pdf" src="{{ d.dosya.url }}#toolbar=0&navpanes=0" title="{{ d.baslik }}" loading="lazy"></iframe>
+      {% endif %}
     </div>
     {% endfor %}
     {% else %}

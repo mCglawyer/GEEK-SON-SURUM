@@ -100,10 +100,10 @@
     <h3 class="egitim-bolum">Dokümanlar (PDF)</h3>
     {% if duzenleyebilir %}<form method="post" enctype="multipart/form-data" class="egitim-form">
       {% csrf_token %}<input type="hidden" name="islem" value="dokuman_ekle">
-      <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option></select>
+      <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option><option value="ICECEK">İçecek Hazırlama</option></select>
       <select name="sube_id" class="sube-sec"><option value="">Tüm şubeler</option>{% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}</select>
       <input class="input" type="text" name="baslik" placeholder="Başlık" required>
-      <input class="input" type="file" name="dosya" accept="application/pdf" required>
+      <input class="input" type="file" name="dosya" accept="application/pdf,video/mp4,video/webm,video/quicktime,.mov,.mp4,.webm" required>
       <button class="btn btn-primary btn-mini">Yükle</button>
     </form>{% endif %}
     <div class="egitim-dok-liste">
@@ -123,7 +123,7 @@
     {% if duzenleyebilir %}<form method="post" class="egitim-soru-form">
       {% csrf_token %}<input type="hidden" name="islem" value="soru_ekle">
       <div class="esf-satir">
-        <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option></select>
+        <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option><option value="ICECEK">İçecek Hazırlama</option></select>
         <select name="sube_id" class="sube-sec"><option value="">Tüm şubeler</option>{% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}</select>
         <span class="egitim-dogru">Doğru şık:
           <select name="dogru" class="sube-sec"><option>A</option><option>B</option><option>C</option><option>D</option></select>
