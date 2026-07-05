@@ -23,7 +23,6 @@
   {% if acabilir %}
   <div class="card">
     <h3 class="egitim-bolum">Şube bazlı aç / kapat</h3>
-    <p class="ea-not">Sistem açıkken yalnız <b>açık şubelerin</b> personeline eğitim zorunlu olur. Hiç şube seçilmezse tüm şubeler açık sayılır.</p>
     <div class="ea-sube-liste">
       {% for s in subeler %}
       <div class="ea-sube{% if s.acik_mi %} on{% endif %}">

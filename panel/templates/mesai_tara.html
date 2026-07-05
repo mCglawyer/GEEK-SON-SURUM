@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}Mesai Tara · Geek Panel{% endblock %}
+{% block body %}
+<div class="container mola-giris">
+  <div class="plan-head"><div><h2>Mesai Giriş / Çıkış</h2></div></div>
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="card mola-kart">
+    <p class="ea-not">Şube girişindeki <b>Mesai QR</b> kodunu kameraya göster. Galeriden fotoğraf yüklenemez; yalnızca canlı kamera kullanılır.</p>
+    <div id="tara-alan" class="tara-alan" hidden>
+      <video id="tara-video" playsinline muted></video>
+      <div class="tara-hedef"></div>
+    </div>
+    <canvas id="tara-canvas" hidden></canvas>
+    <p id="tara-durum" class="tara-durum"></p>
+    <button id="tara-baslat" type="button" class="btn btn-primary mola-btn">📷 Kamerayı Aç</button>
+    <button id="tara-dur" type="button" class="btn btn-ghost btn-mini" hidden>Kapat</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var video = document.getElementById('tara-video');
+  var canvas = document.getElementById('tara-canvas');
+  var alan = document.getElementById('tara-alan');
+  var durum = document.getElementById('tara-durum');
+  var basBtn = document.getElementById('tara-baslat');
+  var durBtn = document.getElementById('tara-dur');
+  var ctx = canvas.getContext('2d', { willReadFrequently: true });
+  var akis = null, raf = null, bitti = false;
+
+  function mesaj(t) { durum.textContent = t; }
+
+  function jsqrYukle(cb) {
+    if (window.jsQR) { cb(true); return; }
+    var kaynaklar = [
+      'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js',
+      'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js'
+    ];
+    var i = 0;
+    function dene() {
+      if (window.jsQR) { cb(true); return; }
+      if (i >= kaynaklar.length) { cb(false); return; }
+      var s = document.createElement('script');
+      s.src = kaynaklar[i++];
+      s.onload = function () { window.jsQR ? cb(true) : dene(); };
+      s.onerror = dene;
+      document.head.appendChild(s);
+    }
+    dene();
+  }
+
+  function durdur() {
+    bitti = true;
+    if (raf) cancelAnimationFrame(raf);
+    if (akis) { akis.getTracks().forEach(function (t) { t.stop(); }); akis = null; }
+    alan.hidden = true; durBtn.hidden = true; basBtn.hidden = false;
+  }
+
+  function onKod(data) {
+    if (!data) return false;
+    if (data.indexOf('/mesai/qr/') === -1) {
+      mesaj('Bu bir Mesai QR kodu değil. Şube girişindeki kodu okut.');
+      return false;
+    }
+    mesaj('Kod okundu, yönlendiriliyorsun…');
+    durdur();
+    try { window.location.href = new URL(data, window.location.origin).pathname; }
+    catch (e) { window.location.href = data; }
+    return true;
+  }
+
+  function tick() {
+    if (bitti) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA && window.jsQR) {
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      try {
+        var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var kod = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+        if (kod && kod.data && onKod(kod.data)) return;
+      } catch (e) {}
+    }
+    raf = requestAnimationFrame(tick);
+  }
+
+  function kamerayiAc() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      mesaj('Bu cihaz/tarayıcı kamera erişimini desteklemiyor.'); basBtn.hidden = false; return;
+    }
+    mesaj('Kamera açılıyor…');
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    }).then(function (s) {
+      akis = s; bitti = false;
+      video.srcObject = s; video.setAttribute('playsinline', true);
+      return video.play();
+    }).then(function () {
+      alan.hidden = false; durBtn.hidden = false;
+      mesaj('QR kodu çerçeveye getir…');
+      raf = requestAnimationFrame(tick);
+    }).catch(function (err) {
+      basBtn.hidden = false;
+      if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) mesaj('Kamera izni verilmedi. Tarayıcı ayarlarından kamera iznini aç.');
+      else if (err && err.name === 'NotFoundError') mesaj('Kamera bulunamadı.');
+      else mesaj('Kamera açılamadı. HTTPS ve kamera izni gerekir.');
+    });
+  }
+
+  function basla() {
+    basBtn.hidden = true;
+    mesaj('QR okuyucu yükleniyor…');
+    jsqrYukle(function (ok) {
+      if (!ok) { basBtn.hidden = false; mesaj('QR okuyucu yüklenemedi (internet engeli olabilir). İnternetini kontrol edip tekrar dene; olmazsa telefonun kamera uygulamasıyla duvardaki QR\u2019ı okutup açılan bağlantıya girebilirsin.'); return; }
+      kamerayiAc();
+    });
+  }
+
+  basBtn.addEventListener('click', basla);
+  durBtn.addEventListener('click', function () { durdur(); mesaj(''); });
+  window.addEventListener('pagehide', durdur);
+})();
+</script>
+{% endblock %}

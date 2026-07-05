@@ -85,5 +85,34 @@
     <div class="gs-kart"><span class="gs-buyuk gs-pasif">Pasif</span><span class="gs-etiket">Günlük soru sistemi kapalı</span></div>
     {% endif %}
   </div>
+
+  {% if sel_sube_ozet %}
+  <h3 class="gs-baslik">{{ sel_sube_ozet.ad }} — Personel <span class="gs-c-alt">{{ ozet_personel|length }} kişi</span></h3>
+  <div class="card">
+    {% if ozet_personel %}
+    <div class="oz-personel-liste">
+      {% for p in ozet_personel %}
+      <div class="oz-personel-satir">
+        {% if p.profil_foto %}
+        <img src="{{ p.profil_foto.url }}" class="oz-p-foto" alt="{{ p.ad_soyad }}">
+        {% else %}
+        <div class="oz-p-foto oz-p-varsayilan">
+          {% if p.cinsiyet == 'K' %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M12 12v6M9 15l3 3 3-3"/></svg>
+          {% else %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M5 21c0-4 3-7 7-7s7 3 7 7"/></svg>
+          {% endif %}
+        </div>
+        {% endif %}
+        <span class="oz-p-ad">{{ p.ad_soyad }}</span>
+        <span class="oz-p-rol">{{ p.get_rol_display }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="egitim-bos">Bu şubede personel yok.</p>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

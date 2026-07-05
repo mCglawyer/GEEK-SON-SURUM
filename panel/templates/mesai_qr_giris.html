@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Mesai · Geek Panel{% endblock %}
+{% block body %}
+<div class="container mola-giris">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  {% if hata %}
+  <div class="card mola-kart">
+    <div class="mola-ikon">⚠</div>
+    <h2>{{ hata }}</h2>
+    <a href="{% url 'mesai_tara' %}" class="btn btn-primary">Tekrar Tara</a>
+  </div>
+  {% elif aktif %}
+  <div class="card mola-kart mola-aktif">
+    <div class="mola-ikon">🏁</div>
+    <h2>Mesaidesin</h2>
+    <p class="mola-sube">{{ sube.ad }} · Giriş: {{ aktif.giris|date:"H:i" }}</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="cikis">
+      <button class="btn btn-primary mola-btn">Çıkışı Kaydet</button>
+    </form>
+  </div>
+  {% else %}
+  <div class="card mola-kart">
+    <div class="mola-ikon">🏪</div>
+    <h2>Mesaiye Başla</h2>
+    <p class="mola-sube">{{ sube.ad }}</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="giris">
+      <button class="btn btn-primary mola-btn">Girişi Kaydet</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,21 +1,13 @@
 {% extends 'base.html' %}
-{% block title %}Mola QR · Geek Panel{% endblock %}
+{% block title %}Mesai QR · Geek Panel{% endblock %}
 {% block body %}
 <div class="container">
   <div class="plan-head no-print">
-    <div><h2>Şube Mola QR</h2></div>
+    <div><h2>Şube Mesai QR</h2></div>
   </div>
 
   {% if messages %}{% for m in messages %}<div class="alert no-print {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
 
-  <div class="card egitim-anahtar no-print">
-    <div class="ea-durum">Mola QR sistemi: {% if acik %}<span class="badge ok">AÇIK</span>{% else %}<span class="badge no">KAPALI</span>{% endif %}</div>
-    <form method="post">{% csrf_token %}
-      {% if acik %}<input type="hidden" name="islem" value="sistem_kapat"><button class="btn btn-danger btn-mini">Sistemi Kapat</button>
-      {% else %}<input type="hidden" name="islem" value="sistem_ac"><button class="btn btn-primary btn-mini">Sistemi Aç</button>{% endif %}
-    </form>
-  </div>
-  
   <div class="qr-arac">
     <button type="button" class="btn btn-ghost btn-mini" onclick="window.print()">🖨 Tümünü Yazdır</button>
   </div>

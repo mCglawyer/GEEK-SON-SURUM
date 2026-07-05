@@ -1172,3 +1172,22 @@ body.app .app-main, body.app .container { min-width:0; }
 /* Lavabo Denetimi — canlı gösterge noktası */
 .lav-canli-nokta { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--ok); margin-left:.4rem; animation:lav-pulse 1.6s infinite; vertical-align:middle; }
 @keyframes lav-pulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+
+/* Profilim */
+.prof-ust { display:flex; align-items:center; gap:1rem; margin-bottom:1.2rem; }
+.prof-foto-buyuk { width:76px; height:76px; border-radius:50%; object-fit:cover; flex:0 0 auto; background:var(--brand-050); }
+.prof-varsayilan { display:flex; align-items:center; justify-content:center; color:var(--brand); }
+.prof-varsayilan svg { width:44px; height:44px; }
+.prof-ad { font-size:1.15rem; font-weight:700; color:var(--ink); }
+.prof-form { display:flex; flex-direction:column; gap:.9rem; max-width:360px; }
+.prof-alan { display:flex; flex-direction:column; gap:.3rem; font-size:.85rem; color:var(--muted); font-weight:600; }
+.prof-alan input, .prof-alan select { font:inherit; padding:.5rem .7rem; border:1px solid var(--line); border-radius:var(--radius-sm); color:var(--ink); }
+
+/* Özet — şube personel listesi (foto/rozet) */
+.oz-personel-liste { display:flex; flex-direction:column; gap:.5rem; }
+.oz-personel-satir { display:flex; align-items:center; gap:.6rem; padding:.4rem 0; }
+.oz-p-foto { width:32px; height:32px; border-radius:50%; object-fit:cover; flex:0 0 auto; background:var(--brand-050); }
+.oz-p-varsayilan { display:flex; align-items:center; justify-content:center; color:var(--brand); }
+.oz-p-varsayilan svg { width:20px; height:20px; }
+.oz-p-ad { font-size:.9rem; color:var(--ink); }
+.oz-p-rol { font-size:.75rem; color:var(--muted); margin-left:auto; }

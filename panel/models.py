@@ -66,6 +66,10 @@ class Personel(models.Model):
         max_length=6, unique=True, null=True, blank=True,
         verbose_name="Giriş Kodu",
         help_text="Personel rolündekilerin sisteme giriş için kullandığı 6 haneli kod.")
+    dogum_tarihi = models.DateField(null=True, blank=True, verbose_name="Doğum Tarihi")
+    cinsiyet = models.CharField(max_length=1, choices=[('E', 'Erkek'), ('K', 'Kadın')],
+                                blank=True, default='', verbose_name="Cinsiyet")
+    profil_foto = models.ImageField(upload_to='profil/', null=True, blank=True, verbose_name="Profil Fotoğrafı")
 
     class Meta:
         verbose_name = "Personel"; verbose_name_plural = "Personeller"; ordering = ['ad_soyad']
@@ -658,6 +662,7 @@ def _personel_silinmeden_once_puantaj_arsivle(sender, instance, **kwargs):
     ve ayrıldığı ayın puantajı, o ana kadarki fiili vardiyalarından hesaplanıp donuk olarak kaydedilir."""
     Puantaj.objects.filter(personel=instance).update(
         personel_ad_soyad_arsiv=instance.ad_soyad, sube_arsiv=instance.sube_id)
+    MesaiKayit.objects.filter(personel=instance).update(personel_ad_arsiv=instance.ad_soyad)
 
     bugun = timezone.localdate()
     ay_ilk = bugun.replace(day=1)
@@ -674,7 +679,7 @@ def _personel_silinmeden_once_puantaj_arsivle(sender, instance, **kwargs):
         return
 
     s = instance.vardiyalar.filter(tarih__gte=ay_ilk, tarih__lt=ay_son).exclude(durum=OnayDurumu.REDDEDILDI)
-    Puantaj.objects.update_or_create(
+    snapshot, _ = Puantaj.objects.update_or_create(
         personel=instance, ay=ay_ilk,
         defaults={
             'calisilan_gun': s.filter(vardiya_tipi__in=[VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI]).count(),
@@ -686,6 +691,10 @@ def _personel_silinmeden_once_puantaj_arsivle(sender, instance, **kwargs):
             'personel_ad_soyad_arsiv': instance.ad_soyad,
             'sube_arsiv': instance.sube,
         })
+    # Bu satır Django'nun silme koleksiyonundan SONRA oluşturuldu; SET_NULL cascade'i
+    # otomatik uygulanmaz. Bütünlük hatasını önlemek için FK'yi burada elle boşaltıyoruz.
+    snapshot.personel = None
+    snapshot.save(update_fields=['personel'])
 
 
 class LavaboDenetim(models.Model):
@@ -703,3 +712,35 @@ class LavaboDenetim(models.Model):
 
     def __str__(self):
         return f"{self.sube} - {self.giren_ad} - {self.olusturma:%d.%m.%Y %H:%M}"
+
+
+class DogumGunuKutlama(models.Model):
+    """Aynı gün birden fazla kutlama paylaşımı atılmasını önlemek için."""
+    personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='dogum_kutlamalari')
+    tarih = models.DateField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['personel', 'tarih'], name='unique_dogum_kutlama')]
+
+
+class SubeMesaiToken(models.Model):
+    sube = models.OneToOneField(Sube, on_delete=models.CASCADE, related_name='mesai_token')
+    token = models.CharField(max_length=32, unique=True)
+
+    def __str__(self):
+        return f"Mesai QR - {self.sube}"
+
+
+class MesaiKayit(models.Model):
+    sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='mesai_kayitlari')
+    personel = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='mesai_kayitlari')
+    personel_ad_arsiv = models.CharField(max_length=160, blank=True, default='')
+    giris = models.DateTimeField()
+    cikis = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-giris']
+
+    def __str__(self):
+        return f"{self.sube} - {self.personel_ad_arsiv or (self.personel.ad_soyad if self.personel else '')}"

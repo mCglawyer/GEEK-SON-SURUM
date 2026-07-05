@@ -60,7 +60,6 @@
     {% if magaza_atayabilir %}
     <div class="card staff-card">
       <div class="staff-card-bas"><h3>Mağaza Müdürü <span class="ea-not">(Franchise)</span></h3><span class="badge badge-info">{{ magaza_mudurleri|length }}</span></div>
-      <p class="staff-aciklama">Yalnızca franchise şubelere atanır. Kendi şubesinin tüm bilgilerini görür, şef yetkilerine sahiptir.</p>
       <ul class="staff-list">
         {% for m in magaza_mudurleri %}
         <li class="sef-row">
@@ -83,7 +82,6 @@
     {% if is_atayabilir %}
     <div class="card staff-card">
       <div class="staff-card-bas"><h3>Bölge Müdürü — Şube Atama</h3></div>
-      <p class="staff-aciklama">Her bölge müdürünün hangi şubeleri görebileceğini belirleyin. Bir şubeye birden fazla müdür atanabilir.</p>
       {% if bolge_mudurleri %}
       <div class="bm-liste">
         {% for m in bolge_mudurleri %}
@@ -110,7 +108,6 @@
     {% if is_atayabilir %}
     <div class="card staff-card">
       <div class="staff-card-bas"><h3>Eğitmen Yetkisi</h3><span class="badge badge-info">{{ egitmenler|length }}</span></div>
-      <p class="staff-aciklama">Bir personel veya şefe eğitmen yetkisi verin. Eğitmen kendi 6 haneli koduyla girer; ek olarak "Soru Yönetimi" ve "Bilgi Karnesi"ne erişir.</p>
       <ul class="staff-list">
         {% for e in egitmenler %}
         <li class="sef-row">

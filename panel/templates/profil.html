@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Profilim · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head"><div><h2>Profilim</h2></div></div>
+
+  <div class="card prof-card">
+    <div class="prof-ust">
+      {% if personel.profil_foto %}
+      <img src="{{ personel.profil_foto.url }}" class="prof-foto-buyuk" alt="{{ personel.ad_soyad }}">
+      {% else %}
+      <div class="prof-foto-buyuk prof-varsayilan">
+        {% if personel.cinsiyet == 'K' %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M12 12v6M9 15l3 3 3-3"/></svg>
+        {% else %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M5 21c0-4 3-7 7-7s7 3 7 7"/></svg>
+        {% endif %}
+      </div>
+      {% endif %}
+      <div>
+        <div class="prof-ad">{{ personel.ad_soyad }}</div>
+        <div class="ea-not">{{ personel.get_rol_display }}{% if personel.sube %} · {{ personel.sube.ad }}{% endif %}</div>
+      </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="prof-form">
+      {% csrf_token %}<input type="hidden" name="islem" value="profil_kaydet">
+      <label class="prof-alan">
+        <span>Profil Fotoğrafı</span>
+        <input type="file" name="profil_foto" accept="image/*">
+      </label>
+      <label class="prof-alan">
+        <span>Doğum Tarihi</span>
+        <input type="date" name="dogum_tarihi" value="{{ personel.dogum_tarihi|date:'Y-m-d' }}">
+      </label>
+      <label class="prof-alan">
+        <span>Cinsiyet</span>
+        <select name="cinsiyet">
+          <option value="" {% if not personel.cinsiyet %}selected{% endif %}>Belirtmek istemiyorum</option>
+          <option value="E" {% if personel.cinsiyet == 'E' %}selected{% endif %}>Erkek</option>
+          <option value="K" {% if personel.cinsiyet == 'K' %}selected{% endif %}>Kadın</option>
+        </select>
+      </label>
+      <button type="submit" class="btn btn-primary">Kaydet</button>
+    </form>
+    {% if personel.profil_foto %}
+    <form method="post" onsubmit="return confirm('Profil fotoğrafı kaldırılsın mı?');">
+      {% csrf_token %}<input type="hidden" name="islem" value="foto_kaldir">
+      <button type="submit" class="btn btn-ghost btn-mini">Fotoğrafı Kaldır</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

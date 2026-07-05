@@ -30,6 +30,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      GSosyalGonderi, GSosyalTepki,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, PushAbonelik,
                      MolaQRAyar, SubeMolaToken, MolaOturum,
+                     SubeMesaiToken, MesaiKayit, DogumGunuKutlama,
                      InsaatProje, InsaatMadde, InsaatMaddeDurum, InsaatKategori, InsaatSablonMadde,
                      LavaboDenetim,
                      Rol, OnayDurumu, VardiyaTipi)
@@ -2961,6 +2962,191 @@ def sube_sec(request):
     return redirect(geri)
 
 
+def profil_sayfa(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        if islem == 'profil_kaydet':
+            dt = request.POST.get('dogum_tarihi', '').strip()
+            if dt:
+                try:
+                    personel.dogum_tarihi = datetime.datetime.strptime(dt, '%Y-%m-%d').date()
+                except ValueError:
+                    pass
+            else:
+                personel.dogum_tarihi = None
+            cinsiyet = request.POST.get('cinsiyet', '')
+            if cinsiyet in ('E', 'K', ''):
+                personel.cinsiyet = cinsiyet
+            foto = request.FILES.get('profil_foto')
+            if foto:
+                gecerli = False
+                if foto.size <= 5 * 1024 * 1024 and (foto.content_type or '').startswith('image/'):
+                    try:
+                        from PIL import Image as _PILImage
+                        _img = _PILImage.open(foto)
+                        _img.verify()
+                        foto.seek(0)
+                        gecerli = True
+                    except Exception:
+                        gecerli = False
+                if gecerli:
+                    personel.profil_foto = foto
+                else:
+                    messages.error(request, "Geçersiz fotoğraf dosyası (en fazla 5MB, resim formatı olmalı).")
+                    return redirect('profil')
+            personel.save(update_fields=['dogum_tarihi', 'cinsiyet', 'profil_foto'])
+            messages.success(request, "Profilin güncellendi.")
+        elif islem == 'foto_kaldir':
+            if personel.profil_foto:
+                personel.profil_foto.delete(save=False)
+            personel.profil_foto = None
+            personel.save(update_fields=['profil_foto'])
+            messages.success(request, "Profil fotoğrafı kaldırıldı.")
+        return redirect('profil')
+
+    return render(request, 'profil.html', {'personel': personel, 'aktif': 'profil'})
+
+
+MESAI_QR_YETKI = [Rol.GENEL_MUDUR, Rol.OPERATOR]
+MESAI_QR_GECERLILIK_SN = 180
+
+
+def _sube_mesai_token(sube):
+    tok = SubeMesaiToken.objects.filter(sube=sube).first()
+    if tok is None:
+        tok = SubeMesaiToken.objects.create(sube=sube, token=secrets.token_urlsafe(12))
+    return tok
+
+
+def _aktif_mesai(personel):
+    return MesaiKayit.objects.filter(personel=personel, cikis__isnull=True).order_by('-giris').first()
+
+
+def mesai_qr_yonetim(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in MESAI_QR_YETKI:
+        return redirect('ana_sayfa')
+    if request.method == 'POST':
+        if request.POST.get('islem') == 'token_yenile':
+            sb = Sube.objects.filter(id=request.POST.get('sube_id')).first()
+            if sb:
+                SubeMesaiToken.objects.filter(sube=sb).delete()
+                _sube_mesai_token(sb)
+                messages.success(request, "%s için yeni QR üretildi (eski QR geçersiz)." % sb.ad)
+        return redirect('mesai_qr_yonetim')
+    veriler = []
+    for s in Sube.objects.filter(depo_mu=False).order_by('ad'):
+        tok = _sube_mesai_token(s)
+        veriler.append({'sube': s, 'url': request.build_absolute_uri('/mesai/qr/%s/' % tok.token)})
+    return render(request, 'mesai_qr_yonetim.html', {
+        'personel': personel, 'aktif': 'mesai_qr', 'veriler': veriler,
+    })
+
+
+def mesai_tara(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    return render(request, 'mesai_tara.html', {'personel': personel, 'aktif': 'mesai_tara'})
+
+
+def mesai_qr_giris(request, token):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    tok = SubeMesaiToken.objects.filter(token=token).select_related('sube').first()
+    if tok is None:
+        return render(request, 'mesai_qr_giris.html', {'personel': personel, 'hata': 'Geçersiz veya güncelliğini yitirmiş QR kodu.'})
+    aktif = _aktif_mesai(personel)
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        tazelik = request.session.get('mesai_qr_zaman_%s' % tok.sube_id)
+        taze_mi = False
+        if tazelik:
+            try:
+                taze_mi = (timezone.now().timestamp() - float(tazelik)) <= MESAI_QR_GECERLILIK_SN
+            except (TypeError, ValueError):
+                taze_mi = False
+        if not taze_mi:
+            messages.error(request, "QR kodunun üzerinden biraz zaman geçmiş. Lütfen QR'ı tekrar okut.")
+            return redirect('mesai_tara')
+        if islem == 'giris' and aktif is None:
+            MesaiKayit.objects.create(personel=personel, sube=tok.sube, giris=timezone.now(),
+                                      personel_ad_arsiv=personel.ad_soyad)
+            messages.success(request, "Giriş kaydedildi. İyi çalışmalar!")
+        elif islem == 'cikis' and aktif is not None:
+            aktif.cikis = timezone.now()
+            aktif.save(update_fields=['cikis'])
+            messages.success(request, "Çıkış kaydedildi. İyi günler!")
+        return redirect('mesai_qr_giris', token=token)
+    request.session['mesai_qr_zaman_%s' % tok.sube_id] = timezone.now().timestamp()
+    return render(request, 'mesai_qr_giris.html', {
+        'personel': personel, 'sube': tok.sube, 'token': token, 'aktif': aktif,
+    })
+
+
+def mesai_kayitlari(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or (personel.rol not in UST_YONETIM and personel.rol not in (Rol.SEF, Rol.MAGAZA_MUDURU)):
+        return redirect('ana_sayfa')
+    is_yon = personel.rol in UST_YONETIM
+    if is_yon:
+        subeler = _yon_subeler(personel)
+        sube_ids = [s.id for s in subeler]
+        sec = request.GET.get('sube')
+        if sec and sec.isdigit() and int(sec) in sube_ids:
+            gecmis_ids = [int(sec)]
+            secili = int(sec)
+        else:
+            gecmis_ids = sube_ids
+            secili = 0
+        subeler_secim = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if len(sube_ids) > 1 else []
+    else:
+        gecmis_ids = [personel.sube_id] if personel.sube_id else []
+        secili = personel.sube_id or 0
+        subeler_secim = []
+
+    sinir = timezone.now() - datetime.timedelta(days=14)
+    kayitlar = (MesaiKayit.objects.filter(sube_id__in=gecmis_ids, giris__gte=sinir)
+                .select_related('personel', 'sube').order_by('-giris')[:300])
+    liste = []
+    for m in kayitlar:
+        liste.append({
+            'ad': m.personel.ad_soyad if m.personel else (m.personel_ad_arsiv or '—'),
+            'sube': m.sube.ad if m.sube else '—',
+            'giris': timezone.localtime(m.giris),
+            'cikis': timezone.localtime(m.cikis) if m.cikis else None,
+        })
+    return render(request, 'mesai_kayitlari.html', {
+        'personel': personel, 'aktif': 'mesai_kayitlari',
+        'subeler': subeler_secim, 'secili': secili, 'kayitlar': liste,
+    })
+
+
 def gosterge(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -3061,6 +3247,10 @@ def gosterge(request):
 
     stok_oran = round(sayim_yapan * 100 / sube_sayisi) if sube_sayisi else 0
 
+    sel_sube_ozet = _yonetici_sube(request, subeler)
+    ozet_personel = (list(Personel.objects.filter(sube=sel_sube_ozet).order_by('ad_soyad'))
+                     if sel_sube_ozet else [])
+
     return render(request, 'gosterge.html', {
         'personel': personel, 'aktif': 'gosterge',
         'bugun': bugun, 'onay_bekleyen': onay_bekleyen, 'acik_sevkiyat': acik_sevkiyat,
@@ -3068,6 +3258,7 @@ def gosterge(request):
         'soru': soru, 'bugun_tarih': today,
         'durum': durum, 'durum_top': durum_top, 'sube_durum': sube_durum,
         'trend': trend, 'stok_oran': stok_oran,
+        'sel_sube_ozet': sel_sube_ozet, 'ozet_personel': ozet_personel,
     })
 
 def sevkiyat_kalem_hazirla(request):
@@ -3314,6 +3505,20 @@ def g_sosyal(request):
     if request.method == 'POST' and request.POST.get('islem') == 'gonderi_ekle' and paylasabilir:
         metin = (request.POST.get('metin') or '').strip()
         gorsel = request.FILES.get('gorsel')
+        if gorsel:
+            gecerli = False
+            if gorsel.size <= 8 * 1024 * 1024 and (gorsel.content_type or '').startswith('image/'):
+                try:
+                    from PIL import Image as _PILImage
+                    _img = _PILImage.open(gorsel)
+                    _img.verify()
+                    gorsel.seek(0)
+                    gecerli = True
+                except Exception:
+                    gecerli = False
+            if not gecerli:
+                messages.error(request, "Geçersiz görsel dosyası. Lütfen bir fotoğraf seçin (en fazla 8MB).")
+                return redirect('g_sosyal')
         if metin or gorsel:
             GSosyalGonderi.objects.create(yazan=personel, yazan_ad=personel.ad_soyad,
                                           metin=metin[:4000], gorsel=gorsel)
@@ -3598,14 +3803,15 @@ def egitim_yonetim(request):
             dosya = request.FILES.get('dosya')
             baslik = (request.POST.get('baslik') or '').strip()
             kategori = request.POST.get('kategori') if request.POST.get('kategori') in ('RECETE', 'ORYANTASYON', 'ICECEK') else 'RECETE'
-            if dosya and baslik:
+            gecerli_uzanti = ('.pdf', '.mp4', '.webm', '.mov', '.m4v', '.ogv')
+            if dosya and baslik and dosya.name.lower().endswith(gecerli_uzanti) and dosya.size <= 200 * 1024 * 1024:
                 sb = Sube.objects.filter(id=request.POST.get('sube_id')).first() if (request.POST.get('sube_id') or '').isdigit() else None
                 if sb and personel.rol == Rol.MUDUR and not personel.sorumlu_subeler.filter(id=sb.id).exists():
                     sb = None
                 EgitimDokuman.objects.create(kategori=kategori, baslik=baslik[:160], dosya=dosya, sube=sb)
                 messages.success(request, "Doküman eklendi.")
             else:
-                messages.error(request, "Başlık ve dosya gerekli.")
+                messages.error(request, "Başlık ve geçerli bir dosya (PDF/MP4/WEBM/MOV, en fazla 200MB) gerekli.")
             return redirect('egitim_yonetim')
         if islem == 'dokuman_sil':
             d = EgitimDokuman.objects.filter(id=request.POST.get('id')).first()
