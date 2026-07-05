@@ -3,6 +3,7 @@
 {% block body %}
 <div class="container mola-giris">
   <div class="plan-head"><div><h2>Molaya Çık / Dön</h2></div></div>
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
 
   {% if not acik %}
   <div class="alert alert-error">Mola QR sistemi şu an kapalı. Yönetici açtığında buradan molanı başlatabilirsin.</div>

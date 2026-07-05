@@ -1107,7 +1107,7 @@ def kalibrasyon_sayfa(request):
 
 IRSALIYE_GUN = 180
 
-LAVABO_GUN = 7
+LAVABO_GUN = 2
 
 def _lavabo_temizle():
     sinir = timezone.now() - datetime.timedelta(days=LAVABO_GUN)
@@ -2545,6 +2545,7 @@ def sube_yeni(request):
 
 MOLA_QR_YETKI = [Rol.GENEL_MUDUR, Rol.OPERATOR]
 MOLA_SURELER = [45, 15]
+MOLA_QR_GECERLILIK_SN = 180
 
 
 def _mola_qr_acik():
@@ -2614,6 +2615,16 @@ def mola_qr_giris(request, token):
     aktif = _aktif_mola(personel)
     if request.method == 'POST':
         islem = request.POST.get('islem')
+        tazelik = request.session.get('mola_qr_zaman_%s' % tok.sube_id)
+        taze_mi = False
+        if tazelik:
+            try:
+                taze_mi = (timezone.now().timestamp() - float(tazelik)) <= MOLA_QR_GECERLILIK_SN
+            except (TypeError, ValueError):
+                taze_mi = False
+        if not taze_mi:
+            messages.error(request, "QR kodunun üzerinden biraz zaman geçmiş. Lütfen QR'ı tekrar okut.")
+            return redirect('mola_tara')
         if islem == 'baslat' and aktif is None:
             try:
                 sure = int(request.POST.get('sure', '45'))
@@ -2635,6 +2646,7 @@ def mola_qr_giris(request, token):
     if aktif is not None:
         bitecek = aktif.baslangic + datetime.timedelta(minutes=aktif.sure_dk)
         kalan = int((bitecek - timezone.now()).total_seconds() // 60)
+    request.session['mola_qr_zaman_%s' % tok.sube_id] = timezone.now().timestamp()
     return render(request, 'mola_qr_giris.html', {
         'personel': personel, 'sube': tok.sube, 'token': token,
         'aktif': aktif, 'kalan': kalan, 'sureler': MOLA_SURELER,
