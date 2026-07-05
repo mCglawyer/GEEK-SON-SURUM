@@ -17,7 +17,7 @@ from django.urls import reverse
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse, FileResponse, Http404
 from django.utils import timezone
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Q
 from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.models import User
@@ -248,7 +248,10 @@ def _vardiya_tablo(personeller, start, end, gunler):
 
 def _puantaj_hesapla(personel, bas, son, manuel_ay=None):
     if manuel_ay is not None:
-        rec = Puantaj.objects.filter(personel=personel, ay=manuel_ay).first()
+        try:
+            rec = Puantaj.objects.filter(personel=personel, ay=manuel_ay).first()
+        except Exception:
+            rec = None
         if rec and rec.manuel_duzenlendi:
             # Manuel kayıt, düzenleme anına kadarki tabanı temsil eder.
             # Düzenlemeden SONRA eklenen/değişen vardiyalar otomatik olarak üstüne eklenir.
@@ -540,7 +543,10 @@ def puantaj_sayfa(request):
         liste.append(d)
 
     if not aralik_mod and sel_sube:
-        ayrilanlar = Puantaj.objects.filter(personel__isnull=True, sube_arsiv=sel_sube, ay=ay_ilk)
+        try:
+            ayrilanlar = list(Puantaj.objects.filter(personel__isnull=True, sube_arsiv=sel_sube, ay=ay_ilk))
+        except Exception:
+            ayrilanlar = []
         for r in ayrilanlar:
             liste.append({
                 'calisilan': r.calisilan_gun, 'eksik': r.eksik_gun, 'izinli': r.izinli_gun,
@@ -3142,13 +3148,24 @@ def mesai_kayitlari(request):
     kayitlar = (MesaiKayit.objects.filter(sube_id__in=gecmis_ids, giris__gte=gun_bas, giris__lt=gun_son)
                 .select_related('personel', 'sube').order_by('-giris'))
     liste = []
+    toplam_dk = {}
     for m in kayitlar:
+        ad = m.personel.ad_soyad if m.personel else (m.personel_ad_arsiv or '—')
+        anahtar = m.personel_id or ('arsiv_%s' % ad)
+        dk = None
+        if m.cikis:
+            dk = max(0, int((m.cikis - m.giris).total_seconds() // 60))
+            toplam_dk[anahtar] = toplam_dk.get(anahtar, 0) + dk
         liste.append({
-            'ad': m.personel.ad_soyad if m.personel else (m.personel_ad_arsiv or '—'),
-            'sube': m.sube.ad if m.sube else '—',
+            'anahtar': anahtar, 'ad': ad, 'sube': m.sube.ad if m.sube else '—',
             'giris': timezone.localtime(m.giris),
             'cikis': timezone.localtime(m.cikis) if m.cikis else None,
+            'sure_dk': dk,
         })
+    for k in liste:
+        toplam = toplam_dk.get(k['anahtar'], 0)
+        k['toplam_saat'] = toplam // 60
+        k['toplam_dk'] = toplam % 60
     return render(request, 'mesai_kayitlari.html', {
         'personel': personel, 'aktif': 'mesai_kayitlari',
         'subeler': subeler_secim, 'secili': secili, 'kayitlar': liste,

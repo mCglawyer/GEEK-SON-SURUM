@@ -24,7 +24,11 @@
         <div class="mg-avatar">{{ k.ad|slice:":1" }}</div>
         <div class="mg-govde">
           <div class="mg-ust"><b>{{ k.ad }}</b><span class="mg-sube-adi">{{ k.sube }}</span></div>
-          <div class="mg-alt">Giriş: {{ k.giris|date:"H:i" }}{% if k.cikis %} · Çıkış: {{ k.cikis|date:"H:i" }}{% else %} · <span class="badge wait">içeride</span>{% endif %}</div>
+          <div class="mg-alt">Giriş: {{ k.giris|date:"H:i" }}{% if k.cikis %} · Çıkış: {{ k.cikis|date:"H:i" }} · Süre: {{ k.sure_dk }} dk{% else %} · <span class="badge wait">içeride</span>{% endif %}</div>
+        </div>
+        <div class="mg-sure-blok">
+          <span class="mg-sure">{{ k.toplam_saat }} sa {{ k.toplam_dk }} dk</span>
+          <span class="ea-not">gün toplamı</span>
         </div>
       </div>
       {% endfor %}
