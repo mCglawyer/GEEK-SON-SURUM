@@ -2,16 +2,19 @@
 {% block title %}Mesai Kayıtları · Geek Panel{% endblock %}
 {% block body %}
 <div class="container">
-  <div class="plan-head"><div><h2>Mesai Kayıtları</h2></div></div>
-
-  {% if subeler %}
-  <form method="get" class="mola-sube-sec">
-    <select name="sube" class="sube-sec" onchange="this.form.submit()">
-      <option value="">Tüm şubeler</option>
-      {% for s in subeler %}<option value="{{ s.id }}" {% if secili == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
-    </select>
-  </form>
-  {% endif %}
+  <div class="plan-head">
+    <div><h2>Mesai Kayıtları</h2></div>
+    <div class="yon-secimler">
+      {% if subeler %}
+      <select class="sube-sec" onchange="location.href='?sube='+this.value+'&mesai_tarih={{ secili_tarih }}'">
+        <option value="">Tüm şubeler</option>
+        {% for s in subeler %}<option value="{{ s.id }}" {% if secili == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+      </select>
+      {% endif %}
+      <input type="date" class="ay-sec" value="{{ secili_tarih }}" max="{{ bugun }}"
+             onchange="location.href='?{% if secili %}sube={{ secili }}&{% endif %}mesai_tarih='+this.value">
+    </div>
+  </div>
 
   <div class="card">
     {% if kayitlar %}
@@ -21,13 +24,13 @@
         <div class="mg-avatar">{{ k.ad|slice:":1" }}</div>
         <div class="mg-govde">
           <div class="mg-ust"><b>{{ k.ad }}</b><span class="mg-sube-adi">{{ k.sube }}</span></div>
-          <div class="mg-alt">Giriş: {{ k.giris|date:"d.m.Y H:i" }}{% if k.cikis %} · Çıkış: {{ k.cikis|date:"H:i" }}{% else %} · <span class="badge wait">içeride</span>{% endif %}</div>
+          <div class="mg-alt">Giriş: {{ k.giris|date:"H:i" }}{% if k.cikis %} · Çıkış: {{ k.cikis|date:"H:i" }}{% else %} · <span class="badge wait">içeride</span>{% endif %}</div>
         </div>
       </div>
       {% endfor %}
     </div>
     {% else %}
-    <p class="egitim-bos">Bu aralıkta mesai kaydı yok.</p>
+    <p class="egitim-bos">{{ secili_tarih }} için mesai kaydı yok.</p>
     {% endif %}
   </div>
 </div>

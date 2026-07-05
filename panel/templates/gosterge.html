@@ -4,7 +4,7 @@
 {% block body %}
 <div class="container">
   <div class="plan-head">
-    <div><h2>Özet Panel</h2><span class="plan-aralik">{{ bugun_tarih|date:"d.m.Y" }} · {% if personel.rol == 'Müdür' %}sorumlu şubeleriniz{% else %}tüm şubeler{% endif %} ({{ sube_sayisi }})</span></div>
+    <div><h2>Özet Panel</h2><span class="plan-aralik">{{ bugun_tarih|date:"d.m.Y" }}{% if sel_sube_ozet %} · {{ sel_sube_ozet.ad }}{% endif %}</span></div>
   </div>
 
   <h3 class="gs-baslik">Bugün</h3>
@@ -16,29 +16,16 @@
     <div class="gs-kart {% if bugun.devamsiz %}gs-no{% endif %}"><span class="gs-buyuk">{{ bugun.devamsiz }}</span><span class="gs-etiket">Devamsız</span></div>
   </div>
 
-  <div class="gs-ikili">
-    <div class="card gs-cizelge">
-      <div class="gs-c-bas">Personel Durumu <span class="gs-c-alt">bugün</span></div>
-      {% if durum_top %}
-      <div class="gs-stack">
-        {% for d in durum %}{% if d.sayi %}<div class="gs-stack-seg" style="width:{{ d.yuzde }}%;background:{{ d.renk }}" title="{{ d.ad }}: {{ d.sayi }}"></div>{% endif %}{% endfor %}
-      </div>
-      <div class="gs-legend">
-        {% for d in durum %}<span class="gs-leg"><i style="background:{{ d.renk }}"></i>{{ d.ad }} <b>{{ d.sayi }}</b></span>{% endfor %}
-      </div>
-      {% else %}<p class="gs-bos-not">Bugün için vardiya verisi yok.</p>{% endif %}
+  <div class="card gs-cizelge">
+    <div class="gs-c-bas">Personel Durumu <span class="gs-c-alt">bugün</span></div>
+    {% if durum_top %}
+    <div class="gs-stack">
+      {% for d in durum %}{% if d.sayi %}<div class="gs-stack-seg" style="width:{{ d.yuzde }}%;background:{{ d.renk }}" title="{{ d.ad }}: {{ d.sayi }}"></div>{% endif %}{% endfor %}
     </div>
-
-    <div class="card gs-cizelge">
-      <div class="gs-c-bas">Şube Bazında Çalışan <span class="gs-c-alt">çalışan / toplam</span></div>
-      {% for s in sube_durum %}
-      <div class="gs-bar-satir">
-        <span class="gs-bar-ad" title="{{ s.ad }}">{{ s.ad }}</span>
-        <div class="gs-bar-yol"><div class="gs-bar-dolu" style="width:{{ s.oran }}%"></div></div>
-        <span class="gs-bar-deg">{{ s.calisan }}/{{ s.toplam }}</span>
-      </div>
-      {% empty %}<p class="gs-bos-not">Şube yok.</p>{% endfor %}
+    <div class="gs-legend">
+      {% for d in durum %}<span class="gs-leg"><i style="background:{{ d.renk }}"></i>{{ d.ad }} <b>{{ d.sayi }}</b></span>{% endfor %}
     </div>
+    {% else %}<p class="gs-bos-not">Bugün için vardiya verisi yok.</p>{% endif %}
   </div>
 
   <h3 class="gs-baslik">Bekleyen İşler</h3>

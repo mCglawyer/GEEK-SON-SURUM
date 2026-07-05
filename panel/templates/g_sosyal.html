@@ -50,7 +50,11 @@
     {% for g in gonderiler %}
     <div class="card gs-post">
       <div class="gs-post-bas">
+        {% if g.yazan.profil_foto %}
+        <img src="{{ g.yazan.profil_foto.url }}" class="gs-avatar gs-avatar-foto" alt="{{ g.yazan_ad }}">
+        {% else %}
         <div class="gs-avatar">{{ g.yazan_ad|first|upper }}</div>
+        {% endif %}
         <div class="gs-kim"><b>{{ g.yazan_ad }}</b><span>{{ g.olusturma|date:"d.m.Y H:i" }}</span></div>
         {% if g.silebilir %}
         <form method="post" class="gs-sil-form" onsubmit="return confirm('Gönderi silinsin mi?');">

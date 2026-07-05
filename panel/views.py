@@ -3090,11 +3090,11 @@ def mesai_qr_giris(request, token):
         if not taze_mi:
             messages.error(request, "QR kodunun üzerinden biraz zaman geçmiş. Lütfen QR'ı tekrar okut.")
             return redirect('mesai_tara')
-        if islem == 'giris' and aktif is None:
+        if islem == 'mesai_giris' and aktif is None:
             MesaiKayit.objects.create(personel=personel, sube=tok.sube, giris=timezone.now(),
                                       personel_ad_arsiv=personel.ad_soyad)
             messages.success(request, "Giriş kaydedildi. İyi çalışmalar!")
-        elif islem == 'cikis' and aktif is not None:
+        elif islem == 'mesai_cikis' and aktif is not None:
             aktif.cikis = timezone.now()
             aktif.save(update_fields=['cikis'])
             messages.success(request, "Çıkış kaydedildi. İyi günler!")
@@ -3130,9 +3130,17 @@ def mesai_kayitlari(request):
         secili = personel.sube_id or 0
         subeler_secim = []
 
-    sinir = timezone.now() - datetime.timedelta(days=14)
-    kayitlar = (MesaiKayit.objects.filter(sube_id__in=gecmis_ids, giris__gte=sinir)
-                .select_related('personel', 'sube').order_by('-giris')[:300])
+    today = timezone.localdate()
+    try:
+        secili_tarih = datetime.datetime.strptime(request.GET.get('mesai_tarih', ''), '%Y-%m-%d').date()
+    except ValueError:
+        secili_tarih = today
+    secili_tarih = min(secili_tarih, today)
+    gun_bas = datetime.datetime.combine(secili_tarih, datetime.time.min, tzinfo=timezone.get_current_timezone())
+    gun_son = gun_bas + datetime.timedelta(days=1)
+
+    kayitlar = (MesaiKayit.objects.filter(sube_id__in=gecmis_ids, giris__gte=gun_bas, giris__lt=gun_son)
+                .select_related('personel', 'sube').order_by('-giris'))
     liste = []
     for m in kayitlar:
         liste.append({
@@ -3144,6 +3152,7 @@ def mesai_kayitlari(request):
     return render(request, 'mesai_kayitlari.html', {
         'personel': personel, 'aktif': 'mesai_kayitlari',
         'subeler': subeler_secim, 'secili': secili, 'kayitlar': liste,
+        'secili_tarih': secili_tarih.strftime('%Y-%m-%d'), 'bugun': today.strftime('%Y-%m-%d'),
     })
 
 
@@ -3158,14 +3167,16 @@ def gosterge(request):
 
     subeler = list(_yon_subeler(personel))
     sube_ids = [s.id for s in subeler]
+    sel_sube_ozet = _yonetici_sube(request, subeler)
+    hesap_ids = [sel_sube_ozet.id] if sel_sube_ozet else sube_ids
     today = timezone.localdate()
     ay_ilk, sonraki = _ay_araligi(today.strftime('%Y-%m'))
 
     calisan_tipler = [VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI]
-    v_today = Vardiya.objects.filter(tarih=today, personel__sube_id__in=sube_ids)
+    v_today = Vardiya.objects.filter(tarih=today, personel__sube_id__in=hesap_ids)
 
     bugun = {
-        'toplam': Personel.objects.filter(sube_id__in=sube_ids, rol__in=[Rol.PERSONEL, Rol.SEF]).count(),
+        'toplam': Personel.objects.filter(sube_id__in=hesap_ids, rol__in=[Rol.PERSONEL, Rol.SEF]).count(),
         'calisan': v_today.filter(vardiya_tipi__in=calisan_tipler).count(),
         'izinli': v_today.filter(vardiya_tipi__in=[VardiyaTipi.IZINLI, VardiyaTipi.YILLIK_IZIN]).count(),
         'raporlu': v_today.filter(vardiya_tipi=VardiyaTipi.RAPORLU).count(),
@@ -3173,24 +3184,24 @@ def gosterge(request):
     }
 
     onay_bekleyen = Vardiya.objects.filter(
-        personel__sube_id__in=sube_ids, durum=OnayDurumu.ONAY_BEKLIYOR
+        personel__sube_id__in=hesap_ids, durum=OnayDurumu.ONAY_BEKLIYOR
     ).values('personel__sube_id', 'tarih').distinct().count()
     acik_sevkiyat = SevkiyatTalep.objects.filter(
-        sube_id__in=sube_ids,
+        sube_id__in=hesap_ids,
         durum__in=[SevkiyatDurumu.TALEP, SevkiyatDurumu.SEVKIYATTA, SevkiyatDurumu.ONAY_BEKLIYOR]
     ).count()
 
     zayi_ay = Zayi.objects.filter(
-        sube_id__in=sube_ids, olusturma__date__gte=ay_ilk, olusturma__date__lt=sonraki
+        sube_id__in=hesap_ids, olusturma__date__gte=ay_ilk, olusturma__date__lt=sonraki
     ).count()
-    sayim_yapan = (StokSayim.objects.filter(sube_id__in=sube_ids, ay=ay_ilk)
+    sayim_yapan = (StokSayim.objects.filter(sube_id__in=hesap_ids, ay=ay_ilk)
                    .values('sube_id').distinct().count())
-    sube_sayisi = len(subeler)
+    sube_sayisi = len(hesap_ids)
 
     ayar = SoruAyar.get()
     soru = {'aktif': ayar.aktif, 'cevap': 0, 'dogru': 0, 'basari': 0}
     if ayar.aktif:
-        gs = GunlukSoru.objects.filter(tarih=today, personel__sube_id__in=sube_ids, cevaplandi=True)
+        gs = GunlukSoru.objects.filter(tarih=today, personel__sube_id__in=hesap_ids, cevaplandi=True)
         soru['cevap'] = gs.count()
         soru['dogru'] = gs.filter(dogru_mu=True).count()
         soru['basari'] = round(soru['dogru'] * 100 / soru['cevap']) if soru['cevap'] else 0
@@ -3206,30 +3217,15 @@ def gosterge(request):
               'yuzde': round(v * 100 / durum_top, 1) if durum_top else 0}
              for a, v, r in _durum_kalemler]
 
-    calisan_map = {}
-    for r in (Vardiya.objects.filter(tarih=today, personel__sube_id__in=sube_ids,
-              vardiya_tipi__in=calisan_tipler).values('personel__sube_id').annotate(c=Count('id'))):
-        calisan_map[r['personel__sube_id']] = r['c']
-    toplam_map = {}
-    for r in (Personel.objects.filter(sube_id__in=sube_ids, rol__in=[Rol.PERSONEL, Rol.SEF])
-              .values('sube_id').annotate(c=Count('id'))):
-        toplam_map[r['sube_id']] = r['c']
-    sube_durum = []
-    for s in subeler:
-        tp = toplam_map.get(s.id, 0)
-        cl = calisan_map.get(s.id, 0)
-        sube_durum.append({'ad': s.ad, 'calisan': cl, 'toplam': tp,
-                           'oran': round(cl * 100 / tp) if tp else 0})
-
     gun7 = [today - datetime.timedelta(days=i) for i in range(6, -1, -1)]
     sevk_say = {g: 0 for g in gun7}
-    for dt in (SevkiyatTalep.objects.filter(sube_id__in=sube_ids, olusturma__date__gte=gun7[0])
+    for dt in (SevkiyatTalep.objects.filter(sube_id__in=hesap_ids, olusturma__date__gte=gun7[0])
                .values_list('olusturma', flat=True)):
         g = timezone.localtime(dt).date()
         if g in sevk_say:
             sevk_say[g] += 1
     zayi_say = {g: 0 for g in gun7}
-    for dt in (Zayi.objects.filter(sube_id__in=sube_ids, olusturma__date__gte=gun7[0])
+    for dt in (Zayi.objects.filter(sube_id__in=hesap_ids, olusturma__date__gte=gun7[0])
                .values_list('olusturma', flat=True)):
         g = timezone.localtime(dt).date()
         if g in zayi_say:
@@ -3247,7 +3243,6 @@ def gosterge(request):
 
     stok_oran = round(sayim_yapan * 100 / sube_sayisi) if sube_sayisi else 0
 
-    sel_sube_ozet = _yonetici_sube(request, subeler)
     ozet_personel = (list(Personel.objects.filter(sube=sel_sube_ozet).order_by('ad_soyad'))
                      if sel_sube_ozet else [])
 
@@ -3256,7 +3251,7 @@ def gosterge(request):
         'bugun': bugun, 'onay_bekleyen': onay_bekleyen, 'acik_sevkiyat': acik_sevkiyat,
         'zayi_ay': zayi_ay, 'sayim_yapan': sayim_yapan, 'sube_sayisi': sube_sayisi,
         'soru': soru, 'bugun_tarih': today,
-        'durum': durum, 'durum_top': durum_top, 'sube_durum': sube_durum,
+        'durum': durum, 'durum_top': durum_top,
         'trend': trend, 'stok_oran': stok_oran,
         'sel_sube_ozet': sel_sube_ozet, 'ozet_personel': ozet_personel,
     })

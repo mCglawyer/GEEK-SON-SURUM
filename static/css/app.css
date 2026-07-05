@@ -732,6 +732,7 @@ body.app .container { width:100%; }
 .gs-post { padding:1rem 1.1rem; }
 .gs-post-bas { display:flex; align-items:center; gap:.7rem; }
 .gs-avatar { width:40px; height:40px; border-radius:50%; background:var(--brand); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; flex:0 0 auto; }
+.gs-avatar-foto { object-fit:cover; background:var(--brand-050); }
 .gs-kim { display:flex; flex-direction:column; line-height:1.2; }
 .gs-kim b { font-size:.95rem; color:var(--ink); }
 .gs-kim span { font-size:.75rem; color:var(--muted); }

@@ -15,7 +15,7 @@
     <div class="mola-ikon">🏁</div>
     <h2>Mesaidesin</h2>
     <p class="mola-sube">{{ sube.ad }} · Giriş: {{ aktif.giris|date:"H:i" }}</p>
-    <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="cikis">
+    <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="mesai_cikis">
       <button class="btn btn-primary mola-btn">Çıkışı Kaydet</button>
     </form>
   </div>
@@ -24,7 +24,7 @@
     <div class="mola-ikon">🏪</div>
     <h2>Mesaiye Başla</h2>
     <p class="mola-sube">{{ sube.ad }}</p>
-    <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="giris">
+    <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="mesai_giris">
       <button class="btn btn-primary mola-btn">Girişi Kaydet</button>
     </form>
   </div>
