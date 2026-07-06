@@ -79,6 +79,27 @@
     </div>
     {% endif %}
 
+    {% if magaza_atayabilir %}
+    <div class="card staff-card">
+      <div class="staff-card-bas"><h3>Mutfak Sorumlusu</h3><span class="badge badge-info">{{ mutfak_sorumlulari|length }}</span></div>
+      <ul class="staff-list">
+        {% for m in mutfak_sorumlulari %}
+        <li class="sef-row">
+          <span class="staff-ad">{{ m.ad_soyad }}</span>
+          <span class="staff-kod">kod: <code>{{ m.giris_kodu }}</code></span>
+          <form method="post" onsubmit="return confirm('{{ m.ad_soyad }} mutfak sorumluluğundan çıkarılsın mı?');">{% csrf_token %}<input type="hidden" name="islem" value="mutfak_sorumlusu_cikar"><input type="hidden" name="personel_id" value="{{ m.id }}"><button class="btn btn-ghost btn-mini">Çıkar</button></form>
+        </li>
+        {% empty %}
+        <li><span class="staff-ad" style="color:var(--muted)">Henüz mutfak sorumlusu yok.</span></li>
+        {% endfor %}
+      </ul>
+      <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="mutfak_sorumlusu_ekle">
+        <input class="input" type="text" name="ms_ad_soyad" placeholder="Mutfak sorumlusu ad soyad" required>
+        <button class="btn btn-primary">Mutfak sorumlusu ekle</button>
+      </form>
+    </div>
+    {% endif %}
+
     {% if is_atayabilir %}
     <div class="card staff-card">
       <div class="staff-card-bas"><h3>Bölge Müdürü — Şube Atama</h3></div>

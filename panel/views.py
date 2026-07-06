@@ -958,6 +958,21 @@ def ekip_sayfa(request):
                     (s.user or s).delete()
                     messages.success(request, "Mağaza müdürü çıkarıldı.")
             return redirect('ekip')
+        if islem in ('mutfak_sorumlusu_ekle', 'mutfak_sorumlusu_cikar') and personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR):
+            if islem == 'mutfak_sorumlusu_ekle':
+                ad = request.POST.get('ms_ad_soyad', '').strip()
+                if ad:
+                    yeni = Personel.objects.create(ad_soyad=ad[:100], rol=Rol.MUTFAK_SORUMLUSU)
+                    messages.success(request, f"{ad} mutfak sorumlusu olarak eklendi. Giriş kodu: {yeni.giris_kodu} (kodla giriş yapar).")
+                else:
+                    messages.error(request, "Ad soyad zorunlu.")
+            else:
+                s = Personel.objects.filter(id=request.POST.get('personel_id'), rol=Rol.MUTFAK_SORUMLUSU).first()
+                if s:
+                    ad = s.ad_soyad
+                    (s.user or s).delete()
+                    messages.success(request, f"{ad} mutfak sorumluluğundan çıkarıldı.")
+            return redirect('ekip')
         if not is_tam:
             return redirect('ekip')
 
@@ -1076,6 +1091,7 @@ def ekip_sayfa(request):
         'yonetici_rolleri': OFIS_ROLLERI,
         'is_tam': is_tam,
         'magaza_atayabilir': personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR),
+        'mutfak_sorumlulari': list(Personel.objects.filter(rol=Rol.MUTFAK_SORUMLUSU).order_by('ad_soyad')),
         'magaza_mudurleri': list(Personel.objects.filter(rol=Rol.MAGAZA_MUDURU, sube__in=subeler).select_related('sube').order_by('ad_soyad')),
         'is_atayabilir': is_atayabilir, 'bolge_mudurleri': bolge_mudurleri, 'tum_subeler': tum_subeler,
         'egitmenler': egitmenler, 'egitmen_adaylari': egitmen_adaylari,
@@ -2245,7 +2261,7 @@ def _kod_giris(request):
         messages.error(request, f"Çok fazla hatalı deneme. Lütfen {kalan} dakika sonra tekrar deneyin.")
         return redirect('ana_sayfa')
     kod = request.POST.get('kod', '').strip()
-    personel = Personel.objects.filter(giris_kodu=kod, rol__in=[Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU, Rol.MUTFAK_PERSONEL]).select_related('user').first()
+    personel = Personel.objects.filter(giris_kodu=kod, rol__in=[Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU, Rol.MUTFAK_PERSONEL, Rol.MUTFAK_SORUMLUSU]).select_related('user').first()
     if personel and personel.user:
         kilit.hatali_deneme = 0
         kilit.kilit_bitis = None
