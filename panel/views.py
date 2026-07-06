@@ -2955,6 +2955,8 @@ def mola_izleme_json(request):
     out = []
     qs = (MolaOturum.objects.filter(bitis__isnull=True, sube_id__in=sube_ids)
           .select_related('personel', 'sube').order_by('baslangic'))
+    if personel.rol == Rol.MUTFAK_SORUMLUSU:
+        qs = qs.filter(personel__rol=Rol.MUTFAK_PERSONEL)
     for m in qs:
         gecen = max(0, int((now - m.baslangic).total_seconds() // 60))
         out.append({
@@ -3012,7 +3014,10 @@ def mola_gecmis(request):
         bit_str = bugun.strftime('%Y-%m-%d')
     kayitlar = (MolaOturum.objects.filter(bitis__isnull=False, sube_id__in=gecmis_ids,
                                           baslangic__gte=sinir, baslangic__lt=ust)
-                .select_related('personel', 'sube').order_by('-baslangic')[:500])
+                .select_related('personel', 'sube').order_by('-baslangic'))
+    if personel.rol == Rol.MUTFAK_SORUMLUSU:
+        kayitlar = kayitlar.filter(personel__rol=Rol.MUTFAK_PERSONEL)
+    kayitlar = kayitlar[:500]
     liste = []
     for m in kayitlar:
         if m.kullanilan_dk is not None:
@@ -3385,6 +3390,8 @@ def mesai_kayitlari(request):
 
     kayitlar = (MesaiKayit.objects.filter(sube_id__in=gecmis_ids, giris__gte=gun_bas, giris__lt=gun_son)
                 .select_related('personel', 'sube').order_by('-giris'))
+    if personel.rol == Rol.MUTFAK_SORUMLUSU:
+        kayitlar = kayitlar.filter(personel__rol=Rol.MUTFAK_PERSONEL)
     liste = []
     toplam_dk = {}
     for m in kayitlar:
