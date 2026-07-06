@@ -667,43 +667,57 @@ class InsaatSablonMadde(models.Model):
 @receiver(pre_delete, sender=Personel)
 def _personel_silinmeden_once_puantaj_arsivle(sender, instance, **kwargs):
     """Personel silindiğinde: geçmiş manuel puantaj kayıtları korunur (ad/şube arşive kopyalanır)
-    ve ayrıldığı ayın puantajı, o ana kadarki fiili vardiyalarından hesaplanıp donuk olarak kaydedilir."""
-    Puantaj.objects.filter(personel=instance).update(
-        personel_ad_soyad_arsiv=instance.ad_soyad, sube_arsiv=instance.sube_id)
-    MesaiKayit.objects.filter(personel=instance).update(personel_ad_arsiv=instance.ad_soyad)
-    MutfakZayi.objects.filter(personel=instance).update(personel_ad_arsiv=instance.ad_soyad)
+    ve ayrıldığı ayın puantajı, o ana kadarki fiili vardiyalarından hesaplanıp donuk olarak kaydedilir.
+    Bu işlem yalnızca bir arşivleme/kayıt kolaylığıdır; herhangi bir sebeple hata verirse
+    personelin silinmesini ENGELLEMEMELİDİR, bu yüzden tamamı korumalı çalıştırılır."""
+    try:
+        Puantaj.objects.filter(personel=instance).update(
+            personel_ad_soyad_arsiv=instance.ad_soyad, sube_arsiv=instance.sube_id)
+    except Exception:
+        pass
+    try:
+        MesaiKayit.objects.filter(personel=instance).update(personel_ad_arsiv=instance.ad_soyad)
+    except Exception:
+        pass
+    try:
+        MutfakZayi.objects.filter(personel=instance).update(personel_ad_arsiv=instance.ad_soyad)
+    except Exception:
+        pass
 
-    bugun = timezone.localdate()
-    ay_ilk = bugun.replace(day=1)
-    if bugun.month == 12:
-        ay_son = bugun.replace(year=bugun.year + 1, month=1, day=1)
-    else:
-        ay_son = bugun.replace(month=bugun.month + 1, day=1)
+    try:
+        bugun = timezone.localdate()
+        ay_ilk = bugun.replace(day=1)
+        if bugun.month == 12:
+            ay_son = bugun.replace(year=bugun.year + 1, month=1, day=1)
+        else:
+            ay_son = bugun.replace(month=bugun.month + 1, day=1)
 
-    mevcut = Puantaj.objects.filter(personel=instance, ay=ay_ilk).first()
-    if mevcut and mevcut.manuel_duzenlendi:
-        mevcut.personel_ad_soyad_arsiv = instance.ad_soyad
-        mevcut.sube_arsiv = instance.sube
-        mevcut.save(update_fields=['personel_ad_soyad_arsiv', 'sube_arsiv'])
-        return
+        mevcut = Puantaj.objects.filter(personel=instance, ay=ay_ilk).first()
+        if mevcut and mevcut.manuel_duzenlendi:
+            mevcut.personel_ad_soyad_arsiv = instance.ad_soyad
+            mevcut.sube_arsiv = instance.sube
+            mevcut.save(update_fields=['personel_ad_soyad_arsiv', 'sube_arsiv'])
+            return
 
-    s = instance.vardiyalar.filter(tarih__gte=ay_ilk, tarih__lt=ay_son).exclude(durum=OnayDurumu.REDDEDILDI)
-    snapshot, _ = Puantaj.objects.update_or_create(
-        personel=instance, ay=ay_ilk,
-        defaults={
-            'calisilan_gun': s.filter(vardiya_tipi__in=[VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI, VardiyaTipi.MUTFAK_GOREVI]).count(),
-            'eksik_gun': s.filter(vardiya_tipi=VardiyaTipi.DEVAMSIZ).count(),
-            'izinli_gun': s.filter(vardiya_tipi=VardiyaTipi.IZINLI).count(),
-            'yillik_gun': s.filter(vardiya_tipi=VardiyaTipi.YILLIK_IZIN).count(),
-            'raporlu_gun': s.filter(vardiya_tipi=VardiyaTipi.RAPORLU).count(),
-            'manuel_duzenlendi': True,
-            'personel_ad_soyad_arsiv': instance.ad_soyad,
-            'sube_arsiv': instance.sube,
-        })
-    # Bu satır Django'nun silme koleksiyonundan SONRA oluşturuldu; SET_NULL cascade'i
-    # otomatik uygulanmaz. Bütünlük hatasını önlemek için FK'yi burada elle boşaltıyoruz.
-    snapshot.personel = None
-    snapshot.save(update_fields=['personel'])
+        s = instance.vardiyalar.filter(tarih__gte=ay_ilk, tarih__lt=ay_son).exclude(durum=OnayDurumu.REDDEDILDI)
+        snapshot, _ = Puantaj.objects.update_or_create(
+            personel=instance, ay=ay_ilk,
+            defaults={
+                'calisilan_gun': s.filter(vardiya_tipi__in=[VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI, VardiyaTipi.MUTFAK_GOREVI]).count(),
+                'eksik_gun': s.filter(vardiya_tipi=VardiyaTipi.DEVAMSIZ).count(),
+                'izinli_gun': s.filter(vardiya_tipi=VardiyaTipi.IZINLI).count(),
+                'yillik_gun': s.filter(vardiya_tipi=VardiyaTipi.YILLIK_IZIN).count(),
+                'raporlu_gun': s.filter(vardiya_tipi=VardiyaTipi.RAPORLU).count(),
+                'manuel_duzenlendi': True,
+                'personel_ad_soyad_arsiv': instance.ad_soyad,
+                'sube_arsiv': instance.sube,
+            })
+        # Bu satır Django'nun silme koleksiyonundan SONRA oluşturuldu; SET_NULL cascade'i
+        # otomatik uygulanmaz. Bütünlük hatasını önlemek için FK'yi burada elle boşaltıyoruz.
+        snapshot.personel = None
+        snapshot.save(update_fields=['personel'])
+    except Exception:
+        pass
 
 
 class LavaboDenetim(models.Model):
