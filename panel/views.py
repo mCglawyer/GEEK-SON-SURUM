@@ -1204,6 +1204,74 @@ def _kalibrasyon_temizle():
             k.foto.delete(save=False)
         k.delete()
 
+ZAYI_EKLE_ROLLER = (Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU)
+ZAYI_DUZENLE_ROLLER = (Rol.SEF, Rol.MAGAZA_MUDURU)
+
+
+def zayi_sayfa(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+
+    ekleyebilir = personel.rol in ZAYI_EKLE_ROLLER
+    duzenleyebilir = personel.rol in ZAYI_DUZENLE_ROLLER
+    is_yon = personel.rol in UST_YONETIM
+    subeler = _yon_subeler(personel) if is_yon else []
+    sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
+
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        if islem == 'zayi_ekle' and ekleyebilir:
+            if not sel_sube:
+                messages.error(request, "Şubeniz tanımlı değil. Yöneticinize başvurun.")
+                return redirect('zayi')
+            urun_adi = (request.POST.get('urun_adi') or '').strip()
+            miktar_str = (request.POST.get('miktar') or '').strip().replace(',', '.')
+            birim = request.POST.get('birim') if request.POST.get('birim') in Birim.values else Birim.ADET
+            aciklama = (request.POST.get('aciklama') or '').strip()
+            try:
+                miktar = float(miktar_str)
+            except ValueError:
+                miktar = None
+            if urun_adi and miktar is not None and miktar > 0:
+                z = Zayi(sube=sel_sube, giren=personel, giren_ad=personel.ad_soyad,
+                         urun_adi=urun_adi[:120], miktar=miktar, birim=birim, aciklama=aciklama[:300])
+                foto = request.FILES.get('foto')
+                if foto and foto.size <= 8 * 1024 * 1024 and (foto.content_type or '').startswith('image/'):
+                    z.foto = foto
+                z.save()
+                messages.success(request, "Zayi kaydı eklendi.")
+                _bildir(_sube_yoneticileri(sel_sube),
+                        "%s şubesinde zayi kaydı: %s (%s)" % (sel_sube.ad, urun_adi, personel.ad_soyad),
+                        '/zayi/', 'zayi')
+            else:
+                messages.error(request, "Ürün adı ve geçerli bir miktar girmelisiniz.")
+            return redirect('zayi')
+        if islem == 'zayi_sil' and duzenleyebilir:
+            z = Zayi.objects.filter(id=request.POST.get('zayi_id'), sube=sel_sube).first()
+            if z:
+                if z.foto:
+                    z.foto.delete(save=False)
+                z.delete()
+                messages.success(request, "Zayi kaydı silindi.")
+            return redirect('zayi')
+
+    kayitlar = []
+    if sel_sube:
+        kayitlar = list(Zayi.objects.filter(sube=sel_sube).select_related('giren')[:100])
+
+    return render(request, 'zayi.html', {
+        'personel': personel, 'aktif': 'zayi', 'ekleyebilir': ekleyebilir,
+        'duzenleyebilir': duzenleyebilir, 'is_yon': is_yon,
+        'subeler': subeler, 'sel_sube': sel_sube, 'kayitlar': kayitlar,
+        'birimler': Birim.choices,
+    })
+
+
 def kalibrasyon_sayfa(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')

@@ -1,98 +1,57 @@
 {% extends 'base.html' %}
-{% load static %}
 {% block title %}Zayi · Geek Panel{% endblock %}
 {% block body %}
 <div class="container">
-  {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
 
   <div class="plan-head">
-    <div><h2>Zayi</h2><span class="plan-aralik">{% if sel_sube %}{{ sel_sube.ad }}{% endif %}{% if aralik_mod %} · {{ zayi_bas }} – {{ zayi_bit }}{% endif %}</span></div>
+    <div><h2>Zayi</h2>{% if sel_sube %}<span class="plan-aralik">{{ sel_sube.ad }}</span>{% endif %}</div>
+    {% if is_yon and subeler|length > 1 %}
     <div class="yon-secimler">
-      {% if is_yon %}
-      <select class="sube-sec" onchange="location.href='?sube_id='+this.value+'&zayi_ay={{ selected_ay_str }}'">
+      <select class="sube-sec" onchange="location.href='?sube_id='+this.value">
         {% for s in subeler %}<option value="{{ s.id }}"{% if sel_sube and s.id == sel_sube.id %} selected{% endif %}>{{ s.ad }}{% if s.depo_mu %} (depo){% endif %}</option>{% endfor %}
       </select>
-      {% endif %}
-      {% if not aralik_mod %}
-      <input type="month" class="ay-sec" value="{{ selected_ay_str }}" onchange="location.href='?{% if is_yon %}sube_id={{ sel_sube.id }}&{% endif %}zayi_ay='+this.value">
-      {% endif %}
-      <form method="get" class="tarih-aralik">
-        {% if is_yon %}<input type="hidden" name="sube_id" value="{{ sel_sube.id }}">{% endif %}
-        <input type="date" name="zayi_bas" value="{{ zayi_bas }}" required>
-        <span class="ta-tire">–</span>
-        <input type="date" name="zayi_bit" value="{{ zayi_bit }}" required>
-        <button type="submit" class="btn btn-ghost btn-mini">Aralık</button>
-      </form>
-      {% if aralik_mod %}<a class="btn btn-ghost btn-mini" href="?{% if is_yon %}sube_id={{ sel_sube.id }}{% endif %}">Aya dön</a>{% endif %}
-      {% if is_yon %}
-      <a class="btn btn-ghost btn-mini" href="{% url 'zayi_excel_export' %}?sube_id={{ sel_sube.id }}&{% if aralik_mod %}zayi_bas={{ zayi_bas }}&zayi_bit={{ zayi_bit }}{% else %}zayi_ay={{ selected_ay_str }}{% endif %}">Excel'e aktar</a>
-      {% endif %}
     </div>
+    {% endif %}
   </div>
 
   {% if ekleyebilir %}
-  
   <div class="card">
-    <form method="post" class="zayi-form">{% csrf_token %}<input type="hidden" name="islem" value="zayi_ekle">
-      <label class="zf-urun">Ürün adı<input class="input" type="text" name="urun_adi" placeholder="Örn. Süt, Bardak, Espresso shot" required></label>
-      <label class="zf-miktar">Miktar<input class="input" type="number" name="miktar" min="0" step="0.01" placeholder="0" required></label>
-      <label class="zf-birim">Birim
-        <select name="birim" class="sube-sec">{% for v, l in birimler %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select>
-      </label>
-      <button type="submit" class="btn btn-primary">Zayi ekle</button>
+    <form method="post" enctype="multipart/form-data" class="zayi-form">
+      {% csrf_token %}<input type="hidden" name="islem" value="zayi_ekle">
+      <input class="input" type="text" name="urun_adi" placeholder="Ürün adı" required>
+      <input class="input zayi-miktar" type="text" name="miktar" placeholder="Miktar" required inputmode="decimal">
+      <select name="birim" class="sube-sec">
+        {% for v, ad in birimler %}<option value="{{ v }}">{{ ad }}</option>{% endfor %}
+      </select>
+      <input class="input" type="text" name="aciklama" placeholder="Açıklama (opsiyonel)">
+      <input type="file" name="foto" accept="image/*" capture="environment" class="zayi-foto">
+      <button type="submit" class="btn btn-primary">Ekle</button>
     </form>
   </div>
   {% endif %}
 
-  {% if is_yon and grafik %}
-  
   <div class="card">
-    <div class="hafta-head"><h3>{% if aralik_mod %}Zayi Grafiği{% else %}Aylık Zayi Grafiği{% endif %}</h3><span class="hafta-aralik">ürünlere göre toplam · oran</span></div>
-    <div class="chart">
-      {% for b in grafik %}
-      <div class="chart-col">
-        <div class="chart-val">{{ b.toplam|floatformat:"-2" }}</div>
-        <div class="chart-track"><div class="chart-bar" style="--h: {{ b.yuzde }}%"></div></div>
-        <div class="chart-oran">%{{ b.oran|floatformat:"-1" }}</div>
-        <div class="chart-lbl">{{ b.urun }}<br><span>{{ b.birim }}</span></div>
+    {% if kayitlar %}
+    <div class="zayi-liste">
+      {% for z in kayitlar %}
+      <div class="zayi-satir">
+        {% if z.foto %}<a href="{{ z.foto.url }}" target="_blank"><img src="{{ z.foto.url }}" class="zayi-foto-kucuk" alt="{{ z.urun_adi }}"></a>{% else %}<div class="zayi-foto-kucuk zayi-foto-yok">—</div>{% endif %}
+        <div class="zayi-govde">
+          <div class="zayi-ust"><b>{{ z.urun_adi }}</b><span class="zayi-miktar-etiket">{{ z.miktar }} {{ z.birim }}</span></div>
+          <div class="ea-not">{{ z.giren_ad|default:"—" }} · {{ z.olusturma|date:"d.m.Y H:i" }}{% if z.aciklama %} · {{ z.aciklama }}{% endif %}</div>
+        </div>
+        {% if duzenleyebilir %}
+        <form method="post" onsubmit="return confirm('Bu zayi kaydı silinsin mi?');">
+          {% csrf_token %}<input type="hidden" name="islem" value="zayi_sil"><input type="hidden" name="zayi_id" value="{{ z.id }}">
+          <button type="submit" class="btn btn-ghost btn-mini">Sil</button>
+        </form>
+        {% endif %}
       </div>
       {% endfor %}
     </div>
-  </div>
-  {% elif is_yon %}
-  <div class="card"><p style="margin:0;color:var(--muted)">Bu {% if aralik_mod %}aralıkta{% else %}ay{% endif %} bu şubede zayi kaydı yok.</p></div>
-  {% endif %}
-
-  
-  <div class="card">
-    <div class="hafta-head"><h3>{% if is_yon %}Zayi Kayıtları{% else %}Bu Ay Girilenler{% endif %}</h3><span class="hafta-aralik">{{ kayitlar|length }} kayıt</span></div>
-    {% if kayitlar %}
-    <ul class="zayi-list">
-      {% for z in kayitlar %}
-      <li class="zayi-row">
-        <div class="zr-urun">{{ z.urun_adi }}</div>
-        <div class="zr-miktar">{{ z.miktar|floatformat:"-2" }} <span>{{ z.birim }}</span></div>
-        <div class="zr-meta">{{ z.giren_ad|default:"—" }} · {{ z.olusturma|date:"d.m.Y H:i" }}
-          {% if z.duzenlenebilir %}
-          <details class="zr-edit">
-            <summary>Düzenle</summary>
-            <div class="zr-edit-body">
-              <form method="post" class="zayi-form">{% csrf_token %}<input type="hidden" name="islem" value="zayi_duzenle"><input type="hidden" name="zayi_id" value="{{ z.id }}">
-                <label class="zf-urun">Ürün<input class="input" type="text" name="urun_adi" value="{{ z.urun_adi }}" required></label>
-                <label class="zf-miktar">Miktar<input class="input" type="number" name="miktar" min="0" step="0.01" value="{{ z.miktar|floatformat:'-2' }}" required></label>
-                <label class="zf-birim">Birim<select name="birim" class="sube-sec">{% for v, l in birimler %}<option value="{{ v }}"{% if z.birim == v %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
-                <button type="submit" class="btn btn-primary btn-mini">Kaydet</button>
-              </form>
-              <form method="post" onsubmit="return confirm('Bu kayıt silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="zayi_sil"><input type="hidden" name="zayi_id" value="{{ z.id }}"><button type="submit" class="btn btn-danger btn-mini">Sil</button></form>
-            </div>
-          </details>
-          {% endif %}
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
     {% else %}
-    <p style="margin:0;color:var(--muted)">Bu ay için kayıt yok.</p>
+    <p class="egitim-bos">Henüz zayi kaydı yok.</p>
     {% endif %}
   </div>
 </div>

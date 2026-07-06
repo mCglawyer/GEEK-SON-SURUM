@@ -57,6 +57,7 @@ urlpatterns = [
     path('sevkiyat/<int:talep_id>/excel/', views.sevkiyat_excel, name='sevkiyat_excel'),
     path('sevkiyat/kalem/hazirla/', views.sevkiyat_kalem_hazirla, name='sevkiyat_kalem_hazirla'),
     path('kalibrasyon/', views.kalibrasyon_sayfa, name='kalibrasyon'),
+    path('zayi/', views.zayi_sayfa, name='zayi'),
     path('lavabo/', views.lavabo_sayfa, name='lavabo'),
     path('lavabo/veri/', views.lavabo_json, name='lavabo_json'),
     path('irsaliye/', views.irsaliye_sayfa, name='irsaliye'),

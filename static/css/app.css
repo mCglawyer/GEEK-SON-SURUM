@@ -1192,3 +1192,38 @@ body.app .app-main, body.app .container { min-width:0; }
 .oz-p-varsayilan svg { width:20px; height:20px; }
 .oz-p-ad { font-size:.9rem; color:var(--ink); }
 .oz-p-rol { font-size:.75rem; color:var(--muted); margin-left:auto; }
+
+/* Mutfak sistemi */
+.mutfak-tablo-wrap { overflow-x:auto; }
+.mutfak-tablo { border-collapse:collapse; width:100%; min-width:900px; }
+.mutfak-tablo th, .mutfak-tablo td { border:1px solid var(--line); padding:.4rem .5rem; text-align:left; font-size:.83rem; }
+.mutfak-tablo th { background:var(--brand-050); color:var(--brand); font-weight:700; }
+.mf-ad { font-weight:600; white-space:nowrap; }
+.mf-secim-form { margin:0; }
+.mf-sec { width:100%; font-size:.8rem; padding:.3rem; border:1px solid var(--line); border-radius:6px; }
+
+.mz-aciklama { width:100%; margin:.6rem 0; padding:.5rem .7rem; border:1px solid var(--line); border-radius:var(--radius-sm); font:inherit; resize:vertical; }
+.mz-not { display:block; font-size:.78rem; color:var(--ink); margin-top:.2rem; font-style:italic; }
+
+.mal-grid { display:grid; grid-template-columns:1.3fr 1fr; gap:1rem; align-items:start; margin-bottom:1rem; }
+@media (max-width:900px) { .mal-grid { grid-template-columns:1fr; } }
+.mal-tarif-kart { margin-bottom:1rem; }
+.mal-tarif-bas { display:flex; align-items:center; gap:.8rem; margin-bottom:.6rem; flex-wrap:wrap; }
+.mal-toplam { font-weight:700; color:var(--brand); margin-left:auto; }
+.mal-kalem-tbl { width:100%; border-collapse:collapse; margin-bottom:.7rem; }
+.mal-kalem-tbl th, .mal-kalem-tbl td { border-bottom:1px solid var(--line); padding:.35rem .5rem; font-size:.85rem; text-align:left; }
+.mal-kalem-ekle { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+
+/* Zayi */
+.zayi-form { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.zayi-form .input { flex:1 1 140px; }
+.zayi-miktar { max-width:100px; flex:0 1 100px; }
+.zayi-foto { max-width:180px; }
+.zayi-liste { display:flex; flex-direction:column; }
+.zayi-satir { display:flex; align-items:center; gap:.7rem; padding:.6rem .1rem; border-bottom:1px solid var(--line); }
+.zayi-satir:last-child { border-bottom:none; }
+.zayi-foto-kucuk { width:40px; height:40px; border-radius:8px; object-fit:cover; flex:0 0 auto; background:var(--brand-050); }
+.zayi-foto-yok { display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:.8rem; }
+.zayi-govde { flex:1; min-width:0; }
+.zayi-ust { display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; }
+.zayi-miktar-etiket { font-size:.82rem; color:var(--muted); font-weight:600; }
