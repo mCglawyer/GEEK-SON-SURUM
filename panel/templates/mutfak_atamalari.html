@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Mutfak Atamaları · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head"><div><h2>Mutfak Atamaları</h2><span class="plan-aralik">{{ sube.ad }} · Bu hafta</span></div></div>
+
+  <div class="card">
+    <div class="mg-liste">
+      {% for g in liste %}
+      <div class="mg-satir">
+        <div class="mg-govde">
+          <div class="mg-ust"><b>{{ g.tarih|date:"l, d.m.Y" }}</b></div>
+          <div class="mg-alt">
+            {% if g.kisiler %}{{ g.kisiler|join:", " }}{% else %}<span class="ea-not">Atanan mutfak personeli yok</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

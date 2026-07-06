@@ -15,12 +15,15 @@ class Rol(models.TextChoices):
     SEVKIYAT = 'Sevkiyat', 'Sevkiyat'
     EGITMEN = 'Eğitmen', 'Eğitmen'
     SEF = 'Şef', 'Şube Şefi'
+    MUTFAK_SORUMLUSU = 'Mutfak Sorumlusu', 'Mutfak Sorumlusu'
+    MUTFAK_PERSONEL = 'Mutfak Personeli', 'Mutfak Personeli'
     PERSONEL = 'Personel', 'Personel'
 
 class VardiyaTipi(models.TextChoices):
     SABAHCI = 'Sabahçı', 'Sabahçı'
     ARACI = 'Aracı', 'Aracı'
     AKSAMCI = 'Akşamcı', 'Akşamcı'
+    MUTFAK_GOREVI = 'Mutfak Görevi', 'Mutfak Görevi (Şube Ataması)'
     IZINLI = 'İzinli', 'Haftalık İzin'
     YILLIK_IZIN = 'Yıllık İzin', 'Yıllık İzin'
     RAPORLU = 'Raporlu', 'Raporlu'
@@ -94,7 +97,7 @@ class Personel(models.Model):
             self.giris_kodu = self.benzersiz_kod_uret()
         super().save(*args, **kwargs)
 
-        if self.user_id is None and self.rol in (Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU):
+        if self.user_id is None and self.rol in (Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU, Rol.MUTFAK_PERSONEL):
             u = User.objects.create(username=f"kod_{self.giris_kodu}")
             u.set_unusable_password()
             u.save()
@@ -110,6 +113,9 @@ class Vardiya(models.Model):
     durum = models.CharField(
         max_length=20, choices=OnayDurumu.choices, default=OnayDurumu.TASLAK, verbose_name="Onay Durumu")
     red_notu = models.TextField(blank=True, null=True, verbose_name="Red Notu")
+    atanan_sube = models.ForeignKey(Sube, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='mutfak_gorevleri',
+                                    verbose_name="Atanan Şube (Mutfak Personeli)")
 
     class Meta:
         verbose_name = "Vardiya"; verbose_name_plural = "Vardiyalar"; ordering = ['tarih']
@@ -184,6 +190,8 @@ class Zayi(models.Model):
     urun_adi = models.CharField(max_length=120, verbose_name="Ürün Adı")
     miktar = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Miktar")
     birim = models.CharField(max_length=10, choices=Birim.choices, default=Birim.ADET, verbose_name="Birim")
+    aciklama = models.CharField(max_length=300, blank=True, default='', verbose_name="Açıklama")
+    foto = models.FileField(upload_to='zayi/%Y/%m/%d/', null=True, blank=True, verbose_name="Fotoğraf")
     olusturma = models.DateTimeField(auto_now_add=True, verbose_name="Girildiği An")
 
     class Meta:
@@ -663,6 +671,7 @@ def _personel_silinmeden_once_puantaj_arsivle(sender, instance, **kwargs):
     Puantaj.objects.filter(personel=instance).update(
         personel_ad_soyad_arsiv=instance.ad_soyad, sube_arsiv=instance.sube_id)
     MesaiKayit.objects.filter(personel=instance).update(personel_ad_arsiv=instance.ad_soyad)
+    MutfakZayi.objects.filter(personel=instance).update(personel_ad_arsiv=instance.ad_soyad)
 
     bugun = timezone.localdate()
     ay_ilk = bugun.replace(day=1)
@@ -682,7 +691,7 @@ def _personel_silinmeden_once_puantaj_arsivle(sender, instance, **kwargs):
     snapshot, _ = Puantaj.objects.update_or_create(
         personel=instance, ay=ay_ilk,
         defaults={
-            'calisilan_gun': s.filter(vardiya_tipi__in=[VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI]).count(),
+            'calisilan_gun': s.filter(vardiya_tipi__in=[VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI, VardiyaTipi.MUTFAK_GOREVI]).count(),
             'eksik_gun': s.filter(vardiya_tipi=VardiyaTipi.DEVAMSIZ).count(),
             'izinli_gun': s.filter(vardiya_tipi=VardiyaTipi.IZINLI).count(),
             'yillik_gun': s.filter(vardiya_tipi=VardiyaTipi.YILLIK_IZIN).count(),
@@ -744,3 +753,73 @@ class MesaiKayit(models.Model):
 
     def __str__(self):
         return f"{self.sube} - {self.personel_ad_arsiv or (self.personel.ad_soyad if self.personel else '')}"
+
+
+class MutfakZayi(models.Model):
+    """Mutfak personelinin canlı kamerayla yüklediği zayi (fire) kaydı."""
+    personel = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='mutfak_zayileri', verbose_name="Yükleyen")
+    personel_ad_arsiv = models.CharField(max_length=160, blank=True, default='')
+    sube = models.ForeignKey(Sube, on_delete=models.SET_NULL, null=True, blank=True,
+                             related_name='mutfak_zayileri', verbose_name="Şube")
+    foto = models.FileField(upload_to='mutfak_zayi/%Y/%m/%d/', verbose_name="Görüntü")
+    aciklama = models.TextField(blank=True, default='', verbose_name="Açıklama")
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Mutfak Zayi"; verbose_name_plural = "Mutfak Zayileri"
+        ordering = ['-olusturma']
+
+    def __str__(self):
+        return f"{self.sube} - {self.personel_ad_arsiv} - {self.olusturma:%d.%m.%Y %H:%M}"
+
+
+class MutfakMaliyetKalemi(models.Model):
+    """Kg başına fiyatı tanımlı ham madde (domates, biber vb.)."""
+    ad = models.CharField(max_length=120, unique=True, verbose_name="Ürün Adı")
+    kg_fiyat = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Kg Fiyatı (₺)")
+    guncelleme = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Maliyet Kalemi"; verbose_name_plural = "Maliyet Kalemleri"; ordering = ['ad']
+
+    def __str__(self):
+        return f"{self.ad} ({self.kg_fiyat} ₺/kg)"
+
+
+class MutfakTarif(models.Model):
+    """Bir yemeğin/tarifin maliyet hesaplaması."""
+    ad = models.CharField(max_length=160, verbose_name="Tarif / Ürün Adı")
+    olusturan = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='mutfak_tarifleri')
+    olusturma = models.DateTimeField(auto_now_add=True)
+    guncelleme = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Tarif"; verbose_name_plural = "Tarifler"; ordering = ['ad']
+
+    def __str__(self):
+        return self.ad
+
+    @property
+    def toplam_maliyet(self):
+        toplam = 0
+        for k in self.kalemler.select_related('urun').all():
+            toplam += float(k.urun.kg_fiyat) * (float(k.miktar_gram) / 1000.0)
+        return round(toplam, 2)
+
+
+class MutfakTarifKalemi(models.Model):
+    tarif = models.ForeignKey(MutfakTarif, on_delete=models.CASCADE, related_name='kalemler')
+    urun = models.ForeignKey(MutfakMaliyetKalemi, on_delete=models.CASCADE, related_name='+')
+    miktar_gram = models.DecimalField(max_digits=10, decimal_places=1, verbose_name="Miktar (gram)")
+
+    class Meta:
+        verbose_name = "Tarif Kalemi"; verbose_name_plural = "Tarif Kalemleri"
+
+    @property
+    def maliyet(self):
+        return round(float(self.urun.kg_fiyat) * (float(self.miktar_gram) / 1000.0), 2)
+
+    def __str__(self):
+        return f"{self.tarif.ad} - {self.urun.ad} ({self.miktar_gram} g)"

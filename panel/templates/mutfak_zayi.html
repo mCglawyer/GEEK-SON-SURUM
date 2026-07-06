@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Mutfak Zayi · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head">
+    <div><h2>Mutfak Zayi</h2></div>
+    <div class="yon-secimler">
+      {% if subeler %}
+      <select class="sube-sec" onchange="location.href='?sube='+this.value+'&mz_tarih={{ secili_tarih }}'">
+        <option value="">Tüm şubeler</option>
+        {% for s in subeler %}<option value="{{ s.id }}" {% if secili == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+      </select>
+      {% endif %}
+      <input type="date" class="ay-sec" value="{{ secili_tarih }}" max="{{ bugun }}"
+             onchange="location.href='?{% if secili %}sube={{ secili }}&{% endif %}mz_tarih='+this.value">
+    </div>
+  </div>
+
+  {% if ekleyebilir %}
+  <div class="card kal-cam">
+    <div class="kal-video-wrap">
+      <video id="kamera" autoplay playsinline muted></video>
+    </div>
+    <canvas id="tuval" hidden></canvas>
+    <div id="kamera-hata" class="kal-hata" hidden></div>
+    <form method="post" id="kal-form">
+      {% csrf_token %}<input type="hidden" name="islem" value="mutfak_zayi_yukle">
+      <input type="hidden" name="foto_data" id="foto_data">
+      <textarea name="aciklama" rows="2" placeholder="Açıklama ekle (ör. hangi ürün, ne kadar, neden)…" class="mz-aciklama"></textarea>
+      <button type="button" id="cek-btn" class="btn btn-primary kal-cek">📸 Çek ve Yükle</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="hafta-head"><h3>Kayıtlar <span class="ea-not">{{ secili_tarih }}</span></h3><span class="hafta-aralik">{{ gorseller|length }} kayıt · {{ saklama_gun }} günde silinir</span></div>
+    <div class="kal-galeri">
+      {% for g in gorseller %}
+      <figure class="kal-item">
+        <a href="{{ g.foto.url }}" target="_blank"><img src="{{ g.foto.url }}" alt="Mutfak zayi görüntüsü" loading="lazy"></a>
+        <figcaption>{{ g.personel_ad_arsiv|default:"—" }}{% if g.sube %} · {{ g.sube.ad }}{% endif %}<span>{{ g.olusturma|date:"d.m.Y H:i" }}</span>
+          {% if g.aciklama %}<span class="mz-not">{{ g.aciklama }}</span>{% endif %}
+        </figcaption>
+      </figure>
+      {% empty %}
+      <p class="egitim-bos">Henüz kayıt yok.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% if ekleyebilir %}
+<script>
+(function () {
+  var video = document.getElementById('kamera');
+  var hata = document.getElementById('kamera-hata');
+  var btn = document.getElementById('cek-btn');
+  var foto = document.getElementById('foto_data');
+  var form = document.getElementById('kal-form');
+  var stream = null;
+  function hataGoster(msg) { hata.hidden = false; hata.textContent = msg; btn.disabled = true; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    hataGoster('Bu cihaz/tarayıcı canlı kamerayı desteklemiyor.'); return;
+  }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+    .then(function (s) { stream = s; video.srcObject = s; })
+    .catch(function () { hataGoster('Kameraya erişilemedi. İzin verin (telefonda HTTPS gerekir).'); });
+  btn.addEventListener('click', function () {
+    if (!stream || !video.videoWidth) { return; }
+    var maxw = 1024, scale = Math.min(1, maxw / video.videoWidth);
+    var cw = Math.round(video.videoWidth * scale), ch = Math.round(video.videoHeight * scale);
+    var cv = document.getElementById('tuval'); cv.width = cw; cv.height = ch;
+    cv.getContext('2d').drawImage(video, 0, 0, cw, ch);
+    foto.value = cv.toDataURL('image/jpeg', 0.7);
+    btn.disabled = true; btn.textContent = 'Yükleniyor...';
+    stream.getTracks().forEach(function (t) { t.stop(); });
+    form.submit();
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Mutfak Vardiya · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Mutfak Personeli Vardiya Planı</h2><span class="plan-aralik">{{ haftabasi|date:"d.m.Y" }} — {{ haftasonu|date:"d.m.Y" }}</span></div>
+    <div class="yon-secimler">
+      <a href="?hafta=bu" class="btn btn-mini {% if secili == 'bu' %}btn-primary{% else %}btn-ghost{% endif %}">Bu Hafta</a>
+      <a href="?hafta=gelecek" class="btn btn-mini {% if secili == 'gelecek' %}btn-primary{% else %}btn-ghost{% endif %}">Gelecek Hafta</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="staff-card-bas"><h3>Mutfak Ekibi</h3><span class="badge badge-info">{{ tablo|length }}</span></div>
+    <ul class="staff-list">
+      {% for satir in tablo %}
+      <li class="sef-row">
+        <span class="staff-ad">{{ satir.personel.ad_soyad }} <span class="staff-kod">kod: <code>{{ satir.personel.giris_kodu }}</code></span></span>
+        <form method="post" onsubmit="return confirm('{{ satir.personel.ad_soyad }} mutfak ekibinden çıkarılsın mı?');">
+          {% csrf_token %}<input type="hidden" name="islem" value="mutfak_personel_cikar"><input type="hidden" name="personel_id" value="{{ satir.personel.id }}">
+          <button class="btn btn-danger btn-mini">Çıkar</button>
+        </form>
+      </li>
+      {% empty %}
+      <li><span class="staff-ad" style="color:var(--muted)">Henüz mutfak personeli yok.</span></li>
+      {% endfor %}
+    </ul>
+    <form method="post" class="sef-ekle">
+      {% csrf_token %}<input type="hidden" name="islem" value="mutfak_personel_ekle">
+      <input class="input" type="text" name="ad_soyad" placeholder="Yeni mutfak personeli ad soyad" required>
+      <button class="btn btn-primary">Mutfak personeli ekle</button>
+    </form>
+  </div>
+
+  <div class="card mutfak-tablo-wrap">
+    {% if tablo %}
+    <table class="mutfak-tablo">
+      <thead>
+        <tr>
+          <th>Personel</th>
+          {% for g in gunler %}<th>{{ g|date:"D d.m" }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for satir in tablo %}
+        <tr>
+          <td class="mf-ad">{{ satir.personel.ad_soyad }}</td>
+          {% for g in satir.gunler %}
+          <td>
+            <form method="post" class="mf-secim-form">
+              {% csrf_token %}
+              <input type="hidden" name="personel_id" value="{{ satir.personel.id }}">
+              <input type="hidden" name="tarih" value="{{ g.tarih|date:'Y-m-d' }}">
+              <select name="secim" class="mf-sec" onchange="this.form.submit()">
+                <option value="">—</option>
+                <optgroup label="Şube Ataması">
+                  {% for s in subeler %}
+                  <option value="sube:{{ s.id }}" {% if g.vardiya.atanan_sube_id == s.id %}selected{% endif %}>{{ s.ad }}</option>
+                  {% endfor %}
+                </optgroup>
+                <optgroup label="Diğer">
+                  {% for t in ozel_tipler %}
+                  <option value="{{ t }}" {% if g.vardiya.vardiya_tipi == t %}selected{% endif %}>{{ t }}</option>
+                  {% endfor %}
+                </optgroup>
+              </select>
+            </form>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="egitim-bos">Henüz "Mutfak Personeli" rolünde kimse yok. Yukarıdan ekleyebilirsiniz.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

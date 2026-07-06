@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Maliyet Hesaplama · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head"><div><h2>Maliyet Hesaplama</h2></div></div>
+
+  <div class="mal-grid">
+    <div class="card">
+      <h3 class="egitim-bolum">Ürün Fiyat Listesi <span class="ea-not">(₺/kg)</span></h3>
+      <ul class="staff-list">
+        {% for u in urunler %}
+        <li class="sef-row">
+          <span class="staff-ad">{{ u.ad }} <b>{{ u.kg_fiyat }} ₺/kg</b></span>
+          <form method="post" onsubmit="return confirm('{{ u.ad }} silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="urun_sil"><input type="hidden" name="urun_id" value="{{ u.id }}"><button class="btn btn-ghost btn-mini">Sil</button></form>
+        </li>
+        {% empty %}
+        <li><span class="staff-ad" style="color:var(--muted)">Henüz ürün eklenmedi.</span></li>
+        {% endfor %}
+      </ul>
+      <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="urun_ekle">
+        <input class="input" type="text" name="ad" placeholder="Ürün adı (ör. Domates)" required>
+        <input class="input" type="text" name="kg_fiyat" placeholder="Kg fiyatı (₺)" required style="max-width:120px">
+        <button class="btn btn-primary">Ekle / Güncelle</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3 class="egitim-bolum">Yeni Tarif</h3>
+      <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="tarif_ekle">
+        <input class="input" type="text" name="tarif_ad" placeholder="Tarif / ürün adı (ör. Karışık Salata)" required>
+        <button class="btn btn-primary">Tarif Oluştur</button>
+      </form>
+    </div>
+  </div>
+
+  <h3 class="gs-baslik">Tarifler ve Maliyetleri</h3>
+  {% for t in tarifler %}
+  <div class="card mal-tarif-kart">
+    <div class="mal-tarif-bas">
+      <b>{{ t.ad }}</b>
+      <span class="mal-toplam">Toplam maliyet: {{ t.toplam_maliyet }} ₺</span>
+      <form method="post" onsubmit="return confirm('{{ t.ad }} tarifi silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="tarif_sil"><input type="hidden" name="tarif_id" value="{{ t.id }}"><button class="btn btn-ghost btn-mini">Tarifi Sil</button></form>
+    </div>
+    {% if t.kalemler.all %}
+    <table class="mal-kalem-tbl">
+      <thead><tr><th>Ürün</th><th>Miktar (g)</th><th>Maliyet</th><th></th></tr></thead>
+      <tbody>
+        {% for k in t.kalemler.all %}
+        <tr>
+          <td>{{ k.urun.ad }}</td><td>{{ k.miktar_gram }} g</td><td>{{ k.maliyet }} ₺</td>
+          <td><form method="post">{% csrf_token %}<input type="hidden" name="islem" value="kalem_sil"><input type="hidden" name="kalem_id" value="{{ k.id }}"><button class="btn btn-ghost btn-mini">Sil</button></form></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    <form method="post" class="mal-kalem-ekle">{% csrf_token %}<input type="hidden" name="islem" value="kalem_ekle"><input type="hidden" name="tarif_id" value="{{ t.id }}">
+      <select name="urun_id" class="sube-sec" required>
+        <option value="">Ürün seç…</option>
+        {% for u in urunler %}<option value="{{ u.id }}">{{ u.ad }} ({{ u.kg_fiyat }} ₺/kg)</option>{% endfor %}
+      </select>
+      <input class="input" type="text" name="miktar_gram" placeholder="Miktar (gram)" required style="max-width:130px">
+      <button class="btn btn-ghost btn-mini">Malzeme Ekle</button>
+    </form>
+  </div>
+  {% empty %}
+  <p class="egitim-bos">Henüz tarif oluşturulmadı.</p>
+  {% endfor %}
+</div>
+{% endblock %}

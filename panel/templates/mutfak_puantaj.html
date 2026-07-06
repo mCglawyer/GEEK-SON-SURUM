@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Mutfak Puantaj · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="plan-head">
+    <div><h2>Mutfak Puantaj</h2><span class="plan-aralik">Tüm mutfak personeli</span></div>
+    <div class="yon-secimler">
+      <input type="month" class="ay-sec" value="{{ selected_ay_str }}" onchange="location.href='?puantaj_ay='+this.value">
+    </div>
+  </div>
+
+  <div class="card">
+    {% if puantaj_listesi %}
+    <div class="puantaj-list">
+      {% for r in puantaj_listesi %}
+      <div class="pz-row">
+        <div class="pz-ad">{{ r.personel.ad_soyad }}
+          {% if r.manuel %}<span class="badge badge-wait">manuel</span>{% else %}<span class="badge badge-info">otomatik</span>{% endif %}
+        </div>
+        {% if not puantaj_duzenleyebilir %}
+        <div class="pz-oku">
+          <span>Çalışılan <b>{{ r.calisilan }}</b></span>
+          <span>Eksik <b>{{ r.eksik }}</b></span>
+          <span>İzinli <b>{{ r.izinli }}</b></span>
+          <span>Yıllık <b>{{ r.yillik }}</b></span>
+          <span>Raporlu <b>{{ r.raporlu }}</b></span>
+          <span class="pz-hak">Hakediş <b>{{ r.hakedis }}</b></span>
+        </div>
+        {% else %}
+        <form method="post" action="?puantaj_ay={{ selected_ay_str }}" class="pz-form">
+          {% csrf_token %}<input type="hidden" name="islem" value="puantaj_kaydet"><input type="hidden" name="target_personel_id" value="{{ r.personel.id }}">
+          <label>Çalışılan<input type="number" min="0" name="calisilan_gun" value="{{ r.calisilan }}"></label>
+          <label>Eksik<input type="number" min="0" name="eksik_gun" value="{{ r.eksik }}"></label>
+          <label>Haftalık İzin<input type="number" min="0" name="izinli_gun" value="{{ r.izinli }}"></label>
+          <label>Yıllık İzin<input type="number" min="0" name="yillik_gun" value="{{ r.yillik }}"></label>
+          <label>Raporlu<input type="number" min="0" name="raporlu_gun" value="{{ r.raporlu }}"></label>
+          <span class="pz-hak">Hakediş <b>{{ r.hakedis }}</b></span>
+          <button type="submit" class="btn btn-primary btn-mini">Kaydet</button>
+        </form>
+        {% if r.manuel %}
+        <form method="post" action="?puantaj_ay={{ selected_ay_str }}" class="pz-sifirla">
+          {% csrf_token %}<input type="hidden" name="islem" value="puantaj_sifirla"><input type="hidden" name="target_personel_id" value="{{ r.personel.id }}">
+          <button type="submit" class="btn btn-ghost btn-mini">Otomatiğe döndür</button>
+        </form>
+        {% endif %}
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="margin:0;color:var(--muted)">Henüz mutfak personeli yok.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
