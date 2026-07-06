@@ -2911,11 +2911,11 @@ def mola_tara(request):
     })
 
 
-MOLA_IZLEME_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.MUDUR, Rol.MAGAZA_MUDURU, Rol.SEF]
+MOLA_IZLEME_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.MUDUR, Rol.MAGAZA_MUDURU, Rol.SEF, Rol.MUTFAK_SORUMLUSU]
 
 
 def _mola_izleme_subeler(personel):
-    if personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI):
+    if personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.MUTFAK_SORUMLUSU):
         return list(Sube.objects.filter(depo_mu=False).values_list('id', flat=True))
     if personel.rol == Rol.MUDUR:
         return list(personel.sorumlu_subeler.values_list('id', flat=True))
@@ -3355,11 +3355,11 @@ def mesai_kayitlari(request):
     if _cikis_mi(request):
         return _logout(request)
     personel = _aktif_personel(request)
-    if personel is None or (personel.rol not in UST_YONETIM and personel.rol not in (Rol.SEF, Rol.MAGAZA_MUDURU)):
+    if personel is None or (personel.rol not in UST_YONETIM and personel.rol not in (Rol.SEF, Rol.MAGAZA_MUDURU, Rol.MUTFAK_SORUMLUSU)):
         return redirect('ana_sayfa')
-    is_yon = personel.rol in UST_YONETIM
+    is_yon = personel.rol in UST_YONETIM or personel.rol == Rol.MUTFAK_SORUMLUSU
     if is_yon:
-        subeler = _yon_subeler(personel)
+        subeler = _yon_subeler(personel) if personel.rol in UST_YONETIM else list(Sube.objects.filter(depo_mu=False).order_by('ad'))
         sube_ids = [s.id for s in subeler]
         sec = request.GET.get('sube')
         if sec and sec.isdigit() and int(sec) in sube_ids:
