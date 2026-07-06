@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ baslik }} · Brewtown{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="bt-sayfa">
+    <div class="bt-ust">
+      <a href="{% url 'brewtown_menu' %}" class="bt-geri">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>
+        Menü
+      </a>
+      <img src="{% static 'images/brewtown/brewtown_logo.png' %}" alt="Brewtown" class="bt-ust-logo">
+      <div class="bt-ust-metin">
+        <p class="bt-ust-baslik">{{ baslik }}</p>
+        <p class="bt-ust-alt">Kaydırarak diğer sayfaları görüntüle</p>
+      </div>
+    </div>
+
+    <div class="bt-galeri" id="btGaleri">
+      {% for g in gorseller %}
+      <div class="bt-sayfa-item">
+        <img src="{% static g.src %}" alt="{{ g.ad }}" class="bt-sayfa-img" loading="lazy">
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if gorseller|length > 1 %}
+    <div class="bt-noktalar" id="btNoktalar">
+      {% for g in gorseller %}
+      <div class="bt-nokta{% if forloop.first %} akt{% endif %}"></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="bt-gecis">
+      <a href="{% url diger_url_ad %}" class="btn bt-btn-outline">{{ diger_baslik }} bölümüne geç</a>
+      <a href="{% url 'brewtown_menu' %}" class="btn bt-btn-red">Ana Menü</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var galeri = document.getElementById('btGaleri');
+  var noktalar = document.getElementById('btNoktalar');
+  if (!galeri || !noktalar) return;
+  var itemler = galeri.querySelectorAll('.bt-sayfa-item');
+  var noktaEl = noktalar.querySelectorAll('.bt-nokta');
+  galeri.addEventListener('scroll', function () {
+    var idx = Math.round(galeri.scrollLeft / galeri.clientWidth);
+    noktaEl.forEach(function (n, i) { n.classList.toggle('akt', i === idx); });
+  }, { passive: true });
+})();
+</script>
+{% endblock %}

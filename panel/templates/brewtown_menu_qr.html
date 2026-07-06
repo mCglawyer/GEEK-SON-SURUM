@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Brewtown QR · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head no-print">
+    <div><h2>Brewtown Menü QR</h2></div>
+  </div>
+
+  <div class="bt-sayfa">
+    <div class="bt-qr-kart">
+      <img src="{% static 'images/brewtown/brewtown_logo.png' %}" alt="Brewtown" class="bt-logo" style="max-width:200px;">
+      <div class="bt-qr-kod" data-url="{{ url }}"></div>
+      <div class="bt-qr-url no-print">{{ url }}</div>
+      <p class="ea-not no-print">Bu QR sadece <b>Operatör</b> rolüyle giriş yapmış kişiler tarafından açılabilir. Başka bir hesapla okutulursa menü görüntülenmez.</p>
+      <button type="button" class="btn btn-ghost btn-mini no-print" onclick="window.print()">🖨 Yazdır</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var kaynaklar = [
+    'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+    'https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js'
+  ];
+  var i = 0;
+  function ciz() {
+    document.querySelectorAll('.bt-qr-kod').forEach(function (el) {
+      if (el.dataset.cizildi) return;
+      el.dataset.cizildi = '1';
+      try { new QRCode(el, { text: el.getAttribute('data-url'), width: 220, height: 220, correctLevel: QRCode.CorrectLevel.H }); }
+      catch (e) { el.textContent = 'QR oluşturulamadı'; }
+    });
+  }
+  function yukle() {
+    if (window.QRCode) { ciz(); return; }
+    if (i >= kaynaklar.length) { document.querySelectorAll('.bt-qr-kod').forEach(function (el) { el.textContent = 'QR kütüphanesi yüklenemedi'; }); return; }
+    var s = document.createElement('script');
+    s.src = kaynaklar[i++];
+    s.onload = function () { window.QRCode ? ciz() : yukle(); };
+    s.onerror = yukle;
+    document.head.appendChild(s);
+  }
+  yukle();
+})();
+</script>
+{% endblock %}

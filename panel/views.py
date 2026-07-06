@@ -4214,3 +4214,71 @@ def egitim_kisi_detay(request, pid):
         'yanlis_sayi': yanlis_sayi,
         'soru_sayisi': EGITIM_SORU_SAYISI,
     })
+
+
+# ------------------------------------------------------------------
+# BREWTOWN QR MENÜ — sadece Operatör rolü erişebilir.
+# ------------------------------------------------------------------
+BREWTOWN_YETKI = [Rol.OPERATOR]
+
+
+def _brewtown_yetki_kontrol(request):
+    """Ortak giriş + rol kontrolü. Yetkisizse redirect döner, yetkiliyse personel objesini döner."""
+    if not request.user.is_authenticated:
+        return None, redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return None, _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in BREWTOWN_YETKI:
+        return None, redirect('ana_sayfa')
+    return personel, None
+
+
+def brewtown_menu(request):
+    personel, hata = _brewtown_yetki_kontrol(request)
+    if hata:
+        return hata
+    return render(request, 'brewtown_menu.html', {
+        'personel': personel, 'aktif': 'brewtown_menu',
+    })
+
+
+def brewtown_menu_icecekler(request):
+    personel, hata = _brewtown_yetki_kontrol(request)
+    if hata:
+        return hata
+    gorseller = [
+        {'src': 'images/brewtown/icecek_1_cold.jpg', 'ad': 'Cold & More'},
+        {'src': 'images/brewtown/icecek_2_espresso.jpg', 'ad': 'Espresso & More'},
+        {'src': 'images/brewtown/icecek_3_organic.jpg', 'ad': 'Organic & Brewed'},
+    ]
+    return render(request, 'brewtown_menu_sayfalar.html', {
+        'personel': personel, 'aktif': 'brewtown_menu',
+        'baslik': 'İçecekler', 'gorseller': gorseller,
+        'diger_url_ad': 'brewtown_menu_kahvalti', 'diger_baslik': 'Kahvaltı',
+    })
+
+
+def brewtown_menu_kahvalti(request):
+    personel, hata = _brewtown_yetki_kontrol(request)
+    if hata:
+        return hata
+    gorseller = [
+        {'src': 'images/brewtown/kahvalti_1.jpg', 'ad': 'Breakfast Brunch'},
+        {'src': 'images/brewtown/kahvalti_2.jpg', 'ad': 'Breakfast Brunch'},
+    ]
+    return render(request, 'brewtown_menu_sayfalar.html', {
+        'personel': personel, 'aktif': 'brewtown_menu',
+        'baslik': 'Kahvaltı', 'gorseller': gorseller,
+        'diger_url_ad': 'brewtown_menu_icecekler', 'diger_baslik': 'İçecekler',
+    })
+
+
+def brewtown_menu_qr(request):
+    personel, hata = _brewtown_yetki_kontrol(request)
+    if hata:
+        return hata
+    url = request.build_absolute_uri(reverse('brewtown_menu'))
+    return render(request, 'brewtown_menu_qr.html', {
+        'personel': personel, 'aktif': 'brewtown_qr', 'url': url,
+    })

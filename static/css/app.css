@@ -1227,3 +1227,47 @@ body.app .app-main, body.app .container { min-width:0; }
 .zayi-govde { flex:1; min-width:0; }
 .zayi-ust { display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; }
 .zayi-miktar-etiket { font-size:.82rem; color:var(--muted); font-weight:600; }
+
+/* ================= BREWTOWN QR MENÜ ================= */
+.bt-sayfa { --bt-red:#A6382F; --bt-red-dark:#7E2A24; --bt-ink:#211C16; --bt-cream:#FBF5EC; --bt-cream-2:#F3E9D8; --bt-line:#E7D9C1;
+  background:var(--bt-cream); border-radius:var(--radius); padding:0; overflow:hidden; border:1px solid var(--bt-line); }
+.bt-hero { background:linear-gradient(160deg,var(--bt-cream) 0%,var(--bt-cream-2) 100%); padding:2.6rem 1.5rem 2rem; text-align:center; position:relative; }
+.bt-hero::after { content:""; position:absolute; left:0; right:0; bottom:0; height:6px; background:repeating-linear-gradient(45deg,var(--bt-red) 0 10px,transparent 10px 20px); }
+.bt-logo { max-width:260px; width:70%; height:auto; margin:0 auto 1.1rem; display:block; filter:drop-shadow(0 6px 14px rgba(33,28,22,.18)); }
+.bt-etiket { display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--bt-red); background:rgba(166,56,47,.09); border:1px solid rgba(166,56,47,.25); border-radius:999px; padding:.3rem .9rem; margin-bottom:.9rem; }
+.bt-baslik { font-family:var(--font); font-weight:800; font-size:1.5rem; color:var(--bt-ink); letter-spacing:-.01em; margin:0 0 .35rem; }
+.bt-alt { color:#7A6F5E; font-size:.92rem; margin:0; }
+.bt-secim { display:grid; grid-template-columns:1fr 1fr; gap:.9rem; padding:1.4rem; }
+@media (max-width:520px) { .bt-secim { grid-template-columns:1fr; } }
+.bt-kart { display:flex; flex-direction:column; align-items:center; gap:.6rem; text-decoration:none; background:#fff; border:1.5px solid var(--bt-line); border-radius:16px; padding:1.6rem 1rem; transition:transform .12s ease, box-shadow .18s ease, border-color .18s ease; }
+.bt-kart:hover { transform:translateY(-3px); box-shadow:0 14px 28px -14px rgba(33,28,22,.28); border-color:var(--bt-red); }
+.bt-kart-ikon { width:52px; height:52px; border-radius:50%; background:rgba(166,56,47,.1); display:flex; align-items:center; justify-content:center; color:var(--bt-red); }
+.bt-kart-ikon svg { width:26px; height:26px; }
+.bt-kart-ad { font-weight:700; color:var(--bt-ink); font-size:1.05rem; }
+.bt-kart-alt { font-size:.8rem; color:#8A8071; }
+.bt-foot { text-align:center; padding:0 1.4rem 1.6rem; color:#9C9384; font-size:.78rem; }
+
+.bt-ust { display:flex; align-items:center; gap:.8rem; padding:1.1rem 1.4rem; background:var(--bt-cream-2); border-bottom:1px solid var(--bt-line); }
+.bt-ust-logo { width:42px; height:42px; object-fit:contain; }
+.bt-ust-metin { flex:1; min-width:0; }
+.bt-ust-baslik { font-weight:800; color:var(--bt-ink); font-size:1.15rem; margin:0; }
+.bt-ust-alt { font-size:.78rem; color:#8A8071; margin:0; }
+.bt-geri { display:inline-flex; align-items:center; gap:.35rem; color:var(--bt-red); font-weight:600; font-size:.85rem; text-decoration:none; flex:0 0 auto; }
+
+.bt-galeri { display:flex; overflow-x:auto; scroll-snap-type:x mandatory; gap:0; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.bt-galeri::-webkit-scrollbar { display:none; }
+.bt-sayfa-item { flex:0 0 100%; scroll-snap-align:center; display:flex; justify-content:center; padding:1.1rem 1rem 0; }
+.bt-sayfa-img { width:100%; max-width:520px; border-radius:14px; box-shadow:0 16px 34px -18px rgba(33,28,22,.35); display:block; }
+.bt-noktalar { display:flex; justify-content:center; gap:.4rem; padding:1rem 0 1.3rem; }
+.bt-nokta { width:7px; height:7px; border-radius:50%; background:var(--bt-line); transition:background .2s; }
+.bt-nokta.akt { background:var(--bt-red); width:20px; border-radius:4px; }
+.bt-gecis { display:flex; justify-content:center; gap:.7rem; padding:0 1.4rem 1.6rem; flex-wrap:wrap; }
+.bt-gecis .btn { min-height:46px; }
+.bt-btn-red { background:var(--bt-red); color:#fff; }
+.bt-btn-red:hover { background:var(--bt-red-dark); }
+.bt-btn-outline { background:transparent; color:var(--bt-red); border:1.5px solid var(--bt-red); }
+.bt-btn-outline:hover { background:rgba(166,56,47,.08); }
+
+.bt-qr-kart { display:flex; flex-direction:column; align-items:center; gap:1rem; padding:2.2rem 1.5rem; text-align:center; }
+.bt-qr-kod { background:#fff; padding:1rem; border-radius:14px; border:1px solid var(--bt-line); }
+.bt-qr-url { font-size:.78rem; color:#8A8071; word-break:break-all; max-width:320px; }
