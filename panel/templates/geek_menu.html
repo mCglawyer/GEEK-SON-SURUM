@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Menü · Geek Coffee & Eatery{% endblock %}
+
+{% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gm-cream:#F6F1E6; --gm-ink:#2B2118; --gm-muted:#7A6E5C;
+    --gm-moss:#5F7052; --gm-moss-dk:#455239; --gm-amber:#C97C2E;
+    --gm-line:#E4DCC8; --gm-card:#FFFEFB;
+  }
+  body{ background:var(--gm-cream) !important; }
+  body.app{ background:var(--gm-cream) !important; }
+  .gm-wrap{ max-width:640px; margin:0 auto; padding:0 0 4rem; font-family:'Inter',sans-serif; color:var(--gm-ink); }
+
+  .gm-hero{ text-align:center; padding:2.6rem 1.4rem 1.6rem; position:relative; }
+  .gm-hero::after{ content:""; position:absolute; left:50%; bottom:.4rem; transform:translateX(-50%);
+    width:56px; height:3px; background:var(--gm-moss); border-radius:2px; }
+  .gm-logo{ width:96px; height:auto; margin:0 auto 1rem; display:block; }
+  .gm-eyebrow{ font-family:'JetBrains Mono',monospace; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--gm-moss-dk); background:rgba(95,112,82,.1); border:1px solid rgba(95,112,82,.28);
+    border-radius:999px; padding:.3rem 1rem; display:inline-block; margin-bottom:1rem; }
+  .gm-title{ font-family:'Fraunces',serif; font-weight:600; font-size:2.1rem; line-height:1.05; margin:0 0 .5rem; letter-spacing:-.01em; }
+  .gm-sub{ color:var(--gm-muted); font-size:.95rem; margin:0; }
+
+  .gm-tabs{ display:flex; gap:.4rem; padding:1.2rem 1.2rem .4rem; overflow-x:auto; scrollbar-width:none; position:sticky; top:0;
+    background:linear-gradient(var(--gm-cream) 70%, transparent); z-index:5; }
+  .gm-tabs::-webkit-scrollbar{ display:none; }
+  .gm-tab{ font-family:'JetBrains Mono',monospace; font-size:.82rem; white-space:nowrap; padding:.55rem 1.1rem .5rem;
+    background:var(--gm-card); border:1px solid var(--gm-line); border-bottom:3px solid transparent;
+    border-radius:10px 10px 0 0; color:var(--gm-muted); cursor:pointer; transition:color .15s, border-color .15s; }
+  .gm-tab::before{ content:"# "; opacity:.5; }
+  .gm-tab.gm-aktif{ color:var(--gm-moss-dk); border-color:var(--gm-line); border-bottom-color:var(--gm-moss); font-weight:600; }
+
+  .gm-kategori{ padding:.6rem 1.2rem 0; }
+  .gm-kategori-baslik{ font-family:'Fraunces',serif; font-weight:600; font-size:1.3rem; margin:1.4rem 0 .8rem; }
+
+  .gm-kart{ background:var(--gm-card); border:1px solid var(--gm-line); border-radius:14px; padding:1rem 1.1rem;
+    margin-bottom:.7rem; display:flex; justify-content:space-between; gap:.9rem; align-items:flex-start; }
+  .gm-urun-ad{ font-family:'Fraunces',serif; font-weight:600; font-size:1.05rem; margin:0 0 .25rem; }
+  .gm-urun-aciklama{ font-size:.85rem; color:var(--gm-muted); margin:0 0 .55rem; line-height:1.4; }
+  .gm-etiketler{ display:flex; gap:.4rem; flex-wrap:wrap; }
+  .gm-kalori{ font-family:'JetBrains Mono',monospace; font-size:.74rem; color:var(--gm-amber); border:1px dashed var(--gm-amber);
+    border-radius:7px; padding:.15rem .5rem; background:rgba(201,124,46,.07); white-space:nowrap; }
+  .gm-fiyat{ font-family:'JetBrains Mono',monospace; font-weight:600; font-size:1.05rem; color:var(--gm-ink);
+    white-space:nowrap; flex:0 0 auto; padding-top:.15rem; }
+
+  .gm-not{ margin:2rem 1.2rem 0; padding:.9rem 1rem; border:1px dashed var(--gm-line); border-radius:12px;
+    font-size:.78rem; color:var(--gm-muted); line-height:1.5; }
+  .gm-not b{ color:var(--gm-moss-dk); }
+
+  @media (max-width:420px){ .gm-title{ font-size:1.7rem; } }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="gm-wrap">
+  <div class="gm-hero">
+    <img src="{% static 'images/geek_logo_blue.png' %}" alt="Geek Coffee & Eatery" class="gm-logo">
+    <span class="gm-eyebrow">qr menü</span>
+    <h1 class="gm-title">Bugün ne canın çekti?</h1>
+    <p class="gm-sub">Her üründe yaklaşık kalori değeri yanında — afiyet olsun.</p>
+  </div>
+
+  <nav class="gm-tabs" id="gmTabs">
+    {% for kat in kategoriler %}
+    <div class="gm-tab{% if forloop.first %} gm-aktif{% endif %}" data-hedef="gm-{{ kat.kod }}">{{ kat.ad|lower }}</div>
+    {% endfor %}
+  </nav>
+
+  {% for kat in kategoriler %}
+  <section class="gm-kategori" id="gm-{{ kat.kod }}">
+    <h2 class="gm-kategori-baslik">{{ kat.ad }}</h2>
+    {% for u in kat.urunler %}
+    <div class="gm-kart">
+      <div>
+        <p class="gm-urun-ad">{{ u.ad }}</p>
+        <p class="gm-urun-aciklama">{{ u.aciklama }}</p>
+        <div class="gm-etiketler"><span class="gm-kalori">🔥 ~{{ u.kalori }} kcal</span></div>
+      </div>
+      <div class="gm-fiyat">₺{{ u.fiyat }}</div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endfor %}
+
+  <div class="gm-not">
+    <b>Not:</b> Kalori değerleri yaklaşık ve porsiyona göre değişebilir; hazırlık yöntemine bağlı ortalama tahminlerdir,
+    laboratuvar analizi değildir. Alerjiniz veya özel bir diyetiniz varsa lütfen sipariş öncesi personelimize danışın.
+  </div>
+</div>
+
+<script>
+(function () {
+  var tabs = document.querySelectorAll('.gm-tab');
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      tabs.forEach(function (x) { x.classList.remove('gm-aktif'); });
+      t.classList.add('gm-aktif');
+      var hedef = document.getElementById(t.dataset.hedef);
+      if (hedef) hedef.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+})();
+</script>
+{% endblock %}

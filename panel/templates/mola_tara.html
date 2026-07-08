@@ -109,9 +109,20 @@
       raf = requestAnimationFrame(tick);
     }).catch(function (err) {
       basBtn.hidden = false;
-      if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) mesaj('Kamera izni verilmedi. Tarayıcı ayarlarından kamera iznini aç.');
-      else if (err && err.name === 'NotFoundError') mesaj('Kamera bulunamadı.');
-      else mesaj('Kamera açılamadı. HTTPS ve kamera izni gerekir.');
+      var ad = err && err.name;
+      if (ad === 'NotAllowedError' || ad === 'SecurityError' || ad === 'PermissionDeniedError') mesaj('Kamera izni verilmedi. Tarayıcı ayarlarından bu siteye kamera iznini açıp tekrar dene.');
+      else if (ad === 'NotFoundError' || ad === 'DevicesNotFoundError') mesaj('Cihazda kullanılabilir kamera bulunamadı.');
+      else if (ad === 'NotReadableError' || ad === 'TrackStartError') mesaj('Kamera başka bir uygulama/sekme tarafından kullanılıyor olabilir. Diğer kamera kullanan uygulamaları/sekmeleri kapatıp tekrar dene.');
+      else if (ad === 'OverconstrainedError') {
+        navigator.mediaDevices.getUserMedia({ video: true }).then(function (s) {
+          akis = s; bitti = false; video.srcObject = s; video.setAttribute('playsinline', true);
+          return video.play();
+        }).then(function () {
+          alan.hidden = false; durBtn.hidden = false; basBtn.hidden = true;
+          mesaj('QR kodu çerçeveye getir…'); raf = requestAnimationFrame(tick);
+        }).catch(function () { mesaj('Kameraya erişilemedi.'); });
+      }
+      else mesaj('Kameraya erişilemedi. Tarayıcı izinlerini kontrol edip tekrar dene.');
     });
   }
 

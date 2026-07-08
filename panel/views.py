@@ -2671,7 +2671,7 @@ def sube_yeni(request):
 
 MOLA_QR_YETKI = [Rol.GENEL_MUDUR, Rol.OPERATOR]
 MOLA_SURELER = [45, 15]
-MOLA_QR_GECERLILIK_SN = 180
+MOLA_QR_GECERLILIK_SN = 480  # 8 dakika (kamera açılışındaki gecikmelere pay bırakmak için 3 dk'dan yükseltildi)
 
 
 def _mola_qr_acik():
@@ -2763,6 +2763,10 @@ def mola_qr_giris(request, token):
                 sure = 45
             MolaOturum.objects.create(personel=personel, sube=tok.sube, sure_dk=sure, baslangic=timezone.now())
             messages.success(request, "Molan başladı (%d dk). Döndüğünde bu QR'ı tekrar okut." % sure)
+        elif islem == 'baslat' and aktif is not None:
+            messages.info(request, "Zaten aktif bir molan var.")
+        elif islem == 'bitir' and aktif is None:
+            messages.info(request, "Aktif bir molan görünmüyor (belki az önce bitirildi).")
         elif islem == 'bitir' and aktif is not None:
             aktif.bitis = timezone.now()
             gecen = max(0, int((aktif.bitis - aktif.baslangic).total_seconds() // 60))
@@ -3152,7 +3156,7 @@ def profil_sayfa(request):
 
 
 MESAI_QR_YETKI = [Rol.GENEL_MUDUR, Rol.OPERATOR]
-MESAI_QR_GECERLILIK_SN = 180
+MESAI_QR_GECERLILIK_SN = 480  # 8 dakika (kamera açılışındaki gecikmelere pay bırakmak için 3 dk'dan yükseltildi)
 
 
 def _sube_mesai_token(sube):
@@ -3230,6 +3234,10 @@ def mesai_qr_giris(request, token):
             MesaiKayit.objects.create(personel=personel, sube=tok.sube, giris=timezone.now(),
                                       personel_ad_arsiv=personel.ad_soyad)
             messages.success(request, "Giriş kaydedildi. İyi çalışmalar!")
+        elif islem == 'mesai_giris' and aktif is not None:
+            messages.info(request, "Zaten açık bir mesain var.")
+        elif islem == 'mesai_cikis' and aktif is None:
+            messages.info(request, "Açık bir mesain görünmüyor (belki az önce çıkış yapıldı).")
         elif islem == 'mesai_cikis' and aktif is not None:
             aktif.cikis = timezone.now()
             aktif.save(update_fields=['cikis'])
@@ -4100,4 +4108,57 @@ def egitim_kisi_detay(request, pid):
         'cevap_var': cevap_var,
         'yanlis_sayi': yanlis_sayi,
         'soru_sayisi': EGITIM_SORU_SAYISI,
+    })
+
+
+# ------------------------------------------------------------------
+# GEEK QR MENÜ — müşteriye açık, giriş gerektirmeyen kalori destekli menü.
+# ------------------------------------------------------------------
+# NOT: Aşağıdaki ürün/fiyat/kalori verileri ÖRNEK/TASLAKTIR (Menulux'taki canlı
+# menüye otomatik erişilemediği için elle, tahmini olarak dolduruldu). Gerçek
+# ürün listesi ve kesin kalori bilgisiyle güncellenmeden yayına alınmamalıdır.
+GEEK_MENU_KATEGORILER = [
+    {
+        'kod': 'kahvaltilar',
+        'ad': 'Kahvaltılar',
+        'urunler': [
+            {'ad': 'Serpme Kahvaltı Tabağı', 'aciklama': 'Peynir çeşitleri, zeytin, bal, kaymak, yumurta, taze sebze, reçel',
+             'fiyat': 285, 'kalori': 650},
+            {'ad': 'Menemen', 'aciklama': 'Domates, biber, yumurta, tereyağı',
+             'fiyat': 165, 'kalori': 320},
+            {'ad': 'Avokado Tost', 'aciklama': 'Avokado, ekşi maya ekmek, cherry domates, roka',
+             'fiyat': 195, 'kalori': 380},
+            {'ad': 'Granola Kase', 'aciklama': 'Yoğurt, ev yapımı granola, mevsim meyveleri, bal',
+             'fiyat': 175, 'kalori': 410},
+            {'ad': 'Sahanda Sucuklu Yumurta', 'aciklama': 'Sucuk, yumurta, tereyağı',
+             'fiyat': 155, 'kalori': 340},
+        ],
+    },
+    {
+        'kod': 'icecekler',
+        'ad': 'İçecekler',
+        'urunler': [
+            {'ad': 'Filtre Kahve', 'aciklama': 'Günün demlemesi',
+             'fiyat': 110, 'kalori': 5},
+            {'ad': 'Türk Kahvesi', 'aciklama': 'Şekersiz / az şekerli / şekerli',
+             'fiyat': 95, 'kalori': 5},
+            {'ad': 'Cappuccino', 'aciklama': 'Espresso, buharda ısıtılmış süt, süt köpüğü',
+             'fiyat': 145, 'kalori': 120},
+            {'ad': 'Latte', 'aciklama': 'Espresso, bol sütlü, ince köpük',
+             'fiyat': 150, 'kalori': 190},
+            {'ad': 'Karamel Machiatto', 'aciklama': 'Vanilya, süt, espresso, karamel sos',
+             'fiyat': 165, 'kalori': 250},
+            {'ad': 'Ice Latte', 'aciklama': 'Soğuk espresso, süt, buz',
+             'fiyat': 160, 'kalori': 170},
+            {'ad': 'Taze Sıkılmış Portakal Suyu', 'aciklama': 'Günlük taze sıkım',
+             'fiyat': 120, 'kalori': 110},
+        ],
+    },
+]
+
+
+def geek_menu(request):
+    """Müşteriye açık QR menü sayfası — giriş gerektirmez."""
+    return render(request, 'geek_menu.html', {
+        'kategoriler': GEEK_MENU_KATEGORILER,
     })
