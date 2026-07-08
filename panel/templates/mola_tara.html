@@ -90,6 +90,9 @@
   }
 
   function kamerayiAc() {
+    if (!window.isSecureContext) {
+      mesaj('Bu sayfa güvenli (https://) bağlantı ile açılmalı.'); basBtn.hidden = false; return;
+    }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       mesaj('Bu cihaz/tarayıcı kamera erişimini desteklemiyor.'); basBtn.hidden = false; return;
     }

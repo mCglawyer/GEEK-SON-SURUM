@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import (Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Zayi, Kalibrasyon, Irsaliye, StokUrun, StokSayim, StokSayimKalem, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket, KahveSoru, GunlukSoru, SoruAyar)
+from .models import (Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Kalibrasyon, Irsaliye, StokUrun, StokSayim, StokSayimKalem, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket, KahveSoru, GunlukSoru, SoruAyar)
 
 @admin.register(Sube)
 class SubeAdmin(admin.ModelAdmin):
@@ -47,13 +47,6 @@ class PuantajAdmin(admin.ModelAdmin):
 class KodKilitAdmin(admin.ModelAdmin):
     list_display = ('ip', 'hatali_deneme', 'kilit_bitis')
     readonly_fields = ('ip', 'hatali_deneme', 'kilit_bitis')
-
-@admin.register(Zayi)
-class ZayiAdmin(admin.ModelAdmin):
-    list_display = ('urun_adi', 'miktar', 'birim', 'sube', 'giren_ad', 'olusturma')
-    list_filter = ('sube', 'birim', 'olusturma')
-    search_fields = ('urun_adi', 'giren_ad')
-    readonly_fields = ('olusturma',)
 
 @admin.register(Kalibrasyon)
 class KalibrasyonAdmin(admin.ModelAdmin):

@@ -22,7 +22,7 @@ from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.models import User
 
-from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Birim, Kalibrasyon, Irsaliye,
+from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Kalibrasyon, Irsaliye,
                      StokUrun, StokSayim, StokSayimKalem,
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      SevkiyatForm, Urun, SiparisHareket,
@@ -31,7 +31,7 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Zayi, Bir
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, PushAbonelik,
                      MolaQRAyar, SubeMolaToken, MolaOturum,
                      SubeMesaiToken, MesaiKayit, DogumGunuKutlama,
-                     MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi,
+                     MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi, MaliyetBirim,
                      InsaatProje, InsaatMadde, InsaatMaddeDurum, InsaatKategori, InsaatSablonMadde,
                      LavaboDenetim,
                      Rol, OnayDurumu, VardiyaTipi)
@@ -88,14 +88,14 @@ def _aktif_personel(request):
     return Personel.objects.filter(user=request.user).select_related('sube').first()
 
 def _bildir(aliciler, mesaj, link='', tur=''):
-    aliciler = [a for a in aliciler if a is not None]
     try:
+        aliciler = [a for a in (aliciler or []) if a is not None]
         objs = [Bildirim(alici=a, mesaj=mesaj[:200], link=link, tur=tur)
                 for a in aliciler]
         if objs:
             Bildirim.objects.bulk_create(objs)
     except Exception:
-        pass
+        aliciler = []
     try:
         _push_gonder(aliciler, mesaj, link)
     except Exception:
@@ -504,7 +504,8 @@ def mutfak_vardiya_sayfa(request):
         secili = 'bu'
     start, end, gunler = _hafta_gunleri(secili)
     subeler = list(Sube.objects.filter(depo_mu=False).order_by('ad'))
-    mutfak_personeli = list(Personel.objects.filter(rol=Rol.MUTFAK_PERSONEL).order_by('ad_soyad'))
+    mutfak_personeli = list(Personel.objects.filter(
+        rol__in=(Rol.MUTFAK_PERSONEL, Rol.MUTFAK_SORUMLUSU)).order_by('-rol', 'ad_soyad'))
 
     if request.method == 'POST':
         if request.POST.get('islem') == 'mutfak_personel_ekle':
@@ -525,7 +526,7 @@ def mutfak_vardiya_sayfa(request):
         pid = request.POST.get('personel_id')
         tarih_str = request.POST.get('tarih')
         secim = request.POST.get('secim', '')
-        kisi = Personel.objects.filter(id=pid, rol=Rol.MUTFAK_PERSONEL).first()
+        kisi = Personel.objects.filter(id=pid, rol__in=(Rol.MUTFAK_PERSONEL, Rol.MUTFAK_SORUMLUSU)).first()
         try:
             tarih = datetime.datetime.strptime(tarih_str, '%Y-%m-%d').date()
         except (TypeError, ValueError):
@@ -638,13 +639,19 @@ def mutfak_zayi_sayfa(request):
             bugun = timezone.localdate()
             aktif_gorev = Vardiya.objects.filter(personel=personel, tarih=bugun,
                                                  vardiya_tipi=VardiyaTipi.MUTFAK_GOREVI).first()
-            sube = aktif_gorev.atanan_sube if aktif_gorev else None
+            sube = (aktif_gorev.atanan_sube if aktif_gorev else None) or personel.sube
             if raw and 100 < len(raw) <= 8 * 1024 * 1024:
                 z = MutfakZayi(personel=personel, personel_ad_arsiv=personel.ad_soyad,
                                sube=sube, aciklama=aciklama[:2000])
                 fname = f"mutfakzayi_{personel.id}_{timezone.now():%Y%m%d_%H%M%S}.jpg"
                 z.foto.save(fname, ContentFile(raw), save=True)
                 messages.success(request, "Zayi kaydı yüklendi.")
+                sube_adi = sube.ad if sube else "şube tanımsız"
+                alicilar = _rol_personelleri(Rol.MUTFAK_SORUMLUSU)
+                if sube:
+                    alicilar += Personel.objects.filter(sube=sube, rol=Rol.MAGAZA_MUDURU)
+                _bildir(alicilar, "Mutfak zayi kaydı: %s (%s)" % (sube_adi, personel.ad_soyad),
+                        '/mutfak/zayi/', 'mutfak_zayi')
             else:
                 messages.error(request, "Görüntü alınamadı. Lütfen kameradan tekrar çekin.")
         return redirect('mutfak_zayi')
@@ -683,7 +690,9 @@ def mutfak_zayi_sayfa(request):
         gorseller = list(MutfakZayi.objects.filter(personel=personel, olusturma__gte=gun_bas, olusturma__lt=gun_son)
                          .select_related('personel', 'sube').order_by('-olusturma'))
     else:
-        gorseller = list(MutfakZayi.objects.filter(sube_id__in=filtre_ids, olusturma__gte=gun_bas, olusturma__lt=gun_son)
+        gorseller = list(MutfakZayi.objects.filter(
+            Q(sube_id__in=filtre_ids) | Q(sube__isnull=True, personel__sube_id__in=filtre_ids),
+            olusturma__gte=gun_bas, olusturma__lt=gun_son)
                          .select_related('personel', 'sube').order_by('-olusturma'))
 
     return render(request, 'mutfak_zayi.html', {
@@ -707,15 +716,16 @@ def mutfak_maliyet_sayfa(request):
         islem = request.POST.get('islem')
         if islem == 'urun_ekle':
             ad = (request.POST.get('ad') or '').strip()
+            birim = request.POST.get('birim') if request.POST.get('birim') in MaliyetBirim.values else MaliyetBirim.KG
             try:
-                fiyat = float((request.POST.get('kg_fiyat') or '0').replace(',', '.'))
+                fiyat = float((request.POST.get('fiyat') or '0').replace(',', '.'))
             except ValueError:
                 fiyat = 0
             if ad and fiyat > 0:
-                MutfakMaliyetKalemi.objects.update_or_create(ad=ad, defaults={'kg_fiyat': fiyat})
+                MutfakMaliyetKalemi.objects.update_or_create(ad=ad, defaults={'fiyat': fiyat, 'birim': birim})
                 messages.success(request, "Ürün fiyatı kaydedildi.")
             else:
-                messages.error(request, "Ürün adı ve geçerli bir kg fiyatı gerekli.")
+                messages.error(request, "Ürün adı ve geçerli bir birim fiyatı gerekli.")
         elif islem == 'urun_sil':
             MutfakMaliyetKalemi.objects.filter(id=request.POST.get('urun_id')).delete()
         elif islem == 'tarif_ekle':
@@ -729,11 +739,11 @@ def mutfak_maliyet_sayfa(request):
             tarif = MutfakTarif.objects.filter(id=request.POST.get('tarif_id')).first()
             urun = MutfakMaliyetKalemi.objects.filter(id=request.POST.get('urun_id')).first()
             try:
-                gram = float((request.POST.get('miktar_gram') or '0').replace(',', '.'))
+                miktar = float((request.POST.get('miktar') or '0').replace(',', '.'))
             except ValueError:
-                gram = 0
-            if tarif and urun and gram > 0:
-                MutfakTarifKalemi.objects.create(tarif=tarif, urun=urun, miktar_gram=gram)
+                miktar = 0
+            if tarif and urun and miktar > 0:
+                MutfakTarifKalemi.objects.create(tarif=tarif, urun=urun, miktar=miktar)
         elif islem == 'kalem_sil':
             MutfakTarifKalemi.objects.filter(id=request.POST.get('kalem_id')).delete()
         return redirect('mutfak_maliyet')
@@ -742,6 +752,7 @@ def mutfak_maliyet_sayfa(request):
     tarifler = list(MutfakTarif.objects.prefetch_related('kalemler__urun').order_by('ad'))
     return render(request, 'mutfak_maliyet.html', {
         'personel': personel, 'aktif': 'mutfak_maliyet', 'urunler': urunler, 'tarifler': tarifler,
+        'birimler': MaliyetBirim.choices,
     })
 
 
@@ -1219,73 +1230,6 @@ def _kalibrasyon_temizle():
         if k.foto:
             k.foto.delete(save=False)
         k.delete()
-
-ZAYI_EKLE_ROLLER = (Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU)
-ZAYI_DUZENLE_ROLLER = (Rol.SEF, Rol.MAGAZA_MUDURU)
-
-
-def zayi_sayfa(request):
-    if not request.user.is_authenticated:
-        return redirect('ana_sayfa')
-    if _cikis_mi(request):
-        return _logout(request)
-    personel = _aktif_personel(request)
-    if personel is None:
-        return redirect('ana_sayfa')
-
-    ekleyebilir = personel.rol in ZAYI_EKLE_ROLLER
-    duzenleyebilir = personel.rol in ZAYI_DUZENLE_ROLLER
-    is_yon = personel.rol in UST_YONETIM
-    subeler = _yon_subeler(personel) if is_yon else []
-    sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
-
-    if request.method == 'POST':
-        islem = request.POST.get('islem')
-        if islem == 'zayi_ekle' and ekleyebilir:
-            if not sel_sube:
-                messages.error(request, "Şubeniz tanımlı değil. Yöneticinize başvurun.")
-                return redirect('zayi')
-            urun_adi = (request.POST.get('urun_adi') or '').strip()
-            miktar_str = (request.POST.get('miktar') or '').strip().replace(',', '.')
-            birim = request.POST.get('birim') if request.POST.get('birim') in Birim.values else Birim.ADET
-            aciklama = (request.POST.get('aciklama') or '').strip()
-            try:
-                miktar = float(miktar_str)
-            except ValueError:
-                miktar = None
-            if urun_adi and miktar is not None and miktar > 0:
-                z = Zayi(sube=sel_sube, giren=personel, giren_ad=personel.ad_soyad,
-                         urun_adi=urun_adi[:120], miktar=miktar, birim=birim, aciklama=aciklama[:300])
-                foto = request.FILES.get('foto')
-                if foto and foto.size <= 8 * 1024 * 1024 and (foto.content_type or '').startswith('image/'):
-                    z.foto = foto
-                z.save()
-                messages.success(request, "Zayi kaydı eklendi.")
-                _bildir(_sube_yoneticileri(sel_sube),
-                        "%s şubesinde zayi kaydı: %s (%s)" % (sel_sube.ad, urun_adi, personel.ad_soyad),
-                        '/zayi/', 'zayi')
-            else:
-                messages.error(request, "Ürün adı ve geçerli bir miktar girmelisiniz.")
-            return redirect('zayi')
-        if islem == 'zayi_sil' and duzenleyebilir:
-            z = Zayi.objects.filter(id=request.POST.get('zayi_id'), sube=sel_sube).first()
-            if z:
-                if z.foto:
-                    z.foto.delete(save=False)
-                z.delete()
-                messages.success(request, "Zayi kaydı silindi.")
-            return redirect('zayi')
-
-    kayitlar = []
-    if sel_sube:
-        kayitlar = list(Zayi.objects.filter(sube=sel_sube).select_related('giren')[:100])
-
-    return render(request, 'zayi.html', {
-        'personel': personel, 'aktif': 'zayi', 'ekleyebilir': ekleyebilir,
-        'duzenleyebilir': duzenleyebilir, 'is_yon': is_yon,
-        'subeler': subeler, 'sel_sube': sel_sube, 'kayitlar': kayitlar,
-        'birimler': Birim.choices,
-    })
 
 
 def kalibrasyon_sayfa(request):
@@ -2153,8 +2097,15 @@ def sevkiyat_sayfa(request):
         ctx['sel_gun'] = sel_gun
         ctx['gecmis'] = True
     elif is_sevkiyat:
-        svt = list(SevkiyatTalep.objects.filter(durum__in=[SevkiyatDurumu.SEVKIYATTA, SevkiyatDurumu.REDDEDILDI])
-                   .select_related('sube').prefetch_related('kalemler')[:100])
+        sel_id = request.GET.get('sube')
+        try:
+            sel_id = int(sel_id) if sel_id else None
+        except (TypeError, ValueError):
+            sel_id = None
+        svt_q = SevkiyatTalep.objects.filter(durum__in=[SevkiyatDurumu.SEVKIYATTA, SevkiyatDurumu.REDDEDILDI])
+        if sel_id:
+            svt_q = svt_q.filter(sube_id=sel_id)
+        svt = list(svt_q.select_related('sube').prefetch_related('kalemler')[:100])
         gosterilecek = []
         for t in svt:
             t.mode = 'sv'
@@ -2170,6 +2121,8 @@ def sevkiyat_sayfa(request):
             if kalemler:
                 gosterilecek.append(t)
         ctx['talepler'] = gosterilecek
+        ctx['subeler'] = list(Sube.objects.filter(depo_mu=False).order_by('ad'))
+        ctx['sel_id'] = sel_id
     else:
         subeler = _yon_subeler(personel)
         izin_ids = [s.id for s in subeler] if personel.rol == Rol.MUDUR else None
@@ -2852,6 +2805,9 @@ def mola_qr_giris(request, token):
     personel = _aktif_personel(request)
     if personel is None:
         return redirect('ana_sayfa')
+    if personel.rol == Rol.MUTFAK_SORUMLUSU:
+        messages.info(request, "Mutfak Sorumlusu rolü için mola sistemi kullanılmaz.")
+        return redirect('ana_sayfa')
     tok = SubeMolaToken.objects.filter(token=token).select_related('sube').first()
     if tok is None:
         return render(request, 'mola_qr_giris.html', {'personel': personel, 'hata': 'Geçersiz veya güncelliğini yitirmiş QR kodu.'})
@@ -2905,6 +2861,9 @@ def mola_tara(request):
         return _logout(request)
     personel = _aktif_personel(request)
     if personel is None:
+        return redirect('ana_sayfa')
+    if personel.rol == Rol.MUTFAK_SORUMLUSU:
+        messages.info(request, "Mutfak Sorumlusu rolü için mola sistemi kullanılmaz.")
         return redirect('ana_sayfa')
     return render(request, 'mola_tara.html', {
         'personel': personel, 'aktif': 'mola_tara', 'acik': _mola_qr_acik(),
@@ -4213,72 +4172,4 @@ def egitim_kisi_detay(request, pid):
         'cevap_var': cevap_var,
         'yanlis_sayi': yanlis_sayi,
         'soru_sayisi': EGITIM_SORU_SAYISI,
-    })
-
-
-# ------------------------------------------------------------------
-# BREWTOWN QR MENÜ — sadece Operatör rolü erişebilir.
-# ------------------------------------------------------------------
-BREWTOWN_YETKI = [Rol.OPERATOR]
-
-
-def _brewtown_yetki_kontrol(request):
-    """Ortak giriş + rol kontrolü. Yetkisizse redirect döner, yetkiliyse personel objesini döner."""
-    if not request.user.is_authenticated:
-        return None, redirect('ana_sayfa')
-    if _cikis_mi(request):
-        return None, _logout(request)
-    personel = _aktif_personel(request)
-    if personel is None or personel.rol not in BREWTOWN_YETKI:
-        return None, redirect('ana_sayfa')
-    return personel, None
-
-
-def brewtown_menu(request):
-    personel, hata = _brewtown_yetki_kontrol(request)
-    if hata:
-        return hata
-    return render(request, 'brewtown_menu.html', {
-        'personel': personel, 'aktif': 'brewtown_menu',
-    })
-
-
-def brewtown_menu_icecekler(request):
-    personel, hata = _brewtown_yetki_kontrol(request)
-    if hata:
-        return hata
-    gorseller = [
-        {'src': 'images/brewtown/icecek_1_cold.jpg', 'ad': 'Cold & More'},
-        {'src': 'images/brewtown/icecek_2_espresso.jpg', 'ad': 'Espresso & More'},
-        {'src': 'images/brewtown/icecek_3_organic.jpg', 'ad': 'Organic & Brewed'},
-    ]
-    return render(request, 'brewtown_menu_sayfalar.html', {
-        'personel': personel, 'aktif': 'brewtown_menu',
-        'baslik': 'İçecekler', 'gorseller': gorseller,
-        'diger_url_ad': 'brewtown_menu_kahvalti', 'diger_baslik': 'Kahvaltı',
-    })
-
-
-def brewtown_menu_kahvalti(request):
-    personel, hata = _brewtown_yetki_kontrol(request)
-    if hata:
-        return hata
-    gorseller = [
-        {'src': 'images/brewtown/kahvalti_1.jpg', 'ad': 'Breakfast Brunch'},
-        {'src': 'images/brewtown/kahvalti_2.jpg', 'ad': 'Breakfast Brunch'},
-    ]
-    return render(request, 'brewtown_menu_sayfalar.html', {
-        'personel': personel, 'aktif': 'brewtown_menu',
-        'baslik': 'Kahvaltı', 'gorseller': gorseller,
-        'diger_url_ad': 'brewtown_menu_icecekler', 'diger_baslik': 'İçecekler',
-    })
-
-
-def brewtown_menu_qr(request):
-    personel, hata = _brewtown_yetki_kontrol(request)
-    if hata:
-        return hata
-    url = request.build_absolute_uri(reverse('brewtown_menu'))
-    return render(request, 'brewtown_menu_qr.html', {
-        'personel': personel, 'aktif': 'brewtown_qr', 'url': url,
     })

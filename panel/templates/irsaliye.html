@@ -69,12 +69,31 @@
   var form = document.getElementById('irs-form');
   var stream = null;
   function hataGoster(msg) { hata.hidden = false; hata.textContent = msg; btn.disabled = true; }
+  function kameraHatasiIsle(err) {
+    var ad = err && err.name;
+    if (ad === 'NotAllowedError' || ad === 'PermissionDeniedError') {
+      hataGoster('Kamera izni reddedildi. Tarayıcı/site ayarlarından bu siteye kamera izni verip sayfayı yenileyin.');
+    } else if (ad === 'NotFoundError' || ad === 'DevicesNotFoundError') {
+      hataGoster('Cihazda kullanılabilir kamera bulunamadı.');
+    } else if (ad === 'NotReadableError' || ad === 'TrackStartError') {
+      hataGoster('Kamera başka bir uygulama tarafından kullanılıyor olabilir. Diğer uygulamaları kapatıp tekrar deneyin.');
+    } else if (ad === 'OverconstrainedError') {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(function (s) { stream = s; video.srcObject = s; })
+        .catch(function () { hataGoster('Kameraya erişilemedi.'); });
+    } else {
+      hataGoster('Kameraya erişilemedi. Tarayıcı izinlerini kontrol edip tekrar deneyin.');
+    }
+  }
+  if (!window.isSecureContext) {
+    hataGoster('Bu sayfa güvenli (https://) bağlantı ile açılmalı. Adres çubuğunda https:// olduğundan emin olun.'); return;
+  }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     hataGoster('Bu cihaz/tarayıcı canlı kamerayı desteklemiyor.'); return;
   }
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
     .then(function (s) { stream = s; video.srcObject = s; })
-    .catch(function () { hataGoster('Kameraya erişilemedi. İzin verin (telefonda HTTPS gerekir).'); });
+    .catch(kameraHatasiIsle);
   btn.addEventListener('click', function () {
     if (!aciklama.value.trim()) { alert('Lütfen önce açıklama yazın.'); aciklama.focus(); return; }
     if (!stream || !video.videoWidth) { return; }

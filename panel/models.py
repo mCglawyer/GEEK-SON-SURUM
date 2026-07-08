@@ -178,30 +178,6 @@ class KodKilit(models.Model):
     def __str__(self):
         return f"{self.ip} ({self.hatali_deneme} hatalı)"
 
-class Birim(models.TextChoices):
-    ADET = 'adet', 'adet'
-    ML = 'ml', 'ml'
-
-class Zayi(models.Model):
-    sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='zayiler', verbose_name="Şube")
-    giren = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
-                              related_name='zayi_girisleri', verbose_name="Giren Personel")
-    giren_ad = models.CharField(max_length=100, blank=True, verbose_name="Giren (ad)")
-    urun_adi = models.CharField(max_length=120, verbose_name="Ürün Adı")
-    miktar = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Miktar")
-    birim = models.CharField(max_length=10, choices=Birim.choices, default=Birim.ADET, verbose_name="Birim")
-    aciklama = models.CharField(max_length=300, blank=True, default='', verbose_name="Açıklama")
-    foto = models.FileField(upload_to='zayi/%Y/%m/%d/', null=True, blank=True, verbose_name="Fotoğraf")
-    olusturma = models.DateTimeField(auto_now_add=True, verbose_name="Girildiği An")
-
-    class Meta:
-        verbose_name = "Zayi"
-        verbose_name_plural = "Zayiler"
-        ordering = ['-olusturma']
-
-    def __str__(self):
-        return f"{self.urun_adi} - {self.miktar} {self.birim}"
-
 class Kalibrasyon(models.Model):
     sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='kalibrasyonlar', verbose_name="Şube")
     giren = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
@@ -788,17 +764,26 @@ class MutfakZayi(models.Model):
         return f"{self.sube} - {self.personel_ad_arsiv} - {self.olusturma:%d.%m.%Y %H:%M}"
 
 
+class MaliyetBirim(models.TextChoices):
+    KG = 'kg', 'Kg (gram bazlı)'
+    LITRE = 'litre', 'Litre (ml bazlı)'
+    ADET = 'adet', 'Adet (tam sayı)'
+
+
 class MutfakMaliyetKalemi(models.Model):
-    """Kg başına fiyatı tanımlı ham madde (domates, biber vb.)."""
+    """Fiyatı tanımlı ham madde (domates, biber, süt, kase vb.)."""
     ad = models.CharField(max_length=120, unique=True, verbose_name="Ürün Adı")
-    kg_fiyat = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Kg Fiyatı (₺)")
+    birim = models.CharField(max_length=10, choices=MaliyetBirim.choices, default=MaliyetBirim.KG,
+                             verbose_name="Birim")
+    fiyat = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Birim Fiyatı (₺)",
+                                help_text="Kg için ₺/kg, Litre için ₺/litre, Adet için ₺/adet.")
     guncelleme = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Maliyet Kalemi"; verbose_name_plural = "Maliyet Kalemleri"; ordering = ['ad']
 
     def __str__(self):
-        return f"{self.ad} ({self.kg_fiyat} ₺/kg)"
+        return f"{self.ad} ({self.fiyat} ₺/{self.birim})"
 
 
 class MutfakTarif(models.Model):
@@ -819,21 +804,35 @@ class MutfakTarif(models.Model):
     def toplam_maliyet(self):
         toplam = 0
         for k in self.kalemler.select_related('urun').all():
-            toplam += float(k.urun.kg_fiyat) * (float(k.miktar_gram) / 1000.0)
+            toplam += k.maliyet
         return round(toplam, 2)
 
 
 class MutfakTarifKalemi(models.Model):
     tarif = models.ForeignKey(MutfakTarif, on_delete=models.CASCADE, related_name='kalemler')
     urun = models.ForeignKey(MutfakMaliyetKalemi, on_delete=models.CASCADE, related_name='+')
-    miktar_gram = models.DecimalField(max_digits=10, decimal_places=1, verbose_name="Miktar (gram)")
+    miktar = models.DecimalField(max_digits=10, decimal_places=1, verbose_name="Miktar",
+                                 help_text="Kg için gram, Litre için ml, Adet için tam sayı girin.")
 
     class Meta:
         verbose_name = "Tarif Kalemi"; verbose_name_plural = "Tarif Kalemleri"
 
     @property
     def maliyet(self):
-        return round(float(self.urun.kg_fiyat) * (float(self.miktar_gram) / 1000.0), 2)
+        fiyat = float(self.urun.fiyat)
+        miktar = float(self.miktar)
+        if self.urun.birim == MaliyetBirim.ADET:
+            return round(fiyat * miktar, 2)
+        # KG ve LITRE için miktar küçük birimde (gram / ml) girilir, 1000'e bölünür.
+        return round(fiyat * (miktar / 1000.0), 2)
+
+    @property
+    def miktar_etiketi(self):
+        if self.urun.birim == MaliyetBirim.KG:
+            return "g"
+        if self.urun.birim == MaliyetBirim.LITRE:
+            return "ml"
+        return "adet"
 
     def __str__(self):
-        return f"{self.tarif.ad} - {self.urun.ad} ({self.miktar_gram} g)"
+        return f"{self.tarif.ad} - {self.urun.ad} ({self.miktar} {self.miktar_etiketi})"

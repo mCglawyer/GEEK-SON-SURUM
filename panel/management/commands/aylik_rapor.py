@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.core.mail import EmailMessage
 
-from panel.models import (Sube, Personel, Vardiya, Mola, Zayi, SevkiyatTalep,
+from panel.models import (Sube, Personel, Vardiya, Mola, SevkiyatTalep,
                           StokSayim, VardiyaTipi, Rol)
 
 CALISMA = [VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI]
@@ -41,7 +41,7 @@ class Command(BaseCommand):
         etiket = "%s %s" % (AYLAR[ilk.month], ilk.year)
 
         subeler_veri = []
-        g_cg = g_iz = g_rp = g_dv = g_zy = g_sv = 0
+        g_cg = g_iz = g_rp = g_dv = g_sv = 0
         for s in Sube.objects.order_by('ad'):
             p_rows = []
             tc = ti = tr = td = tms = tmd = 0
@@ -57,19 +57,18 @@ class Command(BaseCommand):
                 p_rows.append({'ad': p.ad_soyad, 'calisan': cg, 'izin': iz, 'rapor': rp,
                                'devamsiz': dv, 'mola_say': ms, 'mola_dk': md})
                 tc += cg; ti += iz; tr += rp; td += dv; tms += ms; tmd += md
-            zy = Zayi.objects.filter(sube=s, olusturma__date__gte=ilk, olusturma__date__lt=son).count()
             sv = SevkiyatTalep.objects.filter(sube=s, olusturma__date__gte=ilk, olusturma__date__lt=son).count()
             sayim = "Evet" if StokSayim.objects.filter(sube=s, ay=ilk).exists() else "Hayır"
             subeler_veri.append({
                 'ad': s.ad,
-                'ozet': {'zayi': zy, 'sevkiyat': sv, 'sayim': sayim},
+                'ozet': {'sevkiyat': sv, 'sayim': sayim},
                 'personeller': p_rows,
                 'toplam': {'calisan': tc, 'izin': ti, 'rapor': tr, 'devamsiz': td,
                            'mola_say': tms, 'mola_dk': tmd},
             })
-            g_cg += tc; g_iz += ti; g_rp += tr; g_dv += td; g_zy += zy; g_sv += sv
+            g_cg += tc; g_iz += ti; g_rp += tr; g_dv += td; g_sv += sv
         genel = {'calisan': g_cg, 'izin': g_iz, 'rapor': g_rp, 'devamsiz': g_dv,
-                 'zayi': g_zy, 'sevkiyat': g_sv}
+                 'sevkiyat': g_sv}
 
         from panel.aylik_rapor_pdf import aylik_rapor_bytes
         pdf = aylik_rapor_bytes(etiket, subeler_veri, genel)

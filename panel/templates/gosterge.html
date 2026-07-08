@@ -35,7 +35,6 @@
 
   <h3 class="gs-baslik">Bu Ay</h3>
   <div class="gs-grid">
-    <a href="{% url 'zayi' %}" class="gs-kart gs-link"><span class="gs-buyuk">{{ zayi_ay }}</span><span class="gs-etiket">Zayi kaydı</span></a>
     <a href="{% url 'stok' %}" class="gs-kart gs-link gs-kart-genis {% if sayim_yapan < sube_sayisi %}gs-wait{% endif %}">
       <span class="gs-buyuk">{{ sayim_yapan }}/{{ sube_sayisi }}</span><span class="gs-etiket">Şube stok sayımını yaptı</span>
       <div class="gs-prog"><div class="gs-prog-dolu" style="width:{{ stok_oran }}%"></div></div>
@@ -43,22 +42,12 @@
   </div>
 
   <h3 class="gs-baslik">Son 7 Gün</h3>
-  <div class="gs-ikili">
-    <div class="card gs-cizelge">
-      <div class="gs-c-bas">Sevkiyat <span class="gs-c-alt">sipariş / gün</span></div>
-      <div class="gs-sutunlar">
-        {% for t in trend %}
-        <div class="gs-sutun"><span class="gs-sutun-deg">{{ t.sevk }}</span><div class="gs-sutun-bar"><div class="gs-sutun-dolu" style="height:{{ t.sevk_h }}%"></div></div><span class="gs-sutun-gun">{{ t.gun }}</span></div>
-        {% endfor %}
-      </div>
-    </div>
-    <div class="card gs-cizelge">
-      <div class="gs-c-bas">Zayi <span class="gs-c-alt">kayıt / gün</span></div>
-      <div class="gs-sutunlar">
-        {% for t in trend %}
-        <div class="gs-sutun"><span class="gs-sutun-deg">{{ t.zayi }}</span><div class="gs-sutun-bar"><div class="gs-sutun-dolu gs-sutun-zayi" style="height:{{ t.zayi_h }}%"></div></div><span class="gs-sutun-gun">{{ t.gun }}</span></div>
-        {% endfor %}
-      </div>
+  <div class="card gs-cizelge">
+    <div class="gs-c-bas">Sevkiyat <span class="gs-c-alt">sipariş / gün</span></div>
+    <div class="gs-sutunlar">
+      {% for t in trend %}
+      <div class="gs-sutun"><span class="gs-sutun-deg">{{ t.sevk }}</span><div class="gs-sutun-bar"><div class="gs-sutun-dolu" style="height:{{ t.sevk_h }}%"></div></div><span class="gs-sutun-gun">{{ t.gun }}</span></div>
+      {% endfor %}
     </div>
   </div>
 

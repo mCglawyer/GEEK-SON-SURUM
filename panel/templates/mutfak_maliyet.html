@@ -7,11 +7,11 @@
 
   <div class="mal-grid">
     <div class="card">
-      <h3 class="egitim-bolum">Ürün Fiyat Listesi <span class="ea-not">(₺/kg)</span></h3>
+      <h3 class="egitim-bolum">Ürün Fiyat Listesi</h3>
       <ul class="staff-list">
         {% for u in urunler %}
         <li class="sef-row">
-          <span class="staff-ad">{{ u.ad }} <b>{{ u.kg_fiyat }} ₺/kg</b></span>
+          <span class="staff-ad">{{ u.ad }} <b>{{ u.fiyat }} ₺/{{ u.get_birim_display }}</b></span>
           <form method="post" onsubmit="return confirm('{{ u.ad }} silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="urun_sil"><input type="hidden" name="urun_id" value="{{ u.id }}"><button class="btn btn-ghost btn-mini">Sil</button></form>
         </li>
         {% empty %}
@@ -19,10 +19,14 @@
         {% endfor %}
       </ul>
       <form method="post" class="sef-ekle">{% csrf_token %}<input type="hidden" name="islem" value="urun_ekle">
-        <input class="input" type="text" name="ad" placeholder="Ürün adı (ör. Domates)" required>
-        <input class="input" type="text" name="kg_fiyat" placeholder="Kg fiyatı (₺)" required style="max-width:120px">
+        <input class="input" type="text" name="ad" placeholder="Ürün adı (ör. Domates, Süt, Kase)" required>
+        <select name="birim" class="sube-sec" style="max-width:150px">
+          {% for deger, etiket in birimler %}<option value="{{ deger }}">{{ etiket }}</option>{% endfor %}
+        </select>
+        <input class="input" type="text" name="fiyat" placeholder="Birim fiyatı (₺)" required style="max-width:120px">
         <button class="btn btn-primary">Ekle / Güncelle</button>
       </form>
+      <p class="ea-not">Kg seçilirse tarifte gram, Litre seçilirse ml, Adet seçilirse tam sayı olarak miktar girilir.</p>
     </div>
 
     <div class="card">
@@ -44,11 +48,11 @@
     </div>
     {% if t.kalemler.all %}
     <table class="mal-kalem-tbl">
-      <thead><tr><th>Ürün</th><th>Miktar (g)</th><th>Maliyet</th><th></th></tr></thead>
+      <thead><tr><th>Ürün</th><th>Miktar</th><th>Maliyet</th><th></th></tr></thead>
       <tbody>
         {% for k in t.kalemler.all %}
         <tr>
-          <td>{{ k.urun.ad }}</td><td>{{ k.miktar_gram }} g</td><td>{{ k.maliyet }} ₺</td>
+          <td>{{ k.urun.ad }}</td><td>{{ k.miktar }} {{ k.miktar_etiketi }}</td><td>{{ k.maliyet }} ₺</td>
           <td><form method="post">{% csrf_token %}<input type="hidden" name="islem" value="kalem_sil"><input type="hidden" name="kalem_id" value="{{ k.id }}"><button class="btn btn-ghost btn-mini">Sil</button></form></td>
         </tr>
         {% endfor %}
@@ -56,11 +60,11 @@
     </table>
     {% endif %}
     <form method="post" class="mal-kalem-ekle">{% csrf_token %}<input type="hidden" name="islem" value="kalem_ekle"><input type="hidden" name="tarif_id" value="{{ t.id }}">
-      <select name="urun_id" class="sube-sec" required>
+      <select name="urun_id" class="sube-sec mal-urun-sec" required>
         <option value="">Ürün seç…</option>
-        {% for u in urunler %}<option value="{{ u.id }}">{{ u.ad }} ({{ u.kg_fiyat }} ₺/kg)</option>{% endfor %}
+        {% for u in urunler %}<option value="{{ u.id }}" data-birim="{{ u.birim }}">{{ u.ad }} ({{ u.fiyat }} ₺/{{ u.get_birim_display }})</option>{% endfor %}
       </select>
-      <input class="input" type="text" name="miktar_gram" placeholder="Miktar (gram)" required style="max-width:130px">
+      <input class="input mal-miktar-input" type="text" name="miktar" placeholder="Miktar (gram)" required style="max-width:150px">
       <button class="btn btn-ghost btn-mini">Malzeme Ekle</button>
     </form>
   </div>
@@ -68,4 +72,22 @@
   <p class="egitim-bos">Henüz tarif oluşturulmadı.</p>
   {% endfor %}
 </div>
+
+<script>
+(function () {
+  document.querySelectorAll('.mal-kalem-ekle').forEach(function (form) {
+    var sec = form.querySelector('.mal-urun-sec');
+    var miktarInput = form.querySelector('.mal-miktar-input');
+    function guncelle() {
+      var opt = sec.options[sec.selectedIndex];
+      var birim = opt ? opt.getAttribute('data-birim') : '';
+      if (birim === 'litre') miktarInput.placeholder = 'Miktar (ml)';
+      else if (birim === 'adet') miktarInput.placeholder = 'Miktar (adet)';
+      else miktarInput.placeholder = 'Miktar (gram)';
+    }
+    sec.addEventListener('change', guncelle);
+    guncelle();
+  });
+})();
+</script>
 {% endblock %}

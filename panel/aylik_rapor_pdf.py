@@ -58,9 +58,9 @@ def aylik_rapor_bytes(ay_etiket, subeler_veri, genel=None):
         el.append(Spacer(1, 3))
         el.append(Paragraph(
             "Genel: Çalışan-gün <b>%s</b> · İzin <b>%s</b> · Rapor <b>%s</b> · Devamsız <b>%s</b> · "
-            "Zayi <b>%s</b> · Sevkiyat <b>%s</b>" % (
+            "Sevkiyat <b>%s</b>" % (
                 genel.get('calisan', 0), genel.get('izin', 0), genel.get('rapor', 0),
-                genel.get('devamsiz', 0), genel.get('zayi', 0), genel.get('sevkiyat', 0)), st_oz))
+                genel.get('devamsiz', 0), genel.get('sevkiyat', 0)), st_oz))
     el.append(Spacer(1, 6))
 
     baslik = ['Personel', 'Çalışılan gün', 'İzin', 'Rapor', 'Devamsız', 'Mola (adet)', 'Mola (süre)']
@@ -72,8 +72,8 @@ def aylik_rapor_bytes(ay_etiket, subeler_veri, genel=None):
         bas = [
             Paragraph(sv['ad'], st_sb),
             HRFlowable(width="100%", thickness=1, color=LINE, spaceBefore=3, spaceAfter=3),
-            Paragraph("Zayi: <b>%s</b>　·　Sevkiyat: <b>%s</b>　·　Stok sayımı: <b>%s</b>" % (
-                oz.get('zayi', 0), oz.get('sevkiyat', 0), oz.get('sayim', '-')), st_oz),
+            Paragraph("Sevkiyat: <b>%s</b>　·　Stok sayımı: <b>%s</b>" % (
+                oz.get('sevkiyat', 0), oz.get('sayim', '-')), st_oz),
             Spacer(1, 3),
         ]
         rows = [[Paragraph(b, st_cw) for b in baslik]]

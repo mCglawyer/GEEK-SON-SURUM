@@ -15,11 +15,13 @@
     <ul class="staff-list">
       {% for satir in tablo %}
       <li class="sef-row">
-        <span class="staff-ad">{{ satir.personel.ad_soyad }} <span class="staff-kod">kod: <code>{{ satir.personel.giris_kodu }}</code></span></span>
+        <span class="staff-ad">{{ satir.personel.ad_soyad }} <span class="staff-kod">{% if satir.personel.rol == 'Mutfak Sorumlusu' %}Mutfak Sorumlusu · {% endif %}kod: <code>{{ satir.personel.giris_kodu }}</code></span></span>
+        {% if satir.personel.rol == 'Mutfak Personeli' %}
         <form method="post" onsubmit="return confirm('{{ satir.personel.ad_soyad }} mutfak ekibinden çıkarılsın mı?');">
           {% csrf_token %}<input type="hidden" name="islem" value="mutfak_personel_cikar"><input type="hidden" name="personel_id" value="{{ satir.personel.id }}">
           <button class="btn btn-danger btn-mini">Çıkar</button>
         </form>
+        {% endif %}
       </li>
       {% empty %}
       <li><span class="staff-ad" style="color:var(--muted)">Henüz mutfak personeli yok.</span></li>
