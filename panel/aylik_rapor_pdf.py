@@ -8,6 +8,8 @@ from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table, Tab
                                 KeepTogether, HRFlowable)
 from reportlab.lib.styles import ParagraphStyle
 
+from .pdf_letterhead import letterhead_callback, HEADER_ALAN_MM, FOOTER_ALAN_MM
+
 BRAND = colors.HexColor("#162AA3")
 BRAND_050 = colors.HexColor("#EEF1FB")
 ZEBRA = colors.HexColor("#F4F6FB")
@@ -43,8 +45,8 @@ def aylik_rapor_bytes(ay_etiket, subeler_veri, genel=None):
     import io
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm,
-                            topMargin=15 * mm, bottomMargin=15 * mm, title="Aylık Operasyon Raporu")
-    st_h = ParagraphStyle('h', fontName=_FONTB, fontSize=16, textColor=BRAND, leading=20)
+                            topMargin=HEADER_ALAN_MM * mm, bottomMargin=FOOTER_ALAN_MM * mm,
+                            title="Aylık Operasyon Raporu")
     st_s = ParagraphStyle('s', fontName=_FONT, fontSize=9.5, textColor=MUTED, leading=14)
     st_sb = ParagraphStyle('sb', fontName=_FONTB, fontSize=12, textColor=BRAND, leading=15)
     st_oz = ParagraphStyle('oz', fontName=_FONT, fontSize=8.5, textColor=MUTED, leading=12)
@@ -52,8 +54,7 @@ def aylik_rapor_bytes(ay_etiket, subeler_veri, genel=None):
     st_cw = ParagraphStyle('cw', fontName=_FONTB, fontSize=8, leading=10, textColor=colors.white)
     st_ct = ParagraphStyle('ct', fontName=_FONTB, fontSize=8, leading=10, textColor=BRAND)
 
-    el = [Paragraph("GEEK COFFEE &amp; EATERY", st_h),
-          Paragraph("Aylık Operasyon Raporu · %s" % ay_etiket, st_s)]
+    el = [Paragraph("Aylık Operasyon Raporu · %s" % ay_etiket, st_s)]
     if genel:
         el.append(Spacer(1, 3))
         el.append(Paragraph(
@@ -110,5 +111,6 @@ def aylik_rapor_bytes(ay_etiket, subeler_veri, genel=None):
         el.append(Spacer(1, 12))
 
     el.append(Paragraph("Bu rapor otomatik olarak oluşturulmuştur · geekpanel.net", st_s))
-    doc.build(el)
+    cb = letterhead_callback(font=_FONT)
+    doc.build(el, onFirstPage=cb, onLaterPages=cb)
     return buf.getvalue()

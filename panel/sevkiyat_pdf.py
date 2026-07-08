@@ -12,6 +12,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.utils import ImageReader
 from xml.sax.saxutils import escape
 
+from .pdf_letterhead import letterhead_callback, HEADER_ALAN_MM, FOOTER_ALAN_MM
+
 BRAND = colors.HexColor('#162AA3')
 INK = colors.HexColor('#1f2430')
 MUTED = colors.HexColor('#5b6472')
@@ -45,34 +47,18 @@ def sevkiyat_pdf_bytes(talep, tip):
     fontb = 'DejaVu-Bold' if ok else 'Helvetica-Bold'
 
     buf = BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=13 * mm, bottomMargin=11 * mm,
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=HEADER_ALAN_MM * mm, bottomMargin=FOOTER_ALAN_MM * mm,
                             leftMargin=16 * mm, rightMargin=16 * mm,
                             title=f"Sevkiyat #{talep.id}")
     base = getSampleStyleSheet()['Normal']
-    st_marka = ParagraphStyle('marka', parent=base, fontName=fontb, fontSize=11, leading=13, textColor=BRAND, alignment=1)
     st_baslik = ParagraphStyle('baslik', parent=base, fontName=fontb, fontSize=14, leading=17,
                                textColor=INK, spaceBefore=1, spaceAfter=2, alignment=1)
     st_sub = ParagraphStyle('sub', parent=base, fontName=font, fontSize=8, leading=11, textColor=MUTED, alignment=1)
     st_urun = ParagraphStyle('urun', parent=base, fontName=font, fontSize=7, leading=8.5, textColor=INK)
 
     baslik = 'YÜKLEME BELGESİ' if tip == 'yukleme' else 'TESLİM FİŞİ'
-    logo = None
-    try:
-        logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'geek_logo_blue.png')
-        if os.path.exists(logo_path):
-            iw, ih = ImageReader(logo_path).getSize()
-            lw = 34 * mm
-            logo = Image(logo_path, width=lw, height=lw * ih / iw)
-            logo.hAlign = 'CENTER'
-    except Exception:
-        logo = None
 
     el = []
-    if logo is not None:
-        el.append(logo)
-        el.append(Spacer(1, 2 * mm))
-    else:
-        el.append(Paragraph('GEEK COFFEE &amp; EATERY', st_marka))
     el.append(Paragraph(baslik, st_baslik))
     el.append(Paragraph('Personel Yönetim Sistemi · Sevkiyat', st_sub))
     el.append(Spacer(1, 3 * mm))
@@ -151,7 +137,8 @@ def sevkiyat_pdf_bytes(talep, tip):
         alt.append(Paragraph('Bu belge yüklenecek ürünleri gösterir; "Verilen" adetler esas alınır.', st_sub))
     el.append(KeepTogether(alt))
 
-    doc.build(el)
+    cb = letterhead_callback(font=font)
+    doc.build(el, onFirstPage=cb, onLaterPages=cb)
     pdf = buf.getvalue()
     buf.close()
     return pdf

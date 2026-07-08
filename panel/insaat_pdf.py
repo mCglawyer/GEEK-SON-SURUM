@@ -12,6 +12,8 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
+from .pdf_letterhead import letterhead_callback, HEADER_ALAN_MM, FOOTER_ALAN_MM
+
 
 def _fontlar():
     base = os.path.join(settings.BASE_DIR, 'static', 'fonts')
@@ -35,7 +37,8 @@ def insaat_pdf_uret(proje, maddeler):
     font, fontb = _fontlar()
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=14 * mm, rightMargin=14 * mm,
-                            topMargin=11 * mm, bottomMargin=11 * mm, title="Insaat Denetim Formu")
+                            topMargin=HEADER_ALAN_MM * mm, bottomMargin=FOOTER_ALAN_MM * mm,
+                            title="Insaat Denetim Formu")
     styles = getSampleStyleSheet()
     h = ParagraphStyle('h', parent=styles['Normal'], fontName=fontb, fontSize=14, textColor=colors.HexColor('#162AA3'))
     normal = ParagraphStyle('n', parent=styles['Normal'], fontName=font, fontSize=8, leading=9.5)
@@ -43,18 +46,6 @@ def insaat_pdf_uret(proje, maddeler):
     cellb = ParagraphStyle('cb', parent=normal, fontName=fontb, textColor=colors.white)
 
     el = []
-    logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'geek_logo_blue.png')
-    if os.path.exists(logo_path):
-        try:
-            img = Image(logo_path)
-            oran = (img.imageWidth / img.imageHeight) if img.imageHeight else 1
-            img.drawHeight = 11 * mm
-            img.drawWidth = 11 * mm * oran
-            img.hAlign = 'LEFT'
-            el.append(img)
-            el.append(Spacer(1, 3))
-        except Exception:
-            pass
     el.append(Paragraph('İnşaat Denetim Formu', h))
     el.append(Spacer(1, 4))
 
@@ -109,5 +100,6 @@ def insaat_pdf_uret(proje, maddeler):
     imza.setStyle(TableStyle([('TOPPADDING', (0, 0), (-1, -1), 8), ('BOTTOMPADDING', (0, 0), (-1, -1), 4)]))
     el.append(imza)
 
-    doc.build(el)
+    cb = letterhead_callback(font=font)
+    doc.build(el, onFirstPage=cb, onLaterPages=cb)
     return buf.getvalue()
