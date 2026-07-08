@@ -96,6 +96,9 @@
     stream.getTracks().forEach(function (t) { t.stop(); });
     form.submit();
   });
+  window.addEventListener('pagehide', function () {
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+  });
 })();
 </script>
 {% endif %}
