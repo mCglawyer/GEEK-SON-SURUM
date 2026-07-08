@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import (Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Kalibrasyon, Irsaliye, StokUrun, StokSayim, StokSayimKalem, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket, KahveSoru, GunlukSoru, SoruAyar)
+from .models import (Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Kalibrasyon, Irsaliye, StokUrun, StokSayim, StokSayimKalem, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket, KahveSoru, GunlukSoru, SoruAyar,
+                     MolaOturum, SubeMolaToken, MesaiKayit, SubeMesaiToken,
+                     MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi)
 
 @admin.register(Sube)
 class SubeAdmin(admin.ModelAdmin):
@@ -35,6 +37,35 @@ class MolaAdmin(admin.ModelAdmin):
     list_display = ('personel', 'tarih', 'mola_tipi', 'baslangic_saati', 'bitis_saati')
     list_filter = ('tarih',)
     search_fields = ('personel__ad_soyad',)
+
+@admin.register(MolaOturum)
+class MolaOturumAdmin(admin.ModelAdmin):
+    """Şube QR ile başlatılan/bitirilen mola giriş-çıkış kayıtları."""
+    list_display = ('personel', 'sube', 'baslangic', 'bitis', 'sure_dk', 'kullanilan_dk', 'uyarildi')
+    list_filter = ('sube', 'uyarildi', 'baslangic')
+    search_fields = ('personel__ad_soyad',)
+    date_hierarchy = 'baslangic'
+    autocomplete_fields = ('personel', 'sube')
+
+@admin.register(SubeMolaToken)
+class SubeMolaTokenAdmin(admin.ModelAdmin):
+    list_display = ('sube', 'token', 'olusturma')
+    search_fields = ('sube__ad', 'token')
+    readonly_fields = ('olusturma',)
+
+@admin.register(MesaiKayit)
+class MesaiKayitAdmin(admin.ModelAdmin):
+    """Şube QR ile başlatılan/bitirilen mesai giriş-çıkış kayıtları."""
+    list_display = ('sube', 'personel', 'personel_ad_arsiv', 'giris', 'cikis')
+    list_filter = ('sube', 'giris')
+    search_fields = ('personel__ad_soyad', 'personel_ad_arsiv')
+    date_hierarchy = 'giris'
+    autocomplete_fields = ('personel', 'sube')
+
+@admin.register(SubeMesaiToken)
+class SubeMesaiTokenAdmin(admin.ModelAdmin):
+    list_display = ('sube', 'token')
+    search_fields = ('sube__ad', 'token')
 
 @admin.register(Puantaj)
 class PuantajAdmin(admin.ModelAdmin):
@@ -122,3 +153,29 @@ class GunlukSoruAdmin(admin.ModelAdmin):
 @admin.register(SoruAyar)
 class SoruAyarAdmin(admin.ModelAdmin):
     list_display = ('aktif', 'guncelleme')
+
+@admin.register(MutfakZayi)
+class MutfakZayiAdmin(admin.ModelAdmin):
+    list_display = ('sube', 'personel', 'personel_ad_arsiv', 'olusturma')
+    list_filter = ('sube', 'olusturma')
+    search_fields = ('personel__ad_soyad', 'personel_ad_arsiv', 'aciklama')
+    readonly_fields = ('olusturma',)
+    date_hierarchy = 'olusturma'
+    autocomplete_fields = ('personel', 'sube')
+
+@admin.register(MutfakMaliyetKalemi)
+class MutfakMaliyetKalemiAdmin(admin.ModelAdmin):
+    list_display = ('ad', 'birim', 'fiyat', 'guncelleme')
+    list_filter = ('birim',)
+    search_fields = ('ad',)
+
+class MutfakTarifKalemiInline(admin.TabularInline):
+    model = MutfakTarifKalemi
+    extra = 0
+    autocomplete_fields = ('urun',)
+
+@admin.register(MutfakTarif)
+class MutfakTarifAdmin(admin.ModelAdmin):
+    list_display = ('ad', 'olusturan', 'toplam_maliyet', 'guncelleme')
+    search_fields = ('ad',)
+    inlines = [MutfakTarifKalemiInline]

@@ -4,11 +4,11 @@ from reportlab.lib.units import mm
 from reportlab.lib import colors
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+from reportlab.platypus import (Paragraph, Spacer, Table, TableStyle,
                                 KeepTogether, HRFlowable)
 from reportlab.lib.styles import ParagraphStyle
 
-from .pdf_letterhead import letterhead_callback, HEADER_ALAN_MM, FOOTER_ALAN_MM
+from .pdf_letterhead import build_pdf
 
 BRAND = colors.HexColor("#162AA3")
 BRAND_050 = colors.HexColor("#EEF1FB")
@@ -44,9 +44,8 @@ def aylik_rapor_bytes(ay_etiket, subeler_veri, genel=None):
     _fonts()
     import io
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm,
-                            topMargin=HEADER_ALAN_MM * mm, bottomMargin=FOOTER_ALAN_MM * mm,
-                            title="Aylık Operasyon Raporu")
+    LEFT_MARGIN = 15 * mm
+    RIGHT_MARGIN = 15 * mm
     st_s = ParagraphStyle('s', fontName=_FONT, fontSize=9.5, textColor=MUTED, leading=14)
     st_sb = ParagraphStyle('sb', fontName=_FONTB, fontSize=12, textColor=BRAND, leading=15)
     st_oz = ParagraphStyle('oz', fontName=_FONT, fontSize=8.5, textColor=MUTED, leading=12)
@@ -65,7 +64,7 @@ def aylik_rapor_bytes(ay_etiket, subeler_veri, genel=None):
     el.append(Spacer(1, 6))
 
     baslik = ['Personel', 'Çalışılan gün', 'İzin', 'Rapor', 'Devamsız', 'Mola (adet)', 'Mola (süre)']
-    w = doc.width
+    w = A4[0] - LEFT_MARGIN - RIGHT_MARGIN
     col = [w * 0.30, w * 0.15, w * 0.09, w * 0.09, w * 0.12, w * 0.12, w * 0.13]
 
     for sv in subeler_veri:
@@ -111,6 +110,6 @@ def aylik_rapor_bytes(ay_etiket, subeler_veri, genel=None):
         el.append(Spacer(1, 12))
 
     el.append(Paragraph("Bu rapor otomatik olarak oluşturulmuştur · geekpanel.net", st_s))
-    cb = letterhead_callback(font=_FONT)
-    doc.build(el, onFirstPage=cb, onLaterPages=cb)
+    build_pdf(buf, el, pagesize=A4, left_margin=LEFT_MARGIN, right_margin=RIGHT_MARGIN,
+             font=_FONT, title="Aylık Operasyon Raporu")
     return buf.getvalue()

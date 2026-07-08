@@ -8,11 +8,11 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-from .pdf_letterhead import letterhead_callback, HEADER_ALAN_MM, FOOTER_ALAN_MM
+from .pdf_letterhead import build_pdf
 
 
 def _fontlar():
@@ -36,9 +36,6 @@ DURUM_RENK = {'tamam': '#137333', 'devam': '#b26a00', 'yapilmadi': '#b00020'}
 def insaat_pdf_uret(proje, maddeler):
     font, fontb = _fontlar()
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=14 * mm, rightMargin=14 * mm,
-                            topMargin=HEADER_ALAN_MM * mm, bottomMargin=FOOTER_ALAN_MM * mm,
-                            title="Insaat Denetim Formu")
     styles = getSampleStyleSheet()
     h = ParagraphStyle('h', parent=styles['Normal'], fontName=fontb, fontSize=14, textColor=colors.HexColor('#162AA3'))
     normal = ParagraphStyle('n', parent=styles['Normal'], fontName=font, fontSize=8, leading=9.5)
@@ -100,6 +97,6 @@ def insaat_pdf_uret(proje, maddeler):
     imza.setStyle(TableStyle([('TOPPADDING', (0, 0), (-1, -1), 8), ('BOTTOMPADDING', (0, 0), (-1, -1), 4)]))
     el.append(imza)
 
-    cb = letterhead_callback(font=font)
-    doc.build(el, onFirstPage=cb, onLaterPages=cb)
+    build_pdf(buf, el, pagesize=A4, left_margin=14 * mm, right_margin=14 * mm,
+             font=font, title="Insaat Denetim Formu")
     return buf.getvalue()

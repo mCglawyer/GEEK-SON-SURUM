@@ -8,11 +8,11 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, Image
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, Image
 from reportlab.lib.utils import ImageReader
 from xml.sax.saxutils import escape
 
-from .pdf_letterhead import letterhead_callback, HEADER_ALAN_MM, FOOTER_ALAN_MM
+from .pdf_letterhead import build_pdf
 
 BRAND = colors.HexColor('#162AA3')
 INK = colors.HexColor('#1f2430')
@@ -47,9 +47,6 @@ def sevkiyat_pdf_bytes(talep, tip):
     fontb = 'DejaVu-Bold' if ok else 'Helvetica-Bold'
 
     buf = BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=HEADER_ALAN_MM * mm, bottomMargin=FOOTER_ALAN_MM * mm,
-                            leftMargin=16 * mm, rightMargin=16 * mm,
-                            title=f"Sevkiyat #{talep.id}")
     base = getSampleStyleSheet()['Normal']
     st_baslik = ParagraphStyle('baslik', parent=base, fontName=fontb, fontSize=14, leading=17,
                                textColor=INK, spaceBefore=1, spaceAfter=2, alignment=1)
@@ -137,8 +134,8 @@ def sevkiyat_pdf_bytes(talep, tip):
         alt.append(Paragraph('Bu belge yüklenecek ürünleri gösterir; "Verilen" adetler esas alınır.', st_sub))
     el.append(KeepTogether(alt))
 
-    cb = letterhead_callback(font=font)
-    doc.build(el, onFirstPage=cb, onLaterPages=cb)
+    build_pdf(buf, el, pagesize=A4, left_margin=16 * mm, right_margin=16 * mm,
+             font=font, title=f"Sevkiyat #{talep.id}")
     pdf = buf.getvalue()
     buf.close()
     return pdf
