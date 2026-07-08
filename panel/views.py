@@ -22,7 +22,7 @@ from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.models import User
 
-from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Kalibrasyon, Irsaliye,
+from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Irsaliye,
                      StokUrun, StokSayim, StokSayimKalem,
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      SevkiyatForm, Urun, SiparisHareket,
@@ -35,7 +35,6 @@ from .models import (Personel, KodKilit, Vardiya, Mola, Sube, Puantaj, Kalibrasy
                      InsaatProje, InsaatMadde, InsaatMaddeDurum, InsaatKategori, InsaatSablonMadde,
                      LavaboDenetim,
                      Rol, OnayDurumu, VardiyaTipi)
-from .constants import GUNLUK_TOPLAM_MOLA_DK, BIRINCI_MOLA_DK, MOLA_LIMIT_UYARI_DK
 from .hukuki_icerik import HUKUKI_SAYFALAR
 
 MAX_DENEME = 5
@@ -320,39 +319,8 @@ def ana_sayfa(request):
         return redirect('mutfak_vardiya')
     return _personel_home(request, personel)
 
-def _mola_toggle(request, personel):
-    today = timezone.localdate()
-    aktif = personel.molalar.filter(bitis_saati__isnull=True).order_by('-id').first()
-    simdi = timezone.localtime().time()
-    if aktif:
-        aktif.bitis_saati = simdi
-        aktif.save()
-        messages.success(request, f"Molan bitti. Süre: {aktif.mola_suresi_dakika()} dk. İyi çalışmalar!")
-    else:
-        tamamlanan = personel.molalar.filter(tarih=today, bitis_saati__isnull=False).count()
-        tip = '1. Mola' if tamamlanan == 0 else '2. Mola'
-        personel.molalar.create(tarih=today, mola_tipi=tip, baslangic_saati=simdi)
-        messages.success(request, "Molan başladı.")
-
-def _mola_ctx(personel, today):
-    aktif_mola = personel.molalar.filter(bitis_saati__isnull=True).order_by('-id').first()
-    bugun_biten = personel.molalar.filter(tarih=today, bitis_saati__isnull=False)
-    kullanilan = sum(m.mola_suresi_dakika() for m in bugun_biten)
-    kalan_hak = max(0, GUNLUK_TOPLAM_MOLA_DK - kullanilan)
-    start_iso, hedef_dk = '', GUNLUK_TOPLAM_MOLA_DK
-    if aktif_mola and aktif_mola.baslangic_saati:
-        bas = datetime.datetime.combine(aktif_mola.tarih or today, aktif_mola.baslangic_saati)
-        start_iso = bas.strftime('%Y-%m-%dT%H:%M:%S')
-        hedef_dk = BIRINCI_MOLA_DK if aktif_mola.mola_tipi == '1. Mola' else kalan_hak
-    return {'aktif_mola': aktif_mola, 'kullanilan_dk': kullanilan, 'kalan_hak': kalan_hak,
-            'gunluk_hak': GUNLUK_TOPLAM_MOLA_DK, 'start_iso': start_iso, 'hedef_dk': hedef_dk,
-            'bugun_biten_sayi': bugun_biten.count()}
-
 def _personel_home(request, personel):
     today = timezone.localdate()
-    if request.method == 'POST' and request.POST.get('islem') == 'mola_toggle':
-        _mola_toggle(request, personel)
-        return redirect('ana_sayfa')
 
     start, end, gunler = _hafta_gunleri('bu')
     vmap = {v.tarih: v for v in personel.vardiyalar.filter(tarih__range=[start, end], durum=OnayDurumu.ONAYLANDI)}
@@ -365,7 +333,6 @@ def _personel_home(request, personel):
     ctx = {'personel': personel, 'aktif': 'home', 'is_gm': False,
            'hafta': hafta, 'haftabasi': start, 'haftasonu': end,
            'gelecek': gelecek, 'g_basi': g_start, 'g_sonu': g_end}
-    ctx.update(_mola_ctx(personel, today))
     return render(request, 'personel_panel.html', ctx)
 
 def _sef_home(request, personel):
@@ -377,9 +344,6 @@ def _sef_home(request, personel):
 
     if request.method == 'POST':
         islem = request.POST.get('islem')
-        if islem == 'mola_toggle':
-            _mola_toggle(request, personel)
-            return redirect(f'/?hafta={secili}')
         if not sube:
             messages.error(request, "Şubeniz tanımlı değil. Yöneticinize başvurun.")
             return redirect('ana_sayfa')
@@ -413,7 +377,6 @@ def _sef_home(request, personel):
            'vardiya_tipleri': VardiyaTipi.choices, 'secili': secili,
            'haftabasi': start, 'haftasonu': end, 'personeller': personeller}
     ctx.update(tablo)
-    ctx.update(_mola_ctx(personel, timezone.localdate()))
     return render(request, 'sef_panel.html', ctx)
 
 def _vardiya_kaydet(request, sube):
@@ -887,41 +850,6 @@ def puantaj_sayfa(request):
         'subeler': subeler, 'sel_sube': sel_sube, 'puantaj_listesi': liste,
         'selected_ay_str': ay_str, 'aralik_mod': aralik_mod,
         'puantaj_bas': bas_str, 'puantaj_bit': bit_str,
-    })
-
-def mola_sayfa(request):
-    if not request.user.is_authenticated:
-        return redirect('ana_sayfa')
-    if _cikis_mi(request):
-        return _logout(request)
-    personel = _aktif_personel(request)
-    if personel is None or personel.rol == Rol.PERSONEL:
-        return redirect('ana_sayfa')
-
-    is_gm = personel.rol == Rol.GENEL_MUDUR
-    is_yon = personel.rol in UST_YONETIM
-    subeler = _yon_subeler(personel) if is_yon else []
-    sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
-
-    tarih_str = request.GET.get('mola_tarih')
-    try:
-        ref = datetime.datetime.strptime(tarih_str, '%Y-%m-%d').date()
-    except (TypeError, ValueError):
-        ref = timezone.localdate()
-
-    personeller = list(sel_sube.personeller.order_by('ad_soyad')) if sel_sube else []
-    molalar = (list(Mola.objects.filter(personel__in=personeller, tarih=ref, bitis_saati__isnull=False)
-                    .order_by('baslangic_saati')) if personeller else [])
-    gun_rapor = []
-    for p in personeller:
-        kayit = [m for m in molalar if m.personel_id == p.id]
-        toplam = sum(m.mola_suresi_dakika() for m in kayit)
-        gun_rapor.append({'personel': p, 'molalar': kayit, 'toplam': toplam,
-                          'asildi': toplam > MOLA_LIMIT_UYARI_DK})
-    return render(request, 'mola.html', {
-        'personel': personel, 'aktif': 'mola', 'is_gm': is_gm, 'is_yon': is_yon,
-        'subeler': subeler, 'sel_sube': sel_sube, 'gun_rapor': gun_rapor,
-        'secili_tarih': ref.strftime('%Y-%m-%d'), 'mola_limit': MOLA_LIMIT_UYARI_DK,
     })
 
 def _kullanici_adi_uret(ad):

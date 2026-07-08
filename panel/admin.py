@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import (Sube, Personel, Vardiya, Mola, Puantaj, KodKilit, Kalibrasyon, Irsaliye, StokUrun, StokSayim, StokSayimKalem, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket, KahveSoru, GunlukSoru, SoruAyar,
+from .models import (Sube, Personel, Vardiya, Puantaj, KodKilit, Kalibrasyon, Irsaliye, StokUrun, StokSayim, StokSayimKalem, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket, KahveSoru, GunlukSoru, SoruAyar,
                      MolaOturum, SubeMolaToken, MesaiKayit, SubeMesaiToken,
                      MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi)
 
@@ -31,12 +31,6 @@ class VardiyaAdmin(admin.ModelAdmin):
     list_filter = ('durum', 'vardiya_tipi', 'tarih')
     search_fields = ('personel__ad_soyad',)
     date_hierarchy = 'tarih'
-
-@admin.register(Mola)
-class MolaAdmin(admin.ModelAdmin):
-    list_display = ('personel', 'tarih', 'mola_tipi', 'baslangic_saati', 'bitis_saati')
-    list_filter = ('tarih',)
-    search_fields = ('personel__ad_soyad',)
 
 @admin.register(MolaOturum)
 class MolaOturumAdmin(admin.ModelAdmin):

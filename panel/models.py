@@ -124,29 +124,6 @@ class Vardiya(models.Model):
     def __str__(self):
         return f"{self.personel.ad_soyad} - {self.tarih} - {self.vardiya_tipi} ({self.durum})"
 
-class Mola(models.Model):
-    personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='molalar')
-    tarih = models.DateField(verbose_name="Mola Tarihi", blank=True, null=True)
-    mola_tipi = models.CharField(max_length=20, default='1. Mola', verbose_name="Mola Tipi")
-    baslangic_saati = models.TimeField(blank=True, null=True, verbose_name="Başlangıç Saati")
-    bitis_saati = models.TimeField(blank=True, null=True, verbose_name="Bitiş Saati")
-
-    class Meta:
-        verbose_name = "Mola"; verbose_name_plural = "Molalar"; ordering = ['-tarih', '-baslangic_saati']
-
-    def mola_suresi_dakika(self):
-        if self.baslangic_saati and self.bitis_saati:
-            t1 = self.baslangic_saati.hour * 60 + self.baslangic_saati.minute
-            t2 = self.bitis_saati.hour * 60 + self.bitis_saati.minute
-            diff = t2 - t1
-            if diff < 0:
-                diff += 1440
-            return diff
-        return 0
-
-    def __str__(self):
-        return f"{self.personel.ad_soyad} - {self.baslangic_saati}"
-
 class Puantaj(models.Model):
     personel = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True, related_name='puantajlar')
     personel_ad_soyad_arsiv = models.CharField(max_length=160, blank=True, default='', verbose_name="Personel (arşiv)")

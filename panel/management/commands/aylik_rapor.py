@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.core.mail import EmailMessage
 
-from panel.models import (Sube, Personel, Vardiya, Mola, SevkiyatTalep,
+from panel.models import (Sube, Personel, Vardiya, MolaOturum, SevkiyatTalep,
                           StokSayim, VardiyaTipi, Rol)
 
 CALISMA = [VardiyaTipi.SABAHCI, VardiyaTipi.ARACI, VardiyaTipi.AKSAMCI]
@@ -51,9 +51,13 @@ class Command(BaseCommand):
                 iz = vq.filter(vardiya_tipi=VardiyaTipi.IZINLI).count()
                 rp = vq.filter(vardiya_tipi=VardiyaTipi.RAPORLU).count()
                 dv = vq.filter(vardiya_tipi=VardiyaTipi.DEVAMSIZ).count()
-                molalar = list(Mola.objects.filter(personel=p, tarih__gte=ilk, tarih__lt=son))
+                molalar = list(MolaOturum.objects.filter(
+                    personel=p, baslangic__date__gte=ilk, baslangic__date__lt=son, bitis__isnull=False))
                 ms = len(molalar)
-                md = sum(m.mola_suresi_dakika() for m in molalar)
+                md = sum(
+                    (m.kullanilan_dk if m.kullanilan_dk is not None
+                     else max(0, int((m.bitis - m.baslangic).total_seconds() // 60)))
+                    for m in molalar)
                 p_rows.append({'ad': p.ad_soyad, 'calisan': cg, 'izin': iz, 'rapor': rp,
                                'devamsiz': dv, 'mola_say': ms, 'mola_dk': md})
                 tc += cg; ti += iz; tr += rp; td += dv; tms += ms; tmd += md

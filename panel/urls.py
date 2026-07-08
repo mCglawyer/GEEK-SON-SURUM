@@ -7,7 +7,6 @@ urlpatterns = [
     path('icons/<str:ad>', views.pwa_icon, name='pwa_icon'),
     path('', views.ana_sayfa, name='ana_sayfa'),
     path('puantaj/', views.puantaj_sayfa, name='puantaj'),
-    path('mola/', views.mola_sayfa, name='mola'),
     path('ozet/', views.gosterge, name='gosterge'),
     path('yedekler/', views.yedekler, name='yedekler'),
     path('bildirimler/', views.bildirimler, name='bildirimler'),
