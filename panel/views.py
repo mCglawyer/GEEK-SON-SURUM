@@ -379,7 +379,7 @@ def _sef_home(request, personel):
     ctx.update(tablo)
     return render(request, 'sef_panel.html', ctx)
 
-def _vardiya_kaydet(request, sube):
+def _vardiya_kaydet(request, sube, durum=OnayDurumu.TASLAK):
     pid = request.POST.get('target_personel_id')
     tarih_str = request.POST.get('vardiya_tarihi', '')
     tip = request.POST.get('vardiya_tipi', '')
@@ -397,7 +397,7 @@ def _vardiya_kaydet(request, sube):
     elif tip in VardiyaTipi.values:
         Vardiya.objects.update_or_create(
             personel=hedef, tarih=t,
-            defaults={'vardiya_tipi': tip, 'durum': OnayDurumu.TASLAK, 'red_notu': None})
+            defaults={'vardiya_tipi': tip, 'durum': durum, 'red_notu': None})
 
 def vardiya_home(request):
     if not request.user.is_authenticated:
@@ -422,7 +422,7 @@ def _yonetici_vardiya(request, personel):
     if request.method == 'POST' and sel_sube:
         islem = request.POST.get('islem')
         if islem == 'vardiya_kaydet':
-            _vardiya_kaydet(request, sel_sube)
+            _vardiya_kaydet(request, sel_sube, durum=OnayDurumu.ONAYLANDI)
         elif islem == 'plan_onayla':
             Vardiya.objects.filter(personel__sube=sel_sube, tarih__range=[start, end],
                                    durum=OnayDurumu.ONAY_BEKLIYOR).update(durum=OnayDurumu.ONAYLANDI, red_notu=None)
