@@ -68,15 +68,32 @@
   var aciklama = document.getElementById('aciklama');
   var form = document.getElementById('irs-form');
   var stream = null;
-  function hataGoster(msg) { hata.hidden = false; hata.textContent = msg; btn.disabled = true; }
+  function hataGoster(msg) {
+    hata.hidden = false;
+    hata.innerHTML = '';
+    var p = document.createElement('p');
+    p.textContent = msg;
+    p.style.margin = '0 0 .6rem';
+    hata.appendChild(p);
+    var tekrarBtn = document.createElement('button');
+    tekrarBtn.type = 'button';
+    tekrarBtn.className = 'btn btn-ghost btn-mini';
+    tekrarBtn.textContent = '🔄 Tekrar Dene';
+    tekrarBtn.addEventListener('click', function () {
+      hata.hidden = true; hata.innerHTML = ''; btn.disabled = false;
+      kamerayiBaslat();
+    });
+    hata.appendChild(tekrarBtn);
+    btn.disabled = true;
+  }
   function kameraHatasiIsle(err) {
     var ad = err && err.name;
     if (ad === 'NotAllowedError' || ad === 'PermissionDeniedError') {
-      hataGoster('Kamera izni reddedildi. Tarayıcı/site ayarlarından bu siteye kamera izni verip sayfayı yenileyin.');
+      hataGoster('Kamera izni reddedildi. Tarayıcı/site ayarlarından bu siteye kamera izni verip tekrar deneyin.');
     } else if (ad === 'NotFoundError' || ad === 'DevicesNotFoundError') {
       hataGoster('Cihazda kullanılabilir kamera bulunamadı.');
     } else if (ad === 'NotReadableError' || ad === 'TrackStartError') {
-      hataGoster('Kamera başka bir uygulama tarafından kullanılıyor olabilir. Diğer uygulamaları kapatıp tekrar deneyin.');
+      hataGoster('Kamera başka bir uygulama ya da bu sitenin açık kalmış başka bir sekmesi tarafından kullanılıyor olabilir. Diğer sekmeleri/uygulamaları kapatıp "Tekrar Dene"ye basın; olmazsa tarayıcıyı tamamen kapatıp yeniden açın.');
     } else if (ad === 'OverconstrainedError') {
       navigator.mediaDevices.getUserMedia({ video: true, audio: false })
         .then(function (s) { stream = s; video.srcObject = s; })
@@ -85,15 +102,19 @@
       hataGoster('Kameraya erişilemedi. Tarayıcı izinlerini kontrol edip tekrar deneyin.');
     }
   }
-  if (!window.isSecureContext) {
-    hataGoster('Bu sayfa güvenli (https://) bağlantı ile açılmalı. Adres çubuğunda https:// olduğundan emin olun.'); return;
+  function kamerayiBaslat() {
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    if (!window.isSecureContext) {
+      hataGoster('Bu sayfa güvenli (https://) bağlantı ile açılmalı. Adres çubuğunda https:// olduğundan emin olun.'); return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      hataGoster('Bu cihaz/tarayıcı canlı kamerayı desteklemiyor.'); return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      .then(function (s) { stream = s; video.srcObject = s; })
+      .catch(kameraHatasiIsle);
   }
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    hataGoster('Bu cihaz/tarayıcı canlı kamerayı desteklemiyor.'); return;
-  }
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
-    .then(function (s) { stream = s; video.srcObject = s; })
-    .catch(kameraHatasiIsle);
+  kamerayiBaslat();
   btn.addEventListener('click', function () {
     if (!aciklama.value.trim()) { alert('Lütfen önce açıklama yazın.'); aciklama.focus(); return; }
     if (!stream || !video.videoWidth) { return; }

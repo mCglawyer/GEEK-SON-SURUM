@@ -112,7 +112,7 @@
       var ad = err && err.name;
       if (ad === 'NotAllowedError' || ad === 'SecurityError' || ad === 'PermissionDeniedError') mesaj('Kamera izni verilmedi. Tarayıcı ayarlarından bu siteye kamera iznini açıp tekrar dene.');
       else if (ad === 'NotFoundError' || ad === 'DevicesNotFoundError') mesaj('Cihazda kullanılabilir kamera bulunamadı.');
-      else if (ad === 'NotReadableError' || ad === 'TrackStartError') mesaj('Kamera başka bir uygulama/sekme tarafından kullanılıyor olabilir. Diğer kamera kullanan uygulamaları/sekmeleri kapatıp tekrar dene.');
+      else if (ad === 'NotReadableError' || ad === 'TrackStartError') mesaj('Kamera başka bir uygulama ya da bu sitenin açık kalmış başka bir sekmesi tarafından kullanılıyor olabilir. Kapatıp \u2018Kamerayı Aç\u2019a tekrar bas; olmazsa tarayıcıyı tamamen kapatıp yeniden aç.');
       else if (ad === 'OverconstrainedError') {
         navigator.mediaDevices.getUserMedia({ video: true }).then(function (s) {
           akis = s; bitti = false; video.srcObject = s; video.setAttribute('playsinline', true);
