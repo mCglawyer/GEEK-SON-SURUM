@@ -24,6 +24,14 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         dry_run = options['dry_run']
+        try:
+            import fitz  # noqa: F401
+        except ImportError:
+            self.stdout.write(self.style.ERROR(
+                "PyMuPDF (fitz) kurulu değil, bu yüzden hiçbir dosya sıkıştırılamadı.\n"
+                "Şunu çalıştırıp tekrar dene: pip install -r requirements.txt"))
+            return
+
         pdfler = [d for d in EgitimDokuman.objects.all() if (d.dosya.name or '').lower().endswith('.pdf')]
         if not pdfler:
             self.stdout.write("Sıkıştırılacak PDF dokümanı bulunamadı.")

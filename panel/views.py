@@ -3711,10 +3711,13 @@ def g_sosyal(request):
 
 def _pdf_sikistir(pdf_bytes, max_kenar=1600, jpeg_kalite=55):
     """
-    PDF içindeki büyük gömülü görselleri (telefonla taranmış reçete/oryantasyon
-    belgelerinde sık görülür) küçültüp yeniden JPEG olarak sıkıştırır. Metin/vektör
-    içerik olduğu gibi kalır. PyMuPDF kurulu değilse veya herhangi bir sorun olursa
-    orijinal bytes olduğu gibi döner — yükleme asla bu yüzden başarısız olmaz.
+    PDF içindeki gömülü görselleri (telefonla taranmış reçete/oryantasyon belgelerinde
+    sık görülür) yeniden JPEG olarak sıkıştırır. Piksel boyutu zaten küçük olsa bile
+    yüksek kalitede (düşük sıkıştırma oranıyla) kaydedilmiş görseller de hedef kalitede
+    yeniden kodlanır — asıl büyüklük genelde çözünürlükten değil, orijinal tarama
+    uygulamasının kullandığı yüksek JPEG kalitesinden kaynaklanır. Metin/vektör içerik
+    olduğu gibi kalır. PyMuPDF kurulu değilse veya herhangi bir sorun olursa orijinal
+    bytes olduğu gibi döner — yükleme asla bu yüzden başarısız olmaz.
     """
     try:
         import fitz
@@ -3730,15 +3733,16 @@ def _pdf_sikistir(pdf_bytes, max_kenar=1600, jpeg_kalite=55):
                     pix = fitz.Pixmap(doc, xref)
                     if pix.colorspace and pix.colorspace.n > 3:
                         pix = fitz.Pixmap(fitz.csRGB, pix)
-                    if pix.width <= max_kenar and pix.height <= max_kenar:
-                        continue
-                    oran = max_kenar / max(pix.width, pix.height)
-                    yeni_genislik = max(1, int(pix.width * oran))
-                    yeni_yukseklik = max(1, int(pix.height * oran))
-                    kucuk = fitz.Pixmap(pix, yeni_genislik, yeni_yukseklik)
-                    jpeg_bytes = kucuk.tobytes('jpg', jpg_quality=jpeg_kalite)
-                    page.replace_image(xref, stream=jpeg_bytes)
-                    degisti = True
+                    if pix.alpha:
+                        pix = fitz.Pixmap(pix, 0)
+                    if pix.width > max_kenar or pix.height > max_kenar:
+                        oran = max_kenar / max(pix.width, pix.height)
+                        pix = fitz.Pixmap(pix, max(1, int(pix.width * oran)), max(1, int(pix.height * oran)))
+                    onceki_bytes = doc.xref_stream(xref)
+                    jpeg_bytes = pix.tobytes('jpg', jpg_quality=jpeg_kalite)
+                    if onceki_bytes is None or len(jpeg_bytes) < len(onceki_bytes):
+                        page.replace_image(xref, stream=jpeg_bytes)
+                        degisti = True
                 except Exception:
                     continue
         if not degisti:
