@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Açık Uçlu Cevaplar · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head">
+    <div><h2>Açık Uçlu Cevaplar</h2><span class="plan-aralik">yazılı sınav sorularını puanla</span></div>
+    <a href="{% url 'egitim_yonetim' %}" class="btn btn-ghost btn-mini">← Eğitim Yönetimi</a>
+  </div>
+
+  <div class="card">
+    <h3 class="egitim-bolum">Değerlendirme Bekleyenler {% if gruplar %}<span class="ea-not">({{ gruplar|length }} kişi)</span>{% endif %}</h3>
+    {% for g in gruplar %}
+    <div class="egitim-soru-item" style="margin-bottom:1rem">
+      <div class="esi-ust"><b>{{ g.kisi.ad_soyad }}</b> <span class="egitim-sube-etiket">{{ g.kisi.sube.ad|default:"—" }}</span></div>
+      {% for c in g.cevaplar %}
+      <div class="acik-cevap-satir">
+        <p class="acik-soru-metin"><b>Soru:</b> {{ c.soru.metin }}</p>
+        <p class="acik-cevap-metin"><b>Cevap:</b> {{ c.cevap_metni|default:"(boş bırakılmış)" }}</p>
+        <form method="post" class="acik-puanla-form">
+          {% csrf_token %}<input type="hidden" name="cevap_id" value="{{ c.id }}">
+          <input class="input" type="text" name="not" placeholder="Not (isteğe bağlı)" style="max-width:220px">
+          <button type="submit" name="sonuc" value="dogru" class="btn btn-primary btn-mini">✓ Doğru</button>
+          <button type="submit" name="sonuc" value="yanlis" class="btn btn-danger btn-mini">✕ Yanlış</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% empty %}
+    <p class="egitim-bos">Bekleyen cevap yok — herkes güncel.</p>
+    {% endfor %}
+  </div>
+
+  {% if gecmis %}
+  <div class="card">
+    <h3 class="egitim-bolum">Son Puanlananlar</h3>
+    <div class="egitim-soru-liste">
+      {% for c in gecmis %}
+      <div class="egitim-soru-item">
+        <div class="esi-ust"><b>{{ c.personel.ad_soyad|default:"—" }}</b>
+          {% if c.dogru_mu %}<span class="badge ok">Doğru</span>{% else %}<span class="badge no">Yanlış</span>{% endif %}
+          <span class="ea-not">puanlayan: {{ c.puanlayan.ad_soyad|default:"—" }}</span>
+        </div>
+        <div class="esi-siklar">{{ c.soru.metin }}</div>
+        <div class="esi-siklar">Cevap: {{ c.cevap_metni|default:"(boş)" }}{% if c.puanlama_notu %} · Not: {{ c.puanlama_notu }}{% endif %}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

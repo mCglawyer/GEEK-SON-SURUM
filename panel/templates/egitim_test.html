@@ -31,10 +31,15 @@
       {% for s in sorular %}
       <div class="test-soru" data-i="{{ forloop.counter0 }}"{% if not forloop.first %} hidden{% endif %}>
         <div class="test-metin">{{ forloop.counter }}. {{ s.metin }}</div>
+        {% if s.tur == 'acik_uclu' %}
+        <textarea name="soru_{{ s.id }}" class="test-acik-metin" rows="4" placeholder="Cevabını buraya yaz…"></textarea>
+        <p class="test-acik-not">Bu soru yazılı cevap gerektirir; eğitmen/operatör okuyup değerlendirecek.</p>
+        {% else %}
         <label class="test-sik"><input type="radio" name="soru_{{ s.id }}" value="A"><span>{{ s.sik_a }}</span></label>
         <label class="test-sik"><input type="radio" name="soru_{{ s.id }}" value="B"><span>{{ s.sik_b }}</span></label>
         {% if s.sik_c %}<label class="test-sik"><input type="radio" name="soru_{{ s.id }}" value="C"><span>{{ s.sik_c }}</span></label>{% endif %}
         {% if s.sik_d %}<label class="test-sik"><input type="radio" name="soru_{{ s.id }}" value="D"><span>{{ s.sik_d }}</span></label>{% endif %}
+        {% endif %}
         <button type="button" class="btn btn-primary btn-mini test-ileri">{% if forloop.last %}Bitir{% else %}Sonraki{% endif %}</button>
       </div>
       {% endfor %}

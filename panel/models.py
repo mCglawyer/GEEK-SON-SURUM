@@ -492,13 +492,15 @@ class EgitimDokuman(models.Model):
 
 class EgitimSoru(models.Model):
     KATEGORI = [('RECETE', 'Reçete'), ('ORYANTASYON', 'Oryantasyon')]
+    TUR = [('coktan_secmeli', 'Çoktan Seçmeli'), ('acik_uclu', 'Açık Uçlu (Yazılı Cevap)')]
     kategori = models.CharField(max_length=20, choices=KATEGORI, default='RECETE')
+    tur = models.CharField(max_length=20, choices=TUR, default='coktan_secmeli', verbose_name="Soru Türü")
     metin = models.TextField(default='')
-    sik_a = models.CharField(max_length=300, default='')
-    sik_b = models.CharField(max_length=300, default='')
+    sik_a = models.CharField(max_length=300, default='', blank=True)
+    sik_b = models.CharField(max_length=300, default='', blank=True)
     sik_c = models.CharField(max_length=300, default='', blank=True)
     sik_d = models.CharField(max_length=300, default='', blank=True)
-    dogru = models.CharField(max_length=1, default='A')
+    dogru = models.CharField(max_length=1, default='A', blank=True)
     sube = models.ForeignKey(Sube, null=True, blank=True, on_delete=models.SET_NULL,
                              related_name='egitim_sorulari', verbose_name="Şube (boş=tüm şubeler)")
     aktif = models.BooleanField(default=True)
@@ -512,6 +514,7 @@ class EgitimDurum(models.Model):
     personel = models.OneToOneField(Personel, on_delete=models.CASCADE, related_name='egitim_durum')
     tamamlandi = models.BooleanField(default=False)
     gecti = models.BooleanField(default=False)
+    inceleme_bekliyor = models.BooleanField(default=False, verbose_name="Yazılı sorular inceleme bekliyor")
     son_puan = models.IntegerField(default=0)
     deneme = models.IntegerField(default=0)
     son_sorular = models.TextField(default='', blank=True)
@@ -520,9 +523,33 @@ class EgitimDurum(models.Model):
     tarih = models.DateTimeField(auto_now=True)
 
 
+class EgitimAcikCevap(models.Model):
+    """Açık uçlu (yazılı) sorulara verilen cevaplar ve eğitmen/operatör puanlaması."""
+    personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='egitim_acik_cevaplari')
+    soru = models.ForeignKey(EgitimSoru, on_delete=models.CASCADE, related_name='+')
+    deneme_no = models.IntegerField(default=1)
+    cevap_metni = models.TextField(default='', blank=True)
+    puanlandi = models.BooleanField(default=False)
+    dogru_mu = models.BooleanField(null=True, blank=True)
+    puanlayan = models.ForeignKey(Personel, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    puanlama_notu = models.CharField(max_length=300, default='', blank=True)
+    olusturma = models.DateTimeField(auto_now_add=True)
+    puanlama_tarihi = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-olusturma']
+        verbose_name = "Açık Uçlu Cevap"; verbose_name_plural = "Açık Uçlu Cevaplar"
+
+    def __str__(self):
+        return f"{self.personel.ad_soyad} - {self.soru_id} (deneme {self.deneme_no})"
+
+
 class EgitimAyar(models.Model):
     acik = models.BooleanField(default=False)
     acik_subeler = models.ManyToManyField(Sube, blank=True, related_name='egitim_acik')
+    soru_sayisi = models.PositiveIntegerField(default=10, verbose_name="Soru Sayısı")
+    sure_sn = models.PositiveIntegerField(default=20, verbose_name="Soru Başına Süre (sn)")
+    gecme_puan = models.PositiveIntegerField(default=6, verbose_name="Geçme İçin Gereken Doğru Sayısı")
     guncelleme = models.DateTimeField(auto_now=True)
 
 

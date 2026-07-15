@@ -28,7 +28,7 @@ from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Ir
                      SevkiyatForm, Urun, SiparisHareket,
                      KahveSoru, GunlukSoru, SoruAyar, Bildirim, Duyuru,
                      GSosyalGonderi, GSosyalTepki,
-                     EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, PushAbonelik,
+                     EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap, PushAbonelik,
                      MolaQRAyar, SubeMolaToken, MolaOturum,
                      SubeMesaiToken, MesaiKayit, DogumGunuKutlama,
                      MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi, MaliyetBirim,
@@ -3709,13 +3709,76 @@ def g_sosyal(request):
     })
 
 
-EGITIM_SORU_SAYISI = 10
-EGITIM_GECME = 6
-EGITIM_SURE = 20
+def _pdf_sikistir(pdf_bytes, max_kenar=1600, jpeg_kalite=55):
+    """
+    PDF içindeki büyük gömülü görselleri (telefonla taranmış reçete/oryantasyon
+    belgelerinde sık görülür) küçültüp yeniden JPEG olarak sıkıştırır. Metin/vektör
+    içerik olduğu gibi kalır. PyMuPDF kurulu değilse veya herhangi bir sorun olursa
+    orijinal bytes olduğu gibi döner — yükleme asla bu yüzden başarısız olmaz.
+    """
+    try:
+        import fitz
+    except ImportError:
+        return pdf_bytes
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype='pdf')
+        degisti = False
+        for page in doc:
+            for img in page.get_images(full=True):
+                xref = img[0]
+                try:
+                    pix = fitz.Pixmap(doc, xref)
+                    if pix.colorspace and pix.colorspace.n > 3:
+                        pix = fitz.Pixmap(fitz.csRGB, pix)
+                    if pix.width <= max_kenar and pix.height <= max_kenar:
+                        continue
+                    oran = max_kenar / max(pix.width, pix.height)
+                    yeni_genislik = max(1, int(pix.width * oran))
+                    yeni_yukseklik = max(1, int(pix.height * oran))
+                    kucuk = fitz.Pixmap(pix, yeni_genislik, yeni_yukseklik)
+                    jpeg_bytes = kucuk.tobytes('jpg', jpg_quality=jpeg_kalite)
+                    page.replace_image(xref, stream=jpeg_bytes)
+                    degisti = True
+                except Exception:
+                    continue
+        if not degisti:
+            doc.close()
+            return pdf_bytes
+        cikti = doc.tobytes(garbage=4, deflate=True)
+        doc.close()
+        return cikti if len(cikti) < len(pdf_bytes) else pdf_bytes
+    except Exception:
+        return pdf_bytes
+
+
+EGITIM_SORU_SAYISI_VARSAYILAN = 10
+EGITIM_GECME_VARSAYILAN = 6
+EGITIM_SURE_VARSAYILAN = 20
 EGITIM_HEDEF_ROLLER = [Rol.PERSONEL, Rol.SEF]
 EGITIM_GORUNTULE_ROLLER = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.EGITMEN]
 EGITIM_DUZENLE_ROLLER = [Rol.EGITMEN, Rol.MUDUR]
 EGITIM_ACMA_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.MUDUR]
+# Soru sayısı/süre/geçme puanını ayarlayabilecek roller (Eğitmen + Operatör).
+EGITIM_AYAR_ROLLER = [Rol.EGITMEN, Rol.OPERATOR]
+# Açık uçlu (yazılı) cevapları görüp puanlayabilecek roller.
+EGITIM_ACIK_PUANLA_ROLLER = [Rol.EGITMEN, Rol.OPERATOR]
+
+
+def _egitim_ayar_getir():
+    """Tek satırlık EgitimAyar kaydını (yoksa varsayılan değerlerle) döner."""
+    ayar, _ = EgitimAyar.objects.get_or_create(id=1, defaults={
+        'soru_sayisi': EGITIM_SORU_SAYISI_VARSAYILAN,
+        'sure_sn': EGITIM_SURE_VARSAYILAN,
+        'gecme_puan': EGITIM_GECME_VARSAYILAN,
+    })
+    # Eskiden oluşturulmuş kayıtlarda bu alanlar 0/boş kalmışsa (ilk migration) güvenli tarafta kal.
+    if not ayar.soru_sayisi:
+        ayar.soru_sayisi = EGITIM_SORU_SAYISI_VARSAYILAN
+    if not ayar.sure_sn:
+        ayar.sure_sn = EGITIM_SURE_VARSAYILAN
+    if not ayar.gecme_puan:
+        ayar.gecme_puan = EGITIM_GECME_VARSAYILAN
+    return ayar
 
 
 def _egitim_acik(sube=None):
@@ -3749,14 +3812,19 @@ def _egitim_durum(personel):
     return d
 
 
-EGITIM_SAMPIYON_ESIK = 8
+def _egitim_sampiyon_esik(soru_sayisi):
+    """Bireysel 'şampiyon' sayılmak için gereken doğru sayısı: soru sayısının ~%80'i (en az 1)."""
+    return max(1, round(soru_sayisi * 0.8))
 
 
 def _egitim_sampiyon_verisi():
-    """8+ doğru yapan eğitim şampiyonları ve tamamlama oranı en yüksek şampiyon şube."""
+    """Şampiyonlar: soru sayısının ~%80'i veya üzerini yapanlar. Şampiyon şube: DOĞRU CEVAP ORANI
+    (denenen sınavlardaki ortalama doğru/soru sayısı) en yüksek olan şube — tamamlama oranı değil."""
+    ayar = _egitim_ayar_getir()
+    esik = _egitim_sampiyon_esik(ayar.soru_sayisi)
     sampiyonlar = []
     try:
-        durumlar = list(EgitimDurum.objects.filter(son_puan__gte=EGITIM_SAMPIYON_ESIK)
+        durumlar = list(EgitimDurum.objects.filter(son_puan__gte=esik)
                         .select_related('personel', 'personel__sube'))
         for d in durumlar:
             p = d.personel
@@ -3774,11 +3842,14 @@ def _egitim_sampiyon_verisi():
             toplam = hedef.count()
             if not toplam:
                 continue
-            tamam = EgitimDurum.objects.filter(personel__in=hedef, tamamlandi=True).count()
-            oran = tamam / toplam
-            if (sampiyon_sube is None or oran > sampiyon_sube['oran']
-                    or (oran == sampiyon_sube['oran'] and tamam > sampiyon_sube['tamam'])):
-                sampiyon_sube = {'ad': s.ad, 'oran': round(oran * 100), 'tamam': tamam, 'toplam': toplam}
+            denemis = list(EgitimDurum.objects.filter(personel__in=hedef, deneme__gt=0))
+            if not denemis:
+                continue
+            tamam = sum(1 for d in denemis if d.tamamlandi)
+            ort_dogru_orani = sum(d.son_puan for d in denemis) / (len(denemis) * ayar.soru_sayisi)
+            if (sampiyon_sube is None or ort_dogru_orani > sampiyon_sube['oran'] / 100
+                    or (round(ort_dogru_orani * 100) == sampiyon_sube['oran'] and tamam > sampiyon_sube['tamam'])):
+                sampiyon_sube = {'ad': s.ad, 'oran': round(ort_dogru_orani * 100), 'tamam': tamam, 'toplam': toplam}
     except Exception:
         sampiyon_sube = None
     return sampiyonlar, sampiyon_sube
@@ -3792,16 +3863,17 @@ def egitim(request):
     personel = _aktif_personel(request)
     if personel is None:
         return redirect('ana_sayfa')
+    ayar = _egitim_ayar_getir()
     acik = _egitim_acik(personel.sube)
     hedef = personel.rol in EGITIM_HEDEF_ROLLER
     yonetebilir = personel.rol in EGITIM_GORUNTULE_ROLLER
     durum = _egitim_durum(personel) if hedef else None
     if hedef:
         dok_qs = EgitimDokuman.objects.filter(aktif=True).filter(Q(sube__isnull=True) | Q(sube=personel.sube))
-        soru_var = len(_egitim_soru_havuzu(personel)) >= EGITIM_SORU_SAYISI
+        soru_var = len(_egitim_soru_havuzu(personel)) >= ayar.soru_sayisi
     else:
         dok_qs = EgitimDokuman.objects.filter(aktif=True)
-        soru_var = EgitimSoru.objects.filter(aktif=True).count() >= EGITIM_SORU_SAYISI
+        soru_var = EgitimSoru.objects.filter(aktif=True).count() >= ayar.soru_sayisi
     return render(request, 'egitim.html', {
         'personel': personel,
         'aktif': 'egitim',
@@ -3811,8 +3883,8 @@ def egitim(request):
         'yonetebilir': yonetebilir,
         'soru_var': soru_var,
         'acik': acik,
-        'gecme': EGITIM_GECME,
-        'soru_sayisi': EGITIM_SORU_SAYISI,
+        'gecme': ayar.gecme_puan,
+        'soru_sayisi': ayar.soru_sayisi,
     })
 
 
@@ -3829,6 +3901,10 @@ def egitim_test(request):
     durum = _egitim_durum(personel)
     if durum.tamamlandi:
         return redirect('egitim')
+    if durum.inceleme_bekliyor:
+        messages.info(request, "Önceki sınavının yazılı soruları hâlâ inceleniyor. Sonuç çıkınca tekrar deneyebilirsin.")
+        return redirect('egitim')
+    ayar = _egitim_ayar_getir()
 
     if request.method == 'POST':
         ids = [x for x in (request.POST.get('sorular', '') or '').split(',') if x.isdigit()]
@@ -3838,37 +3914,61 @@ def egitim_test(request):
         durum.son_cevaplar = json.dumps({str(s.id): request.POST.get('soru_%d' % s.id, '') for s in sorular})
         if request.POST.get('cikis') == '1':
             durum.gecti = False
+            durum.inceleme_bekliyor = False
             durum.son_puan = 0
             durum.save()
             messages.error(request, "Sınav sırasında uygulamadan ayrıldın — sınav başarısız sayıldı. Farklı sorularla tekrar dene.")
             return redirect('egitim')
-        dogru_sayi = sum(1 for s in sorular if request.POST.get('soru_%d' % s.id, '') == s.dogru)
+
+        coktan_secmeli = [s for s in sorular if s.tur == 'coktan_secmeli']
+        acik_uclu = [s for s in sorular if s.tur == 'acik_uclu']
+        dogru_sayi = sum(1 for s in coktan_secmeli if request.POST.get('soru_%d' % s.id, '') == s.dogru)
         durum.son_puan = dogru_sayi
-        if dogru_sayi >= EGITIM_GECME:
+
+        if acik_uclu:
+            # Yazılı sorular var — eğitmen/operatör okuyup puanlayana kadar sonuç kesinleşmez.
+            for s in acik_uclu:
+                cevap_metni = (request.POST.get('soru_%d' % s.id, '') or '').strip()
+                EgitimAcikCevap.objects.create(personel=personel, soru=s, deneme_no=durum.deneme,
+                                               cevap_metni=cevap_metni[:4000])
+            durum.gecti = False
+            durum.inceleme_bekliyor = True
+            durum.save()
+            _bildir(_rol_personelleri(*EGITIM_ACIK_PUANLA_ROLLER),
+                    "%s eğitim sınavını tamamladı, yazılı sorular inceleme bekliyor." % personel.ad_soyad,
+                    '/egitim/acik-cevaplar/', 'egitim_acik')
+            messages.info(request, "Çoktan seçmeli kısmı değerlendirildi (%d/%d doğru). Yazılı soruların "
+                                    "eğitmen/operatör tarafından okunmasının ardından sonucun kesinleşecek."
+                                    % (dogru_sayi, len(coktan_secmeli)))
+            return redirect('egitim')
+
+        durum.inceleme_bekliyor = False
+        if dogru_sayi >= ayar.gecme_puan:
             durum.gecti = True
             durum.save()
             return redirect('egitim_sozlesme')
         durum.gecti = False
         durum.save()
-        messages.error(request, "%d/%d doğru — başarısız. Bilgileri tekrar oku, farklı sorularla yeniden dene." % (dogru_sayi, EGITIM_SORU_SAYISI))
+        messages.error(request, "%d/%d doğru — başarısız. Bilgileri tekrar oku, farklı sorularla yeniden dene."
+                       % (dogru_sayi, ayar.soru_sayisi))
         return redirect('egitim')
 
     havuz = _egitim_soru_havuzu(personel)
-    if len(havuz) < EGITIM_SORU_SAYISI:
+    if len(havuz) < ayar.soru_sayisi:
         messages.error(request, "Test için yeterli soru tanımlı değil.")
         return redirect('egitim')
     random.shuffle(havuz)
     onceki = set(x for x in (durum.son_sorular or '').split(',') if x.isdigit())
     yeni = [s for s in havuz if str(s.id) not in onceki]
     aday = yeni + [s for s in havuz if str(s.id) in onceki]
-    secili = aday[:EGITIM_SORU_SAYISI]
+    secili = aday[:ayar.soru_sayisi]
     random.shuffle(secili)
     return render(request, 'egitim_test.html', {
         'personel': personel,
         'sorular': secili,
-        'sure': EGITIM_SURE,
-        'soru_sayisi': EGITIM_SORU_SAYISI,
-        'gecme': EGITIM_GECME,
+        'sure': ayar.sure_sn,
+        'soru_sayisi': ayar.soru_sayisi,
+        'gecme': ayar.gecme_puan,
         'id_listesi': ','.join(str(s.id) for s in secili),
     })
 
@@ -3897,7 +3997,7 @@ def egitim_sozlesme(request):
     return render(request, 'egitim_sozlesme.html', {
         'personel': personel,
         'puan': durum.son_puan,
-        'soru_sayisi': EGITIM_SORU_SAYISI,
+        'soru_sayisi': _egitim_ayar_getir().soru_sayisi,
     })
 
 
@@ -3911,6 +4011,7 @@ def egitim_yonetim(request):
         return redirect('egitim')
     duzenleyebilir = personel.rol in EGITIM_DUZENLE_ROLLER
     acabilir = personel.rol in EGITIM_ACMA_ROLLER
+    ayar_duzenleyebilir = personel.rol in EGITIM_AYAR_ROLLER
 
     if request.method == 'POST' and acabilir and request.POST.get('islem') in ('sistem_ac', 'sistem_kapat', 'sube_ac', 'sube_kapat'):
         ayar, _ = EgitimAyar.objects.get_or_create(id=1)
@@ -3938,6 +4039,29 @@ def egitim_yonetim(request):
                     messages.success(request, "%s şubesi için eğitim kapatıldı." % sb.ad)
         return redirect('egitim_yonetim')
 
+    if request.method == 'POST' and ayar_duzenleyebilir and request.POST.get('islem') == 'sinav_ayar_kaydet':
+        ayar = _egitim_ayar_getir()
+        try:
+            soru_sayisi = int(request.POST.get('soru_sayisi', ''))
+            sure_sn = int(request.POST.get('sure_sn', ''))
+            gecme_puan = int(request.POST.get('gecme_puan', ''))
+        except (TypeError, ValueError):
+            messages.error(request, "Geçerli sayılar girmelisin.")
+            return redirect('egitim_yonetim')
+        if not (1 <= soru_sayisi <= 100):
+            messages.error(request, "Soru sayısı 1-100 arasında olmalı.")
+        elif not (5 <= sure_sn <= 600):
+            messages.error(request, "Soru başına süre 5-600 saniye arasında olmalı.")
+        elif not (1 <= gecme_puan <= soru_sayisi):
+            messages.error(request, "Geçme puanı 1 ile soru sayısı arasında olmalı.")
+        else:
+            ayar.soru_sayisi = soru_sayisi
+            ayar.sure_sn = sure_sn
+            ayar.gecme_puan = gecme_puan
+            ayar.save()
+            messages.success(request, "Sınav ayarları güncellendi.")
+        return redirect('egitim_yonetim')
+
     if request.method == 'POST' and duzenleyebilir:
         islem = request.POST.get('islem')
         if islem == 'dokuman_ekle':
@@ -3949,8 +4073,23 @@ def egitim_yonetim(request):
                 sb = Sube.objects.filter(id=request.POST.get('sube_id')).first() if (request.POST.get('sube_id') or '').isdigit() else None
                 if sb and personel.rol == Rol.MUDUR and not personel.sorumlu_subeler.filter(id=sb.id).exists():
                     sb = None
-                EgitimDokuman.objects.create(kategori=kategori, baslik=baslik[:160], dosya=dosya, sube=sb)
-                messages.success(request, "Doküman eklendi.")
+                orijinal_boyut = dosya.size
+                if dosya.name.lower().endswith('.pdf'):
+                    try:
+                        sikisik = _pdf_sikistir(dosya.read())
+                        dosya = ContentFile(sikisik, name=dosya.name)
+                    except Exception:
+                        dosya.seek(0)
+                d = EgitimDokuman.objects.create(kategori=kategori, baslik=baslik[:160], dosya=dosya, sube=sb)
+                try:
+                    yeni_boyut = d.dosya.size
+                    if dosya.name.lower().endswith('.pdf') and yeni_boyut < orijinal_boyut:
+                        oran = round(100 - (yeni_boyut / orijinal_boyut * 100))
+                        messages.success(request, "Doküman eklendi (PDF %%%d küçültüldü)." % oran)
+                    else:
+                        messages.success(request, "Doküman eklendi.")
+                except Exception:
+                    messages.success(request, "Doküman eklendi.")
             else:
                 messages.error(request, "Başlık ve geçerli bir dosya (PDF/MP4/WEBM/MOV, en fazla 200MB) gerekli.")
             return redirect('egitim_yonetim')
@@ -3967,21 +4106,27 @@ def egitim_yonetim(request):
             return redirect('egitim_yonetim')
         if islem == 'soru_ekle':
             metin = (request.POST.get('metin') or '').strip()
+            tur = request.POST.get('tur') if request.POST.get('tur') in ('coktan_secmeli', 'acik_uclu') else 'coktan_secmeli'
             a = (request.POST.get('sik_a') or '').strip()
             b = (request.POST.get('sik_b') or '').strip()
             c = (request.POST.get('sik_c') or '').strip()
             d_ = (request.POST.get('sik_d') or '').strip()
             dogru = request.POST.get('dogru') if request.POST.get('dogru') in ('A', 'B', 'C', 'D') else 'A'
             kategori = request.POST.get('kategori') if request.POST.get('kategori') in ('RECETE', 'ORYANTASYON', 'ICECEK') else 'RECETE'
-            if metin and a and b:
+            gecerli = metin and (tur == 'acik_uclu' or (a and b))
+            if gecerli:
                 sb = Sube.objects.filter(id=request.POST.get('sube_id')).first() if (request.POST.get('sube_id') or '').isdigit() else None
                 if sb and personel.rol == Rol.MUDUR and not personel.sorumlu_subeler.filter(id=sb.id).exists():
                     sb = None
-                EgitimSoru.objects.create(kategori=kategori, metin=metin, sik_a=a[:300], sik_b=b[:300],
-                                          sik_c=c[:300], sik_d=d_[:300], dogru=dogru, sube=sb)
+                EgitimSoru.objects.create(kategori=kategori, tur=tur, metin=metin,
+                                          sik_a=(a[:300] if tur == 'coktan_secmeli' else ''),
+                                          sik_b=(b[:300] if tur == 'coktan_secmeli' else ''),
+                                          sik_c=(c[:300] if tur == 'coktan_secmeli' else ''),
+                                          sik_d=(d_[:300] if tur == 'coktan_secmeli' else ''),
+                                          dogru=(dogru if tur == 'coktan_secmeli' else ''), sube=sb)
                 messages.success(request, "Soru eklendi.")
             else:
-                messages.error(request, "Soru metni ve en az A/B şıkları gerekli.")
+                messages.error(request, "Soru metni gerekli (çoktan seçmeli için en az A/B şıkları da gerekli).")
             return redirect('egitim_yonetim')
         if islem == 'soru_sil':
             EgitimSoru.objects.filter(id=request.POST.get('id')).delete()
@@ -3999,6 +4144,7 @@ def egitim_yonetim(request):
     else:
         sube_secenek = list(Sube.objects.all().order_by('ad'))
     secili_sube = request.GET.get('sube') or ''
+    ayar = _egitim_ayar_getir()
 
     kisiler_qs = Personel.objects.filter(rol__in=EGITIM_HEDEF_ROLLER).select_related('sube')
     if personel.rol == Rol.MUDUR:
@@ -4013,7 +4159,7 @@ def egitim_yonetim(request):
         denedi = bool(d and d.deneme)
         k.denedi = denedi
         k.dogru = d.son_puan if denedi else None
-        k.yanlis = (EGITIM_SORU_SAYISI - d.son_puan) if denedi else None
+        k.yanlis = (ayar.soru_sayisi - d.son_puan) if denedi else None
         k.giris = d.deneme if d else 0
     tamamlayan = sum(1 for k in kisiler if k.durum_obj and k.durum_obj.tamamlandi)
 
@@ -4039,6 +4185,7 @@ def egitim_yonetim(request):
     for s in sube_secenek:
         s.acik_mi = (s.id in acik_sube_ids)
     sampiyonlar, sampiyon_sube = _egitim_sampiyon_verisi()
+    acik_cevap_bekleyen = EgitimAcikCevap.objects.filter(puanlandi=False).count()
     return render(request, 'egitim_yonetim.html', {
         'personel': personel,
         'aktif': 'egitim',
@@ -4052,15 +4199,20 @@ def egitim_yonetim(request):
         'secili_sube': secili_sube,
         'grafik': grafik,
         'deneme_max': deneme_max,
-        'gecme': EGITIM_GECME,
+        'gecme': ayar.gecme_puan,
+        'soru_sayisi': ayar.soru_sayisi,
+        'sure_sn': ayar.sure_sn,
         'duzenleyebilir': duzenleyebilir,
         'acabilir': acabilir,
+        'ayar_duzenleyebilir': ayar_duzenleyebilir,
         'egitim_acik': _egitim_acik(),
         'sistem_acik': sistem_acik,
         'acik_sube_ids': acik_sube_ids,
         'sampiyonlar': sampiyonlar,
         'sampiyon_sube': sampiyon_sube,
-        'sampiyon_esik': EGITIM_SAMPIYON_ESIK,
+        'sampiyon_esik': _egitim_sampiyon_esik(ayar.soru_sayisi),
+        'acik_cevap_bekleyen': acik_cevap_bekleyen,
+        'acik_puanlayabilir': personel.rol in EGITIM_ACIK_PUANLA_ROLLER,
     })
 
 
@@ -4080,6 +4232,10 @@ def egitim_kisi_detay(request, pid):
     durum = EgitimDurum.objects.filter(personel=kisi).first()
     cevap_var = bool(durum and durum.son_cevaplar and durum.son_sorular)
     detay = []
+    acik_cevap_map = {}
+    if cevap_var and durum.deneme:
+        acik_cevap_map = {ac.soru_id: ac for ac in
+                          EgitimAcikCevap.objects.filter(personel=kisi, deneme_no=durum.deneme)}
     if cevap_var:
         ids = [x for x in durum.son_sorular.split(',') if x.isdigit()]
         soru_map = {str(s.id): s for s in EgitimSoru.objects.filter(id__in=ids)}
@@ -4092,14 +4248,21 @@ def egitim_kisi_detay(request, pid):
             if not s:
                 continue
             verilen = cevaplar.get(sid, '')
+            if s.tur == 'acik_uclu':
+                ac = acik_cevap_map.get(s.id)
+                detay.append({'metin': s.metin, 'acik_uclu': True, 'verilen': verilen,
+                              'puanlandi': bool(ac and ac.puanlandi),
+                              'dogru_mu': (ac.dogru_mu if ac else None),
+                              'puanlama_notu': (ac.puanlama_notu if ac else '')})
+                continue
             siklar = [('A', s.sik_a), ('B', s.sik_b)]
             if s.sik_c:
                 siklar.append(('C', s.sik_c))
             if s.sik_d:
                 siklar.append(('D', s.sik_d))
-            detay.append({'metin': s.metin, 'siklar': siklar, 'dogru': s.dogru,
+            detay.append({'metin': s.metin, 'acik_uclu': False, 'siklar': siklar, 'dogru': s.dogru,
                           'verilen': verilen, 'dogru_mu': (verilen == s.dogru)})
-    yanlis_sayi = sum(1 for d in detay if not d['dogru_mu'])
+    yanlis_sayi = sum(1 for d in detay if not d.get('acik_uclu') and not d['dogru_mu'])
     return render(request, 'egitim_kisi_detay.html', {
         'personel': personel,
         'kisi': kisi,
@@ -4107,7 +4270,75 @@ def egitim_kisi_detay(request, pid):
         'detay': detay,
         'cevap_var': cevap_var,
         'yanlis_sayi': yanlis_sayi,
-        'soru_sayisi': EGITIM_SORU_SAYISI,
+        'soru_sayisi': _egitim_ayar_getir().soru_sayisi,
+    })
+
+
+def _egitim_acik_sonucu_kesinlestir(kisi):
+    """Bir kişinin güncel denemesindeki tüm açık uçlu cevaplar puanlandıysa sınav sonucunu kesinleştirir."""
+    durum = EgitimDurum.objects.filter(personel=kisi).first()
+    if durum is None or not durum.inceleme_bekliyor or not durum.deneme:
+        return
+    bu_deneme = EgitimAcikCevap.objects.filter(personel=kisi, deneme_no=durum.deneme)
+    if not bu_deneme.exists() or bu_deneme.filter(puanlandi=False).exists():
+        return  # hâlâ puanlanmamış cevap var, bekle
+    acik_dogru = bu_deneme.filter(dogru_mu=True).count()
+    ayar = _egitim_ayar_getir()
+    toplam_dogru = durum.son_puan + acik_dogru
+    durum.son_puan = toplam_dogru
+    durum.inceleme_bekliyor = False
+    if toplam_dogru >= ayar.gecme_puan:
+        durum.gecti = True
+        durum.save()
+        _bildir([kisi], "Eğitim sınavın değerlendirildi: %d/%d doğru — geçtin! Sözleşmeyi onaylamak için Eğitim sayfasına gir."
+                % (toplam_dogru, ayar.soru_sayisi), '/egitim/', 'egitim_sonuc')
+    else:
+        durum.gecti = False
+        durum.save()
+        _bildir([kisi], "Eğitim sınavın değerlendirildi: %d/%d doğru — başarısız. Farklı sorularla tekrar deneyebilirsin."
+                % (toplam_dogru, ayar.soru_sayisi), '/egitim/', 'egitim_sonuc')
+
+
+def egitim_acik_degerlendir(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in EGITIM_ACIK_PUANLA_ROLLER:
+        return redirect('egitim')
+
+    if request.method == 'POST':
+        cevap = EgitimAcikCevap.objects.filter(id=request.POST.get('cevap_id')).select_related('personel').first()
+        sonuc = request.POST.get('sonuc')
+        if cevap and sonuc in ('dogru', 'yanlis'):
+            cevap.puanlandi = True
+            cevap.dogru_mu = (sonuc == 'dogru')
+            cevap.puanlayan = personel
+            cevap.puanlama_notu = (request.POST.get('not', '') or '').strip()[:300]
+            cevap.puanlama_tarihi = timezone.now()
+            cevap.save()
+            if cevap.personel:
+                _egitim_acik_sonucu_kesinlestir(cevap.personel)
+            messages.success(request, "Cevap puanlandı.")
+        return redirect('egitim_acik_degerlendir')
+
+    bekleyenler = list(EgitimAcikCevap.objects.filter(puanlandi=False)
+                       .select_related('personel', 'personel__sube', 'soru').order_by('olusturma'))
+    gruplar = {}
+    for c in bekleyenler:
+        anahtar = (c.personel_id, c.deneme_no)
+        gruplar.setdefault(anahtar, {'kisi': c.personel, 'cevaplar': []})
+        gruplar[anahtar]['cevaplar'].append(c)
+
+    gecmis = list(EgitimAcikCevap.objects.filter(puanlandi=True)
+                  .select_related('personel', 'puanlayan', 'soru').order_by('-puanlama_tarihi')[:50])
+
+    return render(request, 'egitim_acik_degerlendir.html', {
+        'personel': personel,
+        'aktif': 'egitim_acik',
+        'gruplar': list(gruplar.values()),
+        'gecmis': gecmis,
     })
 
 

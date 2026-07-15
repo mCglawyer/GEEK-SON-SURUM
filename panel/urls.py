@@ -42,6 +42,7 @@ urlpatterns = [
     path('egitim/sozlesme/', views.egitim_sozlesme, name='egitim_sozlesme'),
     path('egitim/yonetim/', views.egitim_yonetim, name='egitim_yonetim'),
     path('egitim/yonetim/kisi/<int:pid>/', views.egitim_kisi_detay, name='egitim_kisi_detay'),
+    path('egitim/acik-cevaplar/', views.egitim_acik_degerlendir, name='egitim_acik_degerlendir'),
     path('raporlar/', views.raporlar, name='raporlar'),
     path('raporlar/indir/<str:ad>/', views.rapor_indir, name='rapor_indir'),
     path('yedekler/indir/<str:ad>/', views.yedek_indir, name='yedek_indir'),

@@ -39,17 +39,44 @@
 
   <div class="card">
     <h3 class="egitim-bolum">🏆 Eğitim Şampiyonları <span class="ea-not">({{ sampiyon_esik }}+ doğru)</span></h3>
-    {% if sampiyon_sube %}<p class="samp-sube">Şampiyon Şube: <b>{{ sampiyon_sube.ad }}</b> — tamamlama %{{ sampiyon_sube.oran }} ({{ sampiyon_sube.tamam }}/{{ sampiyon_sube.toplam }})</p>{% endif %}
+    {% if sampiyon_sube %}<p class="samp-sube">Şampiyon Şube: <b>{{ sampiyon_sube.ad }}</b> — doğru cevap oranı %{{ sampiyon_sube.oran }} ({{ sampiyon_sube.tamam }}/{{ sampiyon_sube.toplam }} tamamladı)</p>{% endif %}
     {% if sampiyonlar %}
     <div class="samp-liste">
       {% for s in sampiyonlar %}
-      <div class="samp-kisi"><span class="samp-madalya">🎓</span> <b>{{ s.ad }}</b> <span class="ea-not">{{ s.sube }}</span> <span class="badge ok">{{ s.puan }}/10</span></div>
+      <div class="samp-kisi"><span class="samp-madalya">🎓</span> <b>{{ s.ad }}</b> <span class="ea-not">{{ s.sube }}</span> <span class="badge ok">{{ s.puan }}/{{ soru_sayisi }}</span></div>
       {% endfor %}
     </div>
     {% else %}
     <p class="ea-not">Henüz {{ sampiyon_esik }}+ doğru yapan yok. İlk şampiyonu bekliyoruz!</p>
     {% endif %}
   </div>
+
+  {% if ayar_duzenleyebilir %}
+  <div class="card">
+    <h3 class="egitim-bolum">Sınav Ayarları</h3>
+    <form method="post" class="egitim-form">{% csrf_token %}<input type="hidden" name="islem" value="sinav_ayar_kaydet">
+      <label class="ea-alan">Soru sayısı
+        <input class="input" type="number" name="soru_sayisi" min="1" max="100" value="{{ soru_sayisi }}" required style="max-width:100px">
+      </label>
+      <label class="ea-alan">Soru başına süre (sn)
+        <input class="input" type="number" name="sure_sn" min="5" max="600" value="{{ sure_sn }}" required style="max-width:100px">
+      </label>
+      <label class="ea-alan">Geçme için gereken doğru sayısı
+        <input class="input" type="number" name="gecme_puan" min="1" max="100" value="{{ gecme }}" required style="max-width:100px">
+      </label>
+      <button class="btn btn-primary btn-mini">Kaydet</button>
+    </form>
+    <p class="ea-not">Bu ayarlar tüm eğitim havuzu için geçerlidir (Reçete/Oryantasyon ayrımı yapılmaz).</p>
+  </div>
+  {% endif %}
+
+  {% if acik_puanlayabilir %}
+  <div class="card">
+    <h3 class="egitim-bolum">Açık Uçlu Cevaplar</h3>
+    <p class="ea-not">{% if acik_cevap_bekleyen %}<b>{{ acik_cevap_bekleyen }}</b> cevap değerlendirme bekliyor.{% else %}Bekleyen cevap yok.{% endif %}</p>
+    <a href="{% url 'egitim_acik_degerlendir' %}" class="btn btn-primary btn-mini">Cevapları Değerlendir</a>
+  </div>
+  {% endif %}
 
   <div class="card">
     <h3 class="egitim-bolum">Takip — {{ tamamlayan }}/{{ toplam_kisi }} tamamladı</h3>
@@ -69,7 +96,7 @@
           <th class="sticky"><a href="{% url 'egitim_kisi_detay' k.id %}" class="egitim-kisi-lnk">{{ k.ad_soyad }}</a></th>
           <td>{{ k.sube.ad|default:"—" }}</td>
           <td>{{ k.rol }}</td>
-          <td>{% if k.durum_obj.tamamlandi %}<span class="badge ok">Tamamladı</span>{% else %}<span class="badge no">Bekliyor</span>{% endif %}</td>
+          <td>{% if k.durum_obj.tamamlandi %}<span class="badge ok">Tamamladı</span>{% elif k.durum_obj.inceleme_bekliyor %}<span class="badge warn">İnceleniyor</span>{% else %}<span class="badge no">Bekliyor</span>{% endif %}</td>
           <td>{% if k.denedi %}{{ k.dogru }}{% else %}—{% endif %}</td>
           <td>{% if k.denedi %}{{ k.yanlis }}{% else %}—{% endif %}</td>
           <td>{% if k.giris %}{{ k.giris }}. giriş{% else %}—{% endif %}</td>
@@ -119,27 +146,38 @@
 
   <div class="card">
     <h3 class="egitim-bolum">Soru Havuzu — {{ aktif_soru }} aktif soru</h3>
-    {% if duzenleyebilir %}<form method="post" class="egitim-soru-form">
+    {% if duzenleyebilir %}<form method="post" class="egitim-soru-form" id="soru-form">
       {% csrf_token %}<input type="hidden" name="islem" value="soru_ekle">
       <div class="esf-satir">
         <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option><option value="ICECEK">İçecek Hazırlama</option></select>
         <select name="sube_id" class="sube-sec"><option value="">Tüm şubeler</option>{% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}</select>
-        <span class="egitim-dogru">Doğru şık:
+        <select name="tur" id="soru-tur-sec" class="sube-sec">
+          <option value="coktan_secmeli">Çoktan Seçmeli</option>
+          <option value="acik_uclu">Açık Uçlu (Yazılı)</option>
+        </select>
+        <span class="egitim-dogru" id="dogru-sik-alani">Doğru şık:
           <select name="dogru" class="sube-sec"><option>A</option><option>B</option><option>C</option><option>D</option></select>
         </span>
       </div>
       <textarea class="input" name="metin" rows="2" placeholder="Soru metni" required></textarea>
-      <input class="input" type="text" name="sik_a" placeholder="A şıkkı" required>
-      <input class="input" type="text" name="sik_b" placeholder="B şıkkı" required>
-      <input class="input" type="text" name="sik_c" placeholder="C şıkkı (isteğe bağlı)">
-      <input class="input" type="text" name="sik_d" placeholder="D şıkkı (isteğe bağlı)">
+      <div id="siklar-alani">
+        <input class="input" type="text" name="sik_a" placeholder="A şıkkı">
+        <input class="input" type="text" name="sik_b" placeholder="B şıkkı">
+        <input class="input" type="text" name="sik_c" placeholder="C şıkkı (isteğe bağlı)">
+        <input class="input" type="text" name="sik_d" placeholder="D şıkkı (isteğe bağlı)">
+      </div>
+      <p class="ea-not" id="acik-uclu-not" hidden>Açık uçlu sorularda şıklara gerek yok; personel serbest metin olarak cevap yazacak, sen/eğitmen daha sonra puanlayacaksınız.</p>
       <button class="btn btn-primary btn-mini">Soru Ekle</button>
     </form>{% endif %}
     <div class="egitim-soru-liste">
       {% for s in sorular %}
       <div class="egitim-soru-item{% if not s.aktif %} pasif{% endif %}">
-        <div class="esi-ust"><span class="egitim-dok-kat">{{ s.get_kategori_display }}</span> {% if s.sube %}<span class="egitim-sube-etiket">{{ s.sube.ad }}</span>{% endif %}<b>{{ s.metin }}</b></div>
+        <div class="esi-ust"><span class="egitim-dok-kat">{{ s.get_kategori_display }}</span> {% if s.tur == 'acik_uclu' %}<span class="egitim-sube-etiket genel">Açık Uçlu</span>{% endif %} {% if s.sube %}<span class="egitim-sube-etiket">{{ s.sube.ad }}</span>{% endif %}<b>{{ s.metin }}</b></div>
+        {% if s.tur == 'acik_uclu' %}
+        <div class="esi-siklar">Yazılı cevap sorusu — eğitmen/operatör tarafından puanlanır.</div>
+        {% else %}
         <div class="esi-siklar">A) {{ s.sik_a }} · B) {{ s.sik_b }}{% if s.sik_c %} · C) {{ s.sik_c }}{% endif %}{% if s.sik_d %} · D) {{ s.sik_d }}{% endif %} · <b>Doğru: {{ s.dogru }}</b></div>
+        {% endif %}
         {% if duzenleyebilir %}<div class="esi-islem">
           <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="soru_aktif"><input type="hidden" name="id" value="{{ s.id }}"><button class="btn btn-ghost btn-mini">{% if s.aktif %}Pasifleştir{% else %}Aktifleştir{% endif %}</button></form>
           <form method="post" onsubmit="return confirm('Soru silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="soru_sil"><input type="hidden" name="id" value="{{ s.id }}"><button class="gs-sil" title="Sil">✕</button></form>
@@ -149,4 +187,25 @@
     </div>
   </div>
 </div>
+<script>
+(function () {
+  var turSec = document.getElementById('soru-tur-sec');
+  if (!turSec) return;
+  var siklarAlani = document.getElementById('siklar-alani');
+  var dogruAlani = document.getElementById('dogru-sik-alani');
+  var acikNot = document.getElementById('acik-uclu-not');
+  var sikA = siklarAlani.querySelector('input[name="sik_a"]');
+  var sikB = siklarAlani.querySelector('input[name="sik_b"]');
+  function guncelle() {
+    var acikMi = (turSec.value === 'acik_uclu');
+    siklarAlani.hidden = acikMi;
+    dogruAlani.hidden = acikMi;
+    acikNot.hidden = !acikMi;
+    sikA.required = !acikMi;
+    sikB.required = !acikMi;
+  }
+  turSec.addEventListener('change', guncelle);
+  guncelle();
+})();
+</script>
 {% endblock %}

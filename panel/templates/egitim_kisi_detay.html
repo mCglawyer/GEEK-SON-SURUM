@@ -11,13 +11,23 @@
   <p class="egitim-detay-ozet">
     {{ kisi.sube.ad|default:"—" }} · {{ kisi.rol }} ·
     {% if durum and durum.deneme %}Son deneme: <b>{{ durum.son_puan }}/{{ soru_sayisi }}</b> doğru · <b>{{ yanlis_sayi }}</b> yanlış · {{ durum.deneme }}. giriş{% else %}Henüz sınava girmemiş{% endif %}
-    {% if durum.tamamlandi %} · <span class="badge ok">Tamamladı</span>{% endif %}
+    {% if durum.tamamlandi %} · <span class="badge ok">Tamamladı</span>{% elif durum.inceleme_bekliyor %} · <span class="badge warn">Yazılı sorular inceleniyor</span>{% endif %}
   </p>
 
   {% if detay %}
   <p class="egitim-detay-not">Aşağıda son sınavdaki sorular; <b>yanlış</b> işaretlenenler kişinin hatalı cevaplarıdır.</p>
   <div class="egitim-detay-liste">
     {% for d in detay %}
+    {% if d.acik_uclu %}
+    <div class="ed-soru{% if d.puanlandi and not d.dogru_mu %} ed-yanlis{% endif %}">
+      <div class="ed-metin"><span class="ed-no">{{ forloop.counter }}.</span> {{ d.metin }}
+        {% if not d.puanlandi %}<span class="badge warn">Puanlama bekliyor</span>
+        {% elif d.dogru_mu %}<span class="badge ok">Doğru</span>{% else %}<span class="badge no">Yanlış</span>{% endif %}
+      </div>
+      <div class="acik-cevap-metin">{{ d.verilen|default:"(boş bırakılmış)" }}</div>
+      {% if d.puanlama_notu %}<p class="ea-not">Not: {{ d.puanlama_notu }}</p>{% endif %}
+    </div>
+    {% else %}
     <div class="ed-soru{% if not d.dogru_mu %} ed-yanlis{% endif %}">
       <div class="ed-metin"><span class="ed-no">{{ forloop.counter }}.</span> {{ d.metin }}
         {% if d.dogru_mu %}<span class="badge ok">Doğru</span>{% else %}<span class="badge no">Yanlış</span>{% endif %}
@@ -33,6 +43,7 @@
         {% if not d.verilen %}<div class="ed-bos">Bu soru boş/cevapsız bırakılmış.</div>{% endif %}
       </div>
     </div>
+    {% endif %}
     {% endfor %}
   </div>
   {% elif durum and durum.deneme %}

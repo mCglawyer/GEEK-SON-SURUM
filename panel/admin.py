@@ -1,7 +1,8 @@
 from django.contrib import admin
 from .models import (Sube, Personel, Vardiya, Puantaj, KodKilit, Kalibrasyon, Irsaliye, StokUrun, StokSayim, StokSayimKalem, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket, KahveSoru, GunlukSoru, SoruAyar,
                      MolaOturum, SubeMolaToken, MesaiKayit, SubeMesaiToken,
-                     MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi)
+                     MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi,
+                     EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap)
 
 @admin.register(Sube)
 class SubeAdmin(admin.ModelAdmin):
@@ -173,3 +174,34 @@ class MutfakTarifAdmin(admin.ModelAdmin):
     list_display = ('ad', 'olusturan', 'toplam_maliyet', 'guncelleme')
     search_fields = ('ad',)
     inlines = [MutfakTarifKalemiInline]
+
+
+@admin.register(EgitimDokuman)
+class EgitimDokumanAdmin(admin.ModelAdmin):
+    list_display = ('baslik', 'kategori', 'sube', 'aktif', 'olusturma')
+    list_filter = ('kategori', 'aktif', 'sube')
+    search_fields = ('baslik',)
+
+@admin.register(EgitimSoru)
+class EgitimSoruAdmin(admin.ModelAdmin):
+    list_display = ('metin', 'kategori', 'tur', 'sube', 'aktif', 'olusturma')
+    list_filter = ('kategori', 'tur', 'aktif', 'sube')
+    search_fields = ('metin',)
+
+@admin.register(EgitimDurum)
+class EgitimDurumAdmin(admin.ModelAdmin):
+    list_display = ('personel', 'tamamlandi', 'gecti', 'inceleme_bekliyor', 'son_puan', 'deneme', 'tarih')
+    list_filter = ('tamamlandi', 'gecti', 'inceleme_bekliyor')
+    search_fields = ('personel__ad_soyad',)
+    autocomplete_fields = ('personel',)
+
+@admin.register(EgitimAcikCevap)
+class EgitimAcikCevapAdmin(admin.ModelAdmin):
+    list_display = ('personel', 'soru', 'deneme_no', 'puanlandi', 'dogru_mu', 'puanlayan', 'olusturma')
+    list_filter = ('puanlandi', 'dogru_mu')
+    search_fields = ('personel__ad_soyad', 'cevap_metni')
+    autocomplete_fields = ('personel', 'puanlayan')
+
+@admin.register(EgitimAyar)
+class EgitimAyarAdmin(admin.ModelAdmin):
+    list_display = ('acik', 'soru_sayisi', 'sure_sn', 'gecme_puan', 'guncelleme')
