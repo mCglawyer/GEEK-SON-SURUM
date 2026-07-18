@@ -1,0 +1,67 @@
+services:
+  - type: web
+    name: geek-panel
+    runtime: python
+    plan: starter
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
+    startCommand: "gunicorn core.wsgi:application"
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: "geekpanel.net,www.geekpanel.net,.onrender.com"
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: "https://geekpanel.net,https://www.geekpanel.net"
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_SSLMODE
+        value: "require"
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_ACCESS_KEY
+        sync: false
+      - key: R2_SECRET_KEY
+        sync: false
+      - key: R2_ENDPOINT_URL
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
+      - key: VAPID_PRIVATE_KEY_PEM
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+
+  - type: cron
+    name: geek-panel-dogum-kontrol
+    runtime: python
+    plan: starter
+    schedule: "0 6 * * *"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python manage.py dogum_kontrol"
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_SSLMODE
+        value: "require"

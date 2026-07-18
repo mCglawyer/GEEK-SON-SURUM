@@ -40,11 +40,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'storages',
     'panel',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -118,6 +120,43 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# --- Depolama (Storages) ---
+# Statik dosyalar (CSS/JS/görsel) her zaman whitenoise ile sunucunun kendisinden sunulur
+# (PythonAnywhere'deki gibi ayrı bir "static files mapping" gerektirmez, Render/başka
+# platformlarda da sorunsuz çalışır).
+#
+# Medya (kullanıcı yüklemeleri: fotoğraf, PDF, video) için: R2_* ortam değişkenleri
+# tanımlıysa Cloudflare R2 (S3 uyumlu) kullanılır; tanımlı değilse eskisi gibi sunucunun
+# yerel diski kullanılır. Yani bu ayar R2 bilgileri girilmeden HİÇBİR ŞEYİ DEĞİŞTİRMEZ —
+# mevcut PythonAnywhere kurulumu bu haliyle de sorunsuz çalışmaya devam eder.
+STORAGES = {
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
+R2_BUCKET = os.environ.get('R2_BUCKET', '')
+R2_ACCESS_KEY = os.environ.get('R2_ACCESS_KEY', '')
+R2_SECRET_KEY = os.environ.get('R2_SECRET_KEY', '')
+R2_ENDPOINT_URL = os.environ.get('R2_ENDPOINT_URL', '')
+R2_PUBLIC_URL = os.environ.get('R2_PUBLIC_URL', '')  # ör: https://medya.geekpanel.net veya https://pub-xxx.r2.dev
+
+if R2_BUCKET and R2_ACCESS_KEY and R2_SECRET_KEY and R2_ENDPOINT_URL:
+    STORAGES['default'] = {'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage'}
+    AWS_ACCESS_KEY_ID = R2_ACCESS_KEY
+    AWS_SECRET_ACCESS_KEY = R2_SECRET_KEY
+    AWS_STORAGE_BUCKET_NAME = R2_BUCKET
+    AWS_S3_ENDPOINT_URL = R2_ENDPOINT_URL
+    AWS_S3_ADDRESSING_STYLE = 'virtual'
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_FILE_OVERWRITE = False
+    if R2_PUBLIC_URL:
+        AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_URL.replace('https://', '').replace('http://', '').rstrip('/')
+else:
+    STORAGES['default'] = {'BACKEND': 'django.core.files.storage.FileSystemStorage'}
+
 DATA_UPLOAD_MAX_MEMORY_SIZE = 8 * 1024 * 1024
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -140,6 +179,15 @@ if EMAIL_HOST:
     DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@geekpanel.net')
 
 # --- Web Push (VAPID) ---
-VAPID_PUBLIC_KEY = 'BC65Z7BXa5XLsUA86fC7NU3ocCF1gd9JuPkhkutdN_EFN3dIGpP4Jlmq7ImmOCOvpV0vfINfEJj2iowBgttJZ5c'
-VAPID_PRIVATE_KEY = str(BASE_DIR / 'private_key.pem')
+VAPID_PUBLIC_KEY = os.environ.get(
+    'VAPID_PUBLIC_KEY',
+    'BC65Z7BXa5XLsUA86fC7NU3ocCF1gd9JuPkhkutdN_EFN3dIGpP4Jlmq7ImmOCOvpV0vfINfEJj2iowBgttJZ5c')
+# Render gibi platformlarda kalıcı dosya sistemi garanti olmadığı için, VAPID_PRIVATE_KEY_PEM
+# ortam değişkeniyle anahtarın ham içeriği de verilebilir (satır sonları \n olarak girilebilir).
+# Verilmezse PythonAnywhere'deki gibi eskisi gibi dosya yolu kullanılır.
+_vapid_pem = os.environ.get('VAPID_PRIVATE_KEY_PEM', '')
+if _vapid_pem:
+    VAPID_PRIVATE_KEY = _vapid_pem.replace('\\n', '\n')
+else:
+    VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY_PATH', str(BASE_DIR / 'private_key.pem'))
 VAPID_CLAIMS = {'sub': 'mailto:info@geekcoffeeshop.com'}

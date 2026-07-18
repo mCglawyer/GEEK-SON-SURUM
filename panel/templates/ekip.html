@@ -156,6 +156,37 @@
     </div>
     {% endif %}
 
+    {% if is_atayabilir %}
+    <div class="card staff-card">
+      <div class="staff-card-bas"><h3>Manuel Mola/Mesai Girişi Yetkisi</h3><span class="badge badge-info">{{ manuel_yetkili_liste|length }}</span></div>
+      <p class="ea-not">Kameraları çalışmayan personel için: Şef/Mağaza Müdürü'ne verilirse kendi şubesindeki personel adına, diğer rollerde kendi adına, QR kod olmadan mola/mesai başlatıp bitirebilir.</p>
+      <ul class="staff-list">
+        {% for e in manuel_yetkili_liste %}
+        <li class="sef-row">
+          <span class="staff-ad">{{ e.ad_soyad }} <span class="badge badge-info">{{ e.get_rol_display }}</span>{% if e.sube %} · {{ e.sube.ad }}{% endif %}</span>
+          <form method="post" onsubmit="return confirm('{{ e.ad_soyad }} için manuel giriş yetkisi kaldırılsın mı?');">
+            {% csrf_token %}
+            <input type="hidden" name="islem" value="manuel_yetki_cikar">
+            <input type="hidden" name="personel_id" value="{{ e.id }}">
+            <button class="btn btn-danger btn-mini">Çıkar</button>
+          </form>
+        </li>
+        {% empty %}
+        <li><span class="staff-ad" style="color:var(--muted)">Henüz kimseye bu yetki verilmedi.</span></li>
+        {% endfor %}
+      </ul>
+      <form method="post" class="sef-ekle">
+        {% csrf_token %}
+        <input type="hidden" name="islem" value="manuel_yetki_ekle">
+        <select class="sube-sec" name="personel_id" required>
+          <option value="">Kişi seç (personel/şef/mağaza müdürü)…</option>
+          {% for a in manuel_yetki_adaylari %}<option value="{{ a.id }}">{{ a.ad_soyad }} — {{ a.get_rol_display }}{% if a.sube %} ({{ a.sube.ad }}){% endif %}</option>{% endfor %}
+        </select>
+        <button class="btn btn-primary">Yetki ver</button>
+      </form>
+    </div>
+    {% endif %}
+
   </div>
 </div>
 {% endblock %}

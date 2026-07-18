@@ -73,6 +73,10 @@ class Personel(models.Model):
     cinsiyet = models.CharField(max_length=1, choices=[('E', 'Erkek'), ('K', 'Kadın')],
                                 blank=True, default='', verbose_name="Cinsiyet")
     profil_foto = models.ImageField(upload_to='profil/', null=True, blank=True, verbose_name="Profil Fotoğrafı")
+    manuel_giris_yetkisi = models.BooleanField(
+        default=False, verbose_name="Manuel Mola/Mesai Girişi Yetkisi",
+        help_text="İşaretliyse: Şef/Mağaza Müdürü rolündeyse kendi şubesindeki personel için, "
+                  "diğer rollerde ise kendi adına, kamera QR olmadan manuel mola/mesai başlatıp bitirebilir.")
 
     class Meta:
         verbose_name = "Personel"; verbose_name_plural = "Personeller"; ordering = ['ad_soyad']
@@ -579,6 +583,10 @@ class MolaOturum(models.Model):
     bitis = models.DateTimeField(null=True, blank=True)
     kullanilan_dk = models.IntegerField(null=True, blank=True, verbose_name="Kullanılan Süre (dk)")
     uyarildi = models.BooleanField(default=False)
+    manuel_mi = models.BooleanField(default=False, verbose_name="Manuel Girildi")
+    manuel_giren = models.ForeignKey(Personel, null=True, blank=True, on_delete=models.SET_NULL,
+                                     related_name='+', verbose_name="Manuel Girişi Yapan")
+    manuel_not = models.CharField(max_length=200, blank=True, default='')
 
     class Meta:
         ordering = ['-baslangic']
@@ -741,6 +749,10 @@ class MesaiKayit(models.Model):
     personel_ad_arsiv = models.CharField(max_length=160, blank=True, default='')
     giris = models.DateTimeField()
     cikis = models.DateTimeField(null=True, blank=True)
+    manuel_mi = models.BooleanField(default=False, verbose_name="Manuel Girildi")
+    manuel_giren = models.ForeignKey(Personel, null=True, blank=True, on_delete=models.SET_NULL,
+                                     related_name='+', verbose_name="Manuel Girişi Yapan")
+    manuel_not = models.CharField(max_length=200, blank=True, default='')
 
     class Meta:
         ordering = ['-giris']

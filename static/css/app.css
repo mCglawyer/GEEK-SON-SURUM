@@ -796,6 +796,13 @@ body.app .app-main, body.app .container { min-width:0; }
 .acik-soru-metin { font-size:.88rem; margin:0 0 .3rem; }
 .acik-cevap-metin { font-size:.9rem; background:var(--bg); border-radius:8px; padding:.5rem .7rem; margin:0 0 .5rem; white-space:pre-wrap; }
 .acik-puanla-form { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+.mgir-kart { margin-bottom:.8rem; }
+.mgir-kisi-ad { font-weight:700; margin-bottom:.6rem; }
+.mgir-satir { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; padding:.5rem 0; border-top:1px solid var(--line); }
+.mgir-satir:first-of-type { border-top:none; padding-top:0; }
+.mgir-etiket { font-weight:600; font-size:.9rem; flex:0 0 auto; }
+.mgir-form { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+.badge-manuel { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#8A5A00; background:#FFF3D6; border-radius:999px; padding:.15rem .5rem; }
 .sozlesme-metin { font-size:.95rem; color:var(--text); margin-bottom:1rem; }
 .sozlesme-onay { display:flex; align-items:center; gap:.55rem; font-weight:600; margin-bottom:1rem; cursor:pointer; }
 .test-kart { padding:1.2rem; }

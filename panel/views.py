@@ -107,7 +107,9 @@ def _push_gonder(aliciler, mesaj, link=''):
     except Exception:
         return
     priv = getattr(settings, 'VAPID_PRIVATE_KEY', '')
-    if not priv or not os.path.exists(priv):
+    if not priv:
+        return
+    if not priv.lstrip().startswith('-----BEGIN') and not os.path.exists(priv):
         return
     ids = [a.id for a in aliciler if a is not None]
     if not ids:
@@ -144,8 +146,8 @@ def push_test(request):
     priv = getattr(settings, 'VAPID_PRIVATE_KEY', '')
     if not priv:
         return JsonResponse({'ok': False, 'mesaj': 'VAPID_PRIVATE_KEY ayarı boş görünüyor (settings).'})
-    if not os.path.exists(priv):
-        return JsonResponse({'ok': False, 'mesaj': 'private_key.pem sunucuda bulunamadı. Anahtar dosyasını ~/personel_takip içine yükleyin.', 'detay': str(priv)})
+    if not priv.lstrip().startswith('-----BEGIN') and not os.path.exists(priv):
+        return JsonResponse({'ok': False, 'mesaj': 'private_key.pem sunucuda bulunamadı. Anahtar dosyasını yükleyin ya da VAPID_PRIVATE_KEY_PEM ortam değişkenini ayarlayın.', 'detay': str(priv)})
     abonelikler = list(PushAbonelik.objects.filter(personel=personel))
     if not abonelikler:
         return JsonResponse({'ok': False, 'mesaj': 'Bu hesap için kayıtlı cihaz yok. Önce aşağıdaki "Bu cihazda bildirimleri aç" butonuna basın, sonra tekrar test edin.'})
@@ -1003,6 +1005,23 @@ def ekip_sayfa(request):
                 messages.success(request, f"{s.ad_soyad} eğitmen yetkisinden çıkarıldı.")
             return redirect('ekip')
 
+        if islem == 'manuel_yetki_ekle':
+            s = Personel.objects.filter(id=request.POST.get('personel_id'),
+                                        rol__in=[Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU]).first()
+            if s:
+                s.manuel_giris_yetkisi = True
+                s.save(update_fields=['manuel_giris_yetkisi'])
+                messages.success(request, f"{s.ad_soyad} artık kamera olmadan manuel mola/mesai girişi yapabilir.")
+            return redirect('ekip')
+
+        if islem == 'manuel_yetki_cikar':
+            s = Personel.objects.filter(id=request.POST.get('personel_id')).first()
+            if s:
+                s.manuel_giris_yetkisi = False
+                s.save(update_fields=['manuel_giris_yetkisi'])
+                messages.success(request, f"{s.ad_soyad} için manuel giriş yetkisi kaldırıldı.")
+            return redirect('ekip')
+
     yoneticiler = list(Personel.objects.filter(rol__in=OFIS_ROLLERI).select_related('user').order_by('ad_soyad'))
     sefler_qs = Personel.objects.filter(rol=Rol.SEF).select_related('sube')
     if personel.rol == Rol.MUDUR:
@@ -1024,6 +1043,11 @@ def ekip_sayfa(request):
                           .select_related('sube').order_by('ad_soyad'))
         egitmen_adaylari = list(Personel.objects.filter(rol__in=[Rol.PERSONEL, Rol.SEF], egitmen=False)
                                 .select_related('sube').order_by('ad_soyad'))
+        manuel_yetkili_liste = list(Personel.objects.filter(manuel_giris_yetkisi=True)
+                                   .select_related('sube').order_by('ad_soyad'))
+        manuel_yetki_adaylari = list(Personel.objects.filter(
+            rol__in=[Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU], manuel_giris_yetkisi=False)
+            .select_related('sube').order_by('ad_soyad'))
     return render(request, 'ekip.html', {
         'personel': personel, 'aktif': 'ekip', 'subeler': subeler,
         'yoneticiler': yoneticiler, 'sefler': sefler,
@@ -1034,6 +1058,7 @@ def ekip_sayfa(request):
         'magaza_mudurleri': list(Personel.objects.filter(rol=Rol.MAGAZA_MUDURU, sube__in=subeler).select_related('sube').order_by('ad_soyad')),
         'is_atayabilir': is_atayabilir, 'bolge_mudurleri': bolge_mudurleri, 'tum_subeler': tum_subeler,
         'egitmenler': egitmenler, 'egitmen_adaylari': egitmen_adaylari,
+        'manuel_yetkili_liste': manuel_yetkili_liste, 'manuel_yetki_adaylari': manuel_yetki_adaylari,
     })
 
 def puantaj_excel_export(request):
@@ -2857,6 +2882,7 @@ def mola_izleme_json(request):
             'baslangic': m.baslangic.isoformat(),
             'gecen_dk': gecen,
             'kalan_dk': m.sure_dk - gecen,
+            'manuel_mi': m.manuel_mi,
         })
     return JsonResponse({'molalar': out, 'zaman': now.isoformat()})
 
@@ -2923,6 +2949,7 @@ def mola_gecmis(request):
             'sure_dk': dk,
             'limit': m.sure_dk,
             'asti': dk > m.sure_dk,
+            'manuel_mi': m.manuel_mi,
         })
     toplam_kisi = len(set(k['ad'] for k in liste))
     asan_sayisi = sum(1 for k in liste if k['asti'])
@@ -3170,6 +3197,102 @@ def _aktif_mesai(personel):
     return MesaiKayit.objects.filter(personel=personel, cikis__isnull=True).order_by('-giris').first()
 
 
+MANUEL_YETKI_DELEGE_ROLLER = [Rol.SEF, Rol.MAGAZA_MUDURU]
+
+
+def manuel_giris(request):
+    """Kamerası çalışmayan personel için: yetkili kişi (kendisi ya da Şef/Mağaza Müdürü ise
+    kendi şubesindeki personel adına) QR olmadan mola/mesai başlatıp bitirebilir. Kayıtlar
+    QR sistemiyle AYNI tablolara (MolaOturum/MesaiKayit) yazılır, sadece 'manuel_mi' ile
+    işaretlenir — böylece Mola Takibi, Mesai Kayıtları ve Puantaj'a otomatik yansır."""
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or not personel.manuel_giris_yetkisi:
+        return redirect('ana_sayfa')
+
+    delege_mi = personel.rol in MANUEL_YETKI_DELEGE_ROLLER
+
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        if delege_mi:
+            hedef = Personel.objects.filter(id=request.POST.get('personel_id'), sube=personel.sube).first()
+        else:
+            hedef = personel
+        if hedef is None:
+            messages.error(request, "Geçersiz kişi.")
+            return redirect('manuel_giris')
+        not_metni = (request.POST.get('not', '') or '').strip()[:200]
+
+        if islem == 'mola_baslat':
+            if _aktif_mola(hedef) is None:
+                try:
+                    sure = int(request.POST.get('sure', '45'))
+                except (TypeError, ValueError):
+                    sure = 45
+                if sure not in MOLA_SURELER:
+                    sure = 45
+                MolaOturum.objects.create(personel=hedef, sube=hedef.sube, sure_dk=sure,
+                                          baslangic=timezone.now(), manuel_mi=True,
+                                          manuel_giren=personel, manuel_not=not_metni)
+                messages.success(request, f"{hedef.ad_soyad} için mola manuel başlatıldı.")
+            else:
+                messages.info(request, f"{hedef.ad_soyad} için zaten aktif bir mola var.")
+        elif islem == 'mola_bitir':
+            aktif = _aktif_mola(hedef)
+            if aktif:
+                aktif.bitis = timezone.now()
+                aktif.kullanilan_dk = max(0, int((aktif.bitis - aktif.baslangic).total_seconds() // 60))
+                aktif.manuel_mi = True
+                aktif.manuel_giren = personel
+                if not_metni:
+                    aktif.manuel_not = (aktif.manuel_not + ' / ' if aktif.manuel_not else '') + not_metni
+                aktif.save()
+                messages.success(request, f"{hedef.ad_soyad} için mola manuel bitirildi.")
+            else:
+                messages.info(request, f"{hedef.ad_soyad} için aktif bir mola yok.")
+        elif islem == 'mesai_giris':
+            if _aktif_mesai(hedef) is None:
+                MesaiKayit.objects.create(personel=hedef, sube=hedef.sube, giris=timezone.now(),
+                                          personel_ad_arsiv=hedef.ad_soyad, manuel_mi=True,
+                                          manuel_giren=personel, manuel_not=not_metni)
+                messages.success(request, f"{hedef.ad_soyad} için mesai girişi manuel yapıldı.")
+            else:
+                messages.info(request, f"{hedef.ad_soyad} için zaten açık bir mesai var.")
+        elif islem == 'mesai_cikis':
+            aktif = _aktif_mesai(hedef)
+            if aktif:
+                aktif.cikis = timezone.now()
+                aktif.manuel_mi = True
+                aktif.manuel_giren = personel
+                if not_metni:
+                    aktif.manuel_not = (aktif.manuel_not + ' / ' if aktif.manuel_not else '') + not_metni
+                aktif.save()
+                messages.success(request, f"{hedef.ad_soyad} için mesai çıkışı manuel yapıldı.")
+            else:
+                messages.info(request, f"{hedef.ad_soyad} için açık bir mesai yok.")
+        return redirect('manuel_giris')
+
+    if delege_mi:
+        hedefler = list(Personel.objects.filter(sube=personel.sube,
+                                                rol__in=[Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU])
+                        .exclude(id=personel.id).order_by('ad_soyad'))
+    else:
+        hedefler = [personel]
+
+    for h in hedefler:
+        h.aktif_mola_obj = _aktif_mola(h)
+        h.aktif_mesai_obj = _aktif_mesai(h)
+
+    return render(request, 'manuel_giris.html', {
+        'personel': personel, 'aktif': 'manuel_giris',
+        'delege_mi': delege_mi, 'hedefler': hedefler,
+        'mola_sureler': MOLA_SURELER,
+    })
+
+
 def mesai_qr_yonetim(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -3301,6 +3424,7 @@ def mesai_kayitlari(request):
             'giris': timezone.localtime(m.giris),
             'cikis': timezone.localtime(m.cikis) if m.cikis else None,
             'sure_dk': dk,
+            'manuel_mi': m.manuel_mi,
         })
     for k in liste:
         toplam = toplam_dk.get(k['anahtar'], 0)

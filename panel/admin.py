@@ -35,12 +35,12 @@ class VardiyaAdmin(admin.ModelAdmin):
 
 @admin.register(MolaOturum)
 class MolaOturumAdmin(admin.ModelAdmin):
-    """Şube QR ile başlatılan/bitirilen mola giriş-çıkış kayıtları."""
-    list_display = ('personel', 'sube', 'baslangic', 'bitis', 'sure_dk', 'kullanilan_dk', 'uyarildi')
-    list_filter = ('sube', 'uyarildi', 'baslangic')
+    """Şube QR ile (ya da yetkili biri tarafından manuel) başlatılan/bitirilen mola giriş-çıkış kayıtları."""
+    list_display = ('personel', 'sube', 'baslangic', 'bitis', 'sure_dk', 'kullanilan_dk', 'uyarildi', 'manuel_mi')
+    list_filter = ('sube', 'uyarildi', 'manuel_mi', 'baslangic')
     search_fields = ('personel__ad_soyad',)
     date_hierarchy = 'baslangic'
-    autocomplete_fields = ('personel', 'sube')
+    autocomplete_fields = ('personel', 'sube', 'manuel_giren')
 
 @admin.register(SubeMolaToken)
 class SubeMolaTokenAdmin(admin.ModelAdmin):
@@ -50,12 +50,12 @@ class SubeMolaTokenAdmin(admin.ModelAdmin):
 
 @admin.register(MesaiKayit)
 class MesaiKayitAdmin(admin.ModelAdmin):
-    """Şube QR ile başlatılan/bitirilen mesai giriş-çıkış kayıtları."""
-    list_display = ('sube', 'personel', 'personel_ad_arsiv', 'giris', 'cikis')
-    list_filter = ('sube', 'giris')
+    """Şube QR ile (ya da yetkili biri tarafından manuel) başlatılan/bitirilen mesai giriş-çıkış kayıtları."""
+    list_display = ('sube', 'personel', 'personel_ad_arsiv', 'giris', 'cikis', 'manuel_mi')
+    list_filter = ('sube', 'manuel_mi', 'giris')
     search_fields = ('personel__ad_soyad', 'personel_ad_arsiv')
     date_hierarchy = 'giris'
-    autocomplete_fields = ('personel', 'sube')
+    autocomplete_fields = ('personel', 'sube', 'manuel_giren')
 
 @admin.register(SubeMesaiToken)
 class SubeMesaiTokenAdmin(admin.ModelAdmin):

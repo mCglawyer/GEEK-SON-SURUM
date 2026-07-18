@@ -23,7 +23,7 @@
       <div class="mg-satir">
         <div class="mg-avatar">{{ k.ad|slice:":1" }}</div>
         <div class="mg-govde">
-          <div class="mg-ust"><b>{{ k.ad }}</b><span class="mg-sube-adi">{{ k.sube }}</span></div>
+          <div class="mg-ust"><b>{{ k.ad }}</b>{% if k.manuel_mi %}<span class="badge-manuel">manuel</span>{% endif %}<span class="mg-sube-adi">{{ k.sube }}</span></div>
           <div class="mg-alt">Giriş: {{ k.giris|date:"H:i" }}{% if k.cikis %} · Çıkış: {{ k.cikis|date:"H:i" }} · Süre: {{ k.sure_dk }} dk{% else %} · <span class="badge wait">içeride</span>{% endif %}</div>
         </div>
         <div class="mg-sure-blok">

@@ -50,7 +50,7 @@
         ? ('Süre aşıldı +' + Math.abs(Math.ceil(kalanSn / 60)) + ' dk')
         : ('Kalan ~' + Math.ceil(kalanSn / 60) + ' dk');
       html += '<div class="mola-izle-kart' + (asti ? ' asti' : '') + '">'
-        + '<div class="mi-ust"><b>' + m.ad + '</b><span class="mi-sube">' + m.sube + '</span></div>'
+        + '<div class="mi-ust"><b>' + m.ad + '</b>' + (m.manuel_mi ? '<span class="badge-manuel">manuel</span>' : '') + '<span class="mi-sube">' + m.sube + '</span></div>'
         + '<div class="mi-alt"><span class="mi-sayac">' + mmss + '</span>'
         + '<span class="mi-tip">' + m.sure_dk + ' dk mola</span>'
         + '<span class="mi-kalan' + (asti ? ' asti' : '') + '">' + kalanMetin + '</span></div>'

@@ -33,6 +33,7 @@ urlpatterns = [
     path('mola/gecmis/', views.mola_gecmis, name='mola_gecmis'),
     path('vardiya/', views.vardiya_home, name='vardiya_home'),
     path('mola/qr/<str:token>/', views.mola_qr_giris, name='mola_qr_giris'),
+    path('manuel-giris/', views.manuel_giris, name='manuel_giris'),
     path('push/test/', views.push_test, name='push_test'),
     path('bildirim/<int:bid>/oku/', views.bildirim_oku, name='bildirim_oku'),
     path('duyurular/', views.duyurular, name='duyurular'),

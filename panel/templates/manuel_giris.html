@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Manuel Giriş · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head">
+    <div><h2>Manuel Mola/Mesai Girişi</h2>
+      <span class="plan-aralik">{% if delege_mi %}Kamerası çalışmayan ekip arkadaşların için QR olmadan giriş yap{% else %}Kameran çalışmıyorsa kendi mola/mesaini buradan yönet{% endif %}</span>
+    </div>
+  </div>
+
+  <p class="ea-not" style="margin-bottom:1rem">Buradan yapılan tüm işlemler normal QR sistemiyle aynı kayıtlara işleniyor ve raporlarda "manuel" etiketiyle görünüyor.</p>
+
+  {% for h in hedefler %}
+  <div class="card mgir-kart">
+    {% if delege_mi %}<div class="mgir-kisi-ad">{{ h.ad_soyad }} <span class="ea-not">{{ h.get_rol_display }}</span></div>{% endif %}
+
+    <div class="mgir-satir">
+      <div class="mgir-etiket">Mola:
+        {% if h.aktif_mola_obj %}<span class="badge warn">Aktif — {{ h.aktif_mola_obj.baslangic|time:"H:i" }}'den beri</span>{% else %}<span class="badge no">Aktif değil</span>{% endif %}
+      </div>
+      <form method="post" class="mgir-form">
+        {% csrf_token %}<input type="hidden" name="personel_id" value="{{ h.id }}">
+        {% if h.aktif_mola_obj %}
+        <input type="text" class="input" name="not" placeholder="Not (isteğe bağlı)" style="max-width:180px">
+        <button type="submit" name="islem" value="mola_bitir" class="btn btn-primary btn-mini">Molayı Bitir</button>
+        {% else %}
+        <select name="sure" class="sube-sec">{% for s in mola_sureler %}<option value="{{ s }}">{{ s }} dk</option>{% endfor %}</select>
+        <input type="text" class="input" name="not" placeholder="Not (isteğe bağlı)" style="max-width:180px">
+        <button type="submit" name="islem" value="mola_baslat" class="btn btn-primary btn-mini">Molayı Başlat</button>
+        {% endif %}
+      </form>
+    </div>
+
+    <div class="mgir-satir">
+      <div class="mgir-etiket">Mesai:
+        {% if h.aktif_mesai_obj %}<span class="badge warn">Açık — {{ h.aktif_mesai_obj.giris|time:"H:i" }}'den beri</span>{% else %}<span class="badge no">Kapalı</span>{% endif %}
+      </div>
+      <form method="post" class="mgir-form">
+        {% csrf_token %}<input type="hidden" name="personel_id" value="{{ h.id }}">
+        <input type="text" class="input" name="not" placeholder="Not (isteğe bağlı)" style="max-width:180px">
+        {% if h.aktif_mesai_obj %}
+        <button type="submit" name="islem" value="mesai_cikis" class="btn btn-primary btn-mini">Mesaiden Çıkış</button>
+        {% else %}
+        <button type="submit" name="islem" value="mesai_giris" class="btn btn-primary btn-mini">Mesaiye Giriş</button>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+  {% empty %}
+  <p class="egitim-bos">{% if delege_mi %}Şubende personel bulunamadı.{% endif %}</p>
+  {% endfor %}
+</div>
+{% endblock %}
