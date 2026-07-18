@@ -222,6 +222,8 @@ def _yonetici_sube(request, subeler):
 def _yon_subeler(personel):
     if personel and personel.rol == Rol.MUDUR:
         return list(personel.sorumlu_subeler.order_by('ad'))
+    if personel and personel.rol == Rol.MAGAZA_MUDURU and personel.sorumlu_subeler.exists():
+        return list(personel.sorumlu_subeler.order_by('ad'))
     return list(Sube.objects.order_by('ad'))
 
 def _vardiya_tablo(personeller, start, end, gunler):
@@ -338,7 +340,12 @@ def _personel_home(request, personel):
     return render(request, 'personel_panel.html', ctx)
 
 def _sef_home(request, personel):
-    sube = personel.sube
+    magaza_subeler = None
+    if personel.rol == Rol.MAGAZA_MUDURU and personel.sorumlu_subeler.exists():
+        magaza_subeler = list(personel.sorumlu_subeler.order_by('ad'))
+        sube = _yonetici_sube(request, magaza_subeler)
+    else:
+        sube = personel.sube
     secili = request.GET.get('hafta', 'gelecek')
     if secili not in ('bu', 'gelecek'):
         secili = 'gelecek'
@@ -376,6 +383,7 @@ def _sef_home(request, personel):
     personeller = list(sube.personeller.order_by('ad_soyad')) if sube else []
     tablo = _vardiya_tablo(personeller, start, end, gunler)
     ctx = {'personel': personel, 'aktif': 'home', 'is_gm': False, 'sube': sube,
+           'magaza_subeler': magaza_subeler,
            'vardiya_tipleri': VardiyaTipi.choices, 'secili': secili,
            'haftabasi': start, 'haftasonu': end, 'personeller': personeller}
     ctx.update(tablo)
@@ -958,6 +966,17 @@ def ekip_sayfa(request):
                 messages.success(request, f"{m.ad_soyad} için sorumlu şubeler güncellendi ({m.sorumlu_subeler.count()} şube).")
             return redirect('ekip')
 
+        if islem == 'magaza_sube_ata':
+            m = Personel.objects.filter(id=request.POST.get('magaza_id'), rol=Rol.MAGAZA_MUDURU).first()
+            if m:
+                ids = request.POST.getlist('sube_idler')
+                m.sorumlu_subeler.set(Sube.objects.filter(id__in=ids))
+                if m.sorumlu_subeler.count() == 1:
+                    m.sube = m.sorumlu_subeler.first()
+                    m.save(update_fields=['sube'])
+                messages.success(request, f"{m.ad_soyad} için sorumlu olduğu şubeler güncellendi ({m.sorumlu_subeler.count()} şube).")
+            return redirect('ekip')
+
         if islem == 'sef_ekle':
             ad = request.POST.get('ad_soyad', '').strip()
             sid = request.POST.get('sef_sube_id')
@@ -1048,6 +1067,11 @@ def ekip_sayfa(request):
         manuel_yetki_adaylari = list(Personel.objects.filter(
             rol__in=[Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU], manuel_giris_yetkisi=False)
             .select_related('sube').order_by('ad_soyad'))
+        magaza_mudurleri_liste = list(Personel.objects.filter(rol=Rol.MAGAZA_MUDURU)
+                                      .select_related('sube').prefetch_related('sorumlu_subeler')
+                                      .order_by('ad_soyad'))
+        for m in magaza_mudurleri_liste:
+            m.atanan_ids = set(m.sorumlu_subeler.values_list('id', flat=True))
     return render(request, 'ekip.html', {
         'personel': personel, 'aktif': 'ekip', 'subeler': subeler,
         'yoneticiler': yoneticiler, 'sefler': sefler,
@@ -1055,7 +1079,7 @@ def ekip_sayfa(request):
         'is_tam': is_tam,
         'magaza_atayabilir': personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR),
         'mutfak_sorumlulari': list(Personel.objects.filter(rol=Rol.MUTFAK_SORUMLUSU).order_by('ad_soyad')),
-        'magaza_mudurleri': list(Personel.objects.filter(rol=Rol.MAGAZA_MUDURU, sube__in=subeler).select_related('sube').order_by('ad_soyad')),
+        'magaza_mudurleri': magaza_mudurleri_liste if is_atayabilir else list(Personel.objects.filter(rol=Rol.MAGAZA_MUDURU, sube__in=subeler).select_related('sube').order_by('ad_soyad')),
         'is_atayabilir': is_atayabilir, 'bolge_mudurleri': bolge_mudurleri, 'tum_subeler': tum_subeler,
         'egitmenler': egitmenler, 'egitmen_adaylari': egitmen_adaylari,
         'manuel_yetkili_liste': manuel_yetkili_liste, 'manuel_yetki_adaylari': manuel_yetki_adaylari,
@@ -1806,8 +1830,14 @@ def sevkiyat_sayfa(request):
     if not (is_sef or is_satinalma or is_sevkiyat or is_yon):
         return redirect('ana_sayfa')
 
+    sef_sube = personel.sube
+    sef_coklu_sube = None
+    if is_sef and rol == Rol.MAGAZA_MUDURU and personel.sorumlu_subeler.exists():
+        sef_coklu_sube = list(personel.sorumlu_subeler.order_by('ad'))
+        sef_sube = _yonetici_sube(request, sef_coklu_sube)
+
     if request.method == 'POST' and is_sef and request.POST.get('islem') == 'siparis_olustur':
-        if not personel.sube:
+        if not sef_sube:
             messages.error(request, "Şubeniz tanımlı değil. Yöneticinize başvurun.")
             return redirect('sevkiyat')
         not_metni = request.POST.get('not_metni', '').strip()[:400]
@@ -1846,7 +1876,7 @@ def sevkiyat_sayfa(request):
             ekstra.append((ad, miktar, bir))
         if secilen or ekstra:
             talep = SevkiyatTalep.objects.create(
-                sube=personel.sube, olusturan=personel,
+                sube=sef_sube, olusturan=personel,
                 olusturan_ad=personel.ad_soyad, not_metni=not_metni)
             for u, miktar, birim in secilen:
                 SevkiyatKalem.objects.create(
@@ -1866,7 +1896,83 @@ def sevkiyat_sayfa(request):
             messages.error(request, "En az bir ürüne miktar girin.")
         return redirect('sevkiyat')
 
-    if request.method == 'POST' and is_satinalma and request.POST.get('islem') == 'satinalma_tamamla':
+    if request.method == 'POST' and is_satinalma and request.POST.get('islem') == 'talep_iptal':
+        talep = SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'), durum=SevkiyatDurumu.TALEP).first()
+        if talep:
+            sube_adi = talep.sube.ad
+            olusturan = talep.olusturan
+            talep.delete()
+            messages.success(request, "#%s numaralı sipariş iptal edildi." % request.POST.get('talep_id'))
+            if olusturan:
+                _bildir([olusturan], "%s şubesi için oluşturduğun sipariş satın alma tarafından iptal edildi."
+                        % sube_adi, '/sevkiyat/', 'sevkiyat')
+        else:
+            messages.error(request, "Bu sipariş artık iptal edilemez (satın alma zaten işleme almış olabilir).")
+        return redirect('sevkiyat')
+
+    if request.method == 'POST' and is_satinalma and request.POST.get('islem') == 'satinalma_sevkiyat_olustur':
+        sube = Sube.objects.filter(id=request.POST.get('sube_id'), depo_mu=False).first()
+        if not sube:
+            messages.error(request, "Geçerli bir şube seçmelisiniz.")
+            return redirect('sevkiyat')
+        not_metni = request.POST.get('not_metni', '').strip()[:400]
+        secilen = []
+        for u in Urun.objects.filter(aktif=True):
+            raw = request.POST.get('miktar_%s' % u.id, '').strip().replace(',', '.')
+            if not raw:
+                continue
+            try:
+                miktar = Decimal(raw)
+            except Exception:
+                continue
+            if miktar <= 0:
+                continue
+            birim = request.POST.get('birim_%s' % u.id, u.birim)
+            if birim not in _birim_secenek(u):
+                birim = u.birim
+            secilen.append((u, miktar, birim))
+
+        ek_urunler = request.POST.getlist('ek_urun')
+        ek_miktarlar = request.POST.getlist('ek_miktar')
+        ek_birimler = request.POST.getlist('ek_birim')
+        gecerli_birimler = [b for b, _ in SevkiyatBirim.choices]
+        ekstra = []
+        for ad, mik, bir in zip(ek_urunler, ek_miktarlar, ek_birimler):
+            ad = ad.strip()[:160]
+            if not ad:
+                continue
+            try:
+                miktar = Decimal((mik or '').strip().replace(',', '.'))
+            except Exception:
+                continue
+            if miktar <= 0:
+                continue
+            bir = bir if bir in gecerli_birimler else SevkiyatBirim.ADET
+            ekstra.append((ad, miktar, bir))
+
+        if secilen or ekstra:
+            talep = SevkiyatTalep.objects.create(
+                sube=sube, olusturan=personel, olusturan_ad=personel.ad_soyad, not_metni=not_metni,
+                durum=SevkiyatDurumu.SEVKIYATTA, satin_alan_ad=personel.ad_soyad, satin_alma_tarih=timezone.now())
+            for u, miktar, birim in secilen:
+                SevkiyatKalem.objects.create(
+                    talep=talep, urun=u, urun_ad=u.ad, kategori=u.kategori, form=u.form,
+                    koli_icerigi=u.koli_icerigi, istenen_miktar=miktar, istenen_birim=birim,
+                    satinalma_miktar=miktar, satinalma_birim=birim)
+            for ad, miktar, bir in ekstra:
+                SevkiyatKalem.objects.create(
+                    talep=talep, urun=None, urun_ad=ad, kategori='DİĞER', form='',
+                    koli_icerigi=1, istenen_miktar=0, istenen_birim=bir,
+                    satinalma_miktar=miktar, satinalma_birim=bir)
+            SiparisHareket.objects.create(talep=talep, mesaj="Satın alma tarafından oluşturuldu, sevkiyata iletildi",
+                                          yapan_ad=personel.ad_soyad)
+            messages.success(request, "Sipariş oluşturuldu ve sevkiyata iletildi (#%s, %s kalem)." % (
+                talep.id, len(secilen) + len(ekstra)))
+            _bildir(_rol_personelleri(Rol.SEVKIYAT),
+                    "Sevkiyata hazır: %s" % talep.sube.ad, '/sevkiyat/', 'sevkiyat')
+        else:
+            messages.error(request, "En az bir ürüne miktar girin.")
+        return redirect('sevkiyat')
         talep = (SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'), durum=SevkiyatDurumu.TALEP)
                  .prefetch_related('kalemler').first())
         if talep:
@@ -2017,11 +2123,13 @@ def sevkiyat_sayfa(request):
         ctx['katalog'] = katalog
         ctx['ek_oneri'] = list(SevkiyatKalem.objects.filter(urun__isnull=True)
                                .values_list('urun_ad', flat=True).distinct().order_by('urun_ad')[:200])
-        sefler = list(SevkiyatTalep.objects.filter(sube=personel.sube)
+        sefler = list(SevkiyatTalep.objects.filter(sube=sef_sube)
                       .prefetch_related('kalemler', 'hareketler')[:50])
         for t in sefler:
             t.mode = 'read'
         ctx['talepler'] = sefler
+        ctx['sef_coklu_sube'] = sef_coklu_sube
+        ctx['sef_sube'] = sef_sube
     elif is_satinalma:
         subeler = _yon_subeler(personel)
         sel_id = request.GET.get('sube')
@@ -2049,6 +2157,13 @@ def sevkiyat_sayfa(request):
         ctx['gecmis_talepler'] = gecmis
         ctx['sel_gun'] = sel_gun
         ctx['gecmis'] = True
+        katalog = _katalog_gruplu()
+        for f in katalog:
+            for kat in f['kategoriler']:
+                kat['urunler'] = [{'u': u, 'birimler': _birim_secenek(u)} for u in kat['urunler']]
+        ctx['katalog'] = katalog
+        ctx['ek_oneri'] = list(SevkiyatKalem.objects.filter(urun__isnull=True)
+                               .values_list('urun_ad', flat=True).distinct().order_by('urun_ad')[:200])
     elif is_sevkiyat:
         sel_id = request.GET.get('sube')
         try:
@@ -2835,6 +2950,8 @@ def _mola_izleme_subeler(personel):
         return list(Sube.objects.filter(depo_mu=False).values_list('id', flat=True))
     if personel.rol == Rol.MUDUR:
         return list(personel.sorumlu_subeler.values_list('id', flat=True))
+    if personel.rol == Rol.MAGAZA_MUDURU and personel.sorumlu_subeler.exists():
+        return list(personel.sorumlu_subeler.values_list('id', flat=True))
     if personel.rol in (Rol.MAGAZA_MUDURU, Rol.SEF) and personel.sube_id:
         return [personel.sube_id]
     return []
@@ -2849,7 +2966,7 @@ def mola_izleme(request):
     if personel is None or personel.rol not in MOLA_IZLEME_ROLLER:
         return redirect('ana_sayfa')
     sube_ids = _mola_izleme_subeler(personel)
-    tekli_rol = personel.rol in (Rol.SEF, Rol.MAGAZA_MUDURU)
+    tekli_rol = personel.rol == Rol.SEF or (personel.rol == Rol.MAGAZA_MUDURU and len(sube_ids) <= 1)
     subeler = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if (len(sube_ids) > 1 and not tekli_rol) else []
     return render(request, 'mola_izleme.html', {
         'personel': personel, 'aktif': 'mola_izleme', 'subeler': subeler,
@@ -2863,7 +2980,8 @@ def mola_izleme_json(request):
     if personel is None or personel.rol not in MOLA_IZLEME_ROLLER:
         return JsonResponse({'molalar': []}, status=403)
     sube_ids = _mola_izleme_subeler(personel)
-    if personel.rol not in (Rol.SEF, Rol.MAGAZA_MUDURU):
+    tekli_rol = personel.rol == Rol.SEF or (personel.rol == Rol.MAGAZA_MUDURU and len(sube_ids) <= 1)
+    if not tekli_rol:
         sec = request.GET.get('sube')
         if sec and sec.isdigit() and int(sec) in sube_ids:
             sube_ids = [int(sec)]
@@ -2896,7 +3014,7 @@ def mola_gecmis(request):
     if personel is None or personel.rol not in MOLA_IZLEME_ROLLER:
         return redirect('ana_sayfa')
     sube_ids = _mola_izleme_subeler(personel)
-    tekli_rol = personel.rol in (Rol.SEF, Rol.MAGAZA_MUDURU)
+    tekli_rol = personel.rol == Rol.SEF or (personel.rol == Rol.MAGAZA_MUDURU and len(sube_ids) <= 1)
     subeler = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if (len(sube_ids) > 1 and not tekli_rol) else []
     sec = request.GET.get('sube')
     if tekli_rol:
@@ -3380,9 +3498,15 @@ def mesai_kayitlari(request):
     personel = _aktif_personel(request)
     if personel is None or (personel.rol not in UST_YONETIM and personel.rol not in (Rol.SEF, Rol.MAGAZA_MUDURU, Rol.MUTFAK_SORUMLUSU)):
         return redirect('ana_sayfa')
-    is_yon = personel.rol in UST_YONETIM or personel.rol == Rol.MUTFAK_SORUMLUSU
+    magaza_coklu = personel.rol == Rol.MAGAZA_MUDURU and personel.sorumlu_subeler.exists()
+    is_yon = personel.rol in UST_YONETIM or personel.rol == Rol.MUTFAK_SORUMLUSU or magaza_coklu
     if is_yon:
-        subeler = _yon_subeler(personel) if personel.rol in UST_YONETIM else list(Sube.objects.filter(depo_mu=False).order_by('ad'))
+        if personel.rol in UST_YONETIM:
+            subeler = _yon_subeler(personel)
+        elif magaza_coklu:
+            subeler = list(personel.sorumlu_subeler.order_by('ad'))
+        else:
+            subeler = list(Sube.objects.filter(depo_mu=False).order_by('ad'))
         sube_ids = [s.id for s in subeler]
         sec = request.GET.get('sube')
         if sec and sec.isdigit() and int(sec) in sube_ids:

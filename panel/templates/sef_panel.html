@@ -15,6 +15,17 @@
       <p>Hesabınıza bir şube atanmamış. Lütfen yöneticinize başvurun.</p></div>
   {% else %}
 
+    {% if magaza_subeler %}
+    <form method="get" class="card sv-filtre" style="margin-bottom:1rem">
+      <input type="hidden" name="hafta" value="{{ secili }}">
+      <label>Şube
+        <select name="sube_id" class="sube-sec" onchange="this.form.submit()">
+          {% for sb in magaza_subeler %}<option value="{{ sb.id }}"{% if sb.id == sube.id %} selected{% endif %}>{{ sb.ad }}</option>{% endfor %}
+        </select>
+      </label>
+    </form>
+    {% endif %}
+
     <div class="plan-head">
       <div>
         <h2>Vardiya Planı</h2>

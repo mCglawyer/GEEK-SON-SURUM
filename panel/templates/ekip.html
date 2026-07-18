@@ -63,7 +63,10 @@
       <ul class="staff-list">
         {% for m in magaza_mudurleri %}
         <li class="sef-row">
-          <span class="staff-ad">{{ m.ad_soyad }} <span class="badge badge-info">{{ m.sube.ad }}</span></span>
+          <span class="staff-ad">{{ m.ad_soyad }}
+            {% if m.atanan_ids|length > 1 %}{% for sb in tum_subeler %}{% if sb.id in m.atanan_ids %}<span class="badge badge-info">{{ sb.ad }}</span>{% endif %}{% endfor %}
+            {% else %}<span class="badge badge-info">{{ m.sube.ad }}</span>{% endif %}
+          </span>
           <span class="staff-kod">kod: <code>{{ m.giris_kodu }}</code></span>
           <form method="post" onsubmit="return confirm('{{ m.ad_soyad }} mağaza müdürlükten çıkarılsın mı?');">{% csrf_token %}<input type="hidden" name="islem" value="magaza_muduru_cikar"><input type="hidden" name="personel_id" value="{{ m.id }}"><button class="btn btn-ghost btn-mini">Çıkar</button></form>
         </li>
@@ -122,6 +125,33 @@
       </div>
       {% else %}
       <p class="staff-aciklama">Henüz Bölge Müdürü rolünde kullanıcı yok. Yukarıdan "Müdür" rolüyle ekleyebilirsiniz.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if is_atayabilir %}
+    <div class="card staff-card">
+      <div class="staff-card-bas"><h3>Mağaza Müdürü — Ek Şube Atama</h3></div>
+      <p class="ea-not">Normalde her mağaza müdürü tek şubeye bakar. Birden fazla şubeden sorumlu olmasını istediğin kişiler için buradan ek şube işaretleyebilirsin.</p>
+      {% if magaza_mudurleri %}
+      <div class="bm-liste">
+        {% for m in magaza_mudurleri %}
+        <form method="post" class="bm-ata">
+          {% csrf_token %}
+          <input type="hidden" name="islem" value="magaza_sube_ata">
+          <input type="hidden" name="magaza_id" value="{{ m.id }}">
+          <div class="bm-ad">{{ m.ad_soyad }} <span class="badge badge-info">{{ m.atanan_ids|length }} şube</span></div>
+          <div class="bm-subeler">
+            {% for sb in tum_subeler %}
+            <label class="bm-chk"><input type="checkbox" name="sube_idler" value="{{ sb.id }}"{% if sb.id in m.atanan_ids %} checked{% endif %}> {{ sb.ad }}{% if sb.depo_mu %} (depo){% endif %}</label>
+            {% endfor %}
+          </div>
+          <button class="btn btn-primary btn-mini">Kaydet</button>
+        </form>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="staff-aciklama">Henüz mağaza müdürü yok.</p>
       {% endif %}
     </div>
     {% endif %}

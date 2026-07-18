@@ -7,12 +7,22 @@
 
   <div class="plan-head"><div><h2>Sevkiyat</h2>
     <span class="plan-aralik">
-      {% if is_sef %}{{ personel.sube.ad }} · sipariş oluştur
+      {% if is_sef %}{{ sef_sube.ad|default:personel.sube.ad }} · sipariş oluştur
       {% elif is_satinalma %}Bekleyen siparişler
       {% elif is_sevkiyat %}Sevkiyattakiler
       {% else %}Tüm siparişler{% endif %}
     </span>
   </div></div>
+
+  {% if is_sef and sef_coklu_sube %}
+  <form method="get" class="card sv-filtre">
+    <label>Şube
+      <select name="sube_id" class="sube-sec" onchange="this.form.submit()">
+        {% for sb in sef_coklu_sube %}<option value="{{ sb.id }}"{% if sb.id == sef_sube.id %} selected{% endif %}>{{ sb.ad }}</option>{% endfor %}
+      </select>
+    </label>
+  </form>
+  {% endif %}
 
   {% if is_sef %}
     {% if katalog %}
@@ -86,6 +96,65 @@
   </form>
   {% endif %}
 
+  {% if is_satinalma and katalog %}
+  <details class="card sv-katalog sv-sa-olustur">
+    <summary class="sv-sa-baslik">+ Kendi sevkiyatını oluştur (doğrudan sevkiyata iletilir)</summary>
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="islem" value="satinalma_sevkiyat_olustur">
+      <label class="sv-sube-sec-label">Şube
+        <select name="sube_id" class="sube-sec" required>
+          <option value="">Şube seç…</option>
+          {% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="sv-tablar">
+        {% for f in katalog %}
+        <button type="button" class="sv-tab{% if forloop.first %} aktif{% endif %}" data-form="sa-{{ f.kod }}">{{ f.etiket }}</button>
+        {% endfor %}
+      </div>
+      {% for f in katalog %}
+      <div class="sv-formblok" data-form="sa-{{ f.kod }}"{% if not forloop.first %} hidden{% endif %}>
+        {% for kat in f.kategoriler %}
+        <details class="sv-kat">
+          <summary>{{ kat.ad }}<span class="sv-sayi">{{ kat.urunler|length }} ürün</span></summary>
+          <div class="sv-urunler">
+            {% for row in kat.urunler %}
+            <div class="sv-urow">
+              <div class="sv-uad">{{ row.u.ad }}<span class="sv-koli">{% if row.u.ust_birim %}1 {{ row.u.ust_birim }} = {{ row.u.koli_icerigi }} {{ row.u.birim }}{% else %}Birim: {{ row.u.birim }}{% endif %}</span></div>
+              <div class="sv-girdi">
+                <input class="input sv-miktar" type="number" name="miktar_{{ row.u.id }}" min="0" step="any" placeholder="0">
+                <select class="sube-sec sv-birim" name="birim_{{ row.u.id }}">
+                  {% for b in row.birimler %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+      {% endfor %}
+      <details class="sv-kat sv-ek-kat">
+        <summary>Listede olmayan ürün</summary>
+        <div class="sv-urunler" id="sa-ek-kalemler">
+          <div class="sv-ek-row">
+            <input class="input sv-ek-ad" type="text" name="ek_urun" list="sa-ek-oneri" placeholder="Ürün adı" autocomplete="off">
+            <input class="input sv-miktar" type="number" name="ek_miktar" min="0" step="any" placeholder="0">
+            <select class="sube-sec sv-birim" name="ek_birim">{% for b in tum_birimler %}<option value="{{ b }}">{{ b }}</option>{% endfor %}</select>
+            <button type="button" class="btn btn-ghost btn-mini sv-ek-sil">✕</button>
+          </div>
+        </div>
+        <datalist id="sa-ek-oneri">{% for ad in ek_oneri %}<option value="{{ ad }}"></option>{% endfor %}</datalist>
+        <button type="button" class="btn btn-ghost btn-mini" id="sa-ek-ekle">+ Satır ekle</button>
+      </details>
+      <div class="sv-gonder">
+        <input class="input sv-not-input" type="text" name="not_metni" placeholder="Not (opsiyonel)" maxlength="400">
+        <button type="submit" class="btn btn-primary">Oluştur ve sevkiyata ilet</button>
+      </div>
+    </form>
+  </details>
+  {% endif %}
+
   {% for t in talepler %}{% include 'sevkiyat_kart.html' %}{% empty %}
   <div class="card sv-bos"><p style="margin:0;color:var(--muted)">{% if gecmis %}Bekleyen işlem yok.{% else %}Henüz sipariş yok.{% endif %}</p></div>
   {% endfor %}
@@ -129,38 +198,40 @@
   {% endif %}
 </div>
 
-{% if is_sef %}
+{% if is_sef or is_satinalma %}
 <script>
 (function () {
   var tabs = document.querySelectorAll('.sv-tab');
   tabs.forEach(function (t) {
     t.addEventListener('click', function () {
       var f = t.getAttribute('data-form');
-      tabs.forEach(function (x) { x.classList.toggle('aktif', x === t); });
-      document.querySelectorAll('.sv-formblok').forEach(function (b) {
+      var kapsayici = t.closest('form') || document;
+      tabs.forEach(function (x) { if ((x.closest('form') || document) === kapsayici) x.classList.toggle('aktif', x === t); });
+      kapsayici.querySelectorAll('.sv-formblok').forEach(function (b) {
         b.hidden = (b.getAttribute('data-form') !== f);
       });
     });
   });
-  var kapsa = document.getElementById('ek-kalemler');
-  var ekle = document.getElementById('ek-ekle');
-  function bagla(row) {
-    var sil = row.querySelector('.sv-ek-sil');
-    if (sil) sil.addEventListener('click', function () {
-      if (kapsa.querySelectorAll('.sv-ek-row').length > 1) row.remove();
-    });
-  }
-  if (kapsa && ekle) {
+  document.querySelectorAll('#ek-kalemler, #sa-ek-kalemler').forEach(function (kapsa) {
+    var ekle = document.getElementById(kapsa.id === 'ek-kalemler' ? 'ek-ekle' : 'sa-ek-ekle');
+    function bagla(row) {
+      var sil = row.querySelector('.sv-ek-sil');
+      if (sil) sil.addEventListener('click', function () {
+        if (kapsa.querySelectorAll('.sv-ek-row').length > 1) row.remove();
+      });
+    }
     kapsa.querySelectorAll('.sv-ek-row').forEach(bagla);
-    ekle.addEventListener('click', function () {
-      var ilk = kapsa.querySelector('.sv-ek-row');
-      var yeni = ilk.cloneNode(true);
-      yeni.querySelectorAll('input').forEach(function (i) { i.value = ''; });
-      kapsa.appendChild(yeni);
-      bagla(yeni);
-      yeni.querySelector('.sv-ek-ad').focus();
-    });
-  }
+    if (ekle) {
+      ekle.addEventListener('click', function () {
+        var ilk = kapsa.querySelector('.sv-ek-row');
+        var yeni = ilk.cloneNode(true);
+        yeni.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+        kapsa.appendChild(yeni);
+        bagla(yeni);
+        yeni.querySelector('.sv-ek-ad').focus();
+      });
+    }
+  });
 })();
 </script>
 {% endif %}

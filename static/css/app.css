@@ -330,6 +330,10 @@ a { color:var(--brand); text-decoration:none; }
 .sv-verilen input { width:80px; min-height:42px; padding:.4rem .5rem; border:1px solid var(--line); border-radius:8px; font:inherit; text-align:center; }
 .sv-altbilgi { margin-top:.6rem; padding-top:.5rem; border-top:1px dashed var(--line); line-height:1.5; }
 .sv-talep form .btn { margin-top:.4rem; }
+.sv-iptal-form { margin-top:.4rem; }
+.sv-sa-olustur summary.sv-sa-baslik { cursor:pointer; font-weight:600; color:var(--brand); padding:.3rem 0; list-style:none; }
+.sv-sa-olustur summary.sv-sa-baslik::-webkit-details-marker { display:none; }
+.sv-sube-sec-label { display:block; font-size:.82rem; color:var(--muted); font-weight:600; margin:.8rem 0; }
 
 .sv-filtre { display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap; }
 .sv-filtre label { display:flex; flex-direction:column; gap:.3rem; font-size:.8rem; color:var(--muted); }

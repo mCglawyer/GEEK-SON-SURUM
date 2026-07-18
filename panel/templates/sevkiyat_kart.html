@@ -35,6 +35,10 @@
       </div>
       <button type="submit" class="btn btn-primary btn-mini">Sevkiyata ilet</button>
     </form>
+    <form method="post" onsubmit="return confirm('#{{ t.id }} numaralı sipariş iptal edilsin mi? Bu işlem geri alınamaz.');" class="sv-iptal-form">
+      {% csrf_token %}<input type="hidden" name="islem" value="talep_iptal"><input type="hidden" name="talep_id" value="{{ t.id }}">
+      <button type="submit" class="btn btn-danger btn-mini">İptal Et</button>
+    </form>
 
     {% elif t.mode == 'sv' %}
     <form method="post">{% csrf_token %}
