@@ -56,6 +56,14 @@
       window.addEventListener('load', function () {
         navigator.serviceWorker.register('/sw.js').catch(function () {});
       });
+      // Sunucu tarafında bir değişiklik (yeni deploy, sunucu geçişi vb.) olduğunda
+      // yeni service worker devreye girer girmez, açık kalmış eski sekmeleri/PWA
+      // pencerelerini otomatik tazeler — böylece kimse eski/bayat bir sayfada
+      // (ör. eski CSRF token'ıyla) takılı kalmaz.
+      var _sw_ilk_kontrolcu = navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (_sw_ilk_kontrolcu) { window.location.reload(); }
+      });
     }
   </script>
   {% if personel %}

@@ -57,6 +57,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'core.urls'
+CSRF_FAILURE_VIEW = 'panel.views.csrf_hata_sayfasi'
 
 TEMPLATES = [
     {

@@ -2341,8 +2341,8 @@ _PWA_MANIFEST = {
 }
 
 _PWA_SW = """
-const STATIK = 'geek-statik-v2';
-const KABUK = 'geek-kabuk-v2';
+const STATIK = 'geek-statik-v3';
+const KABUK = 'geek-kabuk-v3';
 const KABUK_URL = '/';
 self.addEventListener('install', function (e) {
   e.waitUntil(
@@ -2407,6 +2407,40 @@ self.addEventListener('notificationclick', function (e) {
   }));
 });
 """
+
+def csrf_hata_sayfasi(request, reason=""):
+    """
+    Django'nun çıplak 'Forbidden (403) CSRF verification failed' sayfası yerine
+    gösterilir. En sık sebep: eski bir sekme/PWA penceresinin uzun süredir açık
+    kalıp bayat bir sayfa üzerinden form göndermesi (özellikle sunucu değişimi/
+    deploy sonrası). Kullanıcıya net bir Türkçe talimat verir.
+    """
+    html = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sayfa yenilenmeli · Geek Panel</title>
+<style>
+  body{ font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:#F5F7FC; color:#1c2333;
+        display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; padding:1.5rem; }
+  .kart{ max-width:420px; background:#fff; border-radius:16px; padding:2rem 1.6rem; text-align:center;
+         box-shadow:0 12px 32px -18px rgba(20,30,60,.25); }
+  h1{ font-size:1.25rem; margin:0 0 .6rem; }
+  p{ font-size:.92rem; color:#5b6472; line-height:1.5; margin:0 0 1.4rem; }
+  button{ background:#162AA3; color:#fff; border:none; border-radius:10px; padding:.8rem 1.4rem;
+          font-size:.95rem; font-weight:600; cursor:pointer; width:100%; }
+</style></head>
+<body>
+  <div class="kart">
+    <h1>🔄 Sayfanın yenilenmesi gerekiyor</h1>
+    <p>Bu sekme/uygulama uzun süredir açık kalmış olabilir. Devam etmek için sayfayı bir kez yenile.</p>
+    <button onclick="window.location.href='/'">Sayfayı Yenile</button>
+  </div>
+  <script>
+    if ('caches' in window) { caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); }); }
+  </script>
+</body></html>"""
+    from django.http import HttpResponseForbidden
+    return HttpResponseForbidden(html)
+
 
 def pwa_manifest(request):
     return HttpResponse(json.dumps(_PWA_MANIFEST, ensure_ascii=False),
