@@ -2,6 +2,7 @@ services:
   - type: web
     name: geek-panel
     runtime: python
+    region: frankfurt
     plan: starter
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
     startCommand: "gunicorn core.wsgi:application --workers 3 --threads 2 --timeout 60"
@@ -44,6 +45,7 @@ services:
   - type: cron
     name: geek-panel-dogum-kontrol
     runtime: python
+    region: frankfurt
     plan: starter
     schedule: "0 6 * * *"
     buildCommand: "pip install -r requirements.txt"

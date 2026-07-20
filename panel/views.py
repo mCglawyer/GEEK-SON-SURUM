@@ -1973,6 +1973,8 @@ def sevkiyat_sayfa(request):
         else:
             messages.error(request, "En az bir ürüne miktar girin.")
         return redirect('sevkiyat')
+
+    if request.method == 'POST' and is_satinalma and request.POST.get('islem') == 'satinalma_tamamla':
         talep = (SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'), durum=SevkiyatDurumu.TALEP)
                  .prefetch_related('kalemler').first())
         if talep:
