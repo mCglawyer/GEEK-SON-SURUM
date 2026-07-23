@@ -68,18 +68,26 @@
   </script>
   <script>
     // Genel çift-gönderim koruması: siteye herhangi bir form gönderildiğinde,
-    // o formun gönder butonu anında devre dışı bırakılır. Yavaş bağlantıda
-    // sayfa tepki vermiyor gibi görünüp kişi butona tekrar tekrar basarsa,
-    // aynı işlemin (sipariş, mola, mesai vb.) birden fazla kez oluşmasını önler.
+    // o formun gönder butonu kısa bir gecikmeyle devre dışı bırakılır. Yavaş
+    // bağlantıda sayfa tepki vermiyor gibi görünüp kişi butona tekrar tekrar
+    // basarsa, aynı işlemin (sipariş, mola, mesai vb.) birden fazla kez
+    // oluşmasını önler.
+    // ÖNEMLİ: devre dışı bırakma setTimeout ile ERTELENİYOR — aksi hâlde bazı
+    // tarayıcılar, "name/value" taşıyan gönder butonlarını (ör. <button
+    // name="sonuc" value="dogru">) senkron olarak devre dışı bırakınca o
+    // butonun değerini forma hiç eklemiyor, bu da "Doğru/Yanlış" gibi butonlu
+    // formların sessizce hiçbir şey yapmamasına yol açabiliyordu.
     document.addEventListener('submit', function (e) {
       var form = e.target;
       if (!(form instanceof HTMLFormElement) || e.defaultPrevented) return;
-      form.querySelectorAll('button:not([type="button"]), input[type="submit"]').forEach(function (btn) {
-        if (btn.disabled) return;
-        btn.disabled = true;
-        btn.dataset.gonderiliyorEski = btn.textContent;
-        if (btn.tagName === 'BUTTON' && btn.textContent.trim()) btn.textContent = 'Gönderiliyor…';
-      });
+      setTimeout(function () {
+        form.querySelectorAll('button:not([type="button"]), input[type="submit"]').forEach(function (btn) {
+          if (btn.disabled) return;
+          btn.disabled = true;
+          btn.dataset.gonderiliyorEski = btn.textContent;
+          if (btn.tagName === 'BUTTON' && btn.textContent.trim()) btn.textContent = 'Gönderiliyor…';
+        });
+      }, 0);
     }, true);
   </script>
   {% if personel %}
