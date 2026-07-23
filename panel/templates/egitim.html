@@ -16,13 +16,16 @@
     <div class="egitim-hero-yazi">
       {% if durum.tamamlandi %}<p class="egitim-tamam-not">✅ Eğitimi tamamladın.</p>{% endif %}
       {% if durum.inceleme_bekliyor %}<p class="egitim-tamam-not">📝 Yazılı sorular eğitmen/operatör tarafından okunuyor. Sonucun kesinleşince bildirim alacaksın.</p>{% endif %}
+      {% if durum.gecti and not durum.tamamlandi and not durum.inceleme_bekliyor %}<p class="egitim-tamam-not">🎉 Sınavı geçtin! Devam edebilmen için son bir adım kaldı — sözleşmeyi onayla.</p>{% endif %}
       <div class="egitim-aksiyon">
         <button type="button" class="btn btn-primary" id="ac-btn">Oryantasyon ve Eğitimi Aç</button>
-        {% if not durum.tamamlandi and not durum.inceleme_bekliyor and acik and soru_var %}
+        {% if durum.gecti and not durum.tamamlandi and not durum.inceleme_bekliyor %}
+        <a href="{% url 'egitim_sozlesme' %}" class="btn btn-primary" id="sozlesme-btn">Sözleşmeyi Onayla</a>
+        {% elif not durum.tamamlandi and not durum.inceleme_bekliyor and not durum.gecti and acik and soru_var %}
         <a href="{% url 'egitim_test' %}" class="btn btn-primary" id="sinav-btn">Sınava Başla</a>
         {% endif %}
       </div>
-      {% if durum.deneme and not durum.tamamlandi and not durum.inceleme_bekliyor %}<p class="egitim-deneme">Son denemen: {{ durum.son_puan }}/{{ soru_sayisi }} · giriş: {{ durum.deneme }} · <a href="{% url 'egitim_sonucum' %}">hangi soruları yanlış yaptın?</a></p>{% endif %}
+      {% if durum.deneme and not durum.tamamlandi and not durum.inceleme_bekliyor and not durum.gecti %}<p class="egitim-deneme">Son denemen: {{ durum.son_puan }}/{{ soru_sayisi }} · giriş: {{ durum.deneme }} · <a href="{% url 'egitim_sonucum' %}">hangi soruları yanlış yaptın?</a></p>{% endif %}
       {% if durum.deneme and durum.tamamlandi %}<p class="egitim-deneme"><a href="{% url 'egitim_sonucum' %}">sınav sonucunu gör</a></p>{% endif %}
     </div>
     <svg class="barista-svg" viewBox="0 0 140 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

@@ -4210,6 +4210,9 @@ def egitim_test(request):
     if durum.inceleme_bekliyor:
         messages.info(request, "Önceki sınavının yazılı soruları hâlâ inceleniyor. Sonuç çıkınca tekrar deneyebilirsin.")
         return redirect('egitim')
+    if durum.gecti:
+        messages.info(request, "Sınavı zaten geçtin — devam etmek için sözleşmeyi onayla.")
+        return redirect('egitim_sozlesme')
     ayar = _egitim_ayar_getir()
 
     if request.method == 'POST':
