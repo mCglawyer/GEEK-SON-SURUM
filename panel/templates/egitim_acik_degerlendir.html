@@ -8,11 +8,6 @@
     <a href="{% url 'egitim_yonetim' %}" class="btn btn-ghost btn-mini">← Eğitim Yönetimi</a>
   </div>
 
-  <form method="post" style="margin-bottom:1rem">
-    {% csrf_token %}<input type="hidden" name="islem" value="bekleyenleri_sonuclandir">
-    <button class="btn btn-primary btn-mini" title="Tüm cevapları puanlanmış ama hâlâ 'inceleniyor' durumunda kalmış kişileri kesinleştirir">Bekleyen Tüm Sonuçları Kesinleştir</button>
-  </form>
-
   <div class="card">
     <h3 class="egitim-bolum">Değerlendirme Bekleyenler {% if gruplar %}<span class="ea-not">({{ gruplar|length }} kişi)</span>{% endif %}</h3>
     {% for g in gruplar %}

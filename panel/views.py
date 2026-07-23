@@ -4119,8 +4119,8 @@ def _egitim_durum(personel):
 
 
 def _egitim_sampiyon_esik(soru_sayisi):
-    """Bireysel 'şampiyon' sayılmak için gereken doğru sayısı: sabit 17 doğru."""
-    return 17
+    """Bireysel 'şampiyon' sayılmak için gereken doğru sayısı: sabit 18 doğru."""
+    return 18
 
 
 def _egitim_sampiyon_verisi():
@@ -4322,37 +4322,14 @@ def egitim_yonetim(request):
     acabilir = personel.rol in EGITIM_ACMA_ROLLER
     ayar_duzenleyebilir = personel.rol in EGITIM_AYAR_ROLLER
 
-    if request.method == 'POST' and personel.rol in EGITIM_ACIK_PUANLA_ROLLER and request.POST.get('islem') == 'bekleyenleri_sonuclandir':
-        ayar = _egitim_ayar_getir()
-        kesinlesen, hala_bekleyen = 0, 0
-        for durum in EgitimDurum.objects.filter(inceleme_bekliyor=True).select_related('personel'):
-            kisi = durum.personel
-            if kisi is None or not durum.deneme:
-                continue
-            bu_deneme = EgitimAcikCevap.objects.filter(personel=kisi, deneme_no=durum.deneme)
-            if not bu_deneme.exists() or bu_deneme.filter(puanlandi=False).exists():
-                hala_bekleyen += 1
-                continue
-            acik_dogru = bu_deneme.filter(dogru_mu=True).count()
-            toplam_dogru = durum.son_puan + acik_dogru
-            gecti_mi = toplam_dogru >= ayar.gecme_puan
-            durum.son_puan = toplam_dogru
-            durum.inceleme_bekliyor = False
-            durum.gecti = gecti_mi
-            durum.save()
-            kesinlesen += 1
-            if gecti_mi:
-                _bildir([kisi], "Eğitim sınavın değerlendirildi: %d/%d doğru — geçtin! Sözleşmeyi onaylamak için Eğitim sayfasına gir."
-                        % (toplam_dogru, ayar.soru_sayisi), '/egitim/', 'egitim_sonuc')
-            else:
-                _bildir([kisi], "Eğitim sınavın değerlendirildi: %d/%d doğru — başarısız. Farklı sorularla tekrar deneyebilirsin."
-                        % (toplam_dogru, ayar.soru_sayisi), '/egitim/', 'egitim_sonuc')
-        if kesinlesen:
-            messages.success(request, "%d kişinin sınav sonucu kesinleşti." % kesinlesen)
-        if hala_bekleyen:
-            messages.info(request, "%d kişinin hâlâ puanlanmamış açık uçlu cevabı var, onlar bekliyor." % hala_bekleyen)
-        if not kesinlesen and not hala_bekleyen:
-            messages.info(request, "İnceleme bekleyen kimse yok.")
+    if request.method == 'POST' and ayar_duzenleyebilir and request.POST.get('islem') == 'karneleri_sifirla':
+        hedef_kisiler = Personel.objects.filter(rol__in=EGITIM_HEDEF_ROLLER)
+        durumlar = EgitimDurum.objects.filter(personel__in=hedef_kisiler, deneme__gt=0)
+        etkilenen = durumlar.count()
+        EgitimAcikCevap.objects.filter(personel__in=hedef_kisiler).delete()
+        durumlar.update(tamamlandi=False, gecti=False, inceleme_bekliyor=False, son_puan=0,
+                        deneme=0, son_sorular='', son_cevaplar='', sozlesme_onayli=False)
+        messages.success(request, "%d kişinin sınav karnesi sıfırlandı — herkes tekrar sınava girebilir." % etkilenen)
         return redirect('egitim_yonetim')
 
     if request.method == 'POST' and acabilir and request.POST.get('islem') in ('sistem_ac', 'sistem_kapat', 'sube_ac', 'sube_kapat'):
