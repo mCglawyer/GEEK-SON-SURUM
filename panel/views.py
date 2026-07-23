@@ -1875,6 +1875,16 @@ def sevkiyat_sayfa(request):
             bir = bir if bir in gecerli_birimler else SevkiyatBirim.ADET
             ekstra.append((ad, miktar, bir))
         if secilen or ekstra:
+            # Çift tıklama / yavaş bağlantı yüzünden aynı siparişin birden fazla
+            # oluşturulmasını önlemek için: aynı kişi aynı şube için son 20 saniye
+            # içinde zaten bir sipariş oluşturduysa, yeni bir kayıt AÇMA.
+            yakin_zamanda = SevkiyatTalep.objects.filter(
+                sube=sef_sube, olusturan=personel,
+                olusturma__gte=timezone.now() - datetime.timedelta(seconds=20)
+            ).order_by('-olusturma').first()
+            if yakin_zamanda:
+                messages.info(request, "Bu sipariş az önce zaten gönderildi (#%s) — tekrar oluşturulmadı." % yakin_zamanda.id)
+                return redirect('sevkiyat')
             talep = SevkiyatTalep.objects.create(
                 sube=sef_sube, olusturan=personel,
                 olusturan_ad=personel.ad_soyad, not_metni=not_metni)
@@ -1951,6 +1961,13 @@ def sevkiyat_sayfa(request):
             ekstra.append((ad, miktar, bir))
 
         if secilen or ekstra:
+            yakin_zamanda = SevkiyatTalep.objects.filter(
+                sube=sube, olusturan=personel,
+                olusturma__gte=timezone.now() - datetime.timedelta(seconds=20)
+            ).order_by('-olusturma').first()
+            if yakin_zamanda:
+                messages.info(request, "Bu sipariş az önce zaten oluşturuldu (#%s) — tekrar oluşturulmadı." % yakin_zamanda.id)
+                return redirect('sevkiyat')
             talep = SevkiyatTalep.objects.create(
                 sube=sube, olusturan=personel, olusturan_ad=personel.ad_soyad, not_metni=not_metni,
                 durum=SevkiyatDurumu.SEVKIYATTA, satin_alan_ad=personel.ad_soyad, satin_alma_tarih=timezone.now())
@@ -4047,7 +4064,7 @@ EGITIM_GORUNTULE_ROLLER = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIM
 EGITIM_DUZENLE_ROLLER = [Rol.EGITMEN, Rol.MUDUR]
 EGITIM_ACMA_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.MUDUR]
 # Soru sayısı/süre/geçme puanını ayarlayabilecek roller (Eğitmen + Operatör).
-EGITIM_AYAR_ROLLER = [Rol.EGITMEN, Rol.OPERATOR]
+EGITIM_AYAR_ROLLER = [Rol.EGITMEN, Rol.OPERATOR, Rol.MUDUR]
 # Açık uçlu (yazılı) cevapları görüp puanlayabilecek roller.
 EGITIM_ACIK_PUANLA_ROLLER = [Rol.EGITMEN, Rol.OPERATOR]
 

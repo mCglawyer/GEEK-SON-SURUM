@@ -66,6 +66,22 @@
       });
     }
   </script>
+  <script>
+    // Genel çift-gönderim koruması: siteye herhangi bir form gönderildiğinde,
+    // o formun gönder butonu anında devre dışı bırakılır. Yavaş bağlantıda
+    // sayfa tepki vermiyor gibi görünüp kişi butona tekrar tekrar basarsa,
+    // aynı işlemin (sipariş, mola, mesai vb.) birden fazla kez oluşmasını önler.
+    document.addEventListener('submit', function (e) {
+      var form = e.target;
+      if (!(form instanceof HTMLFormElement) || e.defaultPrevented) return;
+      form.querySelectorAll('button:not([type="button"]), input[type="submit"]').forEach(function (btn) {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.dataset.gonderiliyorEski = btn.textContent;
+        if (btn.tagName === 'BUTTON' && btn.textContent.trim()) btn.textContent = 'Gönderiliyor…';
+      });
+    }, true);
+  </script>
   {% if personel %}
   <script>
   (function () {
