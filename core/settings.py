@@ -103,6 +103,21 @@ if os.environ.get('DB_NAME'):
     if _sslmode:
         DATABASES['default']['OPTIONS'] = {'sslmode': _sslmode}
 
+# Geçici ikinci bağlantı: sadece Oregon'a veri taşıma sırasında, Render Shell'den
+# kullanılır. Bu ortam değişkenleri tanımlı değilse hiçbir etkisi yok — canlı
+# sitenin kullandığı 'default' bağlantıya asla dokunmaz.
+if os.environ.get('OREGON_DB_HOST'):
+    DATABASES['oregon'] = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('OREGON_DB_NAME', 'neondb'),
+        'USER': os.environ.get('OREGON_DB_USER', ''),
+        'PASSWORD': os.environ.get('OREGON_DB_PASSWORD', ''),
+        'HOST': os.environ.get('OREGON_DB_HOST', ''),
+        'PORT': os.environ.get('OREGON_DB_PORT', '5432'),
+        'CONN_MAX_AGE': 0,
+        'OPTIONS': {'sslmode': 'require'},
+    }
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
