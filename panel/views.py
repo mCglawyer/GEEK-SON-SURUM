@@ -4066,7 +4066,7 @@ EGITIM_ACMA_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.MUDUR]
 # Soru sayısı/süre/geçme puanını ayarlayabilecek roller (Eğitmen + Operatör).
 EGITIM_AYAR_ROLLER = [Rol.EGITMEN, Rol.OPERATOR, Rol.MUDUR]
 # Açık uçlu (yazılı) cevapları görüp puanlayabilecek roller.
-EGITIM_ACIK_PUANLA_ROLLER = [Rol.EGITMEN, Rol.OPERATOR]
+EGITIM_ACIK_PUANLA_ROLLER = [Rol.EGITMEN, Rol.OPERATOR, Rol.MUDUR]
 
 
 def _egitim_ayar_getir():
