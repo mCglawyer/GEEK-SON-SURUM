@@ -20,10 +20,10 @@
     </div>
     {% endif %}
     {% for s in sampiyonlar %}
-    <div class="gs-story" title="{{ s.sube }} · {{ s.puan }}/10 doğru">
+    <div class="gs-story" title="{{ s.sube }} · {{ s.puan }}/{{ egitim_soru_sayisi }} doğru">
       <div class="gs-story-ring"><span class="gs-story-ic">{{ s.ad|make_list|first }}</span></div>
       <div class="gs-story-ad">{{ s.ad }}</div>
-      <div class="gs-story-alt">🎓 {{ s.puan }}/10</div>
+      <div class="gs-story-alt">🎓 {{ s.puan }}/{{ egitim_soru_sayisi }}</div>
     </div>
     {% endfor %}
   </div>

@@ -4007,6 +4007,7 @@ def g_sosyal(request):
         'emojiler': GSOSYAL_EMOJILER,
         'sampiyonlar': sampiyonlar[:12],
         'sampiyon_sube': sampiyon_sube,
+        'egitim_soru_sayisi': _egitim_ayar_getir().soru_sayisi,
     })
 
 
