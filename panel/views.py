@@ -4119,8 +4119,8 @@ def _egitim_durum(personel):
 
 
 def _egitim_sampiyon_esik(soru_sayisi):
-    """Bireysel 'şampiyon' sayılmak için gereken doğru sayısı: soru sayısının ~%80'i (en az 1)."""
-    return max(1, round(soru_sayisi * 0.8))
+    """Bireysel 'şampiyon' sayılmak için gereken doğru sayısı: sabit 17 doğru."""
+    return 17
 
 
 def _egitim_sampiyon_verisi():
