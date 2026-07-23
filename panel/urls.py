@@ -40,6 +40,7 @@ urlpatterns = [
     path('g-sosyal/', views.g_sosyal, name='g_sosyal'),
     path('egitim/', views.egitim, name='egitim'),
     path('egitim/test/', views.egitim_test, name='egitim_test'),
+    path('egitim/sonucum/', views.egitim_sonucum, name='egitim_sonucum'),
     path('egitim/sozlesme/', views.egitim_sozlesme, name='egitim_sozlesme'),
     path('egitim/yonetim/', views.egitim_yonetim, name='egitim_yonetim'),
     path('egitim/yonetim/kisi/<int:pid>/', views.egitim_kisi_detay, name='egitim_kisi_detay'),

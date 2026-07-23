@@ -22,7 +22,8 @@
         <a href="{% url 'egitim_test' %}" class="btn btn-primary" id="sinav-btn">Sınava Başla</a>
         {% endif %}
       </div>
-      {% if durum.deneme and not durum.tamamlandi and not durum.inceleme_bekliyor %}<p class="egitim-deneme">Son denemen: {{ durum.son_puan }}/{{ soru_sayisi }} · giriş: {{ durum.deneme }}</p>{% endif %}
+      {% if durum.deneme and not durum.tamamlandi and not durum.inceleme_bekliyor %}<p class="egitim-deneme">Son denemen: {{ durum.son_puan }}/{{ soru_sayisi }} · giriş: {{ durum.deneme }} · <a href="{% url 'egitim_sonucum' %}">hangi soruları yanlış yaptın?</a></p>{% endif %}
+      {% if durum.deneme and durum.tamamlandi %}<p class="egitim-deneme"><a href="{% url 'egitim_sonucum' %}">sınav sonucunu gör</a></p>{% endif %}
     </div>
     <svg class="barista-svg" viewBox="0 0 140 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <g stroke="var(--brand)" stroke-width="3.5" stroke-linecap="round" fill="none" opacity=".45">

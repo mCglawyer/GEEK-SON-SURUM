@@ -75,6 +75,10 @@
     <h3 class="egitim-bolum">Açık Uçlu Cevaplar</h3>
     <p class="ea-not">{% if acik_cevap_bekleyen %}<b>{{ acik_cevap_bekleyen }}</b> cevap değerlendirme bekliyor.{% else %}Bekleyen cevap yok.{% endif %}</p>
     <a href="{% url 'egitim_acik_degerlendir' %}" class="btn btn-primary btn-mini">Cevapları Değerlendir</a>
+    <form method="post" style="display:inline-block; margin-left:.5rem">
+      {% csrf_token %}<input type="hidden" name="islem" value="bekleyenleri_sonuclandir">
+      <button class="btn btn-ghost btn-mini" title="Tüm cevapları puanlanmış ama hâlâ 'inceleniyor' durumunda kalmış kişileri kesinleştirir">Bekleyen Tüm Sonuçları Kesinleştir</button>
+    </form>
   </div>
   {% endif %}
 

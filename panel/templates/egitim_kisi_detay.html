@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}{{ kisi.ad_soyad }} · Sınav Detayı{% endblock %}
+{% block title %}{% if kendi_sonucu %}Sınav Sonucum{% else %}{{ kisi.ad_soyad }} · Sınav Detayı{% endif %}{% endblock %}
 {% block body %}
 <div class="container egitim-wrap">
   <div class="plan-head">
-    <div><h2>{{ kisi.ad_soyad }}</h2></div>
-    <a href="{% url 'egitim_yonetim' %}" class="btn btn-ghost btn-mini">← Takip</a>
+    <div><h2>{% if kendi_sonucu %}Sınav Sonucum{% else %}{{ kisi.ad_soyad }}{% endif %}</h2></div>
+    {% if kendi_sonucu %}<a href="{% url 'egitim' %}" class="btn btn-ghost btn-mini">← Eğitim</a>
+    {% else %}<a href="{% url 'egitim_yonetim' %}" class="btn btn-ghost btn-mini">← Takip</a>{% endif %}
   </div>
 
   <p class="egitim-detay-ozet">
