@@ -17,7 +17,7 @@ from django.urls import reverse
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse, FileResponse, Http404
 from django.utils import timezone
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Max, Prefetch
 from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.models import User
@@ -34,6 +34,7 @@ from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Ir
                      MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi, MaliyetBirim,
                      InsaatProje, InsaatMadde, InsaatMaddeDurum, InsaatKategori, InsaatSablonMadde,
                      LavaboDenetim,
+                     DenetimBolum, DenetimMadde, Denetim, DenetimCevap,
                      Rol, OnayDurumu, VardiyaTipi)
 from .hukuki_icerik import HUKUKI_SAYFALAR
 
@@ -4767,4 +4768,247 @@ def geek_menu(request):
     """Müşteriye açık QR menü sayfası — giriş gerektirmez."""
     return render(request, 'geek_menu.html', {
         'kategoriler': GEEK_MENU_KATEGORILER,
+    })
+
+
+# ------------------------------------------------------------------
+# Şube Denetim Sistemi
+# ------------------------------------------------------------------
+
+DENETIM_YAPABILEN_ROLLER = [Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR]
+DENETIM_GORUNTULEME_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
+DENETIM_YONETIM_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR]
+
+
+def denetim_baslat(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in DENETIM_YAPABILEN_ROLLER:
+        return redirect('ana_sayfa')
+
+    if request.method == 'POST' and request.POST.get('islem') == 'baslat':
+        sube = Sube.objects.filter(id=request.POST.get('sube_id'), depo_mu=False).first()
+        if not sube:
+            messages.error(request, "Geçerli bir şube seçmelisin.")
+            return redirect('denetim_baslat')
+        maddeler = list(DenetimMadde.objects.filter(aktif=True, bolum__aktif=True).select_related('bolum'))
+        if not maddeler:
+            messages.error(request, "Sistemde henüz denetim maddesi tanımlı değil.")
+            return redirect('denetim_baslat')
+        denetim = Denetim.objects.create(sube=sube, denetleyen=personel)
+        DenetimCevap.objects.bulk_create([DenetimCevap(denetim=denetim, madde=m) for m in maddeler])
+        etkilenenler = list(Personel.objects.filter(sube=sube, rol__in=(Rol.MAGAZA_MUDURU, Rol.SEF)))
+        if etkilenenler:
+            _bildir(etkilenenler, "Şubeniz şu anda denetleniyor.", '', 'denetim')
+        messages.success(request, "Denetim başlatıldı: %s" % sube.ad)
+        return redirect('denetim_doldur', denetim_id=denetim.id)
+
+    if personel.rol == Rol.MUDUR:
+        subeler = list(personel.sorumlu_subeler.filter(depo_mu=False).order_by('ad'))
+    else:
+        subeler = list(Sube.objects.filter(depo_mu=False).order_by('ad'))
+    devam_eden = list(Denetim.objects.filter(denetleyen=personel, tamamlandi=False)
+                      .select_related('sube').order_by('-baslangic'))
+    return render(request, 'denetim_baslat.html', {
+        'personel': personel, 'aktif': 'denetim',
+        'subeler': subeler, 'devam_eden': devam_eden,
+    })
+
+
+def denetim_doldur(request, denetim_id):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in DENETIM_YAPABILEN_ROLLER:
+        return redirect('ana_sayfa')
+    denetim = Denetim.objects.filter(id=denetim_id).select_related('sube').first()
+    if denetim is None:
+        return redirect('denetim_baslat')
+    if denetim.denetleyen_id != personel.id and personel.rol not in (Rol.GENEL_MUDUR, Rol.OPERATOR):
+        messages.error(request, "Bu denetimi sadece başlatan kişi ya da yönetim düzenleyebilir.")
+        return redirect('denetim_baslat')
+    if denetim.tamamlandi:
+        return redirect('denetim_detay', denetim_id=denetim.id)
+
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        cevaplar = list(denetim.cevaplar.select_related('madde'))
+        for c in cevaplar:
+            degisti = False
+            puan_raw = request.POST.get('puan_%d' % c.id, '')
+            if puan_raw.isdigit() and 0 <= int(puan_raw) <= 5 and c.puan != int(puan_raw):
+                c.puan = int(puan_raw)
+                degisti = True
+            not_raw = (request.POST.get('not_%d' % c.id, '') or '').strip()[:500]
+            if not_raw != c.not_metni:
+                c.not_metni = not_raw
+                degisti = True
+            foto_dosya = request.FILES.get('foto_%d' % c.id)
+            if foto_dosya:
+                c.foto = foto_dosya
+                degisti = True
+            if degisti:
+                c.save()
+
+        if islem == 'bitir':
+            cevaplanan = [c for c in cevaplar if c.puan is not None]
+            if cevaplanan:
+                denetim.toplam_puan = round(sum(c.puan for c in cevaplanan) / (len(cevaplanan) * 5) * 100, 1)
+            denetim.tamamlandi = True
+            denetim.bitis = timezone.now()
+            denetim.save()
+            messages.success(request, "Denetim tamamlandı. Rapor hazır.")
+            return redirect('denetim_detay', denetim_id=denetim.id)
+
+        messages.success(request, "İlerleme kaydedildi.")
+        return redirect('denetim_doldur', denetim_id=denetim.id)
+
+    bolumler = DenetimBolum.objects.filter(aktif=True).prefetch_related(
+        Prefetch('maddeler', queryset=DenetimMadde.objects.filter(aktif=True)))
+    cevap_map = {c.madde_id: c for c in denetim.cevaplar.select_related('madde')}
+    bolum_listesi = []
+    for b in bolumler:
+        satirlar = []
+        for m in b.maddeler.all():
+            c = cevap_map.get(m.id)
+            if c is not None:
+                satirlar.append({'madde': m, 'cevap': c})
+        if satirlar:
+            bolum_listesi.append({'bolum': b, 'maddeler': satirlar})
+
+    cevaplanan_sayi = sum(1 for c in cevap_map.values() if c.puan is not None)
+    return render(request, 'denetim_doldur.html', {
+        'personel': personel, 'aktif': 'denetim',
+        'denetim': denetim, 'bolum_listesi': bolum_listesi,
+        'toplam_madde': len(cevap_map), 'cevaplanan_sayi': cevaplanan_sayi,
+    })
+
+
+def denetim_sonuclar(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in DENETIM_GORUNTULEME_ROLLER:
+        return redirect('ana_sayfa')
+    denetimler = list(Denetim.objects.filter(tamamlandi=True)
+                      .select_related('sube', 'denetleyen').order_by('-bitis')[:200])
+    return render(request, 'denetim_sonuclar.html', {
+        'personel': personel, 'aktif': 'denetim_sonuclar',
+        'denetimler': denetimler,
+    })
+
+
+def denetim_detay(request, denetim_id):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    denetim = Denetim.objects.filter(id=denetim_id).select_related('sube', 'denetleyen').first()
+    if denetim is None:
+        return redirect('ana_sayfa')
+    yetkili = personel.rol in DENETIM_GORUNTULEME_ROLLER or denetim.denetleyen_id == personel.id
+    if not yetkili:
+        return redirect('ana_sayfa')
+    cevaplar = list(denetim.cevaplar.select_related('madde', 'madde__bolum')
+                    .order_by('madde__bolum__sira', 'madde__sira'))
+    gruplar, gruplar_map = [], {}
+    for c in cevaplar:
+        bolum = c.madde.bolum
+        if bolum.id not in gruplar_map:
+            grup = {'bolum': bolum, 'cevaplar': []}
+            gruplar_map[bolum.id] = grup
+            gruplar.append(grup)
+        gruplar_map[bolum.id]['cevaplar'].append(c)
+    return render(request, 'denetim_detay.html', {
+        'personel': personel, 'aktif': 'denetim_sonuclar',
+        'denetim': denetim, 'gruplar': gruplar,
+    })
+
+
+def denetim_pdf_indir(request, denetim_id):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    denetim = Denetim.objects.filter(id=denetim_id).select_related('sube', 'denetleyen').first()
+    if denetim is None:
+        return redirect('ana_sayfa')
+    yetkili = personel.rol in DENETIM_GORUNTULEME_ROLLER or denetim.denetleyen_id == personel.id
+    if not yetkili:
+        return redirect('ana_sayfa')
+    cevaplar = list(denetim.cevaplar.select_related('madde', 'madde__bolum')
+                    .order_by('madde__bolum__sira', 'madde__sira'))
+    from .denetim_pdf import denetim_pdf_uret
+    icerik = denetim_pdf_uret(denetim, cevaplar)
+    resp = HttpResponse(icerik, content_type='application/pdf')
+    resp['Content-Disposition'] = 'inline; filename="denetim_%d.pdf"' % denetim.id
+    return resp
+
+
+def denetim_yonetim(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in DENETIM_YONETIM_ROLLER:
+        return redirect('ana_sayfa')
+
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        if islem == 'bolum_ekle':
+            ad = (request.POST.get('ad') or '').strip()
+            if ad:
+                sira = (DenetimBolum.objects.aggregate(m=Max('sira'))['m'] or 0) + 1
+                DenetimBolum.objects.create(ad=ad[:200], sira=sira)
+                messages.success(request, "Bölüm eklendi.")
+            else:
+                messages.error(request, "Bölüm adı boş olamaz.")
+            return redirect('denetim_yonetim')
+        if islem == 'bolum_aktif':
+            b = DenetimBolum.objects.filter(id=request.POST.get('id')).first()
+            if b:
+                b.aktif = not b.aktif
+                b.save(update_fields=['aktif'])
+            return redirect('denetim_yonetim')
+        if islem == 'bolum_sil':
+            DenetimBolum.objects.filter(id=request.POST.get('id')).delete()
+            messages.success(request, "Bölüm ve içindeki maddeler silindi.")
+            return redirect('denetim_yonetim')
+        if islem == 'madde_ekle':
+            bolum = DenetimBolum.objects.filter(id=request.POST.get('bolum_id')).first()
+            metin = (request.POST.get('metin') or '').strip()
+            if bolum and metin:
+                sira = (bolum.maddeler.aggregate(m=Max('sira'))['m'] or 0) + 1
+                DenetimMadde.objects.create(bolum=bolum, metin=metin[:500], sira=sira)
+                messages.success(request, "Madde eklendi.")
+            else:
+                messages.error(request, "Bölüm ve madde metni gerekli.")
+            return redirect('denetim_yonetim')
+        if islem == 'madde_aktif':
+            m = DenetimMadde.objects.filter(id=request.POST.get('id')).first()
+            if m:
+                m.aktif = not m.aktif
+                m.save(update_fields=['aktif'])
+            return redirect('denetim_yonetim')
+        if islem == 'madde_sil':
+            DenetimMadde.objects.filter(id=request.POST.get('id')).delete()
+            messages.success(request, "Madde silindi.")
+            return redirect('denetim_yonetim')
+
+    bolumler = list(DenetimBolum.objects.all().prefetch_related('maddeler'))
+    return render(request, 'denetim_yonetim.html', {
+        'personel': personel, 'aktif': 'denetim_yonetim',
+        'bolumler': bolumler,
     })

@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Denetim Form Yönetimi · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head">
+    <div><h2>Denetim Form Yönetimi</h2><span class="plan-aralik">bölüm ve madde ekle/düzenle</span></div>
+    <a href="{% url 'denetim_baslat' %}" class="btn btn-ghost btn-mini">← Denetimler</a>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <h3 class="egitim-bolum">Yeni Bölüm Ekle</h3>
+    <form method="post" class="egitim-form">
+      {% csrf_token %}<input type="hidden" name="islem" value="bolum_ekle">
+      <input class="input" type="text" name="ad" placeholder="Bölüm adı (ör. P. Yeni Kontrol Alanı)" required style="max-width:320px">
+      <button class="btn btn-primary btn-mini">Ekle</button>
+    </form>
+  </div>
+
+  {% for b in bolumler %}
+  <details class="sv-kat denetim-bolum">
+    <summary>{{ b.ad }}{% if not b.aktif %} (pasif){% endif %}<span class="sv-sayi">{{ b.maddeler.all|length }} madde</span></summary>
+    <div class="denetim-madde-liste">
+      <div class="esi-islem" style="margin-bottom:.8rem">
+        <form method="post"><input type="hidden" name="islem" value="bolum_aktif">{% csrf_token %}<input type="hidden" name="id" value="{{ b.id }}"><button class="btn btn-ghost btn-mini">{% if b.aktif %}Bölümü Pasifleştir{% else %}Bölümü Aktifleştir{% endif %}</button></form>
+        <form method="post" onsubmit="return confirm('{{ b.ad }} bölümü ve içindeki TÜM maddeler silinecek. Emin misin?');">{% csrf_token %}<input type="hidden" name="islem" value="bolum_sil"><input type="hidden" name="id" value="{{ b.id }}"><button class="gs-sil" title="Bölümü Sil">✕</button></form>
+      </div>
+      {% for m in b.maddeler.all %}
+      <div class="denetim-detay-satir">
+        <div class="denetim-madde-metin">{{ m.metin }}{% if not m.aktif %} <span class="ea-not">(pasif)</span>{% endif %}</div>
+        <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="madde_aktif"><input type="hidden" name="id" value="{{ m.id }}"><button class="btn btn-ghost btn-mini">{% if m.aktif %}Pasifleştir{% else %}Aktifleştir{% endif %}</button></form>
+        <form method="post" onsubmit="return confirm('Bu madde silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="madde_sil"><input type="hidden" name="id" value="{{ m.id }}"><button class="gs-sil" title="Sil">✕</button></form>
+      </div>
+      {% endfor %}
+      <form method="post" class="egitim-form" style="margin-top:.8rem">
+        {% csrf_token %}<input type="hidden" name="islem" value="madde_ekle"><input type="hidden" name="bolum_id" value="{{ b.id }}">
+        <input class="input" type="text" name="metin" placeholder="Yeni madde metni" required style="max-width:320px">
+        <button class="btn btn-primary btn-mini">Madde Ekle</button>
+      </form>
+    </div>
+  </details>
+  {% empty %}
+  <p class="egitim-bos">Henüz bölüm yok.</p>
+  {% endfor %}
+</div>
+{% endblock %}

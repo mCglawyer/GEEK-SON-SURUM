@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Şube Denetimi · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head">
+    <div><h2>Şube Denetimi</h2><span class="plan-aralik">yeni bir denetim başlat</span></div>
+    {% if personel.rol == 'Genel Müdür' or personel.rol == 'Operatör' %}
+    <a href="{% url 'denetim_yonetim' %}" class="btn btn-ghost btn-mini">Form Yönetimi</a>
+    {% endif %}
+  </div>
+
+  {% if devam_eden %}
+  <div class="card" style="margin-bottom:1rem">
+    <h3 class="egitim-bolum">Devam Eden Denetimlerin</h3>
+    <div class="egitim-detay-liste">
+      {% for d in devam_eden %}
+      <div class="ed-soru">
+        <div class="ed-metin"><b>{{ d.sube.ad }}</b> <span class="ea-not">{{ d.baslangic|date:"d.m.Y H:i" }}'de başlatıldı</span></div>
+        <a href="{% url 'denetim_doldur' d.id %}" class="btn btn-primary btn-mini">Devam Et</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h3 class="egitim-bolum">Yeni Denetim Başlat</h3>
+    <form method="post" class="egitim-form">
+      {% csrf_token %}<input type="hidden" name="islem" value="baslat">
+      <select name="sube_id" class="sube-sec" required>
+        <option value="">Şube seç…</option>
+        {% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-primary btn-mini">Denetimi Başlat</button>
+    </form>
+    <p class="ea-not">Denetim başladığında ilgili şubenin Mağaza Müdürü ve Şube Şefi'ne "şubeniz denetleniyor" bildirimi gider — onlar sonucu görmez, sadece denetlendiklerini bilirler.</p>
+  </div>
+</div>
+{% endblock %}

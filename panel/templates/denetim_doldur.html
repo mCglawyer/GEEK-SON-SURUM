@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}{{ denetim.sube.ad }} Denetimi · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head">
+    <div><h2>{{ denetim.sube.ad }} — Denetim</h2>
+      <span class="plan-aralik">{{ cevaplanan_sayi }} / {{ toplam_madde }} madde puanlandı</span>
+    </div>
+    <a href="{% url 'denetim_baslat' %}" class="btn btn-ghost btn-mini">← Denetimler</a>
+  </div>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="denetim-gonder-ust">
+      <button type="submit" name="islem" value="kaydet" class="btn btn-ghost">İlerlemeyi Kaydet</button>
+      <button type="submit" name="islem" value="bitir" class="btn btn-primary" onclick="return confirm('Denetimi bitirmek üzeresin. Bitirdikten sonra düzenleme yapılamaz. Emin misin?');">Denetimi Bitir</button>
+    </div>
+
+    {% for grup in bolum_listesi %}
+    <details class="sv-kat denetim-bolum">
+      <summary>{{ grup.bolum.ad }}<span class="sv-sayi">{{ grup.maddeler|length }} madde</span></summary>
+      <div class="denetim-madde-liste">
+        {% for satir in grup.maddeler %}
+        <div class="denetim-madde-satir">
+          <div class="denetim-madde-metin">{{ satir.madde.metin }}</div>
+          <div class="denetim-puan-grup">
+            {% for p in "012345" %}
+            <label class="denetim-puan-op"><input type="radio" name="puan_{{ satir.cevap.id }}" value="{{ p }}"{% if satir.cevap.puan|stringformat:"s" == p %} checked{% endif %}><span>{{ p }}</span></label>
+            {% endfor %}
+          </div>
+          <input type="text" class="input denetim-not" name="not_{{ satir.cevap.id }}" placeholder="Not (isteğe bağlı)" value="{{ satir.cevap.not_metni }}">
+          <label class="btn btn-ghost btn-mini denetim-foto-btn">
+            📷{% if satir.cevap.foto %} ✓{% endif %}
+            <input type="file" name="foto_{{ satir.cevap.id }}" accept="image/*" capture="environment" style="display:none">
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+    </details>
+    {% endfor %}
+
+    <div class="denetim-gonder-ust" style="margin-top:1rem">
+      <button type="submit" name="islem" value="kaydet" class="btn btn-ghost">İlerlemeyi Kaydet</button>
+      <button type="submit" name="islem" value="bitir" class="btn btn-primary" onclick="return confirm('Denetimi bitirmek üzeresin. Bitirdikten sonra düzenleme yapılamaz. Emin misin?');">Denetimi Bitir</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

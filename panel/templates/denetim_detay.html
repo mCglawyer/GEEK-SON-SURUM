@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}{{ denetim.sube.ad }} Denetim Detayı · Geek Panel{% endblock %}
+{% block body %}
+<div class="container egitim-wrap">
+  <div class="plan-head">
+    <div><h2>{{ denetim.sube.ad }}</h2>
+      <span class="plan-aralik">{{ denetim.bitis|date:"d.m.Y H:i"|default:"devam ediyor" }} · Denetleyen: {{ denetim.denetleyen.ad_soyad|default:"—" }}</span>
+    </div>
+    {% if personel.rol == 'Genel Müdür' or personel.rol == 'Operatör' or personel.rol == 'Yatırımcı' %}
+    <a href="{% url 'denetim_sonuclar' %}" class="btn btn-ghost btn-mini">← Sonuçlar</a>
+    {% else %}
+    <a href="{% url 'denetim_baslat' %}" class="btn btn-ghost btn-mini">← Denetimler</a>
+    {% endif %}
+  </div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div class="egitim-anahtar">
+      <div class="ea-durum">Genel Puan: {% if denetim.toplam_puan != None %}%{{ denetim.toplam_puan|floatformat:0 }}{% else %}—{% endif %}</div>
+      <a href="{% url 'denetim_pdf_indir' denetim.id %}" target="_blank" class="btn btn-primary btn-mini">PDF Raporu Görüntüle</a>
+    </div>
+  </div>
+
+  {% for grup in gruplar %}
+  <details class="sv-kat denetim-bolum">
+    <summary>{{ grup.bolum.ad }}<span class="sv-sayi">{{ grup.cevaplar|length }} madde</span></summary>
+    <div class="denetim-madde-liste">
+      {% for c in grup.cevaplar %}
+      <div class="denetim-detay-satir">
+        <div class="denetim-madde-metin">{{ c.madde.metin }}</div>
+        <span class="badge {% if c.puan == None %}no{% elif c.puan >= 4 %}ok{% elif c.puan >= 3 %}warn{% else %}no{% endif %}">{% if c.puan != None %}{{ c.puan }}/5{% else %}—{% endif %}</span>
+        {% if c.not_metni %}<span class="ea-not">{{ c.not_metni }}</span>{% endif %}
+        {% if c.foto %}<a href="{{ c.foto.url }}" target="_blank" class="ea-not">📷 fotoğraf</a>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% endblock %}

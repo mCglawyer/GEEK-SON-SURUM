@@ -45,6 +45,13 @@ urlpatterns = [
     path('egitim/yonetim/', views.egitim_yonetim, name='egitim_yonetim'),
     path('egitim/yonetim/kisi/<int:pid>/', views.egitim_kisi_detay, name='egitim_kisi_detay'),
     path('egitim/acik-cevaplar/', views.egitim_acik_degerlendir, name='egitim_acik_degerlendir'),
+
+    path('denetim/', views.denetim_baslat, name='denetim_baslat'),
+    path('denetim/<int:denetim_id>/doldur/', views.denetim_doldur, name='denetim_doldur'),
+    path('denetim/sonuclar/', views.denetim_sonuclar, name='denetim_sonuclar'),
+    path('denetim/<int:denetim_id>/', views.denetim_detay, name='denetim_detay'),
+    path('denetim/<int:denetim_id>/pdf/', views.denetim_pdf_indir, name='denetim_pdf_indir'),
+    path('denetim/yonetim/', views.denetim_yonetim, name='denetim_yonetim'),
     path('raporlar/', views.raporlar, name='raporlar'),
     path('raporlar/indir/<str:ad>/', views.rapor_indir, name='rapor_indir'),
     path('yedekler/indir/<str:ad>/', views.yedek_indir, name='yedek_indir'),

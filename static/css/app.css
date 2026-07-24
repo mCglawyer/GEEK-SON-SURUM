@@ -383,6 +383,24 @@ a { color:var(--brand); text-decoration:none; }
 .sv-ek-kat[open] > summary { background:var(--brand-600); }
 .sv-ek-row { display:flex; align-items:center; gap:.6rem; padding:.55rem 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
 .sv-ek-row:last-child { border-bottom:none; }
+
+.denetim-gonder-ust { display:flex; gap:.6rem; margin-bottom:1rem; position:sticky; top:0; background:var(--bg); z-index:5; padding:.5rem 0; }
+.denetim-bolum { margin-bottom:.6rem; }
+.denetim-madde-liste { padding:.3rem 1.05rem .8rem; }
+.denetim-madde-satir { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; padding:.6rem 0; border-bottom:1px solid var(--line); }
+.denetim-madde-satir:last-child { border-bottom:none; }
+.denetim-madde-metin { flex:1 1 220px; min-width:180px; font-size:.88rem; }
+.denetim-puan-grup { display:flex; gap:.3rem; flex:none; }
+.denetim-puan-op { display:flex; align-items:center; justify-content:center; width:1.7rem; height:1.7rem; border:1px solid var(--line); border-radius:8px; cursor:pointer; font-size:.8rem; font-weight:600; color:var(--muted); }
+.denetim-puan-op input { position:absolute; opacity:0; width:0; height:0; }
+.denetim-puan-op:has(input:checked) { background:var(--brand); border-color:var(--brand); color:#fff; }
+.denetim-not { max-width:220px; flex:1 1 160px; font-size:.85rem; }
+.denetim-foto-btn { flex:none; cursor:pointer; }
+.denetim-sonuc-satir { display:block; text-decoration:none; color:inherit; cursor:pointer; }
+.denetim-sonuc-satir:hover { border-color:var(--brand); }
+.denetim-detay-satir { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; padding:.55rem 0; border-bottom:1px solid var(--line); font-size:.88rem; }
+.denetim-detay-satir:last-child { border-bottom:none; }
+.denetim-detay-satir .denetim-madde-metin { flex:1 1 220px; }
 .sv-ek-ad { flex:1 1 160px; min-width:140px; min-height:44px; }
 .sv-ek-sil { min-height:44px; }
 

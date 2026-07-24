@@ -2,7 +2,8 @@ from django.contrib import admin
 from .models import (Sube, Personel, Vardiya, Puantaj, KodKilit, Kalibrasyon, Irsaliye, StokUrun, StokSayim, StokSayimKalem, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket, KahveSoru, GunlukSoru, SoruAyar,
                      MolaOturum, SubeMolaToken, MesaiKayit, SubeMesaiToken,
                      MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi,
-                     EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap)
+                     EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap,
+                     DenetimBolum, DenetimMadde, Denetim, DenetimCevap)
 
 @admin.register(Sube)
 class SubeAdmin(admin.ModelAdmin):
@@ -205,3 +206,36 @@ class EgitimAcikCevapAdmin(admin.ModelAdmin):
 @admin.register(EgitimAyar)
 class EgitimAyarAdmin(admin.ModelAdmin):
     list_display = ('acik', 'soru_sayisi', 'sure_sn', 'gecme_puan', 'guncelleme')
+
+
+class DenetimMaddeInline(admin.TabularInline):
+    model = DenetimMadde
+    extra = 0
+
+@admin.register(DenetimBolum)
+class DenetimBolumAdmin(admin.ModelAdmin):
+    list_display = ('ad', 'sira', 'aktif', 'olusturma')
+    list_filter = ('aktif',)
+    search_fields = ('ad',)
+    inlines = [DenetimMaddeInline]
+
+@admin.register(DenetimMadde)
+class DenetimMaddeAdmin(admin.ModelAdmin):
+    list_display = ('metin', 'bolum', 'sira', 'aktif')
+    list_filter = ('aktif', 'bolum')
+    search_fields = ('metin',)
+    autocomplete_fields = ('bolum',)
+
+class DenetimCevapInline(admin.TabularInline):
+    model = DenetimCevap
+    extra = 0
+    autocomplete_fields = ('madde',)
+
+@admin.register(Denetim)
+class DenetimAdmin(admin.ModelAdmin):
+    list_display = ('sube', 'denetleyen', 'baslangic', 'bitis', 'tamamlandi', 'toplam_puan')
+    list_filter = ('tamamlandi', 'sube')
+    search_fields = ('sube__ad', 'denetleyen__ad_soyad')
+    date_hierarchy = 'baslangic'
+    autocomplete_fields = ('sube', 'denetleyen')
+    inlines = [DenetimCevapInline]

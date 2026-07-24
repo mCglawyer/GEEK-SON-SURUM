@@ -852,3 +852,71 @@ class MutfakTarifKalemi(models.Model):
 
     def __str__(self):
         return f"{self.tarif.ad} - {self.urun.ad} ({self.miktar} {self.miktar_etiketi})"
+
+
+class DenetimBolum(models.Model):
+    """Şube denetim formunun bir bölümü (ör. 'A. Genel Dış Görünüş')."""
+    ad = models.CharField(max_length=200)
+    sira = models.PositiveIntegerField(default=0)
+    aktif = models.BooleanField(default=True)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sira', 'id']
+        verbose_name = "Denetim Bölümü"
+        verbose_name_plural = "Denetim Bölümleri"
+
+    def __str__(self):
+        return self.ad
+
+
+class DenetimMadde(models.Model):
+    """Bir bölüme ait tek bir denetim maddesi (0-5 puanlanır)."""
+    bolum = models.ForeignKey(DenetimBolum, on_delete=models.CASCADE, related_name='maddeler')
+    metin = models.CharField(max_length=500)
+    sira = models.PositiveIntegerField(default=0)
+    aktif = models.BooleanField(default=True)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sira', 'id']
+        verbose_name = "Denetim Maddesi"
+        verbose_name_plural = "Denetim Maddeleri"
+
+    def __str__(self):
+        return f"{self.bolum.ad} — {self.metin[:60]}"
+
+
+class Denetim(models.Model):
+    """Bir şubede yapılan tek bir denetim oturumu."""
+    sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='denetimler')
+    denetleyen = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    baslangic = models.DateTimeField(auto_now_add=True)
+    bitis = models.DateTimeField(null=True, blank=True)
+    tamamlandi = models.BooleanField(default=False)
+    toplam_puan = models.FloatField(null=True, blank=True, verbose_name="Toplam Puan (yüzde)")
+
+    class Meta:
+        ordering = ['-baslangic']
+        verbose_name = "Şube Denetimi"
+        verbose_name_plural = "Şube Denetimleri"
+
+    def __str__(self):
+        return f"{self.sube.ad} - {self.baslangic:%d.%m.%Y}"
+
+
+class DenetimCevap(models.Model):
+    """Bir denetimdeki tek bir maddeye verilen cevap (0-5 puan + not + isteğe bağlı fotoğraf)."""
+    denetim = models.ForeignKey(Denetim, on_delete=models.CASCADE, related_name='cevaplar')
+    madde = models.ForeignKey(DenetimMadde, on_delete=models.CASCADE, related_name='+')
+    puan = models.IntegerField(null=True, blank=True)
+    not_metni = models.CharField(max_length=500, default='', blank=True)
+    foto = models.ImageField(upload_to='denetim/fotolar/', null=True, blank=True)
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = "Denetim Cevabı"
+        verbose_name_plural = "Denetim Cevapları"
+
+    def __str__(self):
+        return f"Denetim #{self.denetim_id} — {self.madde_id}"

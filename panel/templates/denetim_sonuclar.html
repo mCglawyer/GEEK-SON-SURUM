@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Denetim Sonuçları · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Denetim Sonuçları</h2><span class="plan-aralik">tamamlanan şube denetimleri</span></div>
+  </div>
+
+  <div class="card">
+    {% if denetimler %}
+    <div class="egitim-soru-liste">
+      {% for d in denetimler %}
+      <a href="{% url 'denetim_detay' d.id %}" class="egitim-soru-item denetim-sonuc-satir">
+        <div class="esi-ust">
+          <b>{{ d.sube.ad }}</b>
+          <span class="ea-not">{{ d.bitis|date:"d.m.Y H:i" }} · {{ d.denetleyen.ad_soyad|default:"—" }}</span>
+        </div>
+        <div class="esi-siklar">
+          {% if d.toplam_puan != None %}
+          <span class="badge {% if d.toplam_puan >= 80 %}ok{% elif d.toplam_puan >= 60 %}warn{% else %}no{% endif %}">%{{ d.toplam_puan|floatformat:0 }}</span>
+          {% else %}<span class="badge no">Puan yok</span>{% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="egitim-bos">Henüz tamamlanan bir denetim yok.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
