@@ -223,8 +223,10 @@ def _yonetici_sube(request, subeler):
 def _yon_subeler(personel):
     if personel and personel.rol == Rol.MUDUR:
         return list(personel.sorumlu_subeler.order_by('ad'))
-    if personel and personel.rol == Rol.MAGAZA_MUDURU and personel.sorumlu_subeler.exists():
-        return list(personel.sorumlu_subeler.order_by('ad'))
+    if personel and personel.rol == Rol.MAGAZA_MUDURU:
+        if personel.sorumlu_subeler.exists():
+            return list(personel.sorumlu_subeler.order_by('ad'))
+        return list(Sube.objects.filter(id=personel.sube_id)) if personel.sube_id else []
     return list(Sube.objects.order_by('ad'))
 
 def _vardiya_tablo(personeller, start, end, gunler):
@@ -4848,10 +4850,17 @@ def denetim_doldur(request, denetim_id):
             if not_raw != c.not_metni:
                 c.not_metni = not_raw
                 degisti = True
-            foto_dosya = request.FILES.get('foto_%d' % c.id)
-            if foto_dosya:
-                c.foto = foto_dosya
-                degisti = True
+            foto_b64 = request.POST.get('foto_b64_%d' % c.id, '')
+            if foto_b64.startswith('data:image'):
+                raw = None
+                try:
+                    raw = base64.b64decode(foto_b64.split(',', 1)[1])
+                except (ValueError, IndexError):
+                    raw = None
+                if raw and 100 < len(raw) <= 8 * 1024 * 1024:
+                    fname = "denetim_%d_%s.jpg" % (c.id, timezone.now().strftime('%Y%m%d_%H%M%S'))
+                    c.foto.save(fname, ContentFile(raw), save=False)
+                    degisti = True
             if degisti:
                 c.save()
 

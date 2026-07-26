@@ -10,7 +10,7 @@
     <a href="{% url 'denetim_baslat' %}" class="btn btn-ghost btn-mini">← Denetimler</a>
   </div>
 
-  <form method="post" enctype="multipart/form-data">
+  <form method="post">
     {% csrf_token %}
     <div class="denetim-gonder-ust">
       <button type="submit" name="islem" value="kaydet" class="btn btn-ghost">İlerlemeyi Kaydet</button>
@@ -30,10 +30,10 @@
             {% endfor %}
           </div>
           <input type="text" class="input denetim-not" name="not_{{ satir.cevap.id }}" placeholder="Not (isteğe bağlı)" value="{{ satir.cevap.not_metni }}">
-          <label class="btn btn-ghost btn-mini denetim-foto-btn">
-            📷{% if satir.cevap.foto %} ✓{% endif %}
-            <input type="file" name="foto_{{ satir.cevap.id }}" accept="image/*" capture="environment" style="display:none">
-          </label>
+          <input type="hidden" name="foto_b64_{{ satir.cevap.id }}" id="fotoveri-{{ satir.cevap.id }}">
+          <button type="button" class="btn btn-ghost btn-mini denetim-foto-btn" data-cevap="{{ satir.cevap.id }}">
+            📷<span class="foto-durum">{% if satir.cevap.foto %} ✓{% endif %}</span>
+          </button>
         </div>
         {% endfor %}
       </div>
@@ -45,5 +45,88 @@
       <button type="submit" name="islem" value="bitir" class="btn btn-primary" onclick="return confirm('Denetimi bitirmek üzeresin. Bitirdikten sonra düzenleme yapılamaz. Emin misin?');">Denetimi Bitir</button>
     </div>
   </form>
+
+  <div id="denetim-kamera-modal" class="denetim-kamera-modal" hidden>
+    <div class="denetim-kamera-kutu">
+      <video id="denetim-video" autoplay playsinline muted></video>
+      <canvas id="denetim-tuval" hidden></canvas>
+      <div id="denetim-kamera-hata" class="denetim-kamera-hata" hidden></div>
+      <div class="denetim-kamera-aksiyon">
+        <button type="button" id="denetim-cek-btn" class="btn btn-primary">📸 Çek</button>
+        <button type="button" id="denetim-iptal-btn" class="btn btn-ghost">İptal</button>
+      </div>
+    </div>
+  </div>
 </div>
+<script>
+(function () {
+  var modal = document.getElementById('denetim-kamera-modal');
+  var video = document.getElementById('denetim-video');
+  var cv = document.getElementById('denetim-tuval');
+  var hataKutu = document.getElementById('denetim-kamera-hata');
+  var cekBtn = document.getElementById('denetim-cek-btn');
+  var iptalBtn = document.getElementById('denetim-iptal-btn');
+  var stream = null;
+  var aktifCevapId = null;
+
+  function hataGoster(msg) {
+    hataKutu.hidden = false;
+    hataKutu.textContent = msg;
+    cekBtn.disabled = true;
+  }
+
+  function kamerayiKapat() {
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    video.srcObject = null;
+    modal.hidden = true;
+    aktifCevapId = null;
+  }
+
+  function kamerayiAc(cevapId) {
+    aktifCevapId = cevapId;
+    modal.hidden = false;
+    hataKutu.hidden = true;
+    cekBtn.disabled = false;
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      hataGoster('Bu cihaz/tarayıcı canlı kamerayı desteklemiyor ya da güvenli (https://) bağlantı gerekiyor.');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      .then(function (s) { stream = s; video.srcObject = s; })
+      .catch(function (err) {
+        var ad = err && err.name;
+        if (ad === 'NotAllowedError' || ad === 'PermissionDeniedError') hataGoster('Kamera izni reddedildi. Tarayıcı/site ayarlarından kamera iznini açıp tekrar deneyin.');
+        else if (ad === 'NotReadableError' || ad === 'TrackStartError') hataGoster('Kamera başka bir uygulama/sekme tarafından kullanılıyor olabilir. Kapatıp tekrar deneyin.');
+        else if (ad === 'NotFoundError') hataGoster('Cihazda kullanılabilir kamera bulunamadı.');
+        else hataGoster('Kameraya erişilemedi.');
+      });
+  }
+
+  document.querySelectorAll('.denetim-foto-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { kamerayiAc(btn.getAttribute('data-cevap')); });
+  });
+
+  iptalBtn.addEventListener('click', kamerayiKapat);
+
+  cekBtn.addEventListener('click', function () {
+    if (!stream || !video.videoWidth || !aktifCevapId) return;
+    var maxw = 1024, scale = Math.min(1, maxw / video.videoWidth);
+    var cw = Math.round(video.videoWidth * scale), ch = Math.round(video.videoHeight * scale);
+    cv.width = cw; cv.height = ch;
+    cv.getContext('2d').drawImage(video, 0, 0, cw, ch);
+    var veri = cv.toDataURL('image/jpeg', 0.75);
+    document.getElementById('fotoveri-' + aktifCevapId).value = veri;
+    var btnEl = document.querySelector('.denetim-foto-btn[data-cevap="' + aktifCevapId + '"]');
+    if (btnEl) {
+      var durum = btnEl.querySelector('.foto-durum');
+      if (durum) durum.textContent = ' ✓';
+    }
+    kamerayiKapat();
+  });
+
+  window.addEventListener('pagehide', function () {
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); }
+  });
+})();
+</script>
 {% endblock %}

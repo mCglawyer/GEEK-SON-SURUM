@@ -8,11 +8,31 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 from .pdf_letterhead import build_pdf
+
+
+def _fotograf_flowable(cevap, max_genislik_mm=70):
+    """Bir DenetimCevap.foto alanını (yerel disk ya da R2 fark etmez) PDF'e
+    gömülebilecek bir Image flowable'a çevirir. Herhangi bir sorun olursa None döner
+    (PDF üretimi asla bu yüzden bozulmaz)."""
+    if not cevap.foto:
+        return None
+    try:
+        from PIL import Image as PILImage
+        cevap.foto.open('rb')
+        veri = cevap.foto.read()
+        cevap.foto.close()
+        pil_img = PILImage.open(io.BytesIO(veri))
+        genislik_px, yukseklik_px = pil_img.size
+        genislik_mm = max_genislik_mm
+        yukseklik_mm = genislik_mm * (yukseklik_px / genislik_px)
+        return Image(io.BytesIO(veri), width=genislik_mm * mm, height=yukseklik_mm * mm)
+    except Exception:
+        return None
 
 
 def _fontlar():
@@ -97,6 +117,18 @@ def denetim_pdf_uret(denetim, cevaplar):
             ts.append(('TEXTCOLOR', (1, r), (1, r), colors.HexColor(_puan_renk(c.puan))))
         tbl.setStyle(TableStyle(ts))
         el.append(tbl)
+
+        fotolu_cevaplar = [c for c in grup['cevaplar'] if c.foto]
+        if fotolu_cevaplar:
+            el.append(Spacer(1, 4))
+            for c in fotolu_cevaplar:
+                foto_el = _fotograf_flowable(c)
+                if foto_el is None:
+                    continue
+                el.append(Paragraph(_esc(c.madde.metin), small))
+                el.append(Spacer(1, 2))
+                el.append(foto_el)
+                el.append(Spacer(1, 6))
 
     build_pdf(buf, el, pagesize=A4, left_margin=14 * mm, right_margin=14 * mm,
              font=font, title="Sube Denetim Raporu")

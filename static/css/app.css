@@ -401,6 +401,12 @@ a { color:var(--brand); text-decoration:none; }
 .denetim-detay-satir { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; padding:.55rem 0; border-bottom:1px solid var(--line); font-size:.88rem; }
 .denetim-detay-satir:last-child { border-bottom:none; }
 .denetim-detay-satir .denetim-madde-metin { flex:1 1 220px; }
+.denetim-kamera-modal { position:fixed; inset:0; background:rgba(10,14,30,.78); z-index:50; display:flex; align-items:center; justify-content:center; padding:1rem; }
+.denetim-kamera-kutu { background:#000; border-radius:16px; padding:.7rem; max-width:420px; width:100%; }
+.denetim-kamera-kutu video { width:100%; border-radius:10px; display:block; background:#111; max-height:60vh; }
+.denetim-kamera-hata { color:#fff; background:#b00020; border-radius:8px; padding:.6rem .8rem; font-size:.85rem; margin-top:.6rem; }
+.denetim-kamera-aksiyon { display:flex; gap:.6rem; margin-top:.7rem; }
+.denetim-kamera-aksiyon .btn { flex:1; }
 .sv-ek-ad { flex:1 1 160px; min-width:140px; min-height:44px; }
 .sv-ek-sil { min-height:44px; }
 
