@@ -7,6 +7,17 @@
     <div><h2>Özet Panel</h2><span class="plan-aralik">{{ bugun_tarih|date:"d.m.Y" }}{% if sel_sube_ozet %} · {{ sel_sube_ozet.ad }}{% endif %}</span></div>
   </div>
 
+  <div class="gs-saat-kart">
+    <div class="gs-saat-sol">
+      <div class="gs-saat-selam" id="gs-selam">İyi günler</div>
+      <div class="gs-saat-tarih" id="gs-tarih-gun">—</div>
+    </div>
+    <div class="gs-saat-sag">
+      <div class="gs-saat-buyuk" id="gs-saat">--:--</div>
+      <div class="gs-saat-saniye" id="gs-saniye">:--</div>
+    </div>
+  </div>
+
   <h3 class="gs-baslik">Bugün</h3>
   <div class="gs-grid">
     <div class="gs-kart"><span class="gs-buyuk">{{ bugun.calisan }}</span><span class="gs-etiket">Çalışıyor</span></div>
@@ -91,4 +102,26 @@
   </div>
   {% endif %}
 </div>
+<script>
+(function () {
+  var gunler = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+  var aylar = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+  var saatEl = document.getElementById('gs-saat');
+  var saniyeEl = document.getElementById('gs-saniye');
+  var tarihEl = document.getElementById('gs-tarih-gun');
+  var selamEl = document.getElementById('gs-selam');
+  function iki(n) { return n < 10 ? '0' + n : '' + n; }
+  function guncelle() {
+    var d = new Date();
+    saatEl.textContent = iki(d.getHours()) + ':' + iki(d.getMinutes());
+    saniyeEl.textContent = ':' + iki(d.getSeconds());
+    tarihEl.textContent = gunler[d.getDay()] + ', ' + d.getDate() + ' ' + aylar[d.getMonth()] + ' ' + d.getFullYear();
+    var saat = d.getHours();
+    var selam = saat < 6 ? 'İyi geceler' : saat < 12 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar';
+    if (selamEl.textContent !== selam) selamEl.textContent = selam;
+  }
+  guncelle();
+  setInterval(guncelle, 1000);
+})();
+</script>
 {% endblock %}

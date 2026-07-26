@@ -599,6 +599,21 @@ a { color:var(--brand); text-decoration:none; }
 @media (max-width:820px){ .sk-tablo { grid-template-columns:1fr; } }
 
 .gs-baslik { margin:1.4rem 0 .6rem; font-size:1rem; color:var(--ink); }
+.gs-saat-kart {
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  background:linear-gradient(135deg, #162AA3 0%, #2440D4 100%);
+  border-radius:18px; padding:1.3rem 1.5rem; margin-bottom:1.2rem; color:#fff;
+  box-shadow:0 14px 30px -16px rgba(22,42,163,.55);
+}
+.gs-saat-selam { font-size:.95rem; font-weight:600; opacity:.85; }
+.gs-saat-tarih { font-size:1.05rem; font-weight:700; margin-top:.15rem; }
+.gs-saat-sag { display:flex; align-items:baseline; gap:.15rem; font-variant-numeric:tabular-nums; }
+.gs-saat-buyuk { font-size:2.3rem; font-weight:800; letter-spacing:.02em; line-height:1; }
+.gs-saat-saniye { font-size:1.1rem; font-weight:600; opacity:.7; align-self:flex-end; }
+@media (max-width:480px) {
+  .gs-saat-kart { padding:1.1rem 1.2rem; }
+  .gs-saat-buyuk { font-size:1.9rem; }
+}
 .gs-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:.8rem; }
 .gs-kart { background:#fff; border:1px solid var(--line); border-radius:14px; padding:1rem 1.1rem; display:flex; flex-direction:column; gap:.25rem; text-decoration:none; }
 .gs-kart .gs-buyuk { font-size:1.9rem; font-weight:700; color:var(--brand); line-height:1; }
