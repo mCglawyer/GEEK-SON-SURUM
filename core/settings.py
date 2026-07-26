@@ -199,11 +199,17 @@ if EMAIL_HOST:
 VAPID_PUBLIC_KEY = os.environ.get(
     'VAPID_PUBLIC_KEY',
     'BC65Z7BXa5XLsUA86fC7NU3ocCF1gd9JuPkhkutdN_EFN3dIGpP4Jlmq7ImmOCOvpV0vfINfEJj2iowBgttJZ5c')
-# Render gibi platformlarda kalıcı dosya sistemi garanti olmadığı için, VAPID_PRIVATE_KEY_PEM
-# ortam değişkeniyle anahtarın ham içeriği de verilebilir (satır sonları \n olarak girilebilir).
-# Verilmezse PythonAnywhere'deki gibi eskisi gibi dosya yolu kullanılır.
+# Render gibi platformlarda kalıcı dosya sistemi garanti olmadığı için, anahtarın ham içeriği
+# ortam değişkeniyle de verilebilir. Kopyalarken satır sonlarının (\n) bozulması çok yaygın bir
+# sorun olduğu için EN GÜVENİLİR yöntem VAPID_PRIVATE_KEY_B64 (anahtarın base64 hâli, tek satır,
+# satır sonu/boşluk içermez). VAPID_PRIVATE_KEY_PEM (ham \n'li metin) eski uyumluluk için hâlâ
+# destekleniyor. İkisi de yoksa PythonAnywhere'deki gibi dosya yolu kullanılır.
+_vapid_b64 = os.environ.get('VAPID_PRIVATE_KEY_B64', '')
 _vapid_pem = os.environ.get('VAPID_PRIVATE_KEY_PEM', '')
-if _vapid_pem:
+if _vapid_b64:
+    import base64 as _b64
+    VAPID_PRIVATE_KEY = _b64.b64decode(_vapid_b64).decode('utf-8')
+elif _vapid_pem:
     VAPID_PRIVATE_KEY = _vapid_pem.replace('\\n', '\n')
 else:
     VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY_PATH', str(BASE_DIR / 'private_key.pem'))
