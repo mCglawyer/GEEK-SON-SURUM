@@ -87,7 +87,7 @@ def _gun_araligi(request, bas_param, bit_param):
 def _aktif_personel(request):
     return Personel.objects.filter(user=request.user).select_related('sube').first()
 
-def _bildir(aliciler, mesaj, link='', tur='', sayi=None):
+def _bildir(aliciler, mesaj, link='', tur=''):
     try:
         aliciler = [a for a in (aliciler or []) if a is not None]
         objs = [Bildirim(alici=a, mesaj=mesaj[:200], link=link, tur=tur)
@@ -97,12 +97,12 @@ def _bildir(aliciler, mesaj, link='', tur='', sayi=None):
     except Exception:
         aliciler = []
     try:
-        _push_gonder(aliciler, mesaj, link, sayi=sayi)
+        _push_gonder(aliciler, mesaj, link)
     except Exception:
         pass
 
 
-def _push_gonder(aliciler, mesaj, link='', sayi=None):
+def _push_gonder(aliciler, mesaj, link=''):
     try:
         from pywebpush import webpush, WebPushException
     except Exception:
@@ -116,11 +116,8 @@ def _push_gonder(aliciler, mesaj, link='', sayi=None):
     if not ids:
         return
     claims = dict(getattr(settings, 'VAPID_CLAIMS', {'sub': 'mailto:info@geekcoffeeshop.com'}))
-    payload_dict = {'baslik': 'Geek Panel', 'mesaj': (mesaj or '')[:150],
-                    'link': link or '/bildirimler/'}
-    if sayi is not None:
-        payload_dict['sayi'] = sayi
-    payload = json.dumps(payload_dict)
+    payload = json.dumps({'baslik': 'Geek Panel', 'mesaj': (mesaj or '')[:150],
+                          'link': link or '/bildirimler/'})
     for ab in PushAbonelik.objects.filter(personel_id__in=ids)[:400]:
         try:
             webpush(subscription_info=json.loads(ab.veri), data=payload,
@@ -2366,8 +2363,8 @@ _PWA_MANIFEST = {
 }
 
 _PWA_SW = """
-const STATIK = 'geek-statik-v4';
-const KABUK = 'geek-kabuk-v4';
+const STATIK = 'geek-statik-v5';
+const KABUK = 'geek-kabuk-v5';
 const KABUK_URL = '/';
 self.addEventListener('install', function (e) {
   e.waitUntil(
@@ -2416,10 +2413,6 @@ self.addEventListener('push', function (e) {
   var baslik = d.baslik || 'Geek Panel';
   var govde = d.mesaj || '';
   var link = d.link || '/bildirimler/';
-  if ('setAppBadge' in self.registration) {
-    if (typeof d.sayi === 'number' && d.sayi > 0) { self.registration.setAppBadge(d.sayi).catch(function () {}); }
-    else if (d.sayi === 0) { self.registration.clearAppBadge().catch(function () {}); }
-  }
   e.waitUntil(self.registration.showNotification(baslik, {
     body: govde, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png',
     data: { link: link }, vibrate: [80, 40, 80]

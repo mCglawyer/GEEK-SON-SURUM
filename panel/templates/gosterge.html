@@ -123,8 +123,5 @@
   guncelle();
   setInterval(guncelle, 1000);
 })();
-{% if personel.rol == 'Müdür' %}
-if ('clearAppBadge' in navigator) { navigator.clearAppBadge().catch(function () {}); }
-{% endif %}
 </script>
 {% endblock %}
