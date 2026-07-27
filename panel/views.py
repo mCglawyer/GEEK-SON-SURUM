@@ -102,6 +102,19 @@ def _bildir(aliciler, mesaj, link='', tur=''):
         pass
 
 
+def _vapid_yukle(priv):
+    """priv: PEM metni veya dosya yolu. pywebpush'a ham string olarak PEM
+    verilirse, kütüphane Vapid.from_string() kullanır ve bu, BEGIN/END
+    başlıklarını temizlemeden base64 çözmeye çalıştığı için PEM metinleriyle
+    "Could not deserialize key data" hatası verir. Bunu önlemek için anahtarı
+    burada kendimiz doğru şekilde (from_pem / from_file) yükleyip pywebpush'a
+    hazır bir Vapid01 nesnesi veriyoruz."""
+    from py_vapid import Vapid01
+    if priv.lstrip().startswith('-----BEGIN'):
+        return Vapid01.from_pem(priv.encode('utf-8'))
+    return Vapid01.from_file(priv)
+
+
 def _push_gonder(aliciler, mesaj, link=''):
     try:
         from pywebpush import webpush, WebPushException
@@ -112,6 +125,10 @@ def _push_gonder(aliciler, mesaj, link=''):
         return
     if not priv.lstrip().startswith('-----BEGIN') and not os.path.exists(priv):
         return
+    try:
+        vapid_key = _vapid_yukle(priv)
+    except Exception:
+        return
     ids = [a.id for a in aliciler if a is not None]
     if not ids:
         return
@@ -121,7 +138,7 @@ def _push_gonder(aliciler, mesaj, link=''):
     for ab in PushAbonelik.objects.filter(personel_id__in=ids)[:400]:
         try:
             webpush(subscription_info=json.loads(ab.veri), data=payload,
-                    vapid_private_key=priv, vapid_claims=dict(claims))
+                    vapid_private_key=vapid_key, vapid_claims=dict(claims))
         except WebPushException as e:
             try:
                 if getattr(e, 'response', None) is not None and e.response.status_code in (404, 410):
@@ -149,6 +166,10 @@ def push_test(request):
         return JsonResponse({'ok': False, 'mesaj': 'VAPID_PRIVATE_KEY ayarı boş görünüyor (settings).'})
     if not priv.lstrip().startswith('-----BEGIN') and not os.path.exists(priv):
         return JsonResponse({'ok': False, 'mesaj': 'private_key.pem sunucuda bulunamadı. Anahtar dosyasını yükleyin ya da VAPID_PRIVATE_KEY_PEM ortam değişkenini ayarlayın.', 'detay': str(priv)})
+    try:
+        vapid_key = _vapid_yukle(priv)
+    except Exception as e:
+        return JsonResponse({'ok': False, 'mesaj': 'VAPID anahtarı okunamadı (format hatası).', 'detay': str(e)[:200]})
     abonelikler = list(PushAbonelik.objects.filter(personel=personel))
     if not abonelikler:
         return JsonResponse({'ok': False, 'mesaj': 'Bu hesap için kayıtlı cihaz yok. Önce aşağıdaki "Bu cihazda bildirimleri aç" butonuna basın, sonra tekrar test edin.'})
@@ -158,7 +179,7 @@ def push_test(request):
     for ab in abonelikler:
         try:
             webpush(subscription_info=json.loads(ab.veri), data=payload,
-                    vapid_private_key=priv, vapid_claims=dict(claims))
+                    vapid_private_key=vapid_key, vapid_claims=dict(claims))
             basari += 1
         except WebPushException as e:
             kod = None
