@@ -12,20 +12,10 @@
   </div>
 
   {% if haberler %}
-  <div class="gs-haber-serit">
-    <div class="gs-haber-track">
-      {% for h in haberler %}
-      <a class="gs-haber-kart" href="{{ h.link }}" target="_blank" rel="noopener">
-        <span class="gs-haber-kaynak">{{ h.kaynak }}</span>
-        <span class="gs-haber-baslik">{{ h.baslik }}</span>
-      </a>
-      {% endfor %}
-      {% for h in haberler %}
-      <a class="gs-haber-kart" href="{{ h.link }}" target="_blank" rel="noopener" aria-hidden="true">
-        <span class="gs-haber-kaynak">{{ h.kaynak }}</span>
-        <span class="gs-haber-baslik">{{ h.baslik }}</span>
-      </a>
-      {% endfor %}
+  <div class="gs-led-panel">
+    <div class="gs-led-track">
+      {% for h in haberler %}<span class="gs-led-metin">{% if h.link %}<a href="{{ h.link }}" target="_blank" rel="noopener">{{ h.baslik }}</a>{% else %}{{ h.baslik }}{% endif %}</span><span class="gs-led-ayrac">★</span>{% endfor %}
+      {% for h in haberler %}<span class="gs-led-metin" aria-hidden="true">{% if h.link %}<a href="{{ h.link }}" target="_blank" rel="noopener" tabindex="-1">{{ h.baslik }}</a>{% else %}{{ h.baslik }}{% endif %}</span><span class="gs-led-ayrac" aria-hidden="true">★</span>{% endfor %}
     </div>
   </div>
   {% endif %}

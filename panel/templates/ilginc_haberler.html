@@ -9,6 +9,16 @@
   </div>
 
   <div class="card">
+    <h3 class="egitim-bolum">Elle Ekle (direkt yayınlanır)</h3>
+    <form method="post">
+      {% csrf_token %}<input type="hidden" name="islem" value="manuel_ekle">
+      <textarea class="input" name="baslik" rows="2" maxlength="300" placeholder="Slider'da akacak metni yaz..." style="width:100%;margin-bottom:.5rem"></textarea>
+      <input class="input" type="url" name="link" placeholder="Bağlantı (isteğe bağlı)" style="width:100%;margin-bottom:.5rem">
+      <button type="submit" class="btn btn-primary btn-mini">Ekle ve Yayınla</button>
+    </form>
+  </div>
+
+  <div class="card">
     <h3 class="egitim-bolum">Onay Bekleyenler {% if bekleyenler %}<span class="ea-not">({{ bekleyenler|length }})</span>{% endif %}</h3>
     {% for h in bekleyenler %}
     <div class="egitim-soru-item" style="margin-bottom:.6rem">

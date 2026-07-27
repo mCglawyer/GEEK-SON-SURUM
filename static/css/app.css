@@ -778,15 +778,21 @@ body.app .container { width:100%; }
 .gs-foto-sec svg { width:18px; height:18px; }
 .gs-onizleme { display:flex; gap:.4rem; flex-wrap:wrap; margin:.5rem 0 0; }
 .gs-onizleme-foto { width:70px; height:70px; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
-.gs-haber-serit { overflow:hidden; background:var(--brand-050); border:1px solid var(--brand-100); border-radius:12px; padding:.6rem 0; margin-bottom:1rem; }
-.gs-haber-track { display:flex; gap:.6rem; width:max-content; animation:gs-kaydir 45s linear infinite; }
-.gs-haber-serit:hover .gs-haber-track { animation-play-state:paused; }
-.gs-haber-kart { display:flex; flex-direction:column; gap:.15rem; min-width:220px; max-width:260px; background:#fff;
-  border:1px solid var(--line); border-radius:10px; padding:.5rem .7rem; text-decoration:none; color:var(--ink); flex:0 0 auto; }
-.gs-haber-kaynak { font-size:.6rem; font-weight:700; color:var(--brand); text-transform:uppercase; letter-spacing:.03em; }
-.gs-haber-baslik { font-size:.8rem; font-weight:500; line-height:1.3; display:-webkit-box; -webkit-line-clamp:3;
-  -webkit-box-orient:vertical; overflow:hidden; }
-@keyframes gs-kaydir { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+.gs-led-panel { overflow:hidden; background:#0a0a0a; border:3px solid #1a1a1a; border-radius:8px;
+  padding:.9rem 0; margin-bottom:1rem; box-shadow:inset 0 0 12px rgba(0,0,0,.8), 0 2px 6px rgba(0,0,0,.3);
+  background-image:radial-gradient(circle, #141414 1px, transparent 1px); background-size:4px 4px; }
+.gs-led-track { display:flex; align-items:center; width:max-content; white-space:nowrap;
+  animation:gs-led-kaydir 35s linear infinite; }
+.gs-led-panel:hover .gs-led-track { animation-play-state:paused; }
+.gs-led-metin, .gs-led-metin a { font-family:'Courier New', monospace; font-weight:700; font-size:1.15rem;
+  letter-spacing:.04em; color:#ff2a2a; text-decoration:none;
+  text-shadow:0 0 4px #ff0000, 0 0 10px #ff0000, 0 0 18px rgba(255,0,0,.6); }
+.gs-led-ayrac { font-family:'Courier New', monospace; font-size:1.1rem; color:#ff2a2a; margin:0 1.4rem;
+  text-shadow:0 0 4px #ff0000, 0 0 10px #ff0000; }
+@keyframes gs-led-kaydir { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+@media (max-width:600px) {
+  .gs-led-metin, .gs-led-metin a { font-size:.95rem; }
+}
 .gs-izgara { display:grid; gap:4px; border-radius:12px; overflow:hidden; margin-top:.6rem; }
 .gs-izgara img { width:100%; height:100%; object-fit:cover; display:block; }
 .gs-izgara-1 { grid-template-columns:1fr; }

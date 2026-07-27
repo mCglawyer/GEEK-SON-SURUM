@@ -4092,8 +4092,23 @@ def ilginc_haberler(request):
         return redirect('ana_sayfa')
 
     if request.method == 'POST':
-        h = IlginHaber.objects.filter(id=request.POST.get('haber_id')).first()
         islem = request.POST.get('islem')
+        if islem == 'manuel_ekle':
+            baslik = (request.POST.get('baslik') or '').strip()[:300]
+            link = (request.POST.get('link') or '').strip()[:500]
+            if baslik:
+                anahtar_kelimeler = ["kahve", "kafe", "gıda", "yemek", "yiyecek", "restoran", "mutfak",
+                                     "tarif", "çikolata", "şeker", "bal", "süt", "inek", "çiftlik",
+                                     "tarım", "çay", "pasta", "fırın", "ekmek", "içecek", "barista", "espresso"]
+                sektor = any(kw in baslik.lower() for kw in anahtar_kelimeler)
+                IlginHaber.objects.create(baslik=baslik, link=link, kaynak='Elle eklendi',
+                                          sektor_ilgili=sektor, onaylandi=True,
+                                          onaylayan=personel, onay_tarihi=timezone.now())
+                messages.success(request, "Slider'a eklendi ve yayınlandı.")
+            else:
+                messages.error(request, "Başlık boş olamaz.")
+            return redirect('ilginc_haberler')
+        h = IlginHaber.objects.filter(id=request.POST.get('haber_id')).first()
         if h and islem == 'yayinla':
             h.onaylandi = True
             h.onaylayan = personel
