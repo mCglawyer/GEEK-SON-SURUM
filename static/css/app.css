@@ -1291,3 +1291,16 @@ body.app .app-main, body.app .container { min-width:0; }
 .zayi-govde { flex:1; min-width:0; }
 .zayi-ust { display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; }
 .zayi-miktar-etiket { font-size:.82rem; color:var(--muted); font-weight:600; }
+
+/* --- Açılış ekranı (giriş sonrası birkaç saniyelik alıntı ekranı) --- */
+html.acilis-acik, html.acilis-acik body { overflow:hidden; }
+.acilis-ekrani { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(160deg, var(--brand-700), var(--brand)); padding:2rem;
+  opacity:1; transition:opacity .6s ease; }
+.acilis-ekrani.acilis-kaybol { opacity:0; pointer-events:none; }
+.acilis-icerik { max-width:640px; text-align:center; color:#fff; }
+.acilis-soz { font-size:1.35rem; line-height:1.5; font-weight:600; margin:0 0 1rem; }
+.acilis-yazar { font-size:.95rem; font-weight:500; opacity:.85; margin:0; }
+@media (max-width:600px) {
+  .acilis-soz { font-size:1.05rem; }
+}
