@@ -15,6 +15,7 @@
       <div class="esi-ust">
         <b>{{ h.baslik }}</b>
         <span class="egitim-sube-etiket">{{ h.kaynak }}</span>
+        {% if h.sektor_ilgili %}<span class="badge badge-ok">☕ Gıda/Kahve</span>{% endif %}
       </div>
       <div class="esi-siklar">
         <a href="{{ h.link }}" target="_blank" rel="noopener">Kaynağı aç ↗</a> · {{ h.olusturma|date:"d.m.Y H:i" }}
@@ -38,6 +39,7 @@
         <div class="esi-ust">
           <b>{{ h.baslik }}</b>
           <span class="egitim-sube-etiket">{{ h.kaynak }}</span>
+          {% if h.sektor_ilgili %}<span class="badge badge-ok">☕ Gıda/Kahve</span>{% endif %}
         </div>
         <div class="esi-siklar">
           <a href="{{ h.link }}" target="_blank" rel="noopener">Kaynağı aç ↗</a> · onaylayan: {{ h.onaylayan.ad_soyad|default:"—" }} · {{ h.onay_tarihi|date:"d.m.Y H:i" }}

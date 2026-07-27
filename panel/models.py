@@ -944,6 +944,7 @@ class IlginHaber(models.Model):
     kaynak = models.CharField(max_length=120, blank=True, default='')
     olusturma = models.DateTimeField(auto_now_add=True)
     onaylandi = models.BooleanField(default=False)
+    sektor_ilgili = models.BooleanField(default=False, verbose_name="Gıda/Kahve Sektörüyle İlgili")
     onaylayan = models.ForeignKey(Personel, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     onay_tarihi = models.DateTimeField(null=True, blank=True)
 

@@ -1,19 +1,32 @@
 from django.core.management.base import BaseCommand
 
-# Kaynak listesi: (görünen ad, RSS/Atom besleme adresi).
-# Buraya istediğin kadar kaynak ekleyebilir/çıkarabilirsin — feedparser hem
-# RSS 2.0 hem Atom formatını aynı şekilde okuyor, format farkı önemli değil.
+# Kaynak listesi: (görünen ad, RSS besleme adresi). Hepsi Türkçe kaynak —
+# yabancı bir kaynak eklenecekse başlığın Türkçe'ye çevrilmesi gerekir
+# (bu komut çeviri yapmaz, bu yüzden şimdilik yalnızca Türkçe yayın yapan
+# kaynaklar kullanılıyor).
 HABER_KAYNAKLARI = [
-    ("r/nottheonion", "https://www.reddit.com/r/nottheonion/.rss"),
-    ("r/UpliftingNews", "https://www.reddit.com/r/UpliftingNews/.rss"),
+    ("Sözcü - Yaşam", "https://www.sozcu.com.tr/kategori/yasam/feed/"),
+    ("Hürriyet - Yaşam", "https://www.hurriyet.com.tr/rss/yasam"),
+    ("NTV - Yaşam", "https://www.ntv.com.tr/yasam.rss"),
+    ("Milliyet - Yaşam", "https://www.milliyet.com.tr/rss/rssnew/yasamrss.xml"),
+    ("Dünya Gazetesi - Sektörler", "https://www.dunya.com/rss?xd=sektorler"),
 ]
 
-HER_KAYNAKTAN_MAX = 15
+HER_KAYNAKTAN_MAX = 20
+
+# Başlıkta bu kelimelerden biri geçerse haber "Gıda/Kahve Sektörüyle İlgili"
+# olarak işaretlenir ve onay ekranında öne çıkar.
+GIDA_ANAHTAR_KELIMELER = [
+    "kahve", "kafe", "gıda", "yemek", "yiyecek", "restoran", "mutfak", "tarif",
+    "çikolata", "şeker", "bal", "süt", "inek", "çiftlik", "tarım", "çay",
+    "pasta", "fırın", "ekmek", "içecek", "barista", "espresso",
+]
 
 
 class Command(BaseCommand):
-    help = ("İronik/ilginç haber adaylarını RSS kaynaklarından çekip onay bekleyen listeye "
-            "ekler. Render'da periyodik bir cron görevi olarak çalıştırılmalı (örn. 30 dakikada bir).")
+    help = ("Türkçe kaynaklardan ilginç/ironik haber adaylarını çekip onay bekleyen "
+            "listeye ekler; gıda/kahve sektörüyle ilgili başlıkları işaretler. "
+            "Render'da periyodik bir cron görevi olarak çalıştırılmalı (örn. 30 dakikada bir).")
 
     def handle(self, *args, **opts):
         import feedparser
@@ -36,6 +49,8 @@ class Command(BaseCommand):
                     continue
                 if IlginHaber.objects.filter(link=link).exists():
                     continue
-                IlginHaber.objects.create(baslik=baslik, link=link, kaynak=kaynak_ad)
+                baslik_kucuk = baslik.lower()
+                sektor = any(kw in baslik_kucuk for kw in GIDA_ANAHTAR_KELIMELER)
+                IlginHaber.objects.create(baslik=baslik, link=link, kaynak=kaynak_ad, sektor_ilgili=sektor)
                 toplam_yeni += 1
         self.stdout.write("Eklenen yeni haber adayı: %d" % toplam_yeni)

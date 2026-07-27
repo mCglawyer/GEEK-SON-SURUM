@@ -254,7 +254,7 @@ class GSosyalGonderiAdmin(admin.ModelAdmin):
 
 @admin.register(IlginHaber)
 class IlginHaberAdmin(admin.ModelAdmin):
-    list_display = ('baslik', 'kaynak', 'onaylandi', 'olusturma', 'onaylayan')
-    list_filter = ('onaylandi', 'kaynak')
+    list_display = ('baslik', 'kaynak', 'sektor_ilgili', 'onaylandi', 'olusturma', 'onaylayan')
+    list_filter = ('onaylandi', 'sektor_ilgili', 'kaynak')
     search_fields = ('baslik',)
     date_hierarchy = 'olusturma'

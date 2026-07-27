@@ -4109,7 +4109,7 @@ def ilginc_haberler(request):
             messages.success(request, "Haber slider'dan kaldırıldı.")
         return redirect('ilginc_haberler')
 
-    bekleyenler = list(IlginHaber.objects.filter(onaylandi=False).order_by('-olusturma')[:150])
+    bekleyenler = list(IlginHaber.objects.filter(onaylandi=False).order_by('-sektor_ilgili', '-olusturma')[:150])
     yayinda = list(IlginHaber.objects.filter(onaylandi=True).select_related('onaylayan').order_by('-onay_tarihi')[:100])
     return render(request, 'ilginc_haberler.html', {
         'personel': personel, 'aktif': 'ilginc_haberler',
