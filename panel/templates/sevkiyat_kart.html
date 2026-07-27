@@ -73,19 +73,31 @@
     {% elif t.mode == 'cikis' %}
     <ul class="sv-kalemler">
       {% for k in t.kalemler.all %}
-      <li>
+      <li class="sv-kalem-edit">
         <span class="sv-urun-ad">{{ k.urun_ad }}</span>
         <span class="sv-adet">İstenen: {{ k.istenen_miktar|floatformat:"-2" }} {{ k.istenen_birim }} · Çıkış: <b>{% if k.sevkiyat_miktar != None %}{{ k.sevkiyat_miktar|floatformat:"-2" }}{% elif k.satinalma_miktar != None %}{{ k.satinalma_miktar|floatformat:"-2" }}{% else %}{{ k.istenen_miktar|floatformat:"-2" }}{% endif %}</b> {{ k.sevkiyat_birim|default:k.satinalma_birim|default:k.istenen_birim }}</span>
+        <div class="sv-girdi">
+          <input class="input sv-miktar" type="number" name="co_miktar_{{ k.id }}" min="0" step="any"
+                 value="{% if k.sevkiyat_miktar != None %}{{ k.sevkiyat_miktar|floatformat:'-2' }}{% elif k.satinalma_miktar != None %}{{ k.satinalma_miktar|floatformat:'-2' }}{% else %}{{ k.istenen_miktar|floatformat:'-2' }}{% endif %}">
+          <select class="sube-sec sv-birim" name="co_birim_{{ k.id }}">
+            {% for b in tum_birimler %}<option value="{{ b }}"{% if b == k.sevkiyat_birim|default:k.satinalma_birim|default:k.istenen_birim %} selected{% endif %}>{{ b }}</option>{% endfor %}
+          </select>
+        </div>
       </li>
       {% endfor %}
     </ul>
     <div class="sv-meta sv-altbilgi">Hazırlayan (Sevkiyat): {{ t.sevkiyatci_ad|default:"—" }}{% if t.satin_alan_ad %} · Satın alma: {{ t.satin_alan_ad }}{% endif %}</div>
     <form method="post" class="sv-cikis-form">{% csrf_token %}
       <input type="hidden" name="talep_id" value="{{ t.id }}">
-      <input class="input" type="text" name="red_notu" placeholder="Reddedilecekse açıklama yazın" maxlength="400">
+      <div class="sv-ek">
+        <div class="sv-ek-bas">Ek ürün (isteğe bağlı — sevkiyata geri gönderirken eklenir)</div>
+        <div class="sv-ek-satirlar"></div>
+        <button type="button" class="btn btn-ghost btn-mini sv-ek-btn">+ Ürün ekle</button>
+      </div>
+      <input class="input" type="text" name="red_notu" placeholder="Sevkiyata geri gönderilecekse açıklama yazın" maxlength="400">
       <div class="sv-cikis-btns">
         <button type="submit" name="islem" value="cikis_onayla" class="btn btn-primary btn-mini">Çıkışı onayla</button>
-        <button type="submit" name="islem" value="cikis_reddet" class="btn btn-danger btn-mini">Reddet</button>
+        <button type="submit" name="islem" value="cikis_reddet" class="btn btn-danger btn-mini">Düzenle, sevkiyata geri gönder</button>
       </div>
     </form>
 

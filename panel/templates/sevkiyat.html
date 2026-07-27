@@ -175,8 +175,9 @@
       <div class="sv-tkv-hafta">
         {% for d in hafta %}
         {% if d.sayi %}
-        <a class="sv-tkv-gun dolu{% if d.secili %} secili{% endif %}{% if not d.bu_ay %} disay{% endif %}{% if d.bugun %} bugun{% endif %}" href="?sube={{ sel_id|default:'' }}&gun={{ d.gun }}">
-          <span class="sv-tkv-no">{{ d.no }}</span><span class="sv-tkv-rozet">{{ d.sayi }}</span>
+        <a class="sv-tkv-gun dolu{% if d.secili %} secili{% endif %}{% if not d.bu_ay %} disay{% endif %}{% if d.bugun %} bugun{% endif %}" href="?sube={{ sel_id|default:'' }}&gun={{ d.gun }}" title="{{ d.subeler|join:', ' }}">
+          <span class="sv-tkv-no">{{ d.no }}</span>
+          <span class="sv-tkv-subeler">{% for ad in d.subeler|slice:":2" %}<span class="sv-tkv-sube-rozet">{{ ad }}</span>{% endfor %}{% if d.subeler|length > 2 %}<span class="sv-tkv-sube-rozet">+{{ d.subeler|length|add:"-2" }}</span>{% endif %}</span>
         </a>
         {% else %}
         <div class="sv-tkv-gun bos{% if not d.bu_ay %} disay{% endif %}{% if d.bugun %} bugun{% endif %}"><span class="sv-tkv-no">{{ d.no }}</span></div>

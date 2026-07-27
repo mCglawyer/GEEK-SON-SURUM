@@ -810,7 +810,7 @@ def puantaj_sayfa(request):
         return redirect('ana_sayfa')
 
     is_gm = personel.rol == Rol.GENEL_MUDUR
-    is_yon = personel.rol in UST_YONETIM
+    is_yon = personel.rol in UST_YONETIM or (personel.rol == Rol.MAGAZA_MUDURU and personel.sorumlu_subeler.exists())
     puantaj_duzenleyebilir = personel.rol in (Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR)
     subeler = _yon_subeler(personel) if is_yon else []
     sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
@@ -1769,16 +1769,19 @@ _AY_ADLARI = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
               'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
 _GUN_KISA = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
 
-def _takvim_kur(yil, ay, sel_gun, sayac):
+def _takvim_kur(yil, ay, sel_gun, sayac, sube_map=None):
+    sube_map = sube_map or {}
     cal = _calmod.Calendar(firstweekday=0)
     bugun = timezone.localdate()
     haftalar = []
     for week in cal.monthdatescalendar(yil, ay):
         satir = []
         for d in week:
+            adlar = sorted(sube_map.get(d, []))
             satir.append({
                 'no': d.day, 'gun': d.isoformat(), 'bu_ay': (d.month == ay),
                 'sayi': sayac.get(d, 0), 'secili': (sel_gun == d), 'bugun': (d == bugun),
+                'subeler': adlar,
             })
         haftalar.append(satir)
     onceki = datetime.date(yil, ay, 1) - datetime.timedelta(days=1)
@@ -1820,16 +1823,18 @@ def _gecmis_hazirla(request, sel_id, izin_ids=None):
     ay_listesi = list(qs.select_related('sube').prefetch_related('kalemler').order_by('-olusturma')[:500])
 
     sayac = {}
+    sube_map = {}
     for t in ay_listesi:
         g = timezone.localtime(t.olusturma).date()
         sayac[g] = sayac.get(g, 0) + 1
+        sube_map.setdefault(g, set()).add(t.sube.ad if t.sube else '—')
 
     if sel_gun and sel_id:
         liste = [t for t in ay_listesi if timezone.localtime(t.olusturma).date() == sel_gun]
     else:
 
         liste = []
-    return _takvim_kur(yil, ay, sel_gun, sayac), liste, sel_gun
+    return _takvim_kur(yil, ay, sel_gun, sayac, sube_map), liste, sel_gun
 
 def sevkiyat_sayfa(request):
     if not request.user.is_authenticated:
@@ -2130,17 +2135,57 @@ def sevkiyat_sayfa(request):
 
     if request.method == 'POST' and cikis_yetkili and request.POST.get('islem') == 'cikis_reddet':
         talep = SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'),
-                                             durum=SevkiyatDurumu.ONAY_BEKLIYOR).first()
+                                             durum=SevkiyatDurumu.ONAY_BEKLIYOR).prefetch_related('kalemler').first()
         if talep:
+            gecerli = [b for b, _ in SevkiyatBirim.choices]
+            for k in talep.kalemler.all():
+                if 'co_miktar_%s' % k.id not in request.POST:
+                    continue
+                varsayilan = k.sevkiyat_miktar if k.sevkiyat_miktar is not None else (
+                    k.satinalma_miktar if k.satinalma_miktar is not None else k.istenen_miktar)
+                raw = request.POST.get('co_miktar_%s' % k.id, '').strip().replace(',', '.')
+                try:
+                    miktar = Decimal(raw)
+                except Exception:
+                    miktar = varsayilan
+                if miktar < 0:
+                    miktar = Decimal(0)
+                birim = request.POST.get('co_birim_%s' % k.id) or (k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim)
+                if birim not in gecerli:
+                    birim = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
+                k.sevkiyat_miktar = miktar
+                k.sevkiyat_birim = birim
+                k.save()
+            ek_adlar = request.POST.getlist('sa_ek_ad')
+            ek_miktarlar = request.POST.getlist('sa_ek_miktar')
+            ek_birimler = request.POST.getlist('sa_ek_birim')
+            for i, ad in enumerate(ek_adlar):
+                ad = (ad or '').strip()
+                if not ad:
+                    continue
+                raw = (ek_miktarlar[i] if i < len(ek_miktarlar) else '').strip().replace(',', '.')
+                try:
+                    mik = Decimal(raw)
+                except Exception:
+                    continue
+                if mik <= 0:
+                    continue
+                bir = ek_birimler[i] if i < len(ek_birimler) else SevkiyatBirim.ADET
+                if bir not in gecerli:
+                    bir = SevkiyatBirim.ADET
+                SevkiyatKalem.objects.create(
+                    talep=talep, urun=None, urun_ad=ad[:160], kategori='DİĞER', form='',
+                    koli_icerigi=1, istenen_miktar=0, istenen_birim=bir,
+                    sevkiyat_miktar=mik, sevkiyat_birim=bir)
             aciklama = request.POST.get('red_notu', '').strip()[:400]
             talep.durum = SevkiyatDurumu.REDDEDILDI
             talep.red_notu = aciklama
             talep.save()
-            SiparisHareket.objects.create(talep=talep, mesaj="Çıkış reddedildi", aciklama=aciklama,
-                                          yapan_ad=personel.ad_soyad)
-            _bildir(_sube_sefleri(talep.sube),
-                    "Sevkiyatınız reddedildi: %s" % talep.sube.ad, '/sevkiyat/', 'sevkiyat')
-            messages.success(request, "#%s reddedildi, sevkiyata geri gönderildi." % talep.id)
+            SiparisHareket.objects.create(talep=talep, mesaj="Satın alma son kez düzenledi, sevkiyata geri gönderildi",
+                                          aciklama=aciklama, yapan_ad=personel.ad_soyad)
+            _bildir(_rol_personelleri(Rol.SEVKIYAT),
+                    "Sevkiyat düzenleme için geri döndü: %s" % talep.sube.ad, '/sevkiyat/', 'sevkiyat')
+            messages.success(request, "#%s düzenlenip sevkiyata geri gönderildi." % talep.id)
         return redirect('sevkiyat')
 
     ctx = {
