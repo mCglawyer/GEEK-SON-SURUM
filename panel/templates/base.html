@@ -21,7 +21,8 @@
 </head>
 <body{% if personel %} class="app"{% endif %}>
   {% if personel %}
-  <div id="acilis-ekrani" class="acilis-ekrani" hidden>
+  {% if acilis_goster %}
+  <div id="acilis-ekrani" class="acilis-ekrani">
     <div class="acilis-icerik">
       <p class="acilis-soz">“Bilim ve onun ürünü olan teknolojiyi üretmeyen toplumlar, bağımsızlıklarını, dolayısıyla mutluluklarını yitirirler.”</p>
       <p class="acilis-yazar">Ord. Prof. Cahit Arf</p>
@@ -29,21 +30,17 @@
   </div>
   <script>
   (function () {
-    try {
-      if (sessionStorage.getItem('geek_acilis_gosterildi')) return;
-      sessionStorage.setItem('geek_acilis_gosterildi', '1');
-    } catch (e) {}
     var el = document.getElementById('acilis-ekrani');
     if (!el) return;
-    el.hidden = false;
     document.documentElement.classList.add('acilis-acik');
     setTimeout(function () {
       el.classList.add('acilis-kaybol');
       document.documentElement.classList.remove('acilis-acik');
       setTimeout(function () { el.remove(); }, 600);
-    }, 7000);
+    }, 5000);
   })();
   </script>
+  {% endif %}
   <div hidden>{% csrf_token %}</div>
   {% include '_nav.html' %}
   <main class="app-main">

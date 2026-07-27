@@ -99,3 +99,16 @@ def sube_secici_ctx(request):
         return {'ust_subeler': subeler, 'ust_secili_sube_id': sid}
     except Exception:
         return {}
+
+
+def acilis_ctx(request):
+    """Girişten sonraki ilk sayfada bir kez alıntı ekranı gösterilmesini sağlar.
+    _kod_giris/_sifre_giris başarılı girişte session'a bayrak koyar; burada
+    okunup hemen tüketilir (pop), böylece sayfa yenilense/gezinilse dahi
+    tekrar çıkmaz — sadece asıl giriş anında görünür."""
+    try:
+        if request.session.pop('acilis_goster', False):
+            return {'acilis_goster': True}
+    except Exception:
+        pass
+    return {}

@@ -74,6 +74,7 @@ TEMPLATES = [
                 'panel.context_processors.kalibrasyon_uyari_ctx',
                 'panel.context_processors.egitim_ctx',
                 'panel.context_processors.sube_secici_ctx',
+                'panel.context_processors.acilis_ctx',
             ],
         },
     },

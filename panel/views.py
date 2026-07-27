@@ -2371,6 +2371,7 @@ def _kod_giris(request):
         kilit.save()
         personel.user.backend = MODEL_BACKEND
         auth_login(request, personel.user)
+        request.session['acilis_goster'] = True
         return redirect('ana_sayfa')
     kilit.hatali_deneme += 1
     if kilit.hatali_deneme >= MAX_DENEME:
@@ -2387,6 +2388,7 @@ def _sifre_giris(request):
                         password=request.POST.get('sifre', ''))
     if user is not None:
         auth_login(request, user)
+        request.session['acilis_goster'] = True
         return redirect('ana_sayfa')
     messages.error(request, 'Kullanıcı adı veya şifre hatalı.')
     return redirect('/?mod=yonetici')
