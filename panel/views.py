@@ -643,12 +643,6 @@ def mutfak_zayi_sayfa(request):
                 fname = f"mutfakzayi_{personel.id}_{timezone.now():%Y%m%d_%H%M%S}.jpg"
                 z.foto.save(fname, ContentFile(raw), save=True)
                 messages.success(request, "Zayi kaydı yüklendi.")
-                sube_adi = sube.ad if sube else "şube tanımsız"
-                alicilar = _rol_personelleri(Rol.MUTFAK_SORUMLUSU)
-                if sube:
-                    alicilar += Personel.objects.filter(sube=sube, rol=Rol.MAGAZA_MUDURU)
-                _bildir(alicilar, "Mutfak zayi kaydı: %s (%s)" % (sube_adi, personel.ad_soyad),
-                        '/mutfak/zayi/', 'mutfak_zayi')
             else:
                 messages.error(request, "Görüntü alınamadı. Lütfen kameradan tekrar çekin.")
         return redirect('mutfak_zayi')
@@ -1340,9 +1334,6 @@ def lavabo_sayfa(request):
                 fname = f"lavabo_{sel_sube.id}_{personel.id}_{timezone.now():%Y%m%d_%H%M%S}.jpg"
                 k.foto.save(fname, ContentFile(raw), save=True)
                 messages.success(request, "Lavabo denetim görüntüsü yüklendi.")
-                _bildir(_sube_yoneticileri(sel_sube),
-                        "%s şubesi lavabo denetim görüntüsü yükledi (%s)." % (sel_sube.ad, personel.ad_soyad),
-                        '/lavabo/', 'lavabo')
             else:
                 messages.error(request, "Görüntü alınamadı. Lütfen kameradan tekrar çekin.")
         return redirect('lavabo')
@@ -1500,6 +1491,9 @@ def stok_sayimi(request):
                     sayim=sayim, urun=None, urun_ad=ad[:200], kategori='EK ÜRÜNLER',
                     kapali_icerik=1, acik_carpan=1, kapali_adet=mik, acik_miktar=0, aciklama=note)
             messages.success(request, f"{ay_ilk:%m.%Y} stok sayımı kaydedildi.")
+            _bildir(_sube_yoneticileri(sel_sube),
+                    "%s şubesi %s stok sayımını kaydetti (%s)." % (sel_sube.ad, ay_ilk.strftime('%m.%Y'), personel.ad_soyad),
+                    '/stok/', 'stok_sayim')
         return redirect(f"{reverse('stok')}?stok_ay={ay_str}")
 
     sayim = StokSayim.objects.filter(sube=sel_sube, ay=ay_ilk).first() if sel_sube else None
@@ -2116,7 +2110,7 @@ def sevkiyat_sayfa(request):
             SiparisHareket.objects.create(talep=talep, mesaj="Sevkiyat hazırlandı, çıkış onayına gönderildi",
                                           yapan_ad=personel.ad_soyad)
             messages.success(request, "#%s çıkış onayına gönderildi." % talep.id)
-            _bildir(_rol_personelleri(Rol.GENEL_MUDUR, Rol.YATIRIMCI),
+            _bildir(_rol_personelleri(Rol.SATIN_ALMA),
                     "Sevkiyat çıkış onayı bekliyor: %s" % talep.sube.ad, '/sevkiyat/', 'sevkiyat')
         return redirect('sevkiyat')
 
@@ -4092,6 +4086,7 @@ EGITIM_ACMA_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.MUDUR]
 EGITIM_AYAR_ROLLER = [Rol.EGITMEN, Rol.OPERATOR, Rol.MUDUR]
 # Açık uçlu (yazılı) cevapları görüp puanlayabilecek roller.
 EGITIM_ACIK_PUANLA_ROLLER = [Rol.EGITMEN, Rol.OPERATOR, Rol.MUDUR]
+EGITIM_TAMAMLADI_BILDIRIM_ROLLER = [Rol.EGITMEN, Rol.MUDUR]
 
 
 def _egitim_ayar_getir():
@@ -4279,9 +4274,15 @@ def egitim_test(request):
         if dogru_sayi >= ayar.gecme_puan:
             durum.gecti = True
             durum.save()
+            _bildir(_rol_personelleri(*EGITIM_TAMAMLADI_BILDIRIM_ROLLER),
+                    "%s eğitim sınavını tamamladı: %d/%d doğru — geçti." % (personel.ad_soyad, dogru_sayi, ayar.soru_sayisi),
+                    '/egitim/', 'egitim_sonuc')
             return redirect('egitim_sozlesme')
         durum.gecti = False
         durum.save()
+        _bildir(_rol_personelleri(*EGITIM_TAMAMLADI_BILDIRIM_ROLLER),
+                "%s eğitim sınavını tamamladı: %d/%d doğru — başarısız." % (personel.ad_soyad, dogru_sayi, ayar.soru_sayisi),
+                '/egitim/', 'egitim_sonuc')
         messages.error(request, "%d/%d doğru — başarısız. Bilgileri tekrar oku, farklı sorularla yeniden dene."
                        % (dogru_sayi, ayar.soru_sayisi))
         return redirect('egitim')

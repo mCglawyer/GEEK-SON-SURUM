@@ -37,7 +37,7 @@ services:
         sync: false
       - key: R2_PUBLIC_URL
         sync: false
-      - key: VAPID_PRIVATE_KEY_PEM
+      - key: VAPID_PRIVATE_KEY_B64
         sync: false
       - key: PYTHON_VERSION
         value: "3.12.7"
@@ -67,3 +67,30 @@ services:
         value: "5432"
       - key: DB_SSLMODE
         value: "require"
+
+  - type: worker
+    name: geek-panel-mola-kontrol
+    runtime: python
+    region: oregon
+    plan: starter
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python manage.py mola_kontrol"
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_SSLMODE
+        value: "require"
+      - key: VAPID_PRIVATE_KEY_B64
+        sync: false
