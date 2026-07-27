@@ -38,6 +38,7 @@ urlpatterns = [
     path('bildirim/<int:bid>/oku/', views.bildirim_oku, name='bildirim_oku'),
     path('duyurular/', views.duyurular, name='duyurular'),
     path('g-sosyal/', views.g_sosyal, name='g_sosyal'),
+    path('ilginc-haberler/', views.ilginc_haberler, name='ilginc_haberler'),
     path('egitim/', views.egitim, name='egitim'),
     path('egitim/test/', views.egitim_test, name='egitim_test'),
     path('egitim/sonucum/', views.egitim_sonucum, name='egitim_sonucum'),

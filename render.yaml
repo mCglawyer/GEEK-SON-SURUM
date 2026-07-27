@@ -94,3 +94,29 @@ services:
         value: "require"
       - key: VAPID_PRIVATE_KEY_B64
         sync: false
+
+  - type: cron
+    name: geek-panel-haber-cek
+    runtime: python
+    region: oregon
+    plan: starter
+    schedule: "*/30 * * * *"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python manage.py haber_cek"
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_SSLMODE
+        value: "require"

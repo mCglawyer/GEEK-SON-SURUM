@@ -465,6 +465,19 @@ class GSosyalGonderi(models.Model):
         return '%s · %s' % (self.yazan_ad, self.metin[:30])
 
 
+class GSosyalGorsel(models.Model):
+    """Bir Geek Crew paylaşımına ait, ızgara (grid) halinde gösterilen birden
+    fazla görselden biri. Eski paylaşımlar tekil `GSosyalGonderi.gorsel`
+    alanını kullanmayı sürdürür; yeni paylaşımlar bu tabloya (en fazla 4
+    adet) kaydedilir."""
+    gonderi = models.ForeignKey(GSosyalGonderi, on_delete=models.CASCADE, related_name='gorseller')
+    gorsel = models.ImageField(upload_to='gsosyal/')
+    sira = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sira', 'id']
+
+
 class GSosyalTepki(models.Model):
     gonderi = models.ForeignKey(GSosyalGonderi, on_delete=models.CASCADE, related_name='tepkiler')
     personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='gsosyal_tepkiler')
@@ -920,3 +933,24 @@ class DenetimCevap(models.Model):
 
     def __str__(self):
         return f"Denetim #{self.denetim_id} — {self.madde_id}"
+
+
+class IlginHaber(models.Model):
+    """Geek Crew sayfasındaki 'ironik/ilginç haber' slider'ı için, RSS
+    kaynaklarından otomatik çekilen ama yönetim onayından geçmeden slider'da
+    görünmeyen haber adayları."""
+    baslik = models.CharField(max_length=300, default='')
+    link = models.URLField(max_length=500, blank=True, default='')
+    kaynak = models.CharField(max_length=120, blank=True, default='')
+    olusturma = models.DateTimeField(auto_now_add=True)
+    onaylandi = models.BooleanField(default=False)
+    onaylayan = models.ForeignKey(Personel, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    onay_tarihi = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-olusturma']
+        verbose_name = "İlginç Haber"
+        verbose_name_plural = "İlginç Haberler"
+
+    def __str__(self):
+        return self.baslik[:60]

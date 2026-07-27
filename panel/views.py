@@ -27,7 +27,7 @@ from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Ir
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      SevkiyatForm, Urun, SiparisHareket,
                      KahveSoru, GunlukSoru, SoruAyar, Bildirim, Duyuru,
-                     GSosyalGonderi, GSosyalTepki,
+                     GSosyalGonderi, GSosyalTepki, GSosyalGorsel, IlginHaber,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap, PushAbonelik,
                      MolaQRAyar, SubeMolaToken, MolaOturum,
                      SubeMesaiToken, MesaiKayit, DogumGunuKutlama,
@@ -4011,8 +4011,9 @@ def g_sosyal(request):
 
     if request.method == 'POST' and request.POST.get('islem') == 'gonderi_ekle' and paylasabilir:
         metin = (request.POST.get('metin') or '').strip()
-        gorsel = request.FILES.get('gorsel')
-        if gorsel:
+        gorseller_ham = request.FILES.getlist('gorseller')[:4]
+        gecerli_gorseller = []
+        for gorsel in gorseller_ham:
             gecerli = False
             if gorsel.size <= 8 * 1024 * 1024 and (gorsel.content_type or '').startswith('image/'):
                 try:
@@ -4024,11 +4025,13 @@ def g_sosyal(request):
                 except Exception:
                     gecerli = False
             if not gecerli:
-                messages.error(request, "Geçersiz görsel dosyası. Lütfen bir fotoğraf seçin (en fazla 8MB).")
+                messages.error(request, "Geçersiz görsel dosyası (%s). Lütfen fotoğraf seçin (en fazla 8MB)." % gorsel.name)
                 return redirect('g_sosyal')
-        if metin or gorsel:
-            GSosyalGonderi.objects.create(yazan=personel, yazan_ad=personel.ad_soyad,
-                                          metin=metin[:4000], gorsel=gorsel)
+            gecerli_gorseller.append(gorsel)
+        if metin or gecerli_gorseller:
+            g = GSosyalGonderi.objects.create(yazan=personel, yazan_ad=personel.ad_soyad, metin=metin[:4000])
+            for i, gorsel in enumerate(gecerli_gorseller):
+                GSosyalGorsel.objects.create(gonderi=g, gorsel=gorsel, sira=i)
             _bildir(list(Personel.objects.exclude(id=personel.id)),
                     "%s yeni bir Geek Crew paylaşımı yaptı" % personel.ad_soyad,
                     '/g-sosyal/', 'gsosyal')
@@ -4044,7 +4047,7 @@ def g_sosyal(request):
             messages.success(request, "Gönderi silindi.")
         return redirect('g_sosyal')
 
-    gonderiler = list(GSosyalGonderi.objects.select_related('yazan').prefetch_related('tepkiler__personel').order_by('-olusturma')[:80])
+    gonderiler = list(GSosyalGonderi.objects.select_related('yazan').prefetch_related('tepkiler__personel', 'gorseller').order_by('-olusturma')[:80])
     for g in gonderiler:
         sayim = {}
         benim = ''
@@ -4064,6 +4067,7 @@ def g_sosyal(request):
         g.silebilir = (g.yazan_id == personel.id) or (personel.rol in UST_YONETIM)
 
     sampiyonlar, sampiyon_sube = _egitim_sampiyon_verisi()
+    haberler = list(IlginHaber.objects.filter(onaylandi=True).order_by('-onay_tarihi')[:20])
     return render(request, 'g_sosyal.html', {
         'personel': personel,
         'aktif': 'g_sosyal',
@@ -4073,6 +4077,43 @@ def g_sosyal(request):
         'sampiyonlar': sampiyonlar[:12],
         'sampiyon_sube': sampiyon_sube,
         'egitim_soru_sayisi': _egitim_ayar_getir().soru_sayisi,
+        'haberler': haberler,
+        'haber_yonetebilir': personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR),
+    })
+
+
+def ilginc_haberler(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in (Rol.GENEL_MUDUR, Rol.OPERATOR):
+        return redirect('ana_sayfa')
+
+    if request.method == 'POST':
+        h = IlginHaber.objects.filter(id=request.POST.get('haber_id')).first()
+        islem = request.POST.get('islem')
+        if h and islem == 'yayinla':
+            h.onaylandi = True
+            h.onaylayan = personel
+            h.onay_tarihi = timezone.now()
+            h.save()
+            messages.success(request, "Haber slider'da yayınlandı.")
+        elif h and islem == 'reddet':
+            h.delete()
+            messages.success(request, "Haber adayı silindi.")
+        elif h and islem == 'kaldir':
+            h.onaylandi = False
+            h.save()
+            messages.success(request, "Haber slider'dan kaldırıldı.")
+        return redirect('ilginc_haberler')
+
+    bekleyenler = list(IlginHaber.objects.filter(onaylandi=False).order_by('-olusturma')[:150])
+    yayinda = list(IlginHaber.objects.filter(onaylandi=True).select_related('onaylayan').order_by('-onay_tarihi')[:100])
+    return render(request, 'ilginc_haberler.html', {
+        'personel': personel, 'aktif': 'ilginc_haberler',
+        'bekleyenler': bekleyenler, 'yayinda': yayinda,
     })
 
 

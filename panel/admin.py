@@ -3,7 +3,8 @@ from .models import (Sube, Personel, Vardiya, Puantaj, KodKilit, Kalibrasyon, Ir
                      MolaOturum, SubeMolaToken, MesaiKayit, SubeMesaiToken,
                      MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap,
-                     DenetimBolum, DenetimMadde, Denetim, DenetimCevap)
+                     DenetimBolum, DenetimMadde, Denetim, DenetimCevap,
+                     GSosyalGonderi, GSosyalGorsel, IlginHaber)
 
 @admin.register(Sube)
 class SubeAdmin(admin.ModelAdmin):
@@ -239,3 +240,21 @@ class DenetimAdmin(admin.ModelAdmin):
     date_hierarchy = 'baslangic'
     autocomplete_fields = ('sube', 'denetleyen')
     inlines = [DenetimCevapInline]
+
+class GSosyalGorselInline(admin.TabularInline):
+    model = GSosyalGorsel
+    extra = 0
+
+@admin.register(GSosyalGonderi)
+class GSosyalGonderiAdmin(admin.ModelAdmin):
+    list_display = ('yazan_ad', 'olusturma')
+    search_fields = ('yazan_ad', 'metin')
+    date_hierarchy = 'olusturma'
+    inlines = [GSosyalGorselInline]
+
+@admin.register(IlginHaber)
+class IlginHaberAdmin(admin.ModelAdmin):
+    list_display = ('baslik', 'kaynak', 'onaylandi', 'olusturma', 'onaylayan')
+    list_filter = ('onaylandi', 'kaynak')
+    search_fields = ('baslik',)
+    date_hierarchy = 'olusturma'

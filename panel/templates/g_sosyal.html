@@ -8,7 +8,27 @@
 
   <div class="plan-head">
     <div><h2>Geek Crew</h2></div>
+    {% if haber_yonetebilir %}<a href="{% url 'ilginc_haberler' %}" class="btn btn-ghost btn-mini">İlginç Haberler</a>{% endif %}
   </div>
+
+  {% if haberler %}
+  <div class="gs-haber-serit">
+    <div class="gs-haber-track">
+      {% for h in haberler %}
+      <a class="gs-haber-kart" href="{{ h.link }}" target="_blank" rel="noopener">
+        <span class="gs-haber-kaynak">{{ h.kaynak }}</span>
+        <span class="gs-haber-baslik">{{ h.baslik }}</span>
+      </a>
+      {% endfor %}
+      {% for h in haberler %}
+      <a class="gs-haber-kart" href="{{ h.link }}" target="_blank" rel="noopener" aria-hidden="true">
+        <span class="gs-haber-kaynak">{{ h.kaynak }}</span>
+        <span class="gs-haber-baslik">{{ h.baslik }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 
   {% if sampiyon_sube or sampiyonlar %}
   <div class="gs-story-serit">
@@ -31,19 +51,42 @@
 
   {% if paylasabilir %}
   <div class="card gs-form">
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" enctype="multipart/form-data" id="gs-form">
       {% csrf_token %}<input type="hidden" name="islem" value="gonderi_ekle">
       <textarea class="input gs-metin" name="metin" rows="3" placeholder="Ekibe bir şeyler paylaş..."></textarea>
+      <div class="gs-onizleme" id="gs-onizleme"></div>
       <div class="gs-form-alt">
         <label class="gs-foto-sec">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="m21 16-5-5L5 21"/></svg>
-          <span>Görsel ekle</span>
-          <input type="file" name="gorsel" accept="image/*" hidden>
+          <span>Görsel ekle (en fazla 4)</span>
+          <input type="file" name="gorseller" accept="image/*" multiple id="gs-gorsel-input" hidden>
         </label>
         <button type="submit" class="btn btn-primary btn-mini">Paylaş</button>
       </div>
     </form>
   </div>
+  <script>
+  (function () {
+    var input = document.getElementById('gs-gorsel-input');
+    var onizleme = document.getElementById('gs-onizleme');
+    if (!input || !onizleme) return;
+    input.addEventListener('change', function () {
+      var dosyalar = Array.from(input.files || []).slice(0, 4);
+      if (input.files && input.files.length > 4) {
+        var dt = new DataTransfer();
+        dosyalar.forEach(function (f) { dt.items.add(f); });
+        input.files = dt.files;
+      }
+      onizleme.innerHTML = '';
+      dosyalar.forEach(function (f) {
+        var url = URL.createObjectURL(f);
+        var img = document.createElement('img');
+        img.src = url; img.className = 'gs-onizleme-foto';
+        onizleme.appendChild(img);
+      });
+    });
+  })();
+  </script>
   {% endif %}
 
   <div class="gs-akis">
@@ -64,7 +107,11 @@
         {% endif %}
       </div>
       {% if g.metin %}<div class="gs-metin-govde">{{ g.metin|linebreaksbr }}</div>{% endif %}
-      {% if g.gorsel %}<img class="gs-gorsel" src="{{ g.gorsel.url }}" alt="">{% endif %}
+      {% if g.gorseller.all %}
+      <div class="gs-izgara gs-izgara-{{ g.gorseller.all|length }}">
+        {% for gr in g.gorseller.all %}<img class="gs-gorsel" src="{{ gr.gorsel.url }}" alt="">{% endfor %}
+      </div>
+      {% elif g.gorsel %}<img class="gs-gorsel" src="{{ g.gorsel.url }}" alt="">{% endif %}
       <div class="gs-tepki-bar" data-gid="{{ g.id }}">
         {% for emoji, say in g.tepki_listesi %}
         <button type="button" class="gs-tepki{% if g.benim_tepki == emoji %} aktif{% endif %}" data-emoji="{{ emoji }}">

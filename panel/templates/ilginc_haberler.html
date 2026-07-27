@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}İlginç Haberler · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head">
+    <div><h2>İlginç Haberler</h2><span class="plan-aralik">Geek Crew slider'ında gösterilecek haberleri onayla</span></div>
+    <a href="{% url 'g_sosyal' %}" class="btn btn-ghost btn-mini">Geek Crew'a dön</a>
+  </div>
+
+  <div class="card">
+    <h3 class="egitim-bolum">Onay Bekleyenler {% if bekleyenler %}<span class="ea-not">({{ bekleyenler|length }})</span>{% endif %}</h3>
+    {% for h in bekleyenler %}
+    <div class="egitim-soru-item" style="margin-bottom:.6rem">
+      <div class="esi-ust">
+        <b>{{ h.baslik }}</b>
+        <span class="egitim-sube-etiket">{{ h.kaynak }}</span>
+      </div>
+      <div class="esi-siklar">
+        <a href="{{ h.link }}" target="_blank" rel="noopener">Kaynağı aç ↗</a> · {{ h.olusturma|date:"d.m.Y H:i" }}
+      </div>
+      <form method="post" style="margin-top:.4rem">
+        {% csrf_token %}<input type="hidden" name="haber_id" value="{{ h.id }}">
+        <button type="submit" name="islem" value="yayinla" class="btn btn-primary btn-mini">Yayınla</button>
+        <button type="submit" name="islem" value="reddet" class="btn btn-danger btn-mini">Sil</button>
+      </form>
+    </div>
+    {% empty %}
+    <p class="egitim-bos">Onay bekleyen haber adayı yok.</p>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h3 class="egitim-bolum">Yayında Olanlar {% if yayinda %}<span class="ea-not">({{ yayinda|length }})</span>{% endif %}</h3>
+    <div class="egitim-soru-liste">
+      {% for h in yayinda %}
+      <div class="egitim-soru-item">
+        <div class="esi-ust">
+          <b>{{ h.baslik }}</b>
+          <span class="egitim-sube-etiket">{{ h.kaynak }}</span>
+        </div>
+        <div class="esi-siklar">
+          <a href="{{ h.link }}" target="_blank" rel="noopener">Kaynağı aç ↗</a> · onaylayan: {{ h.onaylayan.ad_soyad|default:"—" }} · {{ h.onay_tarihi|date:"d.m.Y H:i" }}
+        </div>
+        <form method="post" style="margin-top:.4rem">
+          {% csrf_token %}<input type="hidden" name="haber_id" value="{{ h.id }}">
+          <button type="submit" name="islem" value="kaldir" class="btn btn-ghost btn-mini">Slider'dan kaldır</button>
+        </form>
+      </div>
+      {% empty %}
+      <p class="egitim-bos">Şu an slider'da haber yok.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
