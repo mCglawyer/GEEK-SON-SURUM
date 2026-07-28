@@ -4,6 +4,10 @@
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"></path></svg>
   </button>
   <a href="{% url 'ana_sayfa' %}" class="topbar-brand"><img class="topbar-logo" src="{% static 'images/geek_logo_blue.png' %}" alt="Geek"></a>
+  <button type="button" class="tb-ara" onclick="window.geekKomutCubugunuAc && window.geekKomutCubugunuAc()" aria-label="Sayfa ara">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <span>Ara</span><kbd>Ctrl K</kbd>
+  </button>
   <div class="topbar-user">
     {% if ust_subeler %}
     <form method="get" action="{% url 'sube_sec' %}" class="ust-sube-form">

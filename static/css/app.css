@@ -1351,3 +1351,22 @@ html.lb-acik, html.lb-acik body { overflow:hidden; }
 .denetim-trend-svg { width:100%; height:120px; display:block; }
 .denetim-trend-alt { display:flex; flex-wrap:wrap; gap:.7rem; margin-top:.5rem; font-size:.72rem; color:var(--muted); }
 .denetim-trend-guncel { color:var(--brand); font-weight:700; }
+
+/* --- Komut çubuğu (Ctrl+K hızlı arama) --- */
+.tb-ara { display:flex; align-items:center; gap:.4rem; background:var(--bg); border:1px solid var(--line);
+  border-radius:999px; padding:.4rem .8rem; color:var(--muted); font-size:.82rem; cursor:pointer; margin-left:.8rem; }
+.tb-ara:hover { background:var(--brand-050); color:var(--brand); border-color:var(--brand-100); }
+.tb-ara kbd { font-size:.65rem; background:var(--line); border-radius:5px; padding:.1rem .35rem; font-family:inherit; }
+@media (max-width:900px) { .tb-ara span, .tb-ara kbd { display:none; } }
+.kp-overlay { position:fixed; inset:0; z-index:10000; background:rgba(10,14,30,.55);
+  display:flex; align-items:flex-start; justify-content:center; padding:10vh 1rem 1rem; }
+.kp-overlay[hidden] { display:none; }
+.kp-kutu { width:100%; max-width:560px; background:var(--surface); border-radius:14px; overflow:hidden;
+  box-shadow:0 20px 60px -20px rgba(0,0,0,.5); max-height:70vh; display:flex; flex-direction:column; }
+.kp-arama-satir { display:flex; align-items:center; gap:.6rem; padding:.9rem 1rem; border-bottom:1px solid var(--line); color:var(--muted); }
+.kp-arama-satir input { flex:1; border:none; outline:none; font-size:1rem; background:transparent; color:var(--ink); }
+.kp-arama-satir kbd { font-size:.7rem; background:var(--line); border-radius:5px; padding:.15rem .4rem; }
+.kp-sonuclar { overflow-y:auto; padding:.4rem; }
+.kp-satir { display:block; padding:.7rem .9rem; border-radius:8px; text-decoration:none; color:var(--ink); font-size:.9rem; font-weight:500; }
+.kp-satir:hover, .kp-secili { background:var(--brand-050); color:var(--brand); }
+.kp-bos { padding:1.2rem; text-align:center; color:var(--muted); font-size:.85rem; }

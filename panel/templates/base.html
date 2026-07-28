@@ -195,6 +195,88 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') kapat(); });
   })();
   </script>
+
+  <div id="kp-overlay" class="kp-overlay" hidden>
+    <div class="kp-kutu">
+      <div class="kp-arama-satir">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="kp-input" placeholder="Sayfa ara... (örn. puantaj, sevkiyat, personel)" autocomplete="off">
+        <kbd>ESC</kbd>
+      </div>
+      <div id="kp-sonuclar" class="kp-sonuclar"></div>
+    </div>
+  </div>
+  <script>
+  (function () {
+    var overlay = document.getElementById('kp-overlay');
+    if (!overlay) return;
+    var input = document.getElementById('kp-input');
+    var sonuclarEl = document.getElementById('kp-sonuclar');
+    var komutlar = [];
+    var secili = 0;
+
+    function komutlariTopla() {
+      komutlar = [];
+      document.querySelectorAll('.yan-link, .mb-link').forEach(function (a) {
+        var etiket = (a.textContent || '').trim();
+        var href = a.getAttribute('href');
+        if (!etiket || !href || href.charAt(0) === '#') return;
+        if (komutlar.some(function (k) { return k.href === href; })) return;
+        komutlar.push({ etiket: etiket, href: href });
+      });
+    }
+
+    function ciz(liste) {
+      sonuclarEl.innerHTML = '';
+      if (!liste.length) {
+        sonuclarEl.innerHTML = '<div class="kp-bos">Sonuç bulunamadı.</div>';
+        return;
+      }
+      liste.slice(0, 30).forEach(function (k, i) {
+        var d = document.createElement('a');
+        d.href = k.href;
+        d.className = 'kp-satir' + (i === secili ? ' kp-secili' : '');
+        d.textContent = k.etiket;
+        sonuclarEl.appendChild(d);
+      });
+    }
+
+    function filtrele() {
+      var q = input.value.trim().toLocaleLowerCase('tr-TR');
+      secili = 0;
+      if (!q) { ciz(komutlar); return; }
+      ciz(komutlar.filter(function (k) { return k.etiket.toLocaleLowerCase('tr-TR').indexOf(q) !== -1; }));
+    }
+
+    function ac() {
+      komutlariTopla();
+      overlay.hidden = false;
+      input.value = '';
+      filtrele();
+      setTimeout(function () { input.focus(); }, 10);
+    }
+    function kapat() { overlay.hidden = true; }
+    window.geekKomutCubugunuAc = ac;
+
+    document.addEventListener('keydown', function (e) {
+      var kIle = (e.key === 'k' || e.key === 'K');
+      if ((e.metaKey || e.ctrlKey) && kIle) { e.preventDefault(); overlay.hidden ? ac() : kapat(); return; }
+      if (e.key === 'Escape' && !overlay.hidden) { kapat(); return; }
+      if (overlay.hidden) return;
+      var satirlar = sonuclarEl.querySelectorAll('.kp-satir');
+      if (e.key === 'ArrowDown') { e.preventDefault(); secili = Math.min(secili + 1, satirlar.length - 1); filtrele_yeniden_ciz(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); secili = Math.max(secili - 1, 0); filtrele_yeniden_ciz(); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (satirlar[secili]) window.location.href = satirlar[secili].getAttribute('href'); }
+    });
+    function filtrele_yeniden_ciz() {
+      var q = input.value.trim().toLocaleLowerCase('tr-TR');
+      var liste = q ? komutlar.filter(function (k) { return k.etiket.toLocaleLowerCase('tr-TR').indexOf(q) !== -1; }) : komutlar;
+      ciz(liste);
+    }
+    input.addEventListener('input', filtrele);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) kapat(); });
+  })();
+  </script>
   {% endif %}
 </body>
 </html>
