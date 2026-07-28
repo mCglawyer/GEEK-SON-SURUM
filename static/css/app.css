@@ -1045,8 +1045,13 @@ body.app .app-main, body.app .container { min-width:0; }
 /* Geek Crew — Instagram-story tarzı şampiyon şeridi */
 .gs-story-serit { display:flex; gap:.9rem; overflow-x:auto; padding:.3rem .1rem 1rem; margin-bottom:.3rem; -webkit-overflow-scrolling:touch; }
 .gs-story { flex:0 0 auto; width:84px; text-align:center; }
-.gs-story-ring { width:64px; height:64px; margin:0 auto; border-radius:50%; padding:3px; background:conic-gradient(from 210deg, var(--brand), #7b8cff, var(--brand)); display:flex; align-items:center; justify-content:center; }
+.gs-story-ring { width:64px; height:64px; margin:0 auto; border-radius:50%; padding:3px; background:conic-gradient(from 210deg, var(--brand), #7b8cff, var(--brand)); display:flex; align-items:center; justify-content:center; position:relative; }
 .gs-story-ring.sube { background:conic-gradient(from 210deg, #e6a800, #ffd970, #e6a800); }
+.gs-story-madalya-1 .gs-story-ring { background:conic-gradient(from 210deg, #d4af37, #ffe38a, #d4af37); }
+.gs-story-madalya-2 .gs-story-ring { background:conic-gradient(from 210deg, #9aa0a6, #e2e6ea, #9aa0a6); }
+.gs-story-madalya-3 .gs-story-ring { background:conic-gradient(from 210deg, #b26a3a, #e5a878, #b26a3a); }
+.gs-story-madalya { position:absolute; bottom:-4px; right:-4px; font-size:1.15rem; line-height:1;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
 .gs-story-ic { width:100%; height:100%; border-radius:50%; background:var(--surface); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.4rem; color:var(--brand); text-transform:uppercase; }
 .gs-story-sube .gs-story-ic { color:#b98400; }
 .gs-story-ad { font-size:.72rem; font-weight:600; color:var(--ink); margin-top:.35rem; line-height:1.15; word-break:break-word; }
@@ -1329,3 +1334,14 @@ html.acilis-acik, html.acilis-acik body { overflow:hidden; }
 @media (max-width:600px) {
   .acilis-soz { font-size:1.05rem; }
 }
+
+/* --- Fotoğraf lightbox (denetim/zayi/lavabo vb. görsellerinde) --- */
+html.lb-acik, html.lb-acik body { overflow:hidden; }
+.lb-overlay { position:fixed; inset:0; z-index:9998; background:rgba(10,12,20,.92);
+  display:flex; align-items:center; justify-content:center; padding:2rem; cursor:zoom-out; }
+.lb-img { max-width:100%; max-height:100%; border-radius:8px; box-shadow:0 10px 40px rgba(0,0,0,.5);
+  object-fit:contain; cursor:default; }
+.lb-kapat { position:absolute; top:1rem; right:1.2rem; width:40px; height:40px; border-radius:50%;
+  border:none; background:rgba(255,255,255,.12); color:#fff; font-size:1.1rem; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; }
+.lb-kapat:hover { background:rgba(255,255,255,.22); }

@@ -38,7 +38,7 @@
     <div class="kal-galeri">
       {% for g in gorseller %}
       <figure class="kal-item">
-        <a href="{{ g.foto.url }}" target="_blank"><img src="{{ g.foto.url }}" alt="Mutfak zayi görüntüsü" loading="lazy"></a>
+        <a href="{{ g.foto.url }}" target="_blank" rel="noopener" class="lb-tetikleyici" data-full="{{ g.foto.url }}"><img src="{{ g.foto.url }}" alt="Mutfak zayi görüntüsü" loading="lazy"></a>
         <figcaption>{{ g.personel_ad_arsiv|default:"—" }}{% if g.sube %} · {{ g.sube.ad }}{% endif %}<span>{{ g.olusturma|date:"d.m.Y H:i" }}</span>
           {% if g.aciklama %}<span class="mz-not">{{ g.aciklama }}</span>{% endif %}
         </figcaption>

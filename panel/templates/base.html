@@ -7,7 +7,8 @@
   <title>{% block title %}Geek Panel{% endblock %}</title>
   <meta name="theme-color" content="#162AA3">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="{% static 'images/geek_logo_blue.png' %}">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-180.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -160,6 +161,38 @@
     });
     nasilBtn.addEventListener('click', function () { rehber.hidden = !rehber.hidden; });
     guncelle();
+  })();
+  </script>
+
+  <div id="lb-overlay" class="lb-overlay" hidden>
+    <button type="button" class="lb-kapat" aria-label="Kapat">✕</button>
+    <img id="lb-img" class="lb-img" src="" alt="">
+  </div>
+  <script>
+  (function () {
+    var overlay = document.getElementById('lb-overlay');
+    var img = document.getElementById('lb-img');
+    var kapatBtn = overlay.querySelector('.lb-kapat');
+    function ac(url) {
+      img.src = url;
+      overlay.hidden = false;
+      document.documentElement.classList.add('lb-acik');
+    }
+    function kapat() {
+      overlay.hidden = true;
+      img.src = '';
+      document.documentElement.classList.remove('lb-acik');
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target.closest && e.target.closest('.lb-tetikleyici');
+      if (t) {
+        e.preventDefault();
+        ac(t.getAttribute('data-full') || t.href);
+      }
+    });
+    kapatBtn.addEventListener('click', kapat);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) kapat(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') kapat(); });
   })();
   </script>
   {% endif %}

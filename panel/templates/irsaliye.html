@@ -43,7 +43,7 @@
     <div class="irs-galeri">
       {% for k in kayitlar %}
       <figure class="irs-item">
-        <a href="{{ k.foto.url }}" target="_blank"><img src="{{ k.foto.url }}" alt="İrsaliye görüntüsü" loading="lazy"></a>
+        <a href="{{ k.foto.url }}" target="_blank" rel="noopener" class="lb-tetikleyici" data-full="{{ k.foto.url }}"><img src="{{ k.foto.url }}" alt="İrsaliye görüntüsü" loading="lazy"></a>
         <figcaption>
           <p class="irs-aciklama-metin">{{ k.aciklama|linebreaksbr }}</p>
           <span class="irs-meta">{{ k.giren_ad|default:"—" }} · {{ k.olusturma|date:"d.m.Y H:i" }}</span>

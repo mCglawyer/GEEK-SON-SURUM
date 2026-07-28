@@ -29,7 +29,7 @@
         <div class="denetim-madde-metin">{{ c.madde.metin }}</div>
         <span class="badge {% if c.puan == None %}no{% elif c.puan >= 4 %}ok{% elif c.puan >= 3 %}warn{% else %}no{% endif %}">{% if c.puan != None %}{{ c.puan }}/5{% else %}—{% endif %}</span>
         {% if c.not_metni %}<span class="ea-not">{{ c.not_metni }}</span>{% endif %}
-        {% if c.foto %}<a href="{{ c.foto.url }}" target="_blank" class="ea-not">📷 fotoğraf</a>{% endif %}
+        {% if c.foto %}<a href="{{ c.foto.url }}" target="_blank" rel="noopener" class="ea-not lb-tetikleyici" data-full="{{ c.foto.url }}">📷 fotoğraf</a>{% endif %}
       </div>
       {% endfor %}
     </div>

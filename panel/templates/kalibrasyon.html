@@ -44,7 +44,7 @@
     <div class="kal-galeri">
       {% for g in gorseller %}
       <figure class="kal-item">
-        <a href="{{ g.foto.url }}" target="_blank"><img src="{{ g.foto.url }}" alt="Kalibrasyon görüntüsü" loading="lazy"></a>
+        <a href="{{ g.foto.url }}" target="_blank" rel="noopener" class="lb-tetikleyici" data-full="{{ g.foto.url }}"><img src="{{ g.foto.url }}" alt="Kalibrasyon görüntüsü" loading="lazy"></a>
         <figcaption>{{ g.giren_ad|default:"—" }}<span>{{ g.olusturma|date:"d.m.Y H:i" }}</span></figcaption>
       </figure>
       {% endfor %}

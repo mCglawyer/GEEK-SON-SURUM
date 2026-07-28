@@ -2415,7 +2415,7 @@ _PWA_MANIFEST = {
     "scope": "/",
     "display": "standalone",
     "orientation": "portrait-primary",
-    "background_color": "#ffffff",
+    "background_color": "#162AA3",
     "theme_color": "#162AA3",
     "icons": [
         {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
