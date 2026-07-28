@@ -1236,7 +1236,7 @@ def kalibrasyon_sayfa(request):
     if personel is None:
         return redirect('ana_sayfa')
 
-    ekleyebilir = personel.rol in (Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU)
+    ekleyebilir = personel.rol in (Rol.PERSONEL, Rol.SEF)
     is_yon = personel.rol in UST_YONETIM
     subeler = _yon_subeler(personel) if is_yon else []
     sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
@@ -1310,7 +1310,7 @@ def lavabo_sayfa(request):
     if personel is None:
         return redirect('ana_sayfa')
 
-    ekleyebilir = personel.rol in (Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU)
+    ekleyebilir = personel.rol in (Rol.PERSONEL, Rol.SEF)
     is_yon = personel.rol in UST_YONETIM
     subeler = _yon_subeler(personel) if is_yon else []
     sel_sube = _yonetici_sube(request, subeler) if is_yon else personel.sube
