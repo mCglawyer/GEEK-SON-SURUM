@@ -30,7 +30,7 @@
     </div>
     {% endif %}
     {% for s in sampiyonlar %}
-    <div class="gs-story{% if forloop.counter <= 3 %} gs-story-madalya-{{ forloop.counter }}{% endif %}" title="{{ s.sube }} · {{ s.puan }}/{{ egitim_soru_sayisi }} doğru">
+    <div class="gs-story{% if forloop.counter <= 3 %} gs-story-madalya-{{ forloop.counter }}{% endif %}" title="{{ s.sube }} · {{ s.puan }}/{{ egitim_soru_sayisi }} doğru · {{ s.deneme }}. denemede">
       <div class="gs-story-ring">
         <span class="gs-story-ic">{{ s.ad|make_list|first }}</span>
         {% if forloop.counter == 1 %}<span class="gs-story-madalya">🥇</span>

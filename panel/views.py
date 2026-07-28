@@ -4258,9 +4258,9 @@ def _egitim_sampiyon_verisi():
             p = d.personel
             if p is None or p.rol not in EGITIM_HEDEF_ROLLER:
                 continue
-            sampiyonlar.append({'ad': p.ad_soyad, 'puan': d.son_puan,
+            sampiyonlar.append({'ad': p.ad_soyad, 'puan': d.son_puan, 'deneme': d.deneme,
                                 'sube': (p.sube.ad if p.sube else '—')})
-        sampiyonlar.sort(key=lambda x: (-x['puan'], x['ad']))
+        sampiyonlar.sort(key=lambda x: (-x['puan'], x['deneme'], x['ad']))
     except Exception:
         sampiyonlar = []
     sampiyon_sube = None
@@ -5063,9 +5063,27 @@ def denetim_detay(request, denetim_id):
             gruplar_map[bolum.id] = grup
             gruplar.append(grup)
         gruplar_map[bolum.id]['cevaplar'].append(c)
+
+    gecmis = list(Denetim.objects.filter(sube=denetim.sube, tamamlandi=True, toplam_puan__isnull=False)
+                  .order_by('-baslangic')[:8])
+    gecmis.reverse()
+    trend = []
+    if len(gecmis) >= 2:
+        genislik, yukseklik, kenar = 560, 120, 12
+        adim = (genislik - 2 * kenar) / (len(gecmis) - 1)
+        for i, d in enumerate(gecmis):
+            puan = max(0, min(100, d.toplam_puan))
+            x = kenar + i * adim
+            y = kenar + (100 - puan) / 100 * (yukseklik - 2 * kenar)
+            trend.append({'x': round(x, 1), 'y': round(y, 1), 'puan': round(puan, 1),
+                         'tarih': timezone.localtime(d.baslangic).strftime('%d.%m'),
+                         'guncel': d.id == denetim.id})
+    trend_points = ' '.join('%s,%s' % (t['x'], t['y']) for t in trend)
+
     return render(request, 'denetim_detay.html', {
         'personel': personel, 'aktif': 'denetim_sonuclar',
         'denetim': denetim, 'gruplar': gruplar,
+        'trend': trend, 'trend_points': trend_points,
     })
 
 

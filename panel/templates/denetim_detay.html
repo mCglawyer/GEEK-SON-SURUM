@@ -20,6 +20,26 @@
     </div>
   </div>
 
+  {% if trend|length >= 2 %}
+  <div class="card" style="margin-bottom:1rem">
+    <h3 class="egitim-bolum">Gidişat <span class="ea-not">(son {{ trend|length }} denetim)</span></h3>
+    <svg viewBox="0 0 560 120" class="denetim-trend-svg" preserveAspectRatio="none">
+      <polyline points="{{ trend_points }}" fill="none" stroke="var(--brand)" stroke-width="2.5"
+                stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></polyline>
+      {% for t in trend %}
+      <circle cx="{{ t.x }}" cy="{{ t.y }}" r="{% if t.guncel %}5{% else %}3.5{% endif %}"
+              fill="{% if t.guncel %}var(--brand){% else %}#fff{% endif %}"
+              stroke="var(--brand)" stroke-width="2">
+        <title>{{ t.tarih }} · %{{ t.puan|floatformat:0 }}</title>
+      </circle>
+      {% endfor %}
+    </svg>
+    <div class="denetim-trend-alt">
+      {% for t in trend %}<span{% if t.guncel %} class="denetim-trend-guncel"{% endif %}>{{ t.tarih }}: %{{ t.puan|floatformat:0 }}</span>{% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   {% for grup in gruplar %}
   <details class="sv-kat denetim-bolum">
     <summary>{{ grup.bolum.ad }}<span class="sv-sayi">{{ grup.cevaplar|length }} madde</span></summary>

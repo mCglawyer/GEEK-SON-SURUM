@@ -1346,3 +1346,8 @@ html.lb-acik, html.lb-acik body { overflow:hidden; }
   border:none; background:rgba(255,255,255,.12); color:#fff; font-size:1.1rem; cursor:pointer;
   display:flex; align-items:center; justify-content:center; }
 .lb-kapat:hover { background:rgba(255,255,255,.22); }
+
+/* --- Denetim gidişat (trend) grafiği --- */
+.denetim-trend-svg { width:100%; height:120px; display:block; }
+.denetim-trend-alt { display:flex; flex-wrap:wrap; gap:.7rem; margin-top:.5rem; font-size:.72rem; color:var(--muted); }
+.denetim-trend-guncel { color:var(--brand); font-weight:700; }
