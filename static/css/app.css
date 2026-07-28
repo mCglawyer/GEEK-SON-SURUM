@@ -1339,6 +1339,7 @@ html.acilis-acik, html.acilis-acik body { overflow:hidden; }
 html.lb-acik, html.lb-acik body { overflow:hidden; }
 .lb-overlay { position:fixed; inset:0; z-index:9998; background:rgba(10,12,20,.92);
   display:flex; align-items:center; justify-content:center; padding:2rem; cursor:zoom-out; }
+.lb-overlay[hidden] { display:none; }
 .lb-img { max-width:100%; max-height:100%; border-radius:8px; box-shadow:0 10px 40px rgba(0,0,0,.5);
   object-fit:contain; cursor:default; }
 .lb-kapat { position:absolute; top:1rem; right:1.2rem; width:40px; height:40px; border-radius:50%;
