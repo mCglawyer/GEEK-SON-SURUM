@@ -23,10 +23,7 @@
   {% for b in bildirimler %}
   <div class="card gb-kart">
     <div class="esi-ust">
-      <span class="egitim-sube-etiket">{{ b.kategori }}</span>
-      {% if b.sube %}<span class="egitim-sube-etiket">{{ b.sube.ad }}</span>{% endif %}
-      <span class="badge {% if b.durum == 'Yeni' %}warn{% elif b.durum == 'Çözüldü' %}ok{% else %}no{% endif %}">{{ b.durum }}</span>
-      <span class="ea-not">{{ b.olusturma|date:"d.m.Y H:i" }}</span>
+      <span class="ea-not">{{ b.olusturma|date:"d.m.Y H:i" }}{% if b.sube %} · {{ b.sube.ad }}{% endif %}</span>
     </div>
     <p class="gb-metin">{{ b.metin|linebreaksbr }}</p>
     {% if gonderen_gorunur %}<p class="ea-not">👤 Gönderen: {{ b.gonderen.ad_soyad|default:"—" }} <span class="gb-gizli-not">(sadece siz görüyorsunuz)</span></p>{% endif %}

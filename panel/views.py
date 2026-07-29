@@ -4109,9 +4109,9 @@ def geri_bildirim(request):
         if metin:
             GeriBildirim.objects.create(kategori=kategori, metin=metin[:3000], sube=sube, gonderen=personel)
             _bildir(_rol_personelleri(Rol.GENEL_MUDUR, Rol.OPERATOR),
-                    "Yeni bir geri bildirim geldi (%s)" % kategori, '/geri-bildirim-yonetim/', 'geri_bildirim')
+                    "Yeni bir şikayet ve öneri var.", '/geri-bildirim-yonetim/', 'geri_bildirim')
             _bildir(list(Personel.objects.filter(geri_bildirim_yetkilisi=True)),
-                    "Yeni bir geri bildirim geldi (%s)" % kategori, '/geri-bildirim-yonetim/', 'geri_bildirim')
+                    "Yeni bir şikayet ve öneri var.", '/geri-bildirim-yonetim/', 'geri_bildirim')
             messages.success(request, "İletildi, teşekkürler.")
         else:
             messages.error(request, "Lütfen bir şeyler yaz.")
