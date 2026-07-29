@@ -955,3 +955,38 @@ class IlginHaber(models.Model):
 
     def __str__(self):
         return self.baslik[:60]
+
+
+class GeriBildirimKategori(models.TextChoices):
+    ONERI = 'Öneri', 'Öneri'
+    SIKAYET = 'Şikayet', 'Şikayet'
+    DIGER = 'Diğer', 'Diğer'
+
+
+class GeriBildirimDurum(models.TextChoices):
+    YENI = 'Yeni', 'Yeni'
+    INCELENIYOR = 'İnceleniyor', 'İnceleniyor'
+    COZULDU = 'Çözüldü', 'Çözüldü'
+
+
+class GeriBildirim(models.Model):
+    """Personelin isim vermeden ilettiği öneri/şikayet. BİLEREK hiçbir kimlik
+    alanı (personel FK, IP, vb.) tutulmaz — anonimliği koruma amacı budur.
+    Hangi şubeyle ilgili olduğu, kişinin kendi seçtiği (isteğe bağlı) bir
+    alandır; sistem tarafından otomatik doldurulmaz."""
+    kategori = models.CharField(max_length=20, choices=GeriBildirimKategori.choices,
+                                default=GeriBildirimKategori.ONERI)
+    metin = models.TextField(default='')
+    sube = models.ForeignKey(Sube, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    olusturma = models.DateTimeField(auto_now_add=True)
+    durum = models.CharField(max_length=20, choices=GeriBildirimDurum.choices,
+                             default=GeriBildirimDurum.YENI)
+    yonetim_notu = models.TextField(default='', blank=True)
+
+    class Meta:
+        ordering = ['-olusturma']
+        verbose_name = "Geri Bildirim"
+        verbose_name_plural = "Geri Bildirimler"
+
+    def __str__(self):
+        return '%s · %s' % (self.kategori, self.metin[:40])
