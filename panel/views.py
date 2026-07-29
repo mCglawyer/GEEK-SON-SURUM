@@ -28,6 +28,7 @@ from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Ir
                      SevkiyatForm, Urun, SiparisHareket,
                      KahveSoru, GunlukSoru, SoruAyar, Bildirim, Duyuru,
                      GSosyalGonderi, GSosyalTepki, GSosyalGorsel, IlginHaber,
+                     GeriBildirim, GeriBildirimKategori, GeriBildirimDurum,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap, PushAbonelik,
                      MolaQRAyar, SubeMolaToken, MolaOturum,
                      SubeMesaiToken, MesaiKayit, DogumGunuKutlama,
@@ -650,7 +651,11 @@ def mutfak_zayi_sayfa(request):
     # Şube bazlı görünürlük kapsamı
     subeler_secim = []
     if personel.rol == Rol.MAGAZA_MUDURU:
-        sube_ids = [personel.sube_id] if personel.sube_id else []
+        if personel.sorumlu_subeler.exists():
+            sube_ids = list(personel.sorumlu_subeler.values_list('id', flat=True))
+            subeler_secim = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if len(sube_ids) > 1 else []
+        else:
+            sube_ids = [personel.sube_id] if personel.sube_id else []
     elif personel.rol == Rol.MUDUR:
         sube_ids = list(personel.sorumlu_subeler.values_list('id', flat=True))
         subeler_secim = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if len(sube_ids) > 1 else []
@@ -4082,6 +4087,77 @@ def g_sosyal(request):
     })
 
 
+def geri_bildirim(request):
+    """Personelin isim vermeden öneri/şikayet iletebileceği sayfa. Kimlik
+    bilgisi (personel, IP vb.) BİLEREK kaydedilmez — anonimlik garantisi."""
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+
+    if request.method == 'POST':
+        metin = (request.POST.get('metin') or '').strip()
+        kategori = request.POST.get('kategori') or GeriBildirimKategori.ONERI
+        if kategori not in [k for k, _ in GeriBildirimKategori.choices]:
+            kategori = GeriBildirimKategori.ONERI
+        sube_id = request.POST.get('sube_id') or None
+        sube = Sube.objects.filter(id=sube_id).first() if sube_id else None
+        if metin:
+            GeriBildirim.objects.create(kategori=kategori, metin=metin[:3000], sube=sube)
+            _bildir(_rol_personelleri(Rol.GENEL_MUDUR, Rol.OPERATOR),
+                    "Yeni bir anonim geri bildirim geldi (%s)" % kategori, '/geri-bildirim-yonetim/', 'geri_bildirim')
+            messages.success(request, "İletildi. Katkın için teşekkürler — bu tamamen anonim gönderildi.")
+        else:
+            messages.error(request, "Lütfen bir şeyler yaz.")
+        return redirect('geri_bildirim')
+
+    subeler = list(Sube.objects.filter(depo_mu=False).order_by('ad'))
+    return render(request, 'geri_bildirim.html', {
+        'personel': personel, 'aktif': 'geri_bildirim', 'subeler': subeler,
+        'kategoriler': GeriBildirimKategori.choices,
+    })
+
+
+def geri_bildirim_yonetim(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in (Rol.GENEL_MUDUR, Rol.OPERATOR):
+        return redirect('ana_sayfa')
+
+    if request.method == 'POST':
+        b = GeriBildirim.objects.filter(id=request.POST.get('bildirim_id')).first()
+        if b:
+            durum = request.POST.get('durum')
+            if durum in [d for d, _ in GeriBildirimDurum.choices]:
+                b.durum = durum
+            b.yonetim_notu = (request.POST.get('yonetim_notu') or '').strip()[:1000]
+            b.save()
+            messages.success(request, "Güncellendi.")
+        return redirect('geri_bildirim_yonetim')
+
+    kategori_filtre = request.GET.get('kategori') or ''
+    durum_filtre = request.GET.get('durum') or ''
+    qs = GeriBildirim.objects.select_related('sube').all()
+    if kategori_filtre:
+        qs = qs.filter(kategori=kategori_filtre)
+    if durum_filtre:
+        qs = qs.filter(durum=durum_filtre)
+    bildirimler = list(qs[:300])
+    return render(request, 'geri_bildirim_yonetim.html', {
+        'personel': personel, 'aktif': 'geri_bildirim_yonetim',
+        'bildirimler': bildirimler, 'kategoriler': GeriBildirimKategori.choices,
+        'durumlar': GeriBildirimDurum.choices,
+        'kategori_filtre': kategori_filtre, 'durum_filtre': durum_filtre,
+        'yeni_sayisi': GeriBildirim.objects.filter(durum=GeriBildirimDurum.YENI).count(),
+    })
+
+
 def ilginc_haberler(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -4717,6 +4793,190 @@ def egitim_sonucum(request):
         'soru_sayisi': _egitim_ayar_getir().soru_sayisi,
         'kendi_sonucu': True,
     })
+
+
+def egitim_excel_export(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in EGITIM_GORUNTULE_ROLLER:
+        return redirect('egitim')
+
+    kisiler_qs = Personel.objects.filter(rol__in=EGITIM_HEDEF_ROLLER).select_related('sube')
+    if personel.rol == Rol.MUDUR:
+        kisiler_qs = kisiler_qs.filter(sube__in=personel.sorumlu_subeler.all())
+    secili_sube = request.GET.get('sube') or ''
+    if secili_sube.isdigit():
+        kisiler_qs = kisiler_qs.filter(sube_id=int(secili_sube))
+    kisiler = list(kisiler_qs.order_by('sube__ad', 'ad_soyad'))
+    durum_map = {d.personel_id: d for d in EgitimDurum.objects.filter(personel__in=kisiler)}
+    ayar = _egitim_ayar_getir()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Eğitim Sonuçları"
+    navy = PatternFill("solid", fgColor="162AA3")
+    branch_fill = PatternFill("solid", fgColor="E1E8F0")
+    head_font = Font(size=10, bold=True, color="FFFFFF")
+    branch_font = Font(size=11, bold=True, color="162AA3")
+    bold = Font(size=10, bold=True)
+    center = Alignment(horizontal="center", vertical="center")
+    left = Alignment(horizontal="left", vertical="center")
+    thin = Side(border_style="thin", color="DDDDDD")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    ws.merge_cells("A1:F1")
+    ws["A1"] = "GEEK PANEL — Eğitim Sonuçları (%d soru, geçme: %d)" % (ayar.soru_sayisi, ayar.gecme_puan)
+    ws["A1"].font = Font(size=14, bold=True, color="162AA3")
+    basliklar = ["Ad Soyad", "Doğru", "Yanlış", "Kaçıncı Denemede", "Durum", "Son Deneme Tarihi"]
+    NKOL = len(basliklar)
+    for c, t in enumerate(basliklar, 1):
+        cell = ws.cell(row=3, column=c, value=t)
+        cell.font = head_font
+        cell.fill = navy
+        cell.alignment = center
+        cell.border = border
+
+    r = 4
+    gruplu = {}
+    for k in kisiler:
+        gruplu.setdefault(k.sube.ad if k.sube else '—', []).append(k)
+    for sube_ad in sorted(gruplu.keys()):
+        grup_kisiler = gruplu[sube_ad]
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=NKOL)
+        bc = ws.cell(row=r, column=1, value="Şube: %s" % sube_ad)
+        bc.font = branch_font
+        bc.alignment = left
+        for c in range(1, NKOL + 1):
+            ws.cell(row=r, column=c).fill = branch_fill
+            ws.cell(row=r, column=c).border = border
+        r += 1
+        for k in grup_kisiler:
+            d = durum_map.get(k.id)
+            denedi = bool(d and d.deneme)
+            if not denedi:
+                dogru, yanlis, deneme_no, durum_metni, tarih = '—', '—', '—', 'Henüz Girmedi', '—'
+            else:
+                dogru = d.son_puan
+                yanlis = ayar.soru_sayisi - d.son_puan
+                deneme_no = d.deneme
+                if d.inceleme_bekliyor:
+                    durum_metni = 'İnceleniyor'
+                elif d.gecti:
+                    durum_metni = 'Geçti'
+                else:
+                    durum_metni = 'Kaldı'
+                tarih = timezone.localtime(d.tarih).strftime('%d.%m.%Y %H:%M') if d.tarih else '—'
+            ws.cell(row=r, column=1, value=k.ad_soyad).alignment = left
+            ws.cell(row=r, column=2, value=dogru).alignment = center
+            ws.cell(row=r, column=3, value=yanlis).alignment = center
+            ws.cell(row=r, column=4, value=deneme_no).alignment = center
+            ws.cell(row=r, column=5, value=durum_metni).alignment = center
+            ws.cell(row=r, column=6, value=tarih).alignment = center
+            for c in range(1, NKOL + 1):
+                ws.cell(row=r, column=c).border = border
+            r += 1
+        r += 1
+
+    for i, t in enumerate(basliklar, 1):
+        ws.column_dimensions[get_column_letter(i)].width = max(14, len(t) + 4)
+
+    resp = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    resp['Content-Disposition'] = 'attachment; filename="GeekPanel_Egitim_Sonuclari.xlsx"'
+    excel_logo(ws)
+    wb.save(resp)
+    return resp
+
+
+def egitim_kisi_excel_export(request, pid):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in EGITIM_GORUNTULE_ROLLER:
+        return redirect('egitim')
+    kisi = Personel.objects.filter(id=pid).select_related('sube').first()
+    if kisi is None:
+        return redirect('egitim_yonetim')
+    if personel.rol == Rol.MUDUR and kisi.sube_id not in [s.id for s in personel.sorumlu_subeler.all()]:
+        return redirect('egitim_yonetim')
+
+    durum = EgitimDurum.objects.filter(personel=kisi).first()
+    detay = []
+    if durum and durum.son_cevaplar and durum.son_sorular and durum.deneme:
+        acik_cevap_map = {ac.soru_id: ac for ac in
+                          EgitimAcikCevap.objects.filter(personel=kisi, deneme_no=durum.deneme)}
+        ids = [x for x in durum.son_sorular.split(',') if x.isdigit()]
+        soru_map = {str(s.id): s for s in EgitimSoru.objects.filter(id__in=ids)}
+        try:
+            cevaplar = json.loads(durum.son_cevaplar or '{}')
+        except Exception:
+            cevaplar = {}
+        for sid in ids:
+            s = soru_map.get(sid)
+            if not s:
+                continue
+            verilen = cevaplar.get(sid, '')
+            if s.tur == 'acik_uclu':
+                ac = acik_cevap_map.get(s.id)
+                detay.append({'metin': s.metin, 'acik_uclu': True, 'verilen': verilen,
+                             'dogru_mu': (ac.dogru_mu if ac else None)})
+            else:
+                detay.append({'metin': s.metin, 'acik_uclu': False, 'dogru': s.dogru,
+                             'verilen': verilen, 'dogru_mu': (verilen == s.dogru)})
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sınav Detayı"
+    navy = PatternFill("solid", fgColor="162AA3")
+    ok_fill = PatternFill("solid", fgColor="D7F2DC")
+    hata_fill = PatternFill("solid", fgColor="FBD8D8")
+    head_font = Font(size=10, bold=True, color="FFFFFF")
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    thin = Side(border_style="thin", color="DDDDDD")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    ws.merge_cells("A1:D1")
+    ws["A1"] = "GEEK PANEL — %s Sınav Detayı (%s)" % (kisi.ad_soyad, kisi.sube.ad if kisi.sube else '—')
+    ws["A1"].font = Font(size=14, bold=True, color="162AA3")
+    basliklar = ["Soru", "Verilen Cevap", "Doğru Cevap", "Sonuç"]
+    for c, t in enumerate(basliklar, 1):
+        cell = ws.cell(row=3, column=c, value=t)
+        cell.font = head_font
+        cell.fill = navy
+        cell.alignment = center
+        cell.border = border
+
+    r = 4
+    for d in detay:
+        ws.cell(row=r, column=1, value=d['metin']).alignment = left
+        ws.cell(row=r, column=2, value=d.get('verilen') or '—').alignment = left
+        if d['acik_uclu']:
+            ws.cell(row=r, column=3, value="(yazılı — elle değerlendirildi)").alignment = left
+            sonuc = 'Belirsiz' if d['dogru_mu'] is None else ('Doğru' if d['dogru_mu'] else 'Yanlış')
+        else:
+            ws.cell(row=r, column=3, value=d.get('dogru') or '—').alignment = left
+            sonuc = 'Doğru' if d['dogru_mu'] else 'Yanlış'
+        sc = ws.cell(row=r, column=4, value=sonuc)
+        sc.alignment = center
+        fill = ok_fill if sonuc == 'Doğru' else (hata_fill if sonuc == 'Yanlış' else None)
+        for c in range(1, 5):
+            ws.cell(row=r, column=c).border = border
+            if fill:
+                ws.cell(row=r, column=c).fill = fill
+        r += 1
+
+    ws.column_dimensions['A'].width = 55
+    ws.column_dimensions['B'].width = 22
+    ws.column_dimensions['C'].width = 22
+    ws.column_dimensions['D'].width = 14
+
+    resp = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    dosya_ad = "".join(ch for ch in kisi.ad_soyad if ch.isalnum() or ch == ' ').replace(' ', '_')
+    resp['Content-Disposition'] = 'attachment; filename="GeekPanel_Egitim_%s.xlsx"' % dosya_ad
+    excel_logo(ws)
+    wb.save(resp)
+    return resp
 
 
 def egitim_kisi_detay(request, pid):

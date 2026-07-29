@@ -5,8 +5,11 @@
 <div class="container egitim-wrap">
   <div class="plan-head">
     <div><h2>{% if kendi_sonucu %}Sınav Sonucum{% else %}{{ kisi.ad_soyad }}{% endif %}</h2></div>
-    {% if kendi_sonucu %}<a href="{% url 'egitim' %}" class="btn btn-ghost btn-mini">← Eğitim</a>
-    {% else %}<a href="{% url 'egitim_yonetim' %}" class="btn btn-ghost btn-mini">← Takip</a>{% endif %}
+    <div class="yon-secimler">
+      {% if cevap_var %}<a href="{% url 'egitim_kisi_excel_export' kisi.id %}" class="btn btn-ghost btn-mini">📊 Excele Aktar</a>{% endif %}
+      {% if kendi_sonucu %}<a href="{% url 'egitim' %}" class="btn btn-ghost btn-mini">← Eğitim</a>
+      {% else %}<a href="{% url 'egitim_yonetim' %}" class="btn btn-ghost btn-mini">← Takip</a>{% endif %}
+    </div>
   </div>
 
   <p class="egitim-detay-ozet">

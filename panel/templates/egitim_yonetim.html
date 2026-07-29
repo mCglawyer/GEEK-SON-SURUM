@@ -7,7 +7,10 @@
 
   <div class="plan-head">
     <div><h2>Eğitim Yönetimi</h2><span class="plan-aralik">doküman · soru havuzu · takip</span></div>
-    <a href="{% url 'egitim' %}" class="btn btn-ghost btn-mini">← Eğitim</a>
+    <div class="yon-secimler">
+      <a href="{% url 'egitim_excel_export' %}{% if secili_sube %}?sube={{ secili_sube }}{% endif %}" class="btn btn-ghost btn-mini">📊 Excele Aktar</a>
+      <a href="{% url 'egitim' %}" class="btn btn-ghost btn-mini">← Eğitim</a>
+    </div>
   </div>
 
   <div class="card egitim-anahtar">
