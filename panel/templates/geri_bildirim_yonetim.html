@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Geri Bildirim Yönetimi · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head">
+    <div><h2>Geri Bildirim Yönetimi</h2><span class="plan-aralik">{% if yeni_sayisi %}{{ yeni_sayisi }} yeni geri bildirim{% else %}Bekleyen yeni geri bildirim yok{% endif %}</span></div>
+  </div>
+
+  <div class="card gb-filtre">
+    <form method="get" class="gb-filtre-form">
+      <select name="kategori" class="input" onchange="this.form.submit()">
+        <option value="">Tüm kategoriler</option>
+        {% for k, ad in kategoriler %}<option value="{{ k }}" {% if kategori_filtre == k %}selected{% endif %}>{{ ad }}</option>{% endfor %}
+      </select>
+      <select name="durum" class="input" onchange="this.form.submit()">
+        <option value="">Tüm durumlar</option>
+        {% for d, ad in durumlar %}<option value="{{ d }}" {% if durum_filtre == d %}selected{% endif %}>{{ ad }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+
+  {% for b in bildirimler %}
+  <div class="card gb-kart">
+    <div class="esi-ust">
+      <span class="egitim-sube-etiket">{{ b.kategori }}</span>
+      {% if b.sube %}<span class="egitim-sube-etiket">{{ b.sube.ad }}</span>{% endif %}
+      <span class="badge {% if b.durum == 'Yeni' %}warn{% elif b.durum == 'Çözüldü' %}ok{% else %}no{% endif %}">{{ b.durum }}</span>
+      <span class="ea-not">{{ b.olusturma|date:"d.m.Y H:i" }}</span>
+    </div>
+    <p class="gb-metin">{{ b.metin|linebreaksbr }}</p>
+    <form method="post" class="gb-yonet-form">
+      {% csrf_token %}<input type="hidden" name="bildirim_id" value="{{ b.id }}">
+      <select name="durum" class="input">
+        {% for d, ad in durumlar %}<option value="{{ d }}" {% if b.durum == d %}selected{% endif %}>{{ ad }}</option>{% endfor %}
+      </select>
+      <input class="input" type="text" name="yonetim_notu" value="{{ b.yonetim_notu }}" placeholder="Dahili not (isteğe bağlı)" maxlength="1000">
+      <button type="submit" class="btn btn-primary btn-mini">Kaydet</button>
+    </form>
+  </div>
+  {% empty %}
+  <p class="egitim-bos">Kayıt yok.</p>
+  {% endfor %}
+</div>
+{% endblock %}

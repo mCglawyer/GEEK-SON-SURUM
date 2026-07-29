@@ -1371,3 +1371,17 @@ html.lb-acik, html.lb-acik body { overflow:hidden; }
 .kp-satir { display:block; padding:.9rem 1.1rem; border-radius:10px; text-decoration:none; color:var(--ink); font-size:1rem; font-weight:500; }
 .kp-satir:hover, .kp-secili { background:var(--brand-050); color:var(--brand); }
 .kp-bos { padding:1.2rem; text-align:center; color:var(--muted); font-size:.85rem; }
+
+/* --- Anonim geri bildirim --- */
+.gb-bilgi { margin-bottom:1rem; font-size:.85rem; color:var(--muted); background:var(--brand-050);
+  border:1px solid var(--brand-100); border-radius:var(--radius-sm); padding:.8rem 1rem; }
+.gb-kategori-secim { display:flex; gap:.6rem; flex-wrap:wrap; }
+.gb-kategori-opsiyon { display:flex; align-items:center; gap:.4rem; border:1.5px solid var(--line); border-radius:999px;
+  padding:.5rem 1rem; cursor:pointer; font-size:.88rem; font-weight:500; }
+.gb-kategori-opsiyon:has(input:checked) { border-color:var(--brand); background:var(--brand-050); color:var(--brand); }
+.gb-filtre-form { display:flex; gap:.6rem; flex-wrap:wrap; }
+.gb-kart { margin-bottom:.8rem; }
+.gb-metin { font-size:.92rem; line-height:1.5; margin:.6rem 0; white-space:pre-wrap; }
+.gb-yonet-form { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.gb-yonet-form select { max-width:160px; }
+.gb-yonet-form input[type="text"] { flex:1; min-width:180px; }

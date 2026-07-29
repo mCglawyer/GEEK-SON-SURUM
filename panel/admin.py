@@ -4,7 +4,7 @@ from .models import (Sube, Personel, Vardiya, Puantaj, KodKilit, Kalibrasyon, Ir
                      MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap,
                      DenetimBolum, DenetimMadde, Denetim, DenetimCevap,
-                     GSosyalGonderi, GSosyalGorsel, IlginHaber)
+                     GSosyalGonderi, GSosyalGorsel, IlginHaber, GeriBildirim)
 
 @admin.register(Sube)
 class SubeAdmin(admin.ModelAdmin):
@@ -257,4 +257,10 @@ class IlginHaberAdmin(admin.ModelAdmin):
     list_display = ('baslik', 'kaynak', 'sektor_ilgili', 'onaylandi', 'olusturma', 'onaylayan')
     list_filter = ('onaylandi', 'sektor_ilgili', 'kaynak')
     search_fields = ('baslik',)
+    date_hierarchy = 'olusturma'
+
+@admin.register(GeriBildirim)
+class GeriBildirimAdmin(admin.ModelAdmin):
+    list_display = ('kategori', 'sube', 'durum', 'olusturma')
+    list_filter = ('kategori', 'durum', 'sube')
     date_hierarchy = 'olusturma'

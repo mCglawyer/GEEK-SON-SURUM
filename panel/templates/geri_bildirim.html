@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Geri Bildirim · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head">
+    <div><h2>Geri Bildirim</h2><span class="plan-aralik">Öneri veya şikayetini isim vermeden ilet</span></div>
+  </div>
+
+  <div class="card gb-bilgi">
+    🔒 Bu form tamamen anonimdir. Kim gönderdiği kaydedilmez — ne adın, ne şuben, ne de hangi cihazdan yazdığın sistemde tutulmaz. İstersen "hangi şubeyle ilgili" alanını da boş bırakabilirsin.
+  </div>
+
+  <div class="card">
+    <form method="post">
+      {% csrf_token %}
+      <div class="field">
+        <label>Konu</label>
+        <div class="gb-kategori-secim">
+          {% for k, ad in kategoriler %}
+          <label class="gb-kategori-opsiyon">
+            <input type="radio" name="kategori" value="{{ k }}" {% if forloop.first %}checked{% endif %}>
+            <span>{{ ad }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="field">
+        <label>Hangi şubeyle ilgili? (isteğe bağlı)</label>
+        <select name="sube_id" class="input">
+          <option value="">— Belirtmek istemiyorum —</option>
+          {% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Mesajın</label>
+        <textarea class="input" name="metin" rows="6" maxlength="3000" placeholder="Aklında ne varsa yazabilirsin..." required></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Anonim Olarak Gönder</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
