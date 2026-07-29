@@ -4088,9 +4088,8 @@ def g_sosyal(request):
 
 
 def geri_bildirim(request):
-    """Personelin öneri/şikayet iletebileceği sayfa. Gönderen kişi kaydedilir
-    ama uygulama içinde SADECE Operatör rolü bunu görebilir (bkz.
-    geri_bildirim_yonetim) — Genel Müdür dahil başka hiçbir rol göremez."""
+    """Personelin isim vermeden öneri/şikayet iletebileceği sayfa. Kimlik
+    bilgisi (personel, IP vb.) BİLEREK kaydedilmez — anonimlik garantisi."""
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
     if _cikis_mi(request):
@@ -4107,7 +4106,7 @@ def geri_bildirim(request):
         sube_id = request.POST.get('sube_id') or None
         sube = Sube.objects.filter(id=sube_id).first() if sube_id else None
         if metin:
-            GeriBildirim.objects.create(kategori=kategori, metin=metin[:3000], sube=sube, gonderen=personel)
+            GeriBildirim.objects.create(kategori=kategori, metin=metin[:3000], sube=sube)
             _bildir(_rol_personelleri(Rol.GENEL_MUDUR, Rol.OPERATOR),
                     "Yeni bir şikayet ve öneri var.", '/geri-bildirim-yonetim/', 'geri_bildirim')
             _bildir(list(Personel.objects.filter(geri_bildirim_yetkilisi=True)),
@@ -4134,7 +4133,6 @@ def geri_bildirim_yonetim(request):
                                         or personel.geri_bildirim_yetkilisi)
     if not yetkili:
         return redirect('ana_sayfa')
-    gonderen_gorunur = personel.rol == Rol.OPERATOR
 
     if request.method == 'POST':
         b = GeriBildirim.objects.filter(id=request.POST.get('bildirim_id')).first()
@@ -4150,8 +4148,6 @@ def geri_bildirim_yonetim(request):
     kategori_filtre = request.GET.get('kategori') or ''
     durum_filtre = request.GET.get('durum') or ''
     qs = GeriBildirim.objects.select_related('sube')
-    if gonderen_gorunur:
-        qs = qs.select_related('gonderen')
     if kategori_filtre:
         qs = qs.filter(kategori=kategori_filtre)
     if durum_filtre:
@@ -4162,7 +4158,6 @@ def geri_bildirim_yonetim(request):
         'bildirimler': bildirimler, 'kategoriler': GeriBildirimKategori.choices,
         'durumlar': GeriBildirimDurum.choices,
         'kategori_filtre': kategori_filtre, 'durum_filtre': durum_filtre,
-        'gonderen_gorunur': gonderen_gorunur,
         'yeni_sayisi': GeriBildirim.objects.filter(durum=GeriBildirimDurum.YENI).count(),
     })
 

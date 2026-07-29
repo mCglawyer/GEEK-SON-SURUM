@@ -974,16 +974,14 @@ class GeriBildirimDurum(models.TextChoices):
 
 
 class GeriBildirim(models.Model):
-    """Personelin öneri/şikayet ilettiği kayıt. NOT: gönderen kişi artık
-    kaydediliyor (gonderen alanı) ama uygulama içinde SADECE Operatör
-    rolündeki kişilere gösteriliyor (bkz. panel/views.py geri_bildirim_yonetim) —
-    başka hiçbir rol (Genel Müdür dahil) kim gönderdiğini göremez."""
+    """Personelin isim vermeden ilettiği öneri/şikayet. BİLEREK hiçbir kimlik
+    alanı (personel FK, IP, vb.) tutulmaz — anonimliği koruma amacı budur.
+    Hangi şubeyle ilgili olduğu, kişinin kendi seçtiği (isteğe bağlı) bir
+    alandır; sistem tarafından otomatik doldurulmaz."""
     kategori = models.CharField(max_length=20, choices=GeriBildirimKategori.choices,
                                 default=GeriBildirimKategori.ONERI)
     metin = models.TextField(default='')
     sube = models.ForeignKey(Sube, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
-    gonderen = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
-                                 verbose_name="Gönderen (sadece Operatör görebilir)")
     olusturma = models.DateTimeField(auto_now_add=True)
     durum = models.CharField(max_length=20, choices=GeriBildirimDurum.choices,
                              default=GeriBildirimDurum.YENI)
