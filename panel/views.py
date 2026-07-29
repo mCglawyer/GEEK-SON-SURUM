@@ -4088,8 +4088,9 @@ def g_sosyal(request):
 
 
 def geri_bildirim(request):
-    """Personelin isim vermeden öneri/şikayet iletebileceği sayfa. Kimlik
-    bilgisi (personel, IP vb.) BİLEREK kaydedilmez — anonimlik garantisi."""
+    """Personelin öneri/şikayet iletebileceği sayfa. Gönderen kişi kaydedilir
+    ama uygulama içinde SADECE Operatör rolü bunu görebilir (bkz.
+    geri_bildirim_yonetim) — Genel Müdür dahil başka hiçbir rol göremez."""
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
     if _cikis_mi(request):
@@ -4106,10 +4107,12 @@ def geri_bildirim(request):
         sube_id = request.POST.get('sube_id') or None
         sube = Sube.objects.filter(id=sube_id).first() if sube_id else None
         if metin:
-            GeriBildirim.objects.create(kategori=kategori, metin=metin[:3000], sube=sube)
+            GeriBildirim.objects.create(kategori=kategori, metin=metin[:3000], sube=sube, gonderen=personel)
             _bildir(_rol_personelleri(Rol.GENEL_MUDUR, Rol.OPERATOR),
-                    "Yeni bir anonim geri bildirim geldi (%s)" % kategori, '/geri-bildirim-yonetim/', 'geri_bildirim')
-            messages.success(request, "İletildi. Katkın için teşekkürler — bu tamamen anonim gönderildi.")
+                    "Yeni bir geri bildirim geldi (%s)" % kategori, '/geri-bildirim-yonetim/', 'geri_bildirim')
+            _bildir(list(Personel.objects.filter(geri_bildirim_yetkilisi=True)),
+                    "Yeni bir geri bildirim geldi (%s)" % kategori, '/geri-bildirim-yonetim/', 'geri_bildirim')
+            messages.success(request, "İletildi, teşekkürler.")
         else:
             messages.error(request, "Lütfen bir şeyler yaz.")
         return redirect('geri_bildirim')
@@ -4127,8 +4130,11 @@ def geri_bildirim_yonetim(request):
     if _cikis_mi(request):
         return _logout(request)
     personel = _aktif_personel(request)
-    if personel is None or personel.rol not in (Rol.GENEL_MUDUR, Rol.OPERATOR):
+    yetkili = personel is not None and (personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR)
+                                        or personel.geri_bildirim_yetkilisi)
+    if not yetkili:
         return redirect('ana_sayfa')
+    gonderen_gorunur = personel.rol == Rol.OPERATOR
 
     if request.method == 'POST':
         b = GeriBildirim.objects.filter(id=request.POST.get('bildirim_id')).first()
@@ -4143,7 +4149,9 @@ def geri_bildirim_yonetim(request):
 
     kategori_filtre = request.GET.get('kategori') or ''
     durum_filtre = request.GET.get('durum') or ''
-    qs = GeriBildirim.objects.select_related('sube').all()
+    qs = GeriBildirim.objects.select_related('sube')
+    if gonderen_gorunur:
+        qs = qs.select_related('gonderen')
     if kategori_filtre:
         qs = qs.filter(kategori=kategori_filtre)
     if durum_filtre:
@@ -4154,6 +4162,7 @@ def geri_bildirim_yonetim(request):
         'bildirimler': bildirimler, 'kategoriler': GeriBildirimKategori.choices,
         'durumlar': GeriBildirimDurum.choices,
         'kategori_filtre': kategori_filtre, 'durum_filtre': durum_filtre,
+        'gonderen_gorunur': gonderen_gorunur,
         'yeni_sayisi': GeriBildirim.objects.filter(durum=GeriBildirimDurum.YENI).count(),
     })
 

@@ -1385,3 +1385,4 @@ html.lb-acik, html.lb-acik body { overflow:hidden; }
 .gb-yonet-form { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
 .gb-yonet-form select { max-width:160px; }
 .gb-yonet-form input[type="text"] { flex:1; min-width:180px; }
+.gb-gizli-not { font-weight:400; opacity:.7; }

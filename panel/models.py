@@ -77,6 +77,10 @@ class Personel(models.Model):
         default=False, verbose_name="Manuel Mola/Mesai Girişi Yetkisi",
         help_text="İşaretliyse: Şef/Mağaza Müdürü rolündeyse kendi şubesindeki personel için, "
                   "diğer rollerde ise kendi adına, kamera QR olmadan manuel mola/mesai başlatıp bitirebilir.")
+    geri_bildirim_yetkilisi = models.BooleanField(
+        default=False, verbose_name="Geri Bildirim Görüntüleme Yetkisi",
+        help_text="İşaretliyse (genelde tek bir Bölge Müdürü için kullanılır): Genel Müdür/Operatör "
+                  "dışında bu kişi de Geri Bildirim Yönetimi sayfasına erişebilir.")
 
     class Meta:
         verbose_name = "Personel"; verbose_name_plural = "Personeller"; ordering = ['ad_soyad']
@@ -970,14 +974,16 @@ class GeriBildirimDurum(models.TextChoices):
 
 
 class GeriBildirim(models.Model):
-    """Personelin isim vermeden ilettiği öneri/şikayet. BİLEREK hiçbir kimlik
-    alanı (personel FK, IP, vb.) tutulmaz — anonimliği koruma amacı budur.
-    Hangi şubeyle ilgili olduğu, kişinin kendi seçtiği (isteğe bağlı) bir
-    alandır; sistem tarafından otomatik doldurulmaz."""
+    """Personelin öneri/şikayet ilettiği kayıt. NOT: gönderen kişi artık
+    kaydediliyor (gonderen alanı) ama uygulama içinde SADECE Operatör
+    rolündeki kişilere gösteriliyor (bkz. panel/views.py geri_bildirim_yonetim) —
+    başka hiçbir rol (Genel Müdür dahil) kim gönderdiğini göremez."""
     kategori = models.CharField(max_length=20, choices=GeriBildirimKategori.choices,
                                 default=GeriBildirimKategori.ONERI)
     metin = models.TextField(default='')
     sube = models.ForeignKey(Sube, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    gonderen = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                                 verbose_name="Gönderen (sadece Operatör görebilir)")
     olusturma = models.DateTimeField(auto_now_add=True)
     durum = models.CharField(max_length=20, choices=GeriBildirimDurum.choices,
                              default=GeriBildirimDurum.YENI)

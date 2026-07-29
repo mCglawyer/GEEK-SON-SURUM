@@ -19,9 +19,9 @@ def kodu_yenile(modeladmin, request, queryset):
 
 @admin.register(Personel)
 class PersonelAdmin(admin.ModelAdmin):
-    list_display = ('ad_soyad', 'sube', 'rol', 'egitmen', 'giris_kodu', 'user')
-    list_filter = ('rol', 'sube', 'egitmen')
-    list_editable = ('egitmen',)
+    list_display = ('ad_soyad', 'sube', 'rol', 'egitmen', 'geri_bildirim_yetkilisi', 'giris_kodu', 'user')
+    list_filter = ('rol', 'sube', 'egitmen', 'geri_bildirim_yetkilisi')
+    list_editable = ('egitmen', 'geri_bildirim_yetkilisi')
     search_fields = ('ad_soyad', 'giris_kodu')
     autocomplete_fields = ('user', 'sube')
     filter_horizontal = ('sorumlu_subeler',)

@@ -29,6 +29,7 @@
       <span class="ea-not">{{ b.olusturma|date:"d.m.Y H:i" }}</span>
     </div>
     <p class="gb-metin">{{ b.metin|linebreaksbr }}</p>
+    {% if gonderen_gorunur %}<p class="ea-not">👤 Gönderen: {{ b.gonderen.ad_soyad|default:"—" }} <span class="gb-gizli-not">(sadece siz görüyorsunuz)</span></p>{% endif %}
     <form method="post" class="gb-yonet-form">
       {% csrf_token %}<input type="hidden" name="bildirim_id" value="{{ b.id }}">
       <select name="durum" class="input">
