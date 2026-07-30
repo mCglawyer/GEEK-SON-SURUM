@@ -383,7 +383,9 @@ def _sef_home(request, personel):
             return redirect('ana_sayfa')
         if islem == 'vardiya_kaydet':
             _vardiya_kaydet(request, sube)
-            return redirect(f'/?hafta={secili}')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'ok': True})
+            return redirect(f'/?hafta={secili}&kaydir={request.POST.get("kaydir", "0")}')
         if islem == 'onaya_gonder':
             Vardiya.objects.filter(personel__sube=sube, tarih__range=[start, end],
                                    durum__in=[OnayDurumu.TASLAK, OnayDurumu.REDDEDILDI]
@@ -391,7 +393,7 @@ def _sef_home(request, personel):
             _bildir(_sube_yoneticileri(sube),
                     "Vardiya planı onay bekliyor: %s" % (sube.ad if sube else ''), '/', 'vardiya')
             messages.success(request, "Vardiya programı yönetici onayına gönderildi.")
-            return redirect(f'/?hafta={secili}')
+            return redirect(f'/?hafta={secili}&kaydir={request.POST.get("kaydir", "0")}')
         if islem == 'personel_ekle':
             ad = request.POST.get('ad_soyad', '').strip()
             if ad:
@@ -399,11 +401,11 @@ def _sef_home(request, personel):
                 messages.success(request, f"{yeni.ad_soyad} eklendi. Giriş kodu: {yeni.giris_kodu}")
             else:
                 messages.error(request, "Ad soyad boş olamaz.")
-            return redirect(f'/?hafta={secili}')
+            return redirect(f'/?hafta={secili}&kaydir={request.POST.get("kaydir", "0")}')
         if islem == 'personel_cikar':
             Personel.objects.filter(id=request.POST.get('personel_id'), sube=sube, rol=Rol.PERSONEL).delete()
             messages.success(request, "Personel şubeden çıkarıldı.")
-            return redirect(f'/?hafta={secili}')
+            return redirect(f'/?hafta={secili}&kaydir={request.POST.get("kaydir", "0")}')
 
     personeller = list(sube.personeller.order_by('ad_soyad')) if sube else []
     tablo = _vardiya_tablo(personeller, start, end, gunler)
@@ -430,9 +432,10 @@ def _vardiya_kaydet(request, sube, durum=OnayDurumu.TASLAK):
     if tip == 'Sil':
         Vardiya.objects.filter(personel=hedef, tarih=t).delete()
     elif tip in VardiyaTipi.values:
+        kayit_durumu = OnayDurumu.ONAYLANDI if tip == VardiyaTipi.MUTFAK_GOREVI else durum
         Vardiya.objects.update_or_create(
             personel=hedef, tarih=t,
-            defaults={'vardiya_tipi': tip, 'durum': durum, 'red_notu': None})
+            defaults={'vardiya_tipi': tip, 'durum': kayit_durumu, 'red_notu': None})
 
 def vardiya_home(request):
     if not request.user.is_authenticated:
@@ -458,6 +461,8 @@ def _yonetici_vardiya(request, personel):
         islem = request.POST.get('islem')
         if islem == 'vardiya_kaydet':
             _vardiya_kaydet(request, sel_sube, durum=OnayDurumu.ONAYLANDI)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'ok': True})
         elif islem == 'plan_onayla':
             Vardiya.objects.filter(personel__sube=sel_sube, tarih__range=[start, end],
                                    durum=OnayDurumu.ONAY_BEKLIYOR).update(durum=OnayDurumu.ONAYLANDI, red_notu=None)
@@ -474,7 +479,7 @@ def _yonetici_vardiya(request, personel):
             _bildir(_sube_sefleri(sel_sube),
                     "Vardiya planınız reddedildi: %s" % (sel_sube.ad if sel_sube else ''), '/', 'vardiya')
             messages.success(request, "Vardiya planı reddedildi ve şefe geri gönderildi.")
-        return redirect(f'/?hafta={secili}')
+        return redirect(f'/?hafta={secili}&kaydir={request.POST.get("kaydir", "0")}')
 
     personeller = list(sel_sube.personeller.order_by('ad_soyad')) if sel_sube else []
     tablo = _vardiya_tablo(personeller, start, end, gunler)
@@ -513,14 +518,14 @@ def mutfak_vardiya_sayfa(request):
                 messages.success(request, f"{ad} mutfak ekibine eklendi. Giriş kodu: {yeni.giris_kodu}")
             else:
                 messages.error(request, "Ad soyad gerekli.")
-            return redirect(f'/mutfak/vardiya/?hafta={secili}')
+            return redirect(f'/mutfak/vardiya/?hafta={secili}&kaydir={request.POST.get("kaydir", "0")}')
         if request.POST.get('islem') == 'mutfak_personel_cikar':
             k = Personel.objects.filter(id=request.POST.get('personel_id'), rol=Rol.MUTFAK_PERSONEL).first()
             if k:
                 ad = k.ad_soyad
                 (k.user or k).delete()
                 messages.success(request, f"{ad} mutfak ekibinden çıkarıldı.")
-            return redirect(f'/mutfak/vardiya/?hafta={secili}')
+            return redirect(f'/mutfak/vardiya/?hafta={secili}&kaydir={request.POST.get("kaydir", "0")}')
         pid = request.POST.get('personel_id')
         tarih_str = request.POST.get('tarih')
         secim = request.POST.get('secim', '')
@@ -545,7 +550,9 @@ def mutfak_vardiya_sayfa(request):
                     personel=kisi, tarih=tarih,
                     defaults={'vardiya_tipi': secim, 'atanan_sube': None,
                              'durum': OnayDurumu.ONAYLANDI, 'red_notu': None})
-        return redirect(f'/mutfak/vardiya/?hafta={secili}')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'ok': bool(kisi)})
+        return redirect(f'/mutfak/vardiya/?hafta={secili}&kaydir={request.POST.get("kaydir", "0")}')
 
     kayitlar = {(v.personel_id, v.tarih): v for v in
                 Vardiya.objects.filter(personel__in=mutfak_personeli, tarih__range=[start, end])}

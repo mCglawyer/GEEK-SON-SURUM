@@ -277,6 +277,60 @@
     overlay.addEventListener('click', function (e) { if (e.target === overlay) kapat(); });
   })();
   </script>
+
+  <script>
+  (function () {
+    /* Vardiya/mutfak vardiya gibi sayfalarda her hücre kendi formunu ayrı
+       gönderiyor (tam sayfa yenileme). Bu, gönderim anındaki kaydırma
+       konumunu forma ekleyip, ilgili view URL'ye ?kaydir= olarak
+       yansıttığında, yeni sayfa yüklendiğinde aynı noktaya geri döner. */
+    var params = new URLSearchParams(window.location.search);
+    var y = params.get('kaydir');
+    if (y) {
+      window.scrollTo(0, parseInt(y, 10) || 0);
+      params.delete('kaydir');
+      var yeniSorgu = params.toString();
+      var yeniUrl = window.location.pathname + (yeniSorgu ? '?' + yeniSorgu : '') + window.location.hash;
+      history.replaceState(null, '', yeniUrl);
+    }
+    document.addEventListener('submit', function (e) {
+      var f = e.target;
+      if (!f || f.tagName !== 'FORM' || (f.method || '').toLowerCase() !== 'post') return;
+      var alan = f.querySelector('input[name="kaydir"]');
+      if (!alan) {
+        alan = document.createElement('input');
+        alan.type = 'hidden';
+        alan.name = 'kaydir';
+        f.appendChild(alan);
+      }
+      alan.value = window.scrollY;
+    }, true);
+  })();
+  </script>
+
+  <script>
+  (function () {
+    /* Vardiya/mutfak vardiya hücre formları: artık tam sayfa yenilemesi
+       yapmadan, arka planda (AJAX) kaydediliyor. Seçili değer zaten
+       tarayıcıda görünüyor olduğundan (select değişince anında), ekranda
+       başka bir güncelleme gerekmiyor — sayfa hiç kaymıyor. */
+    document.addEventListener('submit', function (e) {
+      var f = e.target;
+      if (!f || !f.classList || !f.classList.contains('hucre-form')) return;
+      e.preventDefault();
+      var veri = new FormData(f);
+      fetch(f.getAttribute('action') || window.location.href, {
+        method: 'POST', body: veri,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      }).then(function (r) {
+        if (!r.ok) throw new Error('kaydedilemedi');
+      }).catch(function () {
+        var sel = f.querySelector('select');
+        if (sel) sel.style.outline = '2px solid #d33';
+      });
+    });
+  })();
+  </script>
   {% endif %}
 </body>
 </html>

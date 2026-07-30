@@ -68,7 +68,7 @@
               <th class="sticky">{{ row.personel.ad_soyad }}</th>
               {% for h in row.hucreler %}
               <td>
-                <form method="post" action="{% url 'ana_sayfa' %}?hafta={{ secili }}">
+                <form method="post" action="{% url 'ana_sayfa' %}?hafta={{ secili }}" class="hucre-form">
                   {% csrf_token %}
                   <input type="hidden" name="islem" value="vardiya_kaydet">
                   <input type="hidden" name="target_personel_id" value="{{ row.personel.id }}">

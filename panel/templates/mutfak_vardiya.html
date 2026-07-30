@@ -49,7 +49,7 @@
           <td class="mf-ad">{{ satir.personel.ad_soyad }}</td>
           {% for g in satir.gunler %}
           <td>
-            <form method="post" class="mf-secim-form">
+            <form method="post" class="mf-secim-form hucre-form">
               {% csrf_token %}
               <input type="hidden" name="personel_id" value="{{ satir.personel.id }}">
               <input type="hidden" name="tarih" value="{{ g.tarih|date:'Y-m-d' }}">

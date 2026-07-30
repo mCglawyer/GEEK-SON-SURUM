@@ -39,7 +39,7 @@
           {% for row in rows %}
           <tr><th class="sticky">{{ row.personel.ad_soyad }}</th>
             {% for h in row.hucreler %}
-            <td><form method="post" action="?sube_id={{ sel_sube.id }}&hafta={{ secili }}">{% csrf_token %}
+            <td><form method="post" action="?sube_id={{ sel_sube.id }}&hafta={{ secili }}" class="hucre-form">{% csrf_token %}
               <input type="hidden" name="islem" value="vardiya_kaydet">
               <input type="hidden" name="target_personel_id" value="{{ row.personel.id }}">
               <input type="hidden" name="vardiya_tarihi" value="{{ h.tarih|date:'Y-m-d' }}">
