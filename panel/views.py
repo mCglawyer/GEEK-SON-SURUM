@@ -638,6 +638,10 @@ def mutfak_zayi_sayfa(request):
             aktif_gorev = Vardiya.objects.filter(personel=personel, tarih=bugun,
                                                  vardiya_tipi=VardiyaTipi.MUTFAK_GOREVI).first()
             sube = (aktif_gorev.atanan_sube if aktif_gorev else None) or personel.sube
+            if sube is None:
+                messages.error(request, "Profilinizde bir şube tanımlı değil, bu yüzden yüklemeniz "
+                                "kimseye görünmez. Lütfen yöneticinizden profilinize şube atamasını isteyin.")
+                return redirect('mutfak_zayi')
             if raw and 100 < len(raw) <= 8 * 1024 * 1024:
                 z = MutfakZayi(personel=personel, personel_ad_arsiv=personel.ad_soyad,
                                sube=sube, aciklama=aciklama[:2000])
