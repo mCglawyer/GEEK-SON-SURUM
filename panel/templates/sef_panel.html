@@ -73,7 +73,7 @@
                   <input type="hidden" name="islem" value="vardiya_kaydet">
                   <input type="hidden" name="target_personel_id" value="{{ row.personel.id }}">
                   <input type="hidden" name="vardiya_tarihi" value="{{ h.tarih|date:'Y-m-d' }}">
-                  <select name="vardiya_tipi" onchange="this.form.submit()"
+                  <select name="vardiya_tipi" onchange="this.form.requestSubmit()"
                           class="cell-sel{% if h.vardiya %} dolu{% endif %}">
                     <option value="">—</option>
                     {% for val, label in vardiya_tipleri %}

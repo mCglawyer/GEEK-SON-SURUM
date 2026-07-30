@@ -479,7 +479,7 @@ def _yonetici_vardiya(request, personel):
             _bildir(_sube_sefleri(sel_sube),
                     "Vardiya planınız reddedildi: %s" % (sel_sube.ad if sel_sube else ''), '/', 'vardiya')
             messages.success(request, "Vardiya planı reddedildi ve şefe geri gönderildi.")
-        return redirect(f'/?hafta={secili}&kaydir={request.POST.get("kaydir", "0")}')
+        return redirect(f'/vardiya/?sube_id={sel_sube.id}&hafta={secili}&kaydir={request.POST.get("kaydir", "0")}')
 
     personeller = list(sel_sube.personeller.order_by('ad_soyad')) if sel_sube else []
     tablo = _vardiya_tablo(personeller, start, end, gunler)

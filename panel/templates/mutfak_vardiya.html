@@ -53,7 +53,7 @@
               {% csrf_token %}
               <input type="hidden" name="personel_id" value="{{ satir.personel.id }}">
               <input type="hidden" name="tarih" value="{{ g.tarih|date:'Y-m-d' }}">
-              <select name="secim" class="mf-sec" onchange="this.form.submit()">
+              <select name="secim" class="mf-sec" onchange="this.form.requestSubmit()">
                 <option value="">—</option>
                 <optgroup label="Şube Ataması">
                   {% for s in subeler %}
