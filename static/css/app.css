@@ -1086,6 +1086,8 @@ body.app .app-main, body.app .container { min-width:0; }
 .mola-kart h2 { margin:.2rem 0 .3rem; }
 .mola-sube { font-weight:600; color:var(--brand); }
 .mola-kalan { font-size:1.05rem; margin:.4rem 0; }
+.mola-sayac { font-size:2.6rem; font-weight:700; font-variant-numeric:tabular-nums; color:var(--brand);
+  margin:.6rem 0; letter-spacing:.02em; }
 .mola-aktif { border:1px solid var(--brand-100); background:var(--brand-050); }
 .mola-btn { min-width:120px; margin:.3rem; }
 .mola-sure-btn { display:flex; gap:.6rem; justify-content:center; flex-wrap:wrap; margin:.6rem 0; }

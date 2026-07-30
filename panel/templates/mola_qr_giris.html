@@ -30,12 +30,27 @@
     </svg></div>
     <h2>Moladasın</h2>
     <p class="mola-sube">{{ sube.ad }} · {{ aktif.sure_dk }} dakikalık mola</p>
-    <p class="mola-kalan">{% if kalan > 0 %}Kalan süre yaklaşık <b>{{ kalan }} dk</b>{% else %}Süren doldu{% endif %}</p>
+    <p class="mola-sayac" id="mola-sayac" data-baslangic="{{ aktif.baslangic|date:'c' }}">00:00</p>
     <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="bitir">
       <button class="btn btn-primary mola-btn">Molayı Bitir</button>
     </form>
     <p class="ea-not">Döndüğünü bildirmek için QR'ı tekrar okutup "Molayı Bitir"e basabilirsin.</p>
   </div>
+  <script>
+  (function () {
+    var el = document.getElementById('mola-sayac');
+    if (!el) return;
+    var bas = new Date(el.getAttribute('data-baslangic')).getTime();
+    function ikiHane(n) { return (n < 10 ? '0' : '') + n; }
+    function guncelle() {
+      var gecenSn = Math.max(0, Math.floor((Date.now() - bas) / 1000));
+      var dk = Math.floor(gecenSn / 60);
+      el.textContent = ikiHane(dk) + ':' + ikiHane(gecenSn % 60);
+    }
+    guncelle();
+    setInterval(guncelle, 1000);
+  })();
+  </script>
   {% else %}
   <div class="card mola-kart">
     <div class="mola-ikon"><svg class="mola-barista" viewBox="0 0 64 64" fill="none" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
