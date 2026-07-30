@@ -382,7 +382,8 @@ def _sef_home(request, personel):
             messages.error(request, "Şubeniz tanımlı değil. Yöneticinize başvurun.")
             return redirect('ana_sayfa')
         if islem == 'vardiya_kaydet':
-            _vardiya_kaydet(request, sube)
+            _durum = OnayDurumu.ONAYLANDI if personel.rol == Rol.MAGAZA_MUDURU else OnayDurumu.TASLAK
+            _vardiya_kaydet(request, sube, durum=_durum)
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({'ok': True})
             return redirect(f'/?hafta={secili}&kaydir={request.POST.get("kaydir", "0")}')
@@ -3071,8 +3072,9 @@ def mola_tara(request):
     if personel.rol == Rol.MUTFAK_SORUMLUSU:
         messages.info(request, "Mutfak Sorumlusu rolü için mola sistemi kullanılmaz.")
         return redirect('ana_sayfa')
+    kendi_molasi = _aktif_mola(personel)
     return render(request, 'mola_tara.html', {
-        'personel': personel, 'aktif': 'mola_tara', 'acik': _mola_qr_acik(),
+        'personel': personel, 'aktif': 'mola_tara', 'acik': _mola_qr_acik(), 'kendi_molasi': kendi_molasi,
     })
 
 
@@ -3111,14 +3113,20 @@ def mola_izleme_json(request):
     if not request.user.is_authenticated:
         return JsonResponse({'molalar': []}, status=403)
     personel = _aktif_personel(request)
-    if personel is None or personel.rol not in MOLA_IZLEME_ROLLER:
+    if personel is None:
         return JsonResponse({'molalar': []}, status=403)
-    sube_ids = _mola_izleme_subeler(personel)
-    tekli_rol = personel.rol == Rol.SEF or (personel.rol == Rol.MAGAZA_MUDURU and len(sube_ids) <= 1)
-    if not tekli_rol:
-        sec = request.GET.get('sube')
-        if sec and sec.isdigit() and int(sec) in sube_ids:
-            sube_ids = [int(sec)]
+    if personel.rol in MOLA_IZLEME_ROLLER:
+        sube_ids = _mola_izleme_subeler(personel)
+        tekli_rol = personel.rol == Rol.SEF or (personel.rol == Rol.MAGAZA_MUDURU and len(sube_ids) <= 1)
+        if not tekli_rol:
+            sec = request.GET.get('sube')
+            if sec and sec.isdigit() and int(sec) in sube_ids:
+                sube_ids = [int(sec)]
+    elif personel.sube_id:
+        # Yönetim rolünde olmayan personel/mutfak personeli: sadece kendi şubesini görür.
+        sube_ids = [personel.sube_id]
+    else:
+        sube_ids = []
     now = timezone.now()
     out = []
     qs = (MolaOturum.objects.filter(bitis__isnull=True, sube_id__in=sube_ids)

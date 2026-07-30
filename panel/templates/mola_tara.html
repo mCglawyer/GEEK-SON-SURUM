@@ -20,6 +20,29 @@
     <button id="tara-baslat" type="button" class="btn btn-primary mola-btn">📷 Kamerayı Aç</button>
     <button id="tara-dur" type="button" class="btn btn-ghost btn-mini" hidden>Kapat</button>
   </div>
+
+  {% if kendi_molasi %}
+  <div class="mola-tara-alt-baslik">Molandasın</div>
+  <div class="card mola-kart">
+    <p class="mola-sube">{{ kendi_molasi.sube.ad }} · {{ kendi_molasi.sure_dk }} dakikalık mola</p>
+    <p class="mola-sayac" id="mola-kendi-sayac" data-baslangic="{{ kendi_molasi.baslangic|date:'c' }}">00:00</p>
+  </div>
+  <script>
+  (function () {
+    var el = document.getElementById('mola-kendi-sayac');
+    if (!el) return;
+    var bas = new Date(el.getAttribute('data-baslangic')).getTime();
+    function ikiHane(n) { return (n < 10 ? '0' : '') + n; }
+    function guncelle() {
+      var gecenSn = Math.max(0, Math.floor((Date.now() - bas) / 1000));
+      var dk = Math.floor(gecenSn / 60);
+      el.textContent = ikiHane(dk) + ':' + ikiHane(gecenSn % 60);
+    }
+    guncelle();
+    setInterval(guncelle, 1000);
+  })();
+  </script>
+  {% endif %}
 </div>
 
 <script>
