@@ -2431,7 +2431,7 @@ _PWA_MANIFEST = {
     "start_url": "/",
     "scope": "/",
     "display": "standalone",
-    "orientation": "portrait-primary",
+    "orientation": "any",
     "background_color": "#162AA3",
     "theme_color": "#162AA3",
     "icons": [
