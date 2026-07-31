@@ -1391,12 +1391,3 @@ html.lb-acik, html.lb-acik body { overflow:hidden; }
 .gb-yonet-form input[type="text"] { flex:1; min-width:180px; }
 .gb-gizli-not { font-weight:400; opacity:.7; }
 
-/* --- Fotoğraf yükleme sırasında tam ekran net gösterge (kalibrasyon/lavabo) --- */
-.foto-yukleniyor-overlay { position:fixed; inset:0; z-index:9997; background:rgba(255,255,255,.92);
-  display:flex; align-items:center; justify-content:center; }
-.foto-yukleniyor-kutu { text-align:center; color:var(--ink); }
-.foto-yukleniyor-kutu p { margin:.9rem 0 0; font-weight:600; }
-.foto-yukleniyor-kutu #kal-iptal-btn { margin-top:1.2rem; }
-.foto-yukleniyor-spin { width:46px; height:46px; margin:0 auto; border-radius:50%;
-  border:4px solid var(--brand-100); border-top-color:var(--brand); animation:foto-donme .8s linear infinite; }
-@keyframes foto-donme { to { transform:rotate(360deg); } }

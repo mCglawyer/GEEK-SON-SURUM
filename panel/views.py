@@ -1282,7 +1282,6 @@ def kalibrasyon_sayfa(request):
                     raw = base64.b64decode(data.split(',', 1)[1])
                 except (ValueError, IndexError):
                     raw = None
-            ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
             if raw and 100 < len(raw) <= 8 * 1024 * 1024:
                 _kalibrasyon_temizle()
                 k = Kalibrasyon(sube=sel_sube, giren=personel, giren_ad=personel.ad_soyad)
@@ -1292,12 +1291,8 @@ def kalibrasyon_sayfa(request):
                 _bildir(_sube_yoneticileri(sel_sube),
                         "%s şubesi kalibrasyon görüntüsü yükledi (%s)." % (sel_sube.ad, personel.ad_soyad),
                         '/kalibrasyon/', 'kalibrasyon')
-                if ajax:
-                    return JsonResponse({'ok': True})
             else:
                 messages.error(request, "Görüntü alınamadı. Lütfen kameradan tekrar çekin.")
-                if ajax:
-                    return JsonResponse({'ok': False, 'mesaj': 'Görüntü alınamadı. Lütfen kameradan tekrar çekin.'})
         return redirect('kalibrasyon')
 
     gorseller = []
@@ -1350,19 +1345,14 @@ def lavabo_sayfa(request):
                     raw = base64.b64decode(data.split(',', 1)[1])
                 except (ValueError, IndexError):
                     raw = None
-            ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
             if raw and 100 < len(raw) <= 8 * 1024 * 1024:
                 _lavabo_temizle()
                 k = LavaboDenetim(sube=sel_sube, giren=personel, giren_ad=personel.ad_soyad)
                 fname = f"lavabo_{sel_sube.id}_{personel.id}_{timezone.now():%Y%m%d_%H%M%S}.jpg"
                 k.foto.save(fname, ContentFile(raw), save=True)
                 messages.success(request, "Lavabo denetim görüntüsü yüklendi.")
-                if ajax:
-                    return JsonResponse({'ok': True})
             else:
                 messages.error(request, "Görüntü alınamadı. Lütfen kameradan tekrar çekin.")
-                if ajax:
-                    return JsonResponse({'ok': False, 'mesaj': 'Görüntü alınamadı. Lütfen kameradan tekrar çekin.'})
         return redirect('lavabo')
 
     gorseller = []

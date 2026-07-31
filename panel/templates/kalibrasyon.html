@@ -32,13 +32,6 @@
       <button type="button" id="cek-btn" class="btn btn-primary kal-cek">📸 Çek ve Yükle</button>
     </form>
   </div>
-  <div id="kal-yukleniyor" class="foto-yukleniyor-overlay" hidden>
-    <div class="foto-yukleniyor-kutu">
-      <div class="foto-yukleniyor-spin"></div>
-      <p>Fotoğraf yükleniyor, lütfen bekleyin…</p>
-      <button type="button" id="kal-iptal-btn" class="btn btn-ghost btn-mini">İptal Et</button>
-    </div>
-  </div>
   {% endif %}
 
   
@@ -128,35 +121,7 @@
     foto.value = cv.toDataURL('image/jpeg', 0.7);
     btn.disabled = true; btn.textContent = 'Yükleniyor...';
     stream.getTracks().forEach(function (t) { t.stop(); });
-    var yukleniyor = document.getElementById('kal-yukleniyor');
-    if (yukleniyor) yukleniyor.hidden = false;
-    var kontrolcu = new AbortController();
-    var zamanAsimi = setTimeout(function () { kontrolcu.abort(); }, 25000);
-    var iptalBtn = document.getElementById('kal-iptal-btn');
-    if (iptalBtn) iptalBtn.onclick = function () { clearTimeout(zamanAsimi); kontrolcu.abort(); };
-    fetch(form.action || window.location.href, {
-      method: 'POST', body: new FormData(form),
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-      signal: kontrolcu.signal,
-    }).then(function (r) { return r.json(); }).then(function (d) {
-      clearTimeout(zamanAsimi);
-      if (d && d.ok) {
-        window.location.reload();
-      } else {
-        if (yukleniyor) yukleniyor.hidden = true;
-        btn.disabled = false; btn.textContent = '📸 Çek ve Yükle';
-        hataGoster((d && d.mesaj) || 'Yükleme başarısız oldu, tekrar deneyin.');
-      }
-    }).catch(function (err) {
-      clearTimeout(zamanAsimi);
-      if (yukleniyor) yukleniyor.hidden = true;
-      btn.disabled = false; btn.textContent = '📸 Çek ve Yükle';
-      if (err && err.name === 'AbortError') {
-        hataGoster('Yükleme çok uzun sürdü (bağlantı zayıf olabilir). Lütfen tekrar deneyin.');
-      } else {
-        hataGoster('Bağlantı sorunu oluştu, tekrar deneyin.');
-      }
-    });
+    form.submit();
   });
   window.addEventListener('pagehide', function () {
     if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
