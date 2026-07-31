@@ -29,6 +29,12 @@
       <button type="button" id="cek-btn" class="btn btn-primary kal-cek">📸 Çek ve Yükle</button>
     </form>
   </div>
+  <div id="kal-yukleniyor" class="foto-yukleniyor-overlay" hidden>
+    <div class="foto-yukleniyor-kutu">
+      <div class="foto-yukleniyor-spin"></div>
+      <p>Fotoğraf yükleniyor, lütfen bekleyin…</p>
+    </div>
+  </div>
   {% endif %}
 
   <div class="card">
@@ -115,7 +121,24 @@
     foto.value = cv.toDataURL('image/jpeg', 0.7);
     btn.disabled = true; btn.textContent = 'Yükleniyor...';
     stream.getTracks().forEach(function (t) { t.stop(); });
-    form.submit();
+    var yukleniyor = document.getElementById('kal-yukleniyor');
+    if (yukleniyor) yukleniyor.hidden = false;
+    fetch(form.action || window.location.href, {
+      method: 'POST', body: new FormData(form),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.ok) {
+        window.location.reload();
+      } else {
+        if (yukleniyor) yukleniyor.hidden = true;
+        btn.disabled = false; btn.textContent = '📸 Çek ve Yükle';
+        hataGoster((d && d.mesaj) || 'Yükleme başarısız oldu, tekrar deneyin.');
+      }
+    }).catch(function () {
+      if (yukleniyor) yukleniyor.hidden = true;
+      btn.disabled = false; btn.textContent = '📸 Çek ve Yükle';
+      hataGoster('Bağlantı sorunu oluştu, tekrar deneyin.');
+    });
   });
   window.addEventListener('pagehide', function () {
     if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
