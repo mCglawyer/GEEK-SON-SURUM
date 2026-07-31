@@ -3182,7 +3182,8 @@ def mola_gecmis(request):
     hizli = request.GET.get('hizli', '14')
     if aralik:
         bas, bit_ust, bas_str, bit_str = aralik
-        sinir, ust = bas, bit_ust
+        sinir = datetime.datetime.combine(bas, datetime.time.min, tzinfo=timezone.get_current_timezone())
+        ust = datetime.datetime.combine(bit_ust, datetime.time.min, tzinfo=timezone.get_current_timezone())
         hizli = ''
     else:
         bugun = timezone.localdate()
