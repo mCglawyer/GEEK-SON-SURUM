@@ -994,3 +994,54 @@ class GeriBildirim(models.Model):
 
     def __str__(self):
         return '%s · %s' % (self.kategori, self.metin[:40])
+
+
+class SubeStok(models.Model):
+    """Bir şubede (veya depoda), bir ürünün belirli bir birimdeki güncel
+    stok seviyesi. Sevkiyat onaylandığında otomatik güncellenir; ayrıca
+    elle düzeltme de yapılabilir. Farklı sevkiyatlarda farklı birim
+    kullanılmışsa (örn. bazen KOLİ, bazen ADET), bilinçli olarak BİRİM
+    BAZINDA ayrı satır tutulur — sistemde tanımlı olmayan bir dönüşüm
+    oranı varsayılıp yanlış rakam üretilmesindense, bu daha güvenlidir."""
+    sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='stok_seviyeleri', verbose_name="Şube")
+    urun = models.ForeignKey(Urun, on_delete=models.CASCADE, related_name='sube_stoklari', verbose_name="Ürün")
+    birim = models.CharField(max_length=10, choices=SevkiyatBirim.choices, verbose_name="Birim")
+    miktar = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Mevcut Miktar")
+    guncelleme = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('sube', 'urun', 'birim')]
+        ordering = ['sube__ad', 'urun__ad']
+        verbose_name = "Şube Stok Seviyesi"
+        verbose_name_plural = "Şube Stok Seviyeleri"
+
+    def __str__(self):
+        return '%s — %s: %s %s' % (self.sube, self.urun, self.miktar, self.birim)
+
+
+class StokHareketYon(models.TextChoices):
+    GIRIS = 'Giriş', 'Giriş'
+    CIKIS = 'Çıkış', 'Çıkış'
+
+
+class StokHareket(models.Model):
+    """Şube stok seviyesindeki her değişikliğin denetim kaydı (kim/ne
+    zaman/hangi sevkiyattan dolayı ne kadar giriş/çıkış oldu)."""
+    sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='stok_hareketleri', verbose_name="Şube")
+    urun = models.ForeignKey(Urun, on_delete=models.SET_NULL, null=True, related_name='+', verbose_name="Ürün")
+    urun_ad = models.CharField(max_length=160, default='')
+    yon = models.CharField(max_length=10, choices=StokHareketYon.choices, verbose_name="Yön")
+    miktar = models.DecimalField(max_digits=12, decimal_places=2)
+    birim = models.CharField(max_length=10)
+    aciklama = models.CharField(max_length=200, blank=True, default='')
+    talep = models.ForeignKey(SevkiyatTalep, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='stok_hareketleri', verbose_name="İlgili Sevkiyat")
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-olusturma']
+        verbose_name = "Stok Hareketi"
+        verbose_name_plural = "Stok Hareketleri"
+
+    def __str__(self):
+        return '%s · %s %s %s (%s)' % (self.sube, self.yon, self.miktar, self.birim, self.urun_ad)

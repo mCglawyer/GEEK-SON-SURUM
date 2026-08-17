@@ -4,7 +4,8 @@ from .models import (Sube, Personel, Vardiya, Puantaj, KodKilit, Kalibrasyon, Ir
                      MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap,
                      DenetimBolum, DenetimMadde, Denetim, DenetimCevap,
-                     GSosyalGonderi, GSosyalGorsel, IlginHaber, GeriBildirim)
+                     GSosyalGonderi, GSosyalGorsel, IlginHaber, GeriBildirim,
+                     SubeStok, StokHareket)
 
 @admin.register(Sube)
 class SubeAdmin(admin.ModelAdmin):
@@ -263,4 +264,18 @@ class IlginHaberAdmin(admin.ModelAdmin):
 class GeriBildirimAdmin(admin.ModelAdmin):
     list_display = ('kategori', 'sube', 'durum', 'olusturma')
     list_filter = ('kategori', 'durum', 'sube')
+    date_hierarchy = 'olusturma'
+
+@admin.register(SubeStok)
+class SubeStokAdmin(admin.ModelAdmin):
+    list_display = ('sube', 'urun', 'miktar', 'birim', 'guncelleme')
+    list_filter = ('sube', 'birim')
+    search_fields = ('urun__ad',)
+    autocomplete_fields = ('sube', 'urun')
+
+@admin.register(StokHareket)
+class StokHareketAdmin(admin.ModelAdmin):
+    list_display = ('sube', 'yon', 'urun_ad', 'miktar', 'birim', 'talep', 'olusturma')
+    list_filter = ('sube', 'yon')
+    search_fields = ('urun_ad', 'aciklama')
     date_hierarchy = 'olusturma'

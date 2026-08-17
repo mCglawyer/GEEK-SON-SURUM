@@ -36,6 +36,7 @@ from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Ir
                      InsaatProje, InsaatMadde, InsaatMaddeDurum, InsaatKategori, InsaatSablonMadde,
                      LavaboDenetim,
                      DenetimBolum, DenetimMadde, Denetim, DenetimCevap,
+                     SubeStok, StokHareket, StokHareketYon,
                      Rol, OnayDurumu, VardiyaTipi)
 from .hukuki_icerik import HUKUKI_SAYFALAR
 
@@ -101,6 +102,26 @@ def _bildir(aliciler, mesaj, link='', tur=''):
         _push_gonder(aliciler, mesaj, link)
     except Exception:
         pass
+
+
+def _stok_hareket_uygula(sube, urun, birim, miktar, yon, aciklama='', talep=None):
+    """Bir şubenin (ya da deponun) stok seviyesini günceller ve denetim
+    kaydı (StokHareket) oluşturur. Miktar/birim, sevkiyat kaleminde
+    girildiği haliyle kullanılır — sistemde tanımlı olmayan bir birim
+    dönüşüm oranı varsayılmaz (bkz. SubeStok model docstring'i)."""
+    if sube is None or urun is None or not miktar or miktar <= 0:
+        return
+    birim = birim or SevkiyatBirim.ADET
+    if birim not in [b for b, _ in SevkiyatBirim.choices]:
+        birim = SevkiyatBirim.ADET
+    seviye, _ = SubeStok.objects.get_or_create(sube=sube, urun=urun, birim=birim, defaults={'miktar': 0})
+    if yon == StokHareketYon.GIRIS:
+        seviye.miktar = seviye.miktar + miktar
+    else:
+        seviye.miktar = seviye.miktar - miktar
+    seviye.save(update_fields=['miktar', 'guncelleme'])
+    StokHareket.objects.create(sube=sube, urun=urun, urun_ad=urun.ad, yon=yon, miktar=miktar,
+                               birim=birim, aciklama=aciklama[:200], talep=talep)
 
 
 def _vapid_yukle(priv):
@@ -2138,12 +2159,23 @@ def sevkiyat_sayfa(request):
 
     if request.method == 'POST' and cikis_yetkili and request.POST.get('islem') == 'cikis_onayla':
         talep = SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'),
-                                             durum=SevkiyatDurumu.ONAY_BEKLIYOR).first()
+                                             durum=SevkiyatDurumu.ONAY_BEKLIYOR).prefetch_related('kalemler__urun').first()
         if talep:
             talep.durum = SevkiyatDurumu.ONAYLANDI
             talep.onaylayan_ad = personel.ad_soyad
             talep.onay_tarih = timezone.now()
             talep.save()
+            depo = Sube.objects.filter(depo_mu=True).first()
+            aciklama = "Sevkiyat #%s (%s)" % (talep.id, talep.sube.ad)
+            for k in talep.kalemler.all():
+                if k.urun is None:
+                    continue  # elle eklenen (kataloğa kayıtlı olmayan) kalemler stok defterine işlenemez
+                miktar = k.sevkiyat_miktar if k.sevkiyat_miktar is not None else (
+                    k.satinalma_miktar if k.satinalma_miktar is not None else k.istenen_miktar)
+                birim = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
+                if depo:
+                    _stok_hareket_uygula(depo, k.urun, birim, miktar, StokHareketYon.CIKIS, aciklama, talep)
+                _stok_hareket_uygula(talep.sube, k.urun, birim, miktar, StokHareketYon.GIRIS, aciklama, talep)
             SiparisHareket.objects.create(talep=talep, mesaj="Çıkış onaylandı", yapan_ad=personel.ad_soyad)
             _bildir(_sube_sefleri(talep.sube),
                     "Sevkiyatınız onaylandı: %s" % talep.sube.ad, '/sevkiyat/', 'sevkiyat')
