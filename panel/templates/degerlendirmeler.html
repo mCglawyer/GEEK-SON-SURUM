@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Müşteri Değerlendirmeleri · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Müşteri Değerlendirmeleri</h2><span class="plan-aralik">{{ toplam }} değerlendirme{% if ortalama %} · ortalama puan {{ ortalama }}/10{% endif %}</span></div>
+    {% if personel.rol == 'Genel Müdür' or personel.rol == 'Operatör' %}<a href="{% url 'degerlendirme_qr_yonetim' %}" class="btn btn-ghost btn-mini">QR'ları Gör</a>{% endif %}
+  </div>
+
+  <div class="card">
+    <form method="get">
+      <select name="sube" class="input" onchange="this.form.submit()">
+        <option value="">Tüm şubeler</option>
+        {% for s in subeler %}<option value="{{ s.id }}" {% if sel_id == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+
+  {% for d in degerlendirmeler %}
+  <div class="card dg-kart-goruntu" style="margin-bottom:.8rem">
+    <div class="esi-ust">
+      <span class="egitim-sube-etiket">{{ d.sube.ad }}</span>
+      <span class="badge {% if d.puan >= 8 %}ok{% elif d.puan >= 5 %}warn{% else %}no{% endif %}">{{ d.puan }}/10</span>
+      <span class="ea-not">{{ d.olusturma|date:"d.m.Y H:i" }}</span>
+    </div>
+    <table class="dg-tablo" style="width:100%; font-size:.85rem; margin-top:.6rem; border-collapse:collapse;">
+      {% if d.uc_kelime %}<tr><td style="color:#5B6478; padding:.25rem .4rem .25rem 0; white-space:nowrap;">Üç kelime</td><td>{{ d.uc_kelime }}</td></tr>{% endif %}
+      {% if d.ilk_izlenim %}<tr><td style="color:#5B6478; padding:.25rem .4rem .25rem 0; white-space:nowrap;">İlk izlenim</td><td>{{ d.ilk_izlenim }}</td></tr>{% endif %}
+      {% if d.favori_gorsel %}<tr><td style="color:#5B6478; padding:.25rem .4rem .25rem 0; white-space:nowrap;">Favori görsel</td><td>{{ d.favori_gorsel }}</td></tr>{% endif %}
+      {% if d.favori_lezzet %}<tr><td style="color:#5B6478; padding:.25rem .4rem .25rem 0; white-space:nowrap;">Favori lezzet</td><td>{{ d.favori_lezzet }}</td></tr>{% endif %}
+      {% if d.servis %}<tr><td style="color:#5B6478; padding:.25rem .4rem .25rem 0; white-space:nowrap;">Servis</td><td>{{ d.servis }}</td></tr>{% endif %}
+      {% if d.atmosfer %}<tr><td style="color:#5B6478; padding:.25rem .4rem .25rem 0; white-space:nowrap;">Atmosfer</td><td>{{ d.atmosfer }}</td></tr>{% endif %}
+      {% if d.deger_mi %}<tr><td style="color:#5B6478; padding:.25rem .4rem .25rem 0; white-space:nowrap;">Değer mi?</td><td>{{ d.deger_mi }}</td></tr>{% endif %}
+      {% if d.bir_sey_degisse %}<tr><td style="color:#5B6478; padding:.25rem .4rem .25rem 0; white-space:nowrap;">Değişse</td><td>{{ d.bir_sey_degisse }}</td></tr>{% endif %}
+      {% if d.tekrar %}<tr><td style="color:#5B6478; padding:.25rem .4rem .25rem 0; white-space:nowrap;">Tekrar gelir mi?</td><td>{{ d.tekrar }}</td></tr>{% endif %}
+    </table>
+  </div>
+  {% empty %}
+  <p class="egitim-bos">Henüz değerlendirme yok.</p>
+  {% endfor %}
+</div>
+{% endblock %}

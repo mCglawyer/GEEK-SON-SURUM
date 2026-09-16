@@ -36,7 +36,7 @@ from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Ir
                      InsaatProje, InsaatMadde, InsaatMaddeDurum, InsaatKategori, InsaatSablonMadde,
                      LavaboDenetim,
                      DenetimBolum, DenetimMadde, Denetim, DenetimCevap,
-                     SubeStok, StokHareket, StokHareketYon,
+                     SubeDegerlendirmeToken, MusteriDegerlendirme,
                      Rol, OnayDurumu, VardiyaTipi)
 from .hukuki_icerik import HUKUKI_SAYFALAR
 
@@ -102,26 +102,6 @@ def _bildir(aliciler, mesaj, link='', tur=''):
         _push_gonder(aliciler, mesaj, link)
     except Exception:
         pass
-
-
-def _stok_hareket_uygula(sube, urun, birim, miktar, yon, aciklama='', talep=None):
-    """Bir şubenin (ya da deponun) stok seviyesini günceller ve denetim
-    kaydı (StokHareket) oluşturur. Miktar/birim, sevkiyat kaleminde
-    girildiği haliyle kullanılır — sistemde tanımlı olmayan bir birim
-    dönüşüm oranı varsayılmaz (bkz. SubeStok model docstring'i)."""
-    if sube is None or urun is None or not miktar or miktar <= 0:
-        return
-    birim = birim or SevkiyatBirim.ADET
-    if birim not in [b for b, _ in SevkiyatBirim.choices]:
-        birim = SevkiyatBirim.ADET
-    seviye, _ = SubeStok.objects.get_or_create(sube=sube, urun=urun, birim=birim, defaults={'miktar': 0})
-    if yon == StokHareketYon.GIRIS:
-        seviye.miktar = seviye.miktar + miktar
-    else:
-        seviye.miktar = seviye.miktar - miktar
-    seviye.save(update_fields=['miktar', 'guncelleme'])
-    StokHareket.objects.create(sube=sube, urun=urun, urun_ad=urun.ad, yon=yon, miktar=miktar,
-                               birim=birim, aciklama=aciklama[:200], talep=talep)
 
 
 def _vapid_yukle(priv):
@@ -2159,23 +2139,12 @@ def sevkiyat_sayfa(request):
 
     if request.method == 'POST' and cikis_yetkili and request.POST.get('islem') == 'cikis_onayla':
         talep = SevkiyatTalep.objects.filter(id=request.POST.get('talep_id'),
-                                             durum=SevkiyatDurumu.ONAY_BEKLIYOR).prefetch_related('kalemler__urun').first()
+                                             durum=SevkiyatDurumu.ONAY_BEKLIYOR).first()
         if talep:
             talep.durum = SevkiyatDurumu.ONAYLANDI
             talep.onaylayan_ad = personel.ad_soyad
             talep.onay_tarih = timezone.now()
             talep.save()
-            depo = Sube.objects.filter(depo_mu=True).first()
-            aciklama = "Sevkiyat #%s (%s)" % (talep.id, talep.sube.ad)
-            for k in talep.kalemler.all():
-                if k.urun is None:
-                    continue  # elle eklenen (kataloğa kayıtlı olmayan) kalemler stok defterine işlenemez
-                miktar = k.sevkiyat_miktar if k.sevkiyat_miktar is not None else (
-                    k.satinalma_miktar if k.satinalma_miktar is not None else k.istenen_miktar)
-                birim = k.sevkiyat_birim or k.satinalma_birim or k.istenen_birim
-                if depo:
-                    _stok_hareket_uygula(depo, k.urun, birim, miktar, StokHareketYon.CIKIS, aciklama, talep)
-                _stok_hareket_uygula(talep.sube, k.urun, birim, miktar, StokHareketYon.GIRIS, aciklama, talep)
             SiparisHareket.objects.create(talep=talep, mesaj="Çıkış onaylandı", yapan_ad=personel.ad_soyad)
             _bildir(_sube_sefleri(talep.sube),
                     "Sevkiyatınız onaylandı: %s" % talep.sube.ad, '/sevkiyat/', 'sevkiyat')
@@ -5205,6 +5174,101 @@ GEEK_MENU_KATEGORILER = [
         ],
     },
 ]
+
+
+DEGERLENDIRME_QR_YETKI = [Rol.GENEL_MUDUR, Rol.OPERATOR]
+DEGERLENDIRME_GORUNTULEME_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
+
+
+def _sube_degerlendirme_token(sube):
+    tok = SubeDegerlendirmeToken.objects.filter(sube=sube).first()
+    if tok is None:
+        tok = SubeDegerlendirmeToken.objects.create(sube=sube, token=secrets.token_urlsafe(12))
+    return tok
+
+
+def degerlendirme_qr_yonetim(request):
+    """Genel Müdür/Operatör'ün, şube başına müşteri değerlendirme QR'ını
+    görüp yazdırabileceği ve gerekirse yenileyebileceği sayfa."""
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in DEGERLENDIRME_QR_YETKI:
+        return redirect('ana_sayfa')
+    if request.method == 'POST' and request.POST.get('islem') == 'token_yenile':
+        sb = Sube.objects.filter(id=request.POST.get('sube_id')).first()
+        if sb:
+            SubeDegerlendirmeToken.objects.filter(sube=sb).delete()
+            _sube_degerlendirme_token(sb)
+            messages.success(request, "%s için yeni QR üretildi (eski QR artık çalışmaz)." % sb.ad)
+        return redirect('degerlendirme_qr_yonetim')
+    veriler = []
+    for s in Sube.objects.filter(depo_mu=False).order_by('ad'):
+        tok = _sube_degerlendirme_token(s)
+        veriler.append({'sube': s, 'url': request.build_absolute_uri('/degerlendirme/%s/' % tok.token)})
+    return render(request, 'degerlendirme_qr_yonetim.html', {
+        'personel': personel, 'aktif': 'degerlendirme_qr', 'veriler': veriler,
+    })
+
+
+def musteri_degerlendirme(request, token):
+    """Müşteriye açık, giriş gerektirmeyen değerlendirme formu."""
+    tok = SubeDegerlendirmeToken.objects.filter(token=token).select_related('sube').first()
+    if tok is None:
+        return render(request, 'musteri_degerlendirme.html', {'gecersiz': True})
+    if request.method == 'POST':
+        raw_puan = (request.POST.get('puan') or '0').strip()
+        try:
+            puan = max(0, min(10, int(raw_puan)))
+        except ValueError:
+            puan = 0
+        MusteriDegerlendirme.objects.create(
+            sube=tok.sube,
+            uc_kelime=(request.POST.get('uc_kelime') or '').strip()[:200],
+            ilk_izlenim=(request.POST.get('ilk_izlenim') or '').strip()[:300],
+            favori_gorsel=(request.POST.get('favori_gorsel') or '').strip()[:300],
+            favori_lezzet=(request.POST.get('favori_lezzet') or '').strip()[:300],
+            servis=(request.POST.get('servis') or '').strip()[:300],
+            atmosfer=(request.POST.get('atmosfer') or '').strip()[:300],
+            deger_mi=(request.POST.get('deger_mi') or '').strip()[:300],
+            bir_sey_degisse=(request.POST.get('bir_sey_degisse') or '').strip()[:300],
+            tekrar=(request.POST.get('tekrar') or '').strip()[:300],
+            puan=puan,
+        )
+        return render(request, 'musteri_degerlendirme.html', {'sube': tok.sube, 'tesekkur': True})
+    return render(request, 'musteri_degerlendirme.html', {'sube': tok.sube})
+
+
+def degerlendirmeler(request):
+    """Genel Müdür/Operatör/Yatırımcı'nın müşteri değerlendirmelerini
+    görebileceği sayfa."""
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in DEGERLENDIRME_GORUNTULEME_ROLLER:
+        return redirect('ana_sayfa')
+    sel_id = request.GET.get('sube')
+    try:
+        sel_id = int(sel_id) if sel_id else None
+    except (TypeError, ValueError):
+        sel_id = None
+    qs = MusteriDegerlendirme.objects.select_related('sube')
+    if sel_id:
+        qs = qs.filter(sube_id=sel_id)
+    degerlendirmeler_listesi = list(qs[:300])
+    ortalama = None
+    if degerlendirmeler_listesi:
+        ortalama = round(sum(d.puan for d in degerlendirmeler_listesi) / len(degerlendirmeler_listesi), 1)
+    return render(request, 'degerlendirmeler.html', {
+        'personel': personel, 'aktif': 'degerlendirmeler',
+        'degerlendirmeler': degerlendirmeler_listesi,
+        'subeler': list(Sube.objects.filter(depo_mu=False).order_by('ad')),
+        'sel_id': sel_id, 'ortalama': ortalama, 'toplam': len(degerlendirmeler_listesi),
+    })
 
 
 def geek_menu(request):

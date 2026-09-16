@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Değerlendirme · {{ sube.ad|default:"Geek Coffee & Eatery" }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  body, body.app { background:#F5F7FC !important; }
+  .dg-wrap { max-width:480px; margin:0 auto; padding:1.6rem 1.2rem 3rem; }
+  .dg-logo { display:block; margin:0 auto 1.2rem; height:34px; width:auto; }
+  .dg-baslik { text-align:center; margin-bottom:1.6rem; }
+  .dg-baslik h1 { font-size:1.3rem; font-weight:700; color:#0B1020; margin:0 0 .3rem; letter-spacing:-.01em; }
+  .dg-baslik p { font-size:.88rem; color:#5B6478; margin:0; line-height:1.5; }
+  .dg-kart { background:#fff; border:1px solid #E3E7F2; border-radius:16px; padding:1.3rem 1.2rem; margin-bottom:1rem;
+    box-shadow:0 1px 2px rgba(15,20,40,.03); }
+  .dg-alan { margin-bottom:1.05rem; }
+  .dg-alan:last-child { margin-bottom:0; }
+  .dg-alan label { display:block; font-size:.82rem; font-weight:600; color:#162AA3; margin-bottom:.4rem; }
+  .dg-alan input[type="text"] {
+    width:100%; border:1.5px solid #E3E7F2; border-radius:10px; padding:.65rem .8rem;
+    font-family:'Poppins', sans-serif; font-size:.92rem; color:#1B2233; background:#F5F7FC;
+  }
+  .dg-alan input[type="text"]:focus { outline:none; border-color:#162AA3; background:#fff; }
+  .dg-puan-grid { display:grid; grid-template-columns:repeat(6, 1fr); gap:.4rem; }
+  @media (min-width:420px) { .dg-puan-grid { grid-template-columns:repeat(11, 1fr); } }
+  .dg-puan-btn {
+    aspect-ratio:1; border:1.5px solid #E3E7F2; border-radius:9px; background:#F5F7FC; color:#1B2233;
+    font-weight:600; font-size:.88rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .dg-puan-btn.secili { background:#162AA3; border-color:#162AA3; color:#fff; }
+  .dg-gonder-btn {
+    width:100%; margin-top:.4rem; background:#162AA3; color:#fff; border:none; border-radius:12px;
+    padding:.9rem; font-family:inherit; font-weight:700; font-size:.95rem; cursor:pointer;
+  }
+  .dg-gonder-btn:active { background:#1B33BF; }
+  .dg-anonim-not { text-align:center; font-size:.75rem; color:#9AA0A6; margin-top:.8rem; }
+  .dg-tesekkur { text-align:center; padding:3rem 1rem; }
+  .dg-tesekkur .ikon { font-size:3rem; margin-bottom:.8rem; }
+  .dg-tesekkur h1 { font-size:1.3rem; color:#0B1020; margin:0 0 .5rem; }
+  .dg-tesekkur p { color:#5B6478; font-size:.92rem; }
+  .dg-gecersiz { text-align:center; padding:3rem 1.2rem; color:#5B6478; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="dg-wrap">
+  {% if gecersiz %}
+    <div class="dg-gecersiz">
+      <p style="font-size:2rem; margin:0 0 .6rem;">🔗</p>
+      <h1 style="color:#0B1020; font-size:1.1rem;">Bu bağlantı geçerli değil</h1>
+      <p>QR kod güncellenmiş olabilir. Lütfen masadaki/girişteki güncel QR'ı tekrar okutmayı deneyin.</p>
+    </div>
+  {% elif tesekkur %}
+    <div class="dg-tesekkur">
+      <div class="ikon">💙</div>
+      <h1>Teşekkür ederiz!</h1>
+      <p>{{ sube.ad }} deneyimin hakkındaki değerlendirmen bize ulaştı.</p>
+    </div>
+  {% else %}
+    <img class="dg-logo" src="{% static 'images/geek_logo_blue.png' %}" alt="Geek Coffee & Eatery">
+    <div class="dg-baslik">
+      <h1>{{ sube.ad }} deneyimini anlat</h1>
+      <p>Birkaç kısa soru — isim istemiyoruz, tamamen anonim.</p>
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="dg-kart">
+        <div class="dg-alan">
+          <label>Üç kelimeyle bugünü anlat</label>
+          <input type="text" name="uc_kelime" maxlength="200" placeholder="örn. sıcak, samimi, hızlı">
+        </div>
+        <div class="dg-alan">
+          <label>İlk izlenimin neydi?</label>
+          <input type="text" name="ilk_izlenim" maxlength="300">
+        </div>
+        <div class="dg-alan">
+          <label>Favori görselin/köşen</label>
+          <input type="text" name="favori_gorsel" maxlength="300">
+        </div>
+        <div class="dg-alan">
+          <label>Favori lezzetin</label>
+          <input type="text" name="favori_lezzet" maxlength="300">
+        </div>
+      </div>
+
+      <div class="dg-kart">
+        <div class="dg-alan">
+          <label>Servis nasıldı?</label>
+          <input type="text" name="servis" maxlength="300">
+        </div>
+        <div class="dg-alan">
+          <label>Atmosfer nasıldı?</label>
+          <input type="text" name="atmosfer" maxlength="300">
+        </div>
+        <div class="dg-alan">
+          <label>Fiyatına değer miydi?</label>
+          <input type="text" name="deger_mi" maxlength="300">
+        </div>
+      </div>
+
+      <div class="dg-kart">
+        <div class="dg-alan">
+          <label>Bir şey değişse, ne olurdu?</label>
+          <input type="text" name="bir_sey_degisse" maxlength="300">
+        </div>
+        <div class="dg-alan">
+          <label>Tekrar gelir misin?</label>
+          <input type="text" name="tekrar" maxlength="300">
+        </div>
+      </div>
+
+      <div class="dg-kart">
+        <div class="dg-alan" style="margin-bottom:0;">
+          <label>Bizi kaç puanlarsın? (0-10)</label>
+          <input type="hidden" name="puan" id="dg-puan-input" value="0">
+          <div class="dg-puan-grid" id="dg-puan-grid"></div>
+        </div>
+      </div>
+
+      <button type="submit" class="dg-gonder-btn">Değerlendirmeyi Gönder</button>
+      <p class="dg-anonim-not">🔒 Bu form anonimdir, kim doldurduğu kaydedilmez.</p>
+    </form>
+  {% endif %}
+</div>
+
+<script>
+(function () {
+  var grid = document.getElementById('dg-puan-grid');
+  if (!grid) return;
+  var girdi = document.getElementById('dg-puan-input');
+  for (var i = 0; i <= 10; i++) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'dg-puan-btn'; b.textContent = i; b.setAttribute('data-v', i);
+    b.addEventListener('click', function () {
+      grid.querySelectorAll('.dg-puan-btn').forEach(function (x) { x.classList.remove('secili'); });
+      this.classList.add('secili');
+      girdi.value = this.getAttribute('data-v');
+    });
+    grid.appendChild(b);
+  }
+})();
+</script>
+{% endblock %}

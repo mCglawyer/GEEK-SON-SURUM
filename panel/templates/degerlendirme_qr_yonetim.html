@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Değerlendirme QR · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head no-print">
+    <div><h2>Müşteri Değerlendirme QR</h2><span class="plan-aralik">Masalara/girişe konacak, şube başına sabit QR</span></div>
+    <a href="{% url 'degerlendirmeler' %}" class="btn btn-ghost btn-mini no-print">Değerlendirmeleri Gör</a>
+  </div>
+
+  {% if messages %}{% for m in messages %}<div class="alert no-print {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+  <div class="qr-arac">
+    <button type="button" class="btn btn-ghost btn-mini" onclick="window.print()">🖨 Tümünü Yazdır</button>
+  </div>
+
+  <div class="qr-liste">
+    {% for v in veriler %}
+    <div class="qr-kart">
+      <div class="qr-sube">{{ v.sube.ad }}</div>
+      <div class="qr-kod" data-url="{{ v.url }}"></div>
+      <div class="qr-url no-print">{{ v.url }}</div>
+      <form method="post" class="qr-yenile no-print" onsubmit="return confirm('Bu şubenin QR kodu yenilensin mi? Eski QR geçersiz olur, yeniden yazdırman gerekir.');">
+        {% csrf_token %}<input type="hidden" name="islem" value="token_yenile"><input type="hidden" name="sube_id" value="{{ v.sube.id }}">
+        <button class="btn btn-ghost btn-mini">QR'ı Yenile</button>
+      </form>
+    </div>
+    {% empty %}
+    <p class="egitim-bos">Şube bulunamadı. Önce "Şubeler"den şube ekleyin.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+(function () {
+  var kaynaklar = [
+    'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+    'https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js'
+  ];
+  var i = 0;
+  function ciz() {
+    document.querySelectorAll('.qr-kod').forEach(function (el) {
+      if (el.dataset.cizildi) return;
+      el.dataset.cizildi = '1';
+      try { new QRCode(el, { text: el.getAttribute('data-url'), width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H }); }
+      catch (e) { el.textContent = 'QR oluşturulamadı'; }
+    });
+  }
+  function yukle() {
+    if (window.QRCode) { ciz(); return; }
+    if (i >= kaynaklar.length) { document.querySelectorAll('.qr-kod').forEach(function (el) { el.textContent = 'QR kütüphanesi yüklenemedi'; }); return; }
+    var s = document.createElement('script');
+    s.src = kaynaklar[i++];
+    s.onload = function () { window.QRCode ? ciz() : yukle(); };
+    s.onerror = yukle;
+    document.head.appendChild(s);
+  }
+  yukle();
+})();
+</script>
+{% endblock %}

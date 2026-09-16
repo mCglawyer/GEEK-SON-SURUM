@@ -5,7 +5,7 @@ from .models import (Sube, Personel, Vardiya, Puantaj, KodKilit, Kalibrasyon, Ir
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap,
                      DenetimBolum, DenetimMadde, Denetim, DenetimCevap,
                      GSosyalGonderi, GSosyalGorsel, IlginHaber, GeriBildirim,
-                     SubeStok, StokHareket)
+                     SubeDegerlendirmeToken, MusteriDegerlendirme)
 
 @admin.register(Sube)
 class SubeAdmin(admin.ModelAdmin):
@@ -266,16 +266,12 @@ class GeriBildirimAdmin(admin.ModelAdmin):
     list_filter = ('kategori', 'durum', 'sube')
     date_hierarchy = 'olusturma'
 
-@admin.register(SubeStok)
-class SubeStokAdmin(admin.ModelAdmin):
-    list_display = ('sube', 'urun', 'miktar', 'birim', 'guncelleme')
-    list_filter = ('sube', 'birim')
-    search_fields = ('urun__ad',)
-    autocomplete_fields = ('sube', 'urun')
-
-@admin.register(StokHareket)
-class StokHareketAdmin(admin.ModelAdmin):
-    list_display = ('sube', 'yon', 'urun_ad', 'miktar', 'birim', 'talep', 'olusturma')
-    list_filter = ('sube', 'yon')
-    search_fields = ('urun_ad', 'aciklama')
+@admin.register(MusteriDegerlendirme)
+class MusteriDegerlendirmeAdmin(admin.ModelAdmin):
+    list_display = ('sube', 'puan', 'olusturma')
+    list_filter = ('sube', 'puan')
     date_hierarchy = 'olusturma'
+
+@admin.register(SubeDegerlendirmeToken)
+class SubeDegerlendirmeTokenAdmin(admin.ModelAdmin):
+    list_display = ('sube', 'token', 'olusturma')
