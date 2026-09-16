@@ -32,6 +32,11 @@
   .ac-baslik-satir b { font-size:.95rem; }
   .ac-ac-link { font-size:.78rem; color:#162AA3; text-decoration:none; white-space:nowrap; }
   .ac-bos { text-align:center; color:#5B6478; padding:3rem 1rem; font-size:.9rem; }
+  .ac-pdf-viewer { display:flex; flex-direction:column; align-items:center; gap:.5rem; background:#F5F7FC;
+    border-radius:10px; padding:.6rem; overflow-x:auto; }
+  .ac-pdf-sayfa { max-width:100%; border-radius:4px; box-shadow:0 1px 4px rgba(15,20,40,.15); }
+  .ac-pdf-yukleniyor, .ac-pdf-hata { font-size:.85rem; color:#5B6478; padding:1.2rem 0; }
+  .ac-pdf-hata a { color:#162AA3; font-weight:600; }
 </style>
 {% endblock %}
 
@@ -54,12 +59,15 @@
     <span class="ac-kat-etiket">{{ d.get_kategori_display }}</span>
     <div class="ac-baslik-satir">
       <b>{{ d.baslik }}</b>
-      <a href="{{ d.dosya.url }}" target="_blank" rel="noopener" class="ac-ac-link">Yeni sekmede aç →</a>
+      {% if d.is_video %}<a href="{{ d.dosya.url }}" target="_blank" rel="noopener" class="ac-ac-link">Yeni sekmede aç →</a>{% endif %}
     </div>
     {% if d.is_video %}
     <video class="egitim-video" src="{{ d.dosya.url }}" controls preload="metadata" title="{{ d.baslik }}"></video>
     {% else %}
-    <iframe class="egitim-pdf" src="{{ d.dosya.url }}#toolbar=0&navpanes=0" title="{{ d.baslik }}" loading="lazy"></iframe>
+    <div class="ac-pdf-viewer" data-url="{{ d.dosya.url }}">
+      <div class="ac-pdf-yukleniyor">Belge yükleniyor…</div>
+    </div>
+    <noscript><a href="{{ d.dosya.url }}" target="_blank" rel="noopener">Belgeyi aç →</a></noscript>
     {% endif %}
   </div>
   {% empty %}
@@ -69,4 +77,51 @@
   </div>
   {% endfor %}
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function () {
+  if (!window.pdfjsLib) return;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  function belgeyiCiz(kutu) {
+    var url = kutu.getAttribute('data-url');
+    pdfjsLib.getDocument(url).promise.then(function (pdf) {
+      kutu.innerHTML = '';
+      var toplamSayfa = pdf.numPages;
+      function sayfayiCiz(num) {
+        pdf.getPage(num).then(function (sayfa) {
+          var genislik = kutu.clientWidth || 320;
+          var olcek = Math.min(1.6, genislik / sayfa.getViewport({ scale: 1 }).width);
+          var viewport = sayfa.getViewport({ scale: olcek });
+          var canvas = document.createElement('canvas');
+          canvas.className = 'ac-pdf-sayfa';
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          kutu.appendChild(canvas);
+          sayfa.render({ canvasContext: canvas.getContext('2d'), viewport: viewport });
+          if (num < toplamSayfa) sayfayiCiz(num + 1);
+        });
+      }
+      sayfayiCiz(1);
+    }).catch(function () {
+      kutu.innerHTML = '<p class="ac-pdf-hata">Belge yüklenemedi. <a href="' + url + '" target="_blank" rel="noopener">Buradan aç →</a></p>';
+    });
+  }
+
+  if ('IntersectionObserver' in window) {
+    var izleyici = new IntersectionObserver(function (girisler) {
+      girisler.forEach(function (giris) {
+        if (giris.isIntersecting) {
+          belgeyiCiz(giris.target);
+          izleyici.unobserve(giris.target);
+        }
+      });
+    }, { rootMargin: '250px' });
+    document.querySelectorAll('.ac-pdf-viewer').forEach(function (el) { izleyici.observe(el); });
+  } else {
+    document.querySelectorAll('.ac-pdf-viewer').forEach(belgeyiCiz);
+  }
+})();
+</script>
 {% endblock %}
