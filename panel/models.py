@@ -150,7 +150,8 @@ class Puantaj(models.Model):
         constraints = [models.UniqueConstraint(fields=['personel', 'ay'], name='unique_personel_ay_puantaj')]
 
     def __str__(self):
-        return f"{self.personel.ad_soyad} - {self.ay.strftime('%m/%Y')}"
+        ad = self.personel.ad_soyad if self.personel else (self.personel_ad_soyad_arsiv or 'Ayrılan Personel')
+        return f"{ad} - {self.ay.strftime('%m/%Y')}"
 
 class KodKilit(models.Model):
     ip = models.CharField(max_length=45, unique=True, verbose_name="IP Adresi")
