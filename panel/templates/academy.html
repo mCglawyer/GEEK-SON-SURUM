@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Geek Academy{% endblock %}
+
+{% block pwa_meta %}
+<meta name="theme-color" content="#162AA3">
+<link rel="manifest" href="/academy/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/academy-icon-192.png">
+<link rel="apple-touch-icon" href="/icons/academy-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Geek Academy">
+<meta name="mobile-web-app-capable" content="yes">
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .ac-topbar { position:sticky; top:0; z-index:20; background:#162AA3; color:#fff;
+    padding:.8rem 1.1rem; display:flex; align-items:center; justify-content:space-between; }
+  .ac-marka { display:flex; align-items:center; gap:.5rem; font-weight:700; font-size:1.05rem; }
+  .ac-marka img { height:24px; }
+  .ac-geri { color:rgba(255,255,255,.85); text-decoration:none; font-size:.82rem; }
+  .ac-govde { max-width:900px; margin:0 auto; padding:1.2rem 1rem 3rem; }
+  .ac-sekmeler { display:flex; gap:.5rem; overflow-x:auto; padding-bottom:.3rem; margin-bottom:1.2rem; }
+  .ac-sekme { flex:0 0 auto; padding:.5rem 1rem; border-radius:999px; background:#EEF1FC; color:#162AA3;
+    font-size:.82rem; font-weight:600; text-decoration:none; white-space:nowrap; }
+  .ac-sekme.akt { background:#162AA3; color:#fff; }
+  .ac-kart { background:#fff; border:1px solid #E3E7F2; border-radius:14px; padding:1rem; margin-bottom:1rem; }
+  .ac-kat-etiket { display:inline-block; font-size:.7rem; font-weight:700; color:#162AA3; background:#EEF1FC;
+    border-radius:999px; padding:.2rem .6rem; margin-bottom:.5rem; }
+  .ac-baslik-satir { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.6rem; }
+  .ac-baslik-satir b { font-size:.95rem; }
+  .ac-ac-link { font-size:.78rem; color:#162AA3; text-decoration:none; white-space:nowrap; }
+  .ac-bos { text-align:center; color:#5B6478; padding:3rem 1rem; font-size:.9rem; }
+</style>
+{% endblock %}
+
+{% block gövde %}
+<div class="ac-topbar">
+  <div class="ac-marka"><img src="{% static 'images/geek_logo_white.png' %}" alt=""> Academy</div>
+  <a href="{% url 'ana_sayfa' %}" class="ac-geri">← Panelim'e Dön</a>
+</div>
+
+<div class="ac-govde">
+  <div class="ac-sekmeler">
+    <a href="{% url 'academy' %}" class="ac-sekme{% if not secili_kategori %} akt{% endif %}">Tümü</a>
+    {% for k, ad in kategoriler %}
+    <a href="{% url 'academy' %}?kategori={{ k }}" class="ac-sekme{% if secili_kategori == k %} akt{% endif %}">{{ ad }}</a>
+    {% endfor %}
+  </div>
+
+  {% for d in dokumanlar %}
+  <div class="ac-kart">
+    <span class="ac-kat-etiket">{{ d.get_kategori_display }}</span>
+    <div class="ac-baslik-satir">
+      <b>{{ d.baslik }}</b>
+      <a href="{{ d.dosya.url }}" target="_blank" rel="noopener" class="ac-ac-link">Yeni sekmede aç →</a>
+    </div>
+    {% if d.is_video %}
+    <video class="egitim-video" src="{{ d.dosya.url }}" controls preload="metadata" title="{{ d.baslik }}"></video>
+    {% else %}
+    <iframe class="egitim-pdf" src="{{ d.dosya.url }}#toolbar=0&navpanes=0" title="{{ d.baslik }}" loading="lazy"></iframe>
+    {% endif %}
+  </div>
+  {% empty %}
+  <div class="ac-bos">
+    {% if secili_kategori %}Bu kategoride henüz içerik yok.{% else %}Henüz hiç içerik eklenmemiş.{% endif %}
+    {% if yukleyebilir %}<br><a href="{% url 'egitim_yonetim' %}" style="color:#162AA3;">Eğitim Yönetimi'nden içerik ekle →</a>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -494,7 +494,9 @@ class GSosyalTepki(models.Model):
 
 
 class EgitimDokuman(models.Model):
-    KATEGORI = [('RECETE', 'Reçete'), ('ORYANTASYON', 'Oryantasyon'), ('ICECEK', 'İçecek Hazırlama')]
+    KATEGORI = [('RECETE', 'Reçete'), ('ORYANTASYON', 'Oryantasyon'), ('ICECEK', 'İçecek Hazırlama'),
+                ('TARIHCE', 'Geek Tarihçesi'), ('HIJYEN', 'Hijyen/Temizlik Standartları'),
+                ('SERVIS', 'Müşteri İlişkileri/Servis Eğitimi')]
     kategori = models.CharField(max_length=20, choices=KATEGORI, default='RECETE')
     baslik = models.CharField(max_length=160, default='')
     dosya = models.FileField(upload_to='egitim/')

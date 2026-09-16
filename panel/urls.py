@@ -3,6 +3,7 @@ from . import views
 
 urlpatterns = [
     path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
+    path('academy/manifest.webmanifest', views.academy_manifest, name='academy_manifest'),
     path('sw.js', views.pwa_service_worker, name='pwa_sw'),
     path('icons/<str:ad>', views.pwa_icon, name='pwa_icon'),
     path('', views.ana_sayfa, name='ana_sayfa'),
@@ -44,6 +45,7 @@ urlpatterns = [
     path('geri-bildirim/', views.geri_bildirim, name='geri_bildirim'),
     path('geri-bildirim-yonetim/', views.geri_bildirim_yonetim, name='geri_bildirim_yonetim'),
     path('ilginc-haberler/', views.ilginc_haberler, name='ilginc_haberler'),
+    path('academy/', views.academy, name='academy'),
     path('egitim/', views.egitim, name='egitim'),
     path('egitim/test/', views.egitim_test, name='egitim_test'),
     path('egitim/sonucum/', views.egitim_sonucum, name='egitim_sonucum'),

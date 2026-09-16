@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Geek Panel{% endblock %}</title>
+  {% block pwa_meta %}
   <meta name="theme-color" content="#162AA3">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-192.png">
@@ -14,6 +15,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Geek Panel">
   <meta name="mobile-web-app-capable" content="yes">
+  {% endblock %}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -21,6 +23,7 @@
   {% block extra_head %}{% endblock %}
 </head>
 <body{% if personel %} class="app"{% endif %}>
+  {% block gövde %}
   {% if personel %}
   {% if acilis_goster %}
   <div id="acilis-ekrani" class="acilis-ekrani">
@@ -72,6 +75,7 @@
   {% if personel %}
   </main>
   {% endif %}
+  {% endblock %}
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

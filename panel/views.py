@@ -2442,6 +2442,25 @@ _PWA_MANIFEST = {
     ],
 }
 
+_ACADEMY_MANIFEST = {
+    "name": "Geek Academy",
+    "short_name": "Academy",
+    "description": "Geek Coffee & Eatery personel eğitim ve içerik kütüphanesi",
+    "lang": "tr",
+    "dir": "ltr",
+    "start_url": "/academy/",
+    "scope": "/academy/",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#162AA3",
+    "theme_color": "#162AA3",
+    "icons": [
+        {"src": "/icons/academy-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "/icons/academy-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": "/icons/academy-icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    ],
+}
+
 _PWA_SW = """
 const STATIK = 'geek-statik-v5';
 const KABUK = 'geek-kabuk-v5';
@@ -2548,7 +2567,13 @@ def pwa_manifest(request):
     return HttpResponse(json.dumps(_PWA_MANIFEST, ensure_ascii=False),
                         content_type='application/manifest+json')
 
-_PWA_IKON_IZIN = {'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'icon-180.png'}
+def academy_manifest(request):
+    return HttpResponse(json.dumps(_ACADEMY_MANIFEST, ensure_ascii=False),
+                        content_type='application/manifest+json')
+
+_PWA_IKON_IZIN = {'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'icon-180.png',
+                 'academy-icon-192.png', 'academy-icon-512.png', 'academy-icon-512-maskable.png',
+                 'academy-icon-180.png'}
 
 def pwa_icon(request, ad):
     import os
@@ -4382,6 +4407,33 @@ def _egitim_sampiyon_verisi():
     except Exception:
         sampiyon_sube = None
     return sampiyonlar, sampiyon_sube
+
+
+def academy(request):
+    """Geek Academy — herkese açık (rol kısıtlaması yok), sadece görüntüleme
+    amaçlı içerik kütüphanesi. Yükleme yetkisi hâlâ Eğitim Yönetimi
+    sayfasında (EGITIM_DUZENLE_ROLLER) — burası yalnızca izleme."""
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    kategori = request.GET.get('kategori') or ''
+    gecerli_kategoriler = [k for k, _ in EgitimDokuman.KATEGORI]
+    if kategori not in gecerli_kategoriler:
+        kategori = ''
+    dok_qs = EgitimDokuman.objects.filter(aktif=True).filter(Q(sube__isnull=True) | Q(sube=personel.sube))
+    if kategori:
+        dok_qs = dok_qs.filter(kategori=kategori)
+    return render(request, 'academy.html', {
+        'personel': personel,
+        'dokumanlar': list(dok_qs.order_by('kategori', '-olusturma')),
+        'kategoriler': EgitimDokuman.KATEGORI,
+        'secili_kategori': kategori,
+        'yukleyebilir': personel.rol in EGITIM_DUZENLE_ROLLER,
+    })
 
 
 def egitim(request):
