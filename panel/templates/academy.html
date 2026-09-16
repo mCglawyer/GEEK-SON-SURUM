@@ -25,18 +25,40 @@
   .ac-sekme { flex:0 0 auto; padding:.5rem 1rem; border-radius:999px; background:#EEF1FC; color:#162AA3;
     font-size:.82rem; font-weight:600; text-decoration:none; white-space:nowrap; }
   .ac-sekme.akt { background:#162AA3; color:#fff; }
-  .ac-kart { background:#fff; border:1px solid #E3E7F2; border-radius:14px; padding:1rem; margin-bottom:1rem; }
-  .ac-kat-etiket { display:inline-block; font-size:.7rem; font-weight:700; color:#162AA3; background:#EEF1FC;
-    border-radius:999px; padding:.2rem .6rem; margin-bottom:.5rem; }
-  .ac-baslik-satir { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.6rem; }
-  .ac-baslik-satir b { font-size:.95rem; }
-  .ac-ac-link { font-size:.78rem; color:#162AA3; text-decoration:none; white-space:nowrap; }
+  .ac-buton {
+    width:100%; display:flex; align-items:center; justify-content:space-between; gap:.6rem;
+    background:#fff; border:1px solid #E3E7F2; border-radius:12px; padding:.9rem 1rem; margin-bottom:.6rem;
+    font-family:inherit; font-size:.92rem; font-weight:600; color:#1B2233; cursor:pointer; text-align:left;
+  }
+  .ac-buton:active { background:#F5F7FC; }
+  .ac-buton-sol { display:flex; align-items:center; gap:.7rem; min-width:0; }
+  .ac-buton-ikon { flex:0 0 auto; width:34px; height:34px; border-radius:9px; background:#EEF1FC;
+    display:flex; align-items:center; justify-content:center; color:#162AA3; font-size:1rem; }
+  .ac-buton-metin { display:flex; flex-direction:column; gap:.15rem; min-width:0; }
+  .ac-buton-baslik { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ac-buton-kat { font-size:.7rem; font-weight:600; color:#5B6478; }
+  .ac-buton-ok { flex:0 0 auto; color:#9AA0A6; transition:transform .18s; }
+  .ac-buton.acik .ac-buton-ok { transform:rotate(90deg); }
+  .ac-icerik-panel { display:none; margin:-.2rem 0 1rem; padding:.9rem; background:#fff; border:1px solid #E3E7F2;
+    border-radius:12px; }
+  .ac-icerik-panel.acik { display:block; }
   .ac-bos { text-align:center; color:#5B6478; padding:3rem 1rem; font-size:.9rem; }
   .ac-pdf-viewer { display:flex; flex-direction:column; align-items:center; gap:.5rem; background:#F5F7FC;
     border-radius:10px; padding:.6rem; overflow-x:auto; }
   .ac-pdf-sayfa { max-width:100%; border-radius:4px; box-shadow:0 1px 4px rgba(15,20,40,.15); }
   .ac-pdf-yukleniyor, .ac-pdf-hata { font-size:.85rem; color:#5B6478; padding:1.2rem 0; }
   .ac-pdf-hata a { color:#162AA3; font-weight:600; }
+
+  /* --- İçecek Hazırlama: YouTube tarzı video ızgarası --- */
+  .ac-video-izgara { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:1rem; }
+  .ac-video-kart { background:#fff; border:1px solid #E3E7F2; border-radius:14px; overflow:hidden; cursor:pointer; }
+  .ac-video-kutu { position:relative; width:100%; aspect-ratio:16/9; background:#0B1020; overflow:hidden; }
+  .ac-video-kutu video { width:100%; height:100%; object-fit:cover; display:block; }
+  .ac-video-oynat { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(11,16,32,.28); }
+  .ac-video-oynat svg { width:46px; height:46px; color:#fff; filter:drop-shadow(0 2px 6px rgba(0,0,0,.4)); }
+  .ac-video-kart.oynuyor .ac-video-oynat { display:none; }
+  .ac-video-baslik { padding:.7rem .8rem; font-size:.86rem; font-weight:600; line-height:1.3; }
 </style>
 {% endblock %}
 
@@ -54,37 +76,98 @@
     {% endfor %}
   </div>
 
-  {% for d in dokumanlar %}
-  <div class="ac-kart">
-    <span class="ac-kat-etiket">{{ d.get_kategori_display }}</span>
-    <div class="ac-baslik-satir">
-      <b>{{ d.baslik }}</b>
-      {% if d.is_video %}<a href="{{ d.dosya.url }}" target="_blank" rel="noopener" class="ac-ac-link">Yeni sekmede aç →</a>{% endif %}
+  {% if secili_kategori == 'ICECEK' %}
+    {% if dokumanlar %}
+    <div class="ac-video-izgara">
+      {% for d in dokumanlar %}
+      <div class="ac-video-kart" data-url="{{ d.dosya.url }}">
+        <div class="ac-video-kutu">
+          {% if d.is_video %}
+          <video preload="metadata" muted playsinline src="{{ d.dosya.url }}"></video>
+          {% else %}
+          <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff;font-size:.8rem;">Belge</div>
+          {% endif %}
+          {% if d.is_video %}<div class="ac-video-oynat"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="11" fill="rgba(0,0,0,.001)"/><path d="M9 7l9 5-9 5z"/></svg></div>{% endif %}
+        </div>
+        <div class="ac-video-baslik">{{ d.baslik }}</div>
+      </div>
+      {% endfor %}
     </div>
-    {% if d.is_video %}
-    <video class="egitim-video" src="{{ d.dosya.url }}" controls preload="metadata" title="{{ d.baslik }}"></video>
     {% else %}
-    <div class="ac-pdf-viewer" data-url="{{ d.dosya.url }}">
-      <div class="ac-pdf-yukleniyor">Belge yükleniyor…</div>
+    <div class="ac-bos">
+      Bu kategoride henüz video yok.
+      {% if yukleyebilir %}<br><a href="{% url 'egitim_yonetim' %}" style="color:#162AA3;">Eğitim Yönetimi'nden video ekle →</a>{% endif %}
     </div>
-    <noscript><a href="{{ d.dosya.url }}" target="_blank" rel="noopener">Belgeyi aç →</a></noscript>
     {% endif %}
-  </div>
-  {% empty %}
-  <div class="ac-bos">
-    {% if secili_kategori %}Bu kategoride henüz içerik yok.{% else %}Henüz hiç içerik eklenmemiş.{% endif %}
-    {% if yukleyebilir %}<br><a href="{% url 'egitim_yonetim' %}" style="color:#162AA3;">Eğitim Yönetimi'nden içerik ekle →</a>{% endif %}
-  </div>
-  {% endfor %}
+  {% else %}
+    {% for d in dokumanlar %}
+    <button type="button" class="ac-buton" data-hedef="ac-panel-{{ d.id }}">
+      <span class="ac-buton-sol">
+        <span class="ac-buton-ikon">{% if d.is_video %}▶{% else %}📄{% endif %}</span>
+        <span class="ac-buton-metin">
+          <span class="ac-buton-baslik">{{ d.baslik }}</span>
+          <span class="ac-buton-kat">{{ d.get_kategori_display }}</span>
+        </span>
+      </span>
+      <span class="ac-buton-ok">▸</span>
+    </button>
+    <div class="ac-icerik-panel" id="ac-panel-{{ d.id }}">
+      {% if d.is_video %}
+      <video class="egitim-video" src="{{ d.dosya.url }}" controls preload="none" title="{{ d.baslik }}"></video>
+      {% else %}
+      <div class="ac-pdf-viewer" data-url="{{ d.dosya.url }}" data-render="0">
+        <div class="ac-pdf-yukleniyor">Belge yükleniyor…</div>
+      </div>
+      <noscript><a href="{{ d.dosya.url }}" target="_blank" rel="noopener">Belgeyi aç →</a></noscript>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div class="ac-bos">
+      {% if secili_kategori %}Bu kategoride henüz içerik yok.{% else %}Henüz hiç içerik eklenmemiş.{% endif %}
+      {% if yukleyebilir %}<br><a href="{% url 'egitim_yonetim' %}" style="color:#162AA3;">Eğitim Yönetimi'nden içerik ekle →</a>{% endif %}
+    </div>
+    {% endfor %}
+  {% endif %}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 (function () {
-  if (!window.pdfjsLib) return;
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  // --- Buton → panel açma/kapama (PDF/video butonları) ---
+  document.querySelectorAll('.ac-buton').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var panel = document.getElementById(btn.getAttribute('data-hedef'));
+      if (!panel) return;
+      var acildi = panel.classList.toggle('acik');
+      btn.classList.toggle('acik', acildi);
+      if (acildi) {
+        var pdfKutu = panel.querySelector('.ac-pdf-viewer');
+        if (pdfKutu && pdfKutu.getAttribute('data-render') === '0') {
+          pdfKutu.setAttribute('data-render', '1');
+          belgeyiCiz(pdfKutu);
+        }
+        var video = panel.querySelector('video');
+        if (video) { video.preload = 'auto'; }
+      }
+    });
+  });
 
+  // --- İçecek Hazırlama video ızgarası: karta basınca oynat ---
+  document.querySelectorAll('.ac-video-kart').forEach(function (kart) {
+    kart.addEventListener('click', function () {
+      var video = kart.querySelector('video');
+      if (!video) return;
+      video.setAttribute('controls', 'controls');
+      video.muted = false;
+      video.play();
+      kart.classList.add('oynuyor');
+    });
+  });
+
+  // --- PDF.js ile sayfa çizimi ---
   function belgeyiCiz(kutu) {
+    if (!window.pdfjsLib) { kutu.innerHTML = '<p class="ac-pdf-hata">Görüntüleyici yüklenemedi.</p>'; return; }
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     var url = kutu.getAttribute('data-url');
     pdfjsLib.getDocument(url).promise.then(function (pdf) {
       kutu.innerHTML = '';
@@ -107,20 +190,6 @@
     }).catch(function () {
       kutu.innerHTML = '<p class="ac-pdf-hata">Belge yüklenemedi. <a href="' + url + '" target="_blank" rel="noopener">Buradan aç →</a></p>';
     });
-  }
-
-  if ('IntersectionObserver' in window) {
-    var izleyici = new IntersectionObserver(function (girisler) {
-      girisler.forEach(function (giris) {
-        if (giris.isIntersecting) {
-          belgeyiCiz(giris.target);
-          izleyici.unobserve(giris.target);
-        }
-      });
-    }, { rootMargin: '250px' });
-    document.querySelectorAll('.ac-pdf-viewer').forEach(function (el) { izleyici.observe(el); });
-  } else {
-    document.querySelectorAll('.ac-pdf-viewer').forEach(belgeyiCiz);
   }
 })();
 </script>

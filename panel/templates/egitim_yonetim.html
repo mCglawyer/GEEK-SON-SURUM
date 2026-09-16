@@ -134,7 +134,7 @@
     <h3 class="egitim-bolum">Dokümanlar (PDF)</h3>
     {% if duzenleyebilir %}<form method="post" enctype="multipart/form-data" class="egitim-form">
       {% csrf_token %}<input type="hidden" name="islem" value="dokuman_ekle">
-      <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option><option value="ICECEK">İçecek Hazırlama</option></select>
+      <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option><option value="ICECEK">İçecek Hazırlama</option><option value="TARIHCE">Geek Tarihçesi</option><option value="HIJYEN">Hijyen/Temizlik Standartları</option><option value="SERVIS">Müşteri İlişkileri/Servis Eğitimi</option></select>
       <select name="sube_id" class="sube-sec"><option value="">Tüm şubeler</option>{% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}</select>
       <input class="input" type="text" name="baslik" placeholder="Başlık" required>
       <input class="input" type="file" name="dosya" accept="application/pdf,video/mp4,video/webm,video/quicktime,.mov,.mp4,.webm" required>
@@ -157,7 +157,7 @@
     {% if duzenleyebilir %}<form method="post" class="egitim-soru-form" id="soru-form">
       {% csrf_token %}<input type="hidden" name="islem" value="soru_ekle">
       <div class="esf-satir">
-        <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option><option value="ICECEK">İçecek Hazırlama</option></select>
+        <select name="kategori" class="sube-sec"><option value="RECETE">Reçete</option><option value="ORYANTASYON">Oryantasyon</option><option value="ICECEK">İçecek Hazırlama</option><option value="TARIHCE">Geek Tarihçesi</option><option value="HIJYEN">Hijyen/Temizlik Standartları</option><option value="SERVIS">Müşteri İlişkileri/Servis Eğitimi</option></select>
         <select name="sube_id" class="sube-sec"><option value="">Tüm şubeler</option>{% for s in subeler %}<option value="{{ s.id }}">{{ s.ad }}</option>{% endfor %}</select>
         <select name="tur" id="soru-tur-sec" class="sube-sec">
           <option value="coktan_secmeli">Çoktan Seçmeli</option>

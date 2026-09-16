@@ -4667,7 +4667,7 @@ def egitim_yonetim(request):
         if islem == 'dokuman_ekle':
             dosya = request.FILES.get('dosya')
             baslik = (request.POST.get('baslik') or '').strip()
-            kategori = request.POST.get('kategori') if request.POST.get('kategori') in ('RECETE', 'ORYANTASYON', 'ICECEK') else 'RECETE'
+            kategori = request.POST.get('kategori') if request.POST.get('kategori') in [k for k, _ in EgitimDokuman.KATEGORI] else 'RECETE'
             gecerli_uzanti = ('.pdf', '.mp4', '.webm', '.mov', '.m4v', '.ogv')
             if dosya and baslik and dosya.name.lower().endswith(gecerli_uzanti) and dosya.size <= 200 * 1024 * 1024:
                 sb = Sube.objects.filter(id=request.POST.get('sube_id')).first() if (request.POST.get('sube_id') or '').isdigit() else None
@@ -4712,7 +4712,7 @@ def egitim_yonetim(request):
             c = (request.POST.get('sik_c') or '').strip()
             d_ = (request.POST.get('sik_d') or '').strip()
             dogru = request.POST.get('dogru') if request.POST.get('dogru') in ('A', 'B', 'C', 'D') else 'A'
-            kategori = request.POST.get('kategori') if request.POST.get('kategori') in ('RECETE', 'ORYANTASYON', 'ICECEK') else 'RECETE'
+            kategori = request.POST.get('kategori') if request.POST.get('kategori') in [k for k, _ in EgitimDokuman.KATEGORI] else 'RECETE'
             gecerli = metin and (tur == 'acik_uclu' or (a and b))
             if gecerli:
                 sb = Sube.objects.filter(id=request.POST.get('sube_id')).first() if (request.POST.get('sube_id') or '').isdigit() else None
