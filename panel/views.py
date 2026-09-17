@@ -29,7 +29,7 @@ from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Ir
                      KahveSoru, GunlukSoru, SoruAyar, Bildirim, Duyuru,
                      GSosyalGonderi, GSosyalTepki, GSosyalGorsel, IlginHaber,
                      GeriBildirim, GeriBildirimKategori, GeriBildirimDurum,
-                     EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap, PushAbonelik,
+                     EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap, PushAbonelik, EgitimFavori,
                      MolaQRAyar, SubeMolaToken, MolaOturum,
                      SubeMesaiToken, MesaiKayit, DogumGunuKutlama,
                      MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi, MaliyetBirim,
@@ -2461,10 +2461,12 @@ _ACADEMY_MANIFEST = {
     ],
 }
 
-_PWA_SW = """
+_PWA_SW = r"""
 const STATIK = 'geek-statik-v5';
 const KABUK = 'geek-kabuk-v5';
+const AKADEMI_MEDYA = 'akademi-medya-v1';
 const KABUK_URL = '/';
+const MEDYA_UZANTI = /\.(mp4|webm|mov|m4v|ogv|pdf)(\?.*)?$/i;
 self.addEventListener('install', function (e) {
   e.waitUntil(
     caches.open(KABUK).then(function (c) { return c.add(KABUK_URL); }).catch(function () {})
@@ -2474,7 +2476,7 @@ self.addEventListener('install', function (e) {
 self.addEventListener('activate', function (e) {
   e.waitUntil(
     caches.keys().then(function (ks) {
-      return Promise.all(ks.filter(function (k) { return k !== STATIK && k !== KABUK; })
+      return Promise.all(ks.filter(function (k) { return k !== STATIK && k !== KABUK && k !== AKADEMI_MEDYA; })
                            .map(function (k) { return caches.delete(k); }));
     }).then(function () { return self.clients.claim(); })
   );
@@ -2483,6 +2485,20 @@ self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
+  // Academy videoları/PDF'leri: köken (origin) fark etmeksizin — bir kere
+  // çevrimiçiyken görüntülenen içerik otomatik önbelleğe alınır, sonraki
+  // seferde çevrimdışı bile olsa oynatılabilir/açılabilir.
+  if (MEDYA_UZANTI.test(url.pathname)) {
+    e.respondWith(
+      caches.open(AKADEMI_MEDYA).then(function (c) {
+        return fetch(req).then(function (res) {
+          if (res) { c.put(req, res.clone()); }
+          return res;
+        }).catch(function () { return c.match(req); });
+      })
+    );
+    return;
+  }
   if (url.origin !== location.origin) return;
   // Statik dosyalar: önce önbellek (hızlı + çevrimdışı çalışır).
   if (url.pathname.indexOf('/static/') === 0) {
@@ -4409,6 +4425,49 @@ def _egitim_sampiyon_verisi():
     return sampiyonlar, sampiyon_sube
 
 
+def _video_kapak_cikar(dokuman):
+    """Yüklenen videodan bir kareyi kapak resmi (kapak) olarak çıkarıp kaydeder.
+    Herhangi bir sebeple başarısız olursa sessizce hiçbir şey yapmaz — video
+    kapaksız kalır, Academy'de tarayıcının ilk-kare gösterimine düşülür."""
+    import tempfile
+    import os
+    try:
+        import cv2
+    except ImportError:
+        return
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp:
+            dokuman.dosya.open('rb')
+            for parca in dokuman.dosya.chunks():
+                tmp.write(parca)
+            dokuman.dosya.close()
+            tmp_path = tmp.name
+        cap = cv2.VideoCapture(tmp_path)
+        basarili, kare = cap.read()
+        if basarili:
+            # İlk kare genelde siyah/boş olabilir; 1 saniyeye ilerleyip tekrar dene.
+            cap.set(cv2.CAP_PROP_POS_MSEC, 1000)
+            basarili2, kare2 = cap.read()
+            if basarili2:
+                kare = kare2
+        cap.release()
+        if not basarili:
+            return
+        basarili_encode, buffer = cv2.imencode('.jpg', kare, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+        if not basarili_encode:
+            return
+        dokuman.kapak.save('kapak_%s.jpg' % dokuman.id, ContentFile(buffer.tobytes()), save=True)
+    except Exception:
+        pass
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+
+
 def academy(request):
     """Geek Academy — herkese açık (rol kısıtlaması yok), sadece görüntüleme
     amaçlı içerik kütüphanesi. Yükleme yetkisi hâlâ Eğitim Yönetimi
@@ -4422,18 +4481,47 @@ def academy(request):
         return redirect('ana_sayfa')
     kategori = request.GET.get('kategori') or ''
     gecerli_kategoriler = [k for k, _ in EgitimDokuman.KATEGORI]
-    if kategori not in gecerli_kategoriler:
+    favoriler_mi = (kategori == 'FAVORI')
+    if kategori not in gecerli_kategoriler and not favoriler_mi:
         kategori = ''
     dok_qs = EgitimDokuman.objects.filter(aktif=True).filter(Q(sube__isnull=True) | Q(sube=personel.sube))
-    if kategori:
+    if favoriler_mi:
+        favori_dokuman_idler = set(EgitimFavori.objects.filter(personel=personel).values_list('dokuman_id', flat=True))
+        dok_qs = dok_qs.filter(id__in=favori_dokuman_idler)
+    elif kategori:
         dok_qs = dok_qs.filter(kategori=kategori)
+    dokumanlar = list(dok_qs.order_by('kategori', '-olusturma'))
+    favori_id_seti = set(EgitimFavori.objects.filter(personel=personel, dokuman__in=dokumanlar)
+                         .values_list('dokuman_id', flat=True))
+    yeni_esik = timezone.now() - datetime.timedelta(days=7)
+    for d in dokumanlar:
+        d.favori = d.id in favori_id_seti
+        d.yeni = d.olusturma >= yeni_esik
     return render(request, 'academy.html', {
         'personel': personel,
-        'dokumanlar': list(dok_qs.order_by('kategori', '-olusturma')),
+        'dokumanlar': dokumanlar,
         'kategoriler': EgitimDokuman.KATEGORI,
         'secili_kategori': kategori,
+        'favoriler_mi': favoriler_mi,
         'yukleyebilir': personel.rol in EGITIM_DUZENLE_ROLLER,
     })
+
+
+def academy_favori_toggle(request):
+    """AJAX: bir dokümanı favorileme/favoriden çıkarma."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False}, status=403)
+    personel = _aktif_personel(request)
+    if personel is None or request.method != 'POST':
+        return JsonResponse({'ok': False}, status=403)
+    dokuman = EgitimDokuman.objects.filter(id=request.POST.get('dokuman_id')).first()
+    if dokuman is None:
+        return JsonResponse({'ok': False, 'mesaj': 'Doküman bulunamadı.'}, status=404)
+    kayit, olusturuldu = EgitimFavori.objects.get_or_create(personel=personel, dokuman=dokuman)
+    if not olusturuldu:
+        kayit.delete()
+        return JsonResponse({'ok': True, 'favori': False})
+    return JsonResponse({'ok': True, 'favori': True})
 
 
 def egitim(request):
@@ -4681,6 +4769,8 @@ def egitim_yonetim(request):
                     except Exception:
                         dosya.seek(0)
                 d = EgitimDokuman.objects.create(kategori=kategori, baslik=baslik[:160], dosya=dosya, sube=sb)
+                if d.is_video:
+                    _video_kapak_cikar(d)
                 try:
                     yeni_boyut = d.dosya.size
                     if dosya.name.lower().endswith('.pdf') and yeni_boyut < orijinal_boyut:

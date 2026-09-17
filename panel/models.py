@@ -504,6 +504,7 @@ class EgitimDokuman(models.Model):
                              related_name='egitim_dokumanlari', verbose_name="Şube (boş=tüm şubeler)")
     olusturma = models.DateTimeField(auto_now_add=True)
     aktif = models.BooleanField(default=True)
+    kapak = models.ImageField(upload_to='egitim/kapak/', null=True, blank=True, verbose_name="Video Kapak Resmi")
 
     class Meta:
         ordering = ['kategori', '-olusturma']
@@ -512,6 +513,20 @@ class EgitimDokuman(models.Model):
     def is_video(self):
         ad = (self.dosya.name or '').lower()
         return ad.endswith(('.mp4', '.webm', '.mov', '.m4v', '.ogv'))
+
+
+class EgitimFavori(models.Model):
+    personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='egitim_favorileri')
+    dokuman = models.ForeignKey(EgitimDokuman, on_delete=models.CASCADE, related_name='favorileyenler')
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [('personel', 'dokuman')]
+        verbose_name = "Academy Favorisi"
+        verbose_name_plural = "Academy Favorileri"
+
+    def __str__(self):
+        return '%s → %s' % (self.personel.ad_soyad, self.dokuman.baslik)
 
 
 class EgitimSoru(models.Model):

@@ -46,6 +46,7 @@ urlpatterns = [
     path('geri-bildirim-yonetim/', views.geri_bildirim_yonetim, name='geri_bildirim_yonetim'),
     path('ilginc-haberler/', views.ilginc_haberler, name='ilginc_haberler'),
     path('academy/', views.academy, name='academy'),
+    path('academy/favori/', views.academy_favori_toggle, name='academy_favori_toggle'),
     path('egitim/', views.egitim, name='egitim'),
     path('egitim/test/', views.egitim_test, name='egitim_test'),
     path('egitim/sonucum/', views.egitim_sonucum, name='egitim_sonucum'),

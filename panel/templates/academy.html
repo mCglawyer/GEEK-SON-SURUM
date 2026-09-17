@@ -15,18 +15,34 @@
 
 {% block extra_head %}
 <style>
-  .ac-topbar { position:sticky; top:0; z-index:20; background:#162AA3; color:#fff;
-    padding:.8rem 1.1rem; display:flex; align-items:center; justify-content:space-between; }
+  .ac-topbar { position:sticky; top:0; z-index:30; background:#162AA3; color:#fff;
+    padding:.8rem 1.1rem; display:flex; align-items:center; justify-content:space-between; gap:.6rem; }
+  .ac-sol { display:flex; align-items:center; gap:.6rem; }
+  .ac-hamb { background:none; border:none; color:#fff; padding:.2rem; cursor:pointer; display:flex; }
   .ac-marka { display:flex; align-items:center; gap:.5rem; font-weight:700; font-size:1.05rem; }
   .ac-marka img { height:24px; }
-  .ac-geri { color:rgba(255,255,255,.85); text-decoration:none; font-size:.82rem; }
+  .ac-geri { color:rgba(255,255,255,.85); text-decoration:none; font-size:.82rem; white-space:nowrap; }
   .ac-govde { max-width:900px; margin:0 auto; padding:1.2rem 1rem 3rem; }
-  .ac-sekmeler { display:flex; gap:.5rem; overflow-x:auto; padding-bottom:.3rem; margin-bottom:1.2rem; }
-  .ac-sekme { flex:0 0 auto; padding:.5rem 1rem; border-radius:999px; background:#EEF1FC; color:#162AA3;
-    font-size:.82rem; font-weight:600; text-decoration:none; white-space:nowrap; }
-  .ac-sekme.akt { background:#162AA3; color:#fff; }
+
+  /* --- Hamburger menü (kategori seçimi) --- */
+  .ac-perde { position:fixed; inset:0; background:rgba(11,16,32,.45); z-index:39; display:none; }
+  .ac-perde.acik { display:block; }
+  .ac-menu { position:fixed; top:0; left:0; bottom:0; width:78vw; max-width:300px; background:#fff; z-index:40;
+    transform:translateX(-100%); transition:transform .22s ease; padding:1rem 0; overflow-y:auto; }
+  .ac-menu.acik { transform:translateX(0); }
+  .ac-menu-baslik { padding:.4rem 1.1rem 1rem; font-weight:700; color:#162AA3; font-size:.95rem; }
+  .ac-menu-link { display:block; padding:.75rem 1.1rem; color:#1B2233; text-decoration:none; font-size:.9rem; font-weight:600; }
+  .ac-menu-link.akt { background:#EEF1FC; color:#162AA3; }
+  .ac-menu-ayrac { height:1px; background:#E3E7F2; margin:.5rem 0; }
+
+  .ac-arama { width:100%; border:1.5px solid #E3E7F2; border-radius:999px; padding:.6rem 1rem;
+    font-family:inherit; font-size:.88rem; margin-bottom:1rem; background:#fff; }
+  .ac-arama:focus { outline:none; border-color:#162AA3; }
+  .ac-baslik-satiri { display:flex; align-items:center; justify-content:space-between; margin-bottom:.8rem; }
+  .ac-baslik-satiri h1 { font-size:1.05rem; margin:0; color:#0B1020; }
+
   .ac-buton {
-    width:100%; display:flex; align-items:center; justify-content:space-between; gap:.6rem;
+    width:100%; display:flex; align-items:center; justify-content:space-between; gap:.5rem;
     background:#fff; border:1px solid #E3E7F2; border-radius:12px; padding:.9rem 1rem; margin-bottom:.6rem;
     font-family:inherit; font-size:.92rem; font-weight:600; color:#1B2233; cursor:pointer; text-align:left;
   }
@@ -35,9 +51,10 @@
   .ac-buton-ikon { flex:0 0 auto; width:34px; height:34px; border-radius:9px; background:#EEF1FC;
     display:flex; align-items:center; justify-content:center; color:#162AA3; font-size:1rem; }
   .ac-buton-metin { display:flex; flex-direction:column; gap:.15rem; min-width:0; }
-  .ac-buton-baslik { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ac-buton-baslik { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; align-items:center; gap:.4rem; }
   .ac-buton-kat { font-size:.7rem; font-weight:600; color:#5B6478; }
-  .ac-buton-ok { flex:0 0 auto; color:#9AA0A6; transition:transform .18s; }
+  .ac-buton-sag { display:flex; align-items:center; gap:.5rem; flex:0 0 auto; }
+  .ac-buton-ok { color:#9AA0A6; transition:transform .18s; }
   .ac-buton.acik .ac-buton-ok { transform:rotate(90deg); }
   .ac-icerik-panel { display:none; margin:-.2rem 0 1rem; padding:.9rem; background:#fff; border:1px solid #E3E7F2;
     border-radius:12px; }
@@ -49,47 +66,77 @@
   .ac-pdf-yukleniyor, .ac-pdf-hata { font-size:.85rem; color:#5B6478; padding:1.2rem 0; }
   .ac-pdf-hata a { color:#162AA3; font-weight:600; }
 
+  /* --- Yeni rozeti --- */
+  .ac-yeni { display:inline-block; font-size:.62rem; font-weight:800; letter-spacing:.03em; color:#fff;
+    background:#E0662C; border-radius:5px; padding:.12rem .35rem; flex:0 0 auto; }
+
+  /* --- Favori yıldızı --- */
+  .ac-yildiz { background:none; border:none; padding:.2rem; cursor:pointer; color:#C7CCDA; font-size:1.15rem;
+    line-height:1; flex:0 0 auto; }
+  .ac-yildiz.dolu { color:#F2B01E; }
+
   /* --- İçecek Hazırlama: YouTube tarzı video ızgarası --- */
   .ac-video-izgara { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:1rem; }
-  .ac-video-kart { background:#fff; border:1px solid #E3E7F2; border-radius:14px; overflow:hidden; cursor:pointer; }
+  .ac-video-kart { background:#fff; border:1px solid #E3E7F2; border-radius:14px; overflow:hidden; cursor:pointer; position:relative; }
   .ac-video-kutu { position:relative; width:100%; aspect-ratio:16/9; background:#0B1020; overflow:hidden; }
-  .ac-video-kutu video { width:100%; height:100%; object-fit:cover; display:block; }
+  .ac-video-kutu video, .ac-video-kutu img { width:100%; height:100%; object-fit:cover; display:block; }
   .ac-video-oynat { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     background:rgba(11,16,32,.28); }
   .ac-video-oynat svg { width:46px; height:46px; color:#fff; filter:drop-shadow(0 2px 6px rgba(0,0,0,.4)); }
   .ac-video-kart.oynuyor .ac-video-oynat { display:none; }
-  .ac-video-baslik { padding:.7rem .8rem; font-size:.86rem; font-weight:600; line-height:1.3; }
+  .ac-video-alt { padding:.7rem .8rem; display:flex; align-items:flex-start; justify-content:space-between; gap:.4rem; }
+  .ac-video-baslik { font-size:.86rem; font-weight:600; line-height:1.3; }
+  .ac-video-yeni { position:absolute; top:.5rem; left:.5rem; z-index:2; }
 </style>
 {% endblock %}
 
 {% block gövde %}
+<div hidden>{% csrf_token %}</div>
 <div class="ac-topbar">
-  <div class="ac-marka"><img src="{% static 'images/geek_logo_white.png' %}" alt=""> Academy</div>
+  <div class="ac-sol">
+    <button type="button" class="ac-hamb" id="ac-hamb-btn" aria-label="Menü">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <div class="ac-marka"><img src="{% static 'images/geek_logo_white.png' %}" alt=""> Academy</div>
+  </div>
   <a href="{% url 'ana_sayfa' %}" class="ac-geri">← Panelim'e Dön</a>
 </div>
 
+<div class="ac-perde" id="ac-perde"></div>
+<nav class="ac-menu" id="ac-menu">
+  <div class="ac-menu-baslik">Kategoriler</div>
+  <a href="{% url 'academy' %}" class="ac-menu-link{% if not secili_kategori and not favoriler_mi %} akt{% endif %}">Tümü</a>
+  <a href="{% url 'academy' %}?kategori=FAVORI" class="ac-menu-link{% if favoriler_mi %} akt{% endif %}">⭐ Favorilerim</a>
+  <div class="ac-menu-ayrac"></div>
+  {% for k, ad in kategoriler %}
+  <a href="{% url 'academy' %}?kategori={{ k }}" class="ac-menu-link{% if secili_kategori == k %} akt{% endif %}">{{ ad }}</a>
+  {% endfor %}
+</nav>
+
 <div class="ac-govde">
-  <div class="ac-sekmeler">
-    <a href="{% url 'academy' %}" class="ac-sekme{% if not secili_kategori %} akt{% endif %}">Tümü</a>
-    {% for k, ad in kategoriler %}
-    <a href="{% url 'academy' %}?kategori={{ k }}" class="ac-sekme{% if secili_kategori == k %} akt{% endif %}">{{ ad }}</a>
-    {% endfor %}
+  <div class="ac-baslik-satiri">
+    <h1>{% if favoriler_mi %}⭐ Favorilerim{% elif secili_kategori %}{{ dokumanlar.0.get_kategori_display|default:"" }}{% else %}Tüm İçerikler{% endif %}</h1>
   </div>
+  <input type="search" class="ac-arama" id="ac-arama" placeholder="İçerik ara…" autocomplete="off">
 
   {% if secili_kategori == 'ICECEK' %}
     {% if dokumanlar %}
-    <div class="ac-video-izgara">
+    <div class="ac-video-izgara" id="ac-liste">
       {% for d in dokumanlar %}
-      <div class="ac-video-kart" data-url="{{ d.dosya.url }}">
+      <div class="ac-video-kart" data-url="{{ d.dosya.url }}" data-ara="{{ d.baslik|lower }}">
+        {% if d.yeni %}<span class="ac-yeni ac-video-yeni">YENİ</span>{% endif %}
         <div class="ac-video-kutu">
           {% if d.is_video %}
-          <video preload="metadata" muted playsinline src="{{ d.dosya.url }}"></video>
+            {% if d.kapak %}<img src="{{ d.kapak.url }}" alt="">{% else %}<video preload="metadata" muted playsinline src="{{ d.dosya.url }}"></video>{% endif %}
           {% else %}
           <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff;font-size:.8rem;">Belge</div>
           {% endif %}
           {% if d.is_video %}<div class="ac-video-oynat"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="11" fill="rgba(0,0,0,.001)"/><path d="M9 7l9 5-9 5z"/></svg></div>{% endif %}
         </div>
-        <div class="ac-video-baslik">{{ d.baslik }}</div>
+        <div class="ac-video-alt">
+          <div class="ac-video-baslik">{{ d.baslik }}</div>
+          <button type="button" class="ac-yildiz{% if d.favori %} dolu{% endif %}" data-dokuman-id="{{ d.id }}" title="Favorile">★</button>
+        </div>
       </div>
       {% endfor %}
     </div>
@@ -100,39 +147,82 @@
     </div>
     {% endif %}
   {% else %}
+    <div id="ac-liste">
     {% for d in dokumanlar %}
-    <button type="button" class="ac-buton" data-hedef="ac-panel-{{ d.id }}">
-      <span class="ac-buton-sol">
-        <span class="ac-buton-ikon">{% if d.is_video %}▶{% else %}📄{% endif %}</span>
-        <span class="ac-buton-metin">
-          <span class="ac-buton-baslik">{{ d.baslik }}</span>
-          <span class="ac-buton-kat">{{ d.get_kategori_display }}</span>
+    <div data-ara="{{ d.baslik|lower }}">
+      <button type="button" class="ac-buton" data-hedef="ac-panel-{{ d.id }}">
+        <span class="ac-buton-sol">
+          <span class="ac-buton-ikon">{% if d.is_video %}▶{% else %}📄{% endif %}</span>
+          <span class="ac-buton-metin">
+            <span class="ac-buton-baslik">{{ d.baslik }}{% if d.yeni %}<span class="ac-yeni">YENİ</span>{% endif %}</span>
+            <span class="ac-buton-kat">{{ d.get_kategori_display }}</span>
+          </span>
         </span>
-      </span>
-      <span class="ac-buton-ok">▸</span>
-    </button>
-    <div class="ac-icerik-panel" id="ac-panel-{{ d.id }}">
-      {% if d.is_video %}
-      <video class="egitim-video" src="{{ d.dosya.url }}" controls preload="none" title="{{ d.baslik }}"></video>
-      {% else %}
-      <div class="ac-pdf-viewer" data-url="{{ d.dosya.url }}" data-render="0">
-        <div class="ac-pdf-yukleniyor">Belge yükleniyor…</div>
+        <span class="ac-buton-sag">
+          <span class="ac-yildiz{% if d.favori %} dolu{% endif %}" data-dokuman-id="{{ d.id }}" title="Favorile">★</span>
+          <span class="ac-buton-ok">▸</span>
+        </span>
+      </button>
+      <div class="ac-icerik-panel" id="ac-panel-{{ d.id }}">
+        {% if d.is_video %}
+        <video class="egitim-video" src="{{ d.dosya.url }}" controls preload="none" title="{{ d.baslik }}"></video>
+        {% else %}
+        <div class="ac-pdf-viewer" data-url="{{ d.dosya.url }}" data-render="0">
+          <div class="ac-pdf-yukleniyor">Belge yükleniyor…</div>
+        </div>
+        <noscript><a href="{{ d.dosya.url }}" target="_blank" rel="noopener">Belgeyi aç →</a></noscript>
+        {% endif %}
       </div>
-      <noscript><a href="{{ d.dosya.url }}" target="_blank" rel="noopener">Belgeyi aç →</a></noscript>
-      {% endif %}
     </div>
     {% empty %}
     <div class="ac-bos">
-      {% if secili_kategori %}Bu kategoride henüz içerik yok.{% else %}Henüz hiç içerik eklenmemiş.{% endif %}
-      {% if yukleyebilir %}<br><a href="{% url 'egitim_yonetim' %}" style="color:#162AA3;">Eğitim Yönetimi'nden içerik ekle →</a>{% endif %}
+      {% if favoriler_mi %}Henüz hiçbir içeriği favorilemedin.{% elif secili_kategori %}Bu kategoride henüz içerik yok.{% else %}Henüz hiç içerik eklenmemiş.{% endif %}
+      {% if yukleyebilir and not favoriler_mi %}<br><a href="{% url 'egitim_yonetim' %}" style="color:#162AA3;">Eğitim Yönetimi'nden içerik ekle →</a>{% endif %}
     </div>
     {% endfor %}
+    </div>
   {% endif %}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 (function () {
+  // --- Hamburger menü aç/kapa ---
+  var hambBtn = document.getElementById('ac-hamb-btn');
+  var perde = document.getElementById('ac-perde');
+  var menu = document.getElementById('ac-menu');
+  function menuKapat() { perde.classList.remove('acik'); menu.classList.remove('acik'); }
+  hambBtn.addEventListener('click', function () { perde.classList.add('acik'); menu.classList.add('acik'); });
+  perde.addEventListener('click', menuKapat);
+
+  // --- Arama: başlığa göre anlık filtre ---
+  var aramaKutusu = document.getElementById('ac-arama');
+  var liste = document.getElementById('ac-liste');
+  if (aramaKutusu && liste) {
+    aramaKutusu.addEventListener('input', function () {
+      var q = aramaKutusu.value.trim().toLowerCase();
+      liste.querySelectorAll('[data-ara]').forEach(function (el) {
+        el.style.display = el.getAttribute('data-ara').indexOf(q) === -1 ? 'none' : '';
+      });
+    });
+  }
+
+  // --- Favori yıldızı ---
+  document.querySelectorAll('.ac-yildiz').forEach(function (yildiz) {
+    yildiz.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var id = yildiz.getAttribute('data-dokuman-id');
+      var form = new FormData();
+      form.append('dokuman_id', id);
+      fetch('{% url "academy_favori_toggle" %}', {
+        method: 'POST', body: form,
+        headers: { 'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '' },
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.ok) { yildiz.classList.toggle('dolu', !!d.favori); }
+      }).catch(function () {});
+    });
+  });
+
   // --- Buton → panel açma/kapama (PDF/video butonları) ---
   document.querySelectorAll('.ac-buton').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -154,9 +244,11 @@
 
   // --- İçecek Hazırlama video ızgarası: karta basınca oynat ---
   document.querySelectorAll('.ac-video-kart').forEach(function (kart) {
-    kart.addEventListener('click', function () {
+    kart.addEventListener('click', function (e) {
+      if (e.target.closest('.ac-yildiz')) return;
       var video = kart.querySelector('video');
       if (!video) return;
+      if (!video.getAttribute('src')) { video.src = kart.getAttribute('data-url'); }
       video.setAttribute('controls', 'controls');
       video.muted = false;
       video.play();
