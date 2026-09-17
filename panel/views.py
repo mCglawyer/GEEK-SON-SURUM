@@ -4469,9 +4469,9 @@ def _video_kapak_cikar(dokuman):
 
 
 def academy(request):
-    """Geek Academy — herkese açık (rol kısıtlaması yok), sadece görüntüleme
-    amaçlı içerik kütüphanesi. Yükleme yetkisi hâlâ Eğitim Yönetimi
-    sayfasında (EGITIM_DUZENLE_ROLLER) — burası yalnızca izleme."""
+    """Geek Academy — herkese açık (rol kısıtlaması yok) içerik kütüphanesi
+    + (Personel/Şef için) oryantasyon sınavı durumu. Eskiden ayrı bir
+    'Eğitim' sayfası olan bu akış artık tek çatı altında (Academy)."""
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
     if _cikis_mi(request):
@@ -4497,6 +4497,15 @@ def academy(request):
     for d in dokumanlar:
         d.favori = d.id in favori_id_seti
         d.yeni = d.olusturma >= yeni_esik
+
+    # --- Sınav/oryantasyon durumu (eskiden /egitim/ sayfasındaydı) ---
+    ayar = _egitim_ayar_getir()
+    hedef = personel.rol in EGITIM_HEDEF_ROLLER
+    durum = _egitim_durum(personel) if hedef else None
+    soru_var = False
+    if hedef:
+        soru_var = len(_egitim_soru_havuzu(personel)) >= ayar.soru_sayisi
+
     return render(request, 'academy.html', {
         'personel': personel,
         'dokumanlar': dokumanlar,
@@ -4504,6 +4513,12 @@ def academy(request):
         'secili_kategori': kategori,
         'favoriler_mi': favoriler_mi,
         'yukleyebilir': personel.rol in EGITIM_DUZENLE_ROLLER,
+        'hedef': hedef,
+        'durum': durum,
+        'acik': _egitim_acik(personel.sube),
+        'soru_var': soru_var,
+        'gecme': ayar.gecme_puan,
+        'soru_sayisi': ayar.soru_sayisi,
     })
 
 
@@ -4525,36 +4540,8 @@ def academy_favori_toggle(request):
 
 
 def egitim(request):
-    if not request.user.is_authenticated:
-        return redirect('ana_sayfa')
-    if _cikis_mi(request):
-        return _logout(request)
-    personel = _aktif_personel(request)
-    if personel is None:
-        return redirect('ana_sayfa')
-    ayar = _egitim_ayar_getir()
-    acik = _egitim_acik(personel.sube)
-    hedef = personel.rol in EGITIM_HEDEF_ROLLER
-    yonetebilir = personel.rol in EGITIM_GORUNTULE_ROLLER
-    durum = _egitim_durum(personel) if hedef else None
-    if hedef:
-        dok_qs = EgitimDokuman.objects.filter(aktif=True).filter(Q(sube__isnull=True) | Q(sube=personel.sube))
-        soru_var = len(_egitim_soru_havuzu(personel)) >= ayar.soru_sayisi
-    else:
-        dok_qs = EgitimDokuman.objects.filter(aktif=True)
-        soru_var = EgitimSoru.objects.filter(aktif=True).count() >= ayar.soru_sayisi
-    return render(request, 'egitim.html', {
-        'personel': personel,
-        'aktif': 'egitim',
-        'dokumanlar': list(dok_qs),
-        'durum': durum,
-        'hedef': hedef,
-        'yonetebilir': yonetebilir,
-        'soru_var': soru_var,
-        'acik': acik,
-        'gecme': ayar.gecme_puan,
-        'soru_sayisi': ayar.soru_sayisi,
-    })
+    """Eskiden ayrı bir sayfaydı; artık her şey Academy'de (tek çatı)."""
+    return redirect('academy')
 
 
 def egitim_test(request):

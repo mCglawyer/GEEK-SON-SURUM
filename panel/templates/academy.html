@@ -40,6 +40,9 @@
   .ac-arama:focus { outline:none; border-color:#162AA3; }
   .ac-baslik-satiri { display:flex; align-items:center; justify-content:space-between; margin-bottom:.8rem; }
   .ac-baslik-satiri h1 { font-size:1.05rem; margin:0; color:#0B1020; }
+  .ac-sinav-hero { background:#EEF1FC; border:1px solid #DCE2F8; border-radius:14px; padding:1rem 1.1rem; margin-bottom:1.2rem; }
+  .ac-sinav-not { margin:0 0 .7rem; font-size:.9rem; color:#1B2233; line-height:1.5; }
+  .ac-sinav-aksiyon { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
 
   .ac-buton {
     width:100%; display:flex; align-items:center; justify-content:space-between; gap:.5rem;
@@ -92,6 +95,7 @@
 
 {% block gövde %}
 <div hidden>{% csrf_token %}</div>
+{% include '_egitim_koruma.html' %}
 <div class="ac-topbar">
   <div class="ac-sol">
     <button type="button" class="ac-hamb" id="ac-hamb-btn" aria-label="Menü">
@@ -99,7 +103,10 @@
     </button>
     <div class="ac-marka"><img src="{% static 'images/geek_logo_white.png' %}" alt=""> Academy</div>
   </div>
-  <a href="{% url 'ana_sayfa' %}" class="ac-geri">← Panelim'e Dön</a>
+  <div class="ac-sol">
+    {% if yukleyebilir %}<a href="{% url 'egitim_yonetim' %}" class="ac-geri">Yönetim</a>{% endif %}
+    <a href="{% url 'ana_sayfa' %}" class="ac-geri">← Panelim'e Dön</a>
+  </div>
 </div>
 
 <div class="ac-perde" id="ac-perde"></div>
@@ -114,6 +121,24 @@
 </nav>
 
 <div class="ac-govde">
+  {% if hedef %}
+  <div class="ac-sinav-hero">
+    {% if durum.tamamlandi %}<p class="ac-sinav-not">✅ Oryantasyon eğitimini tamamladın.</p>
+    {% elif durum.inceleme_bekliyor %}<p class="ac-sinav-not">📝 Yazılı sorular eğitmen/operatör tarafından okunuyor. Sonucun kesinleşince bildirim alacaksın.</p>
+    {% elif durum.gecti %}<p class="ac-sinav-not">🎉 Sınavı geçtin! Devam edebilmen için son bir adım kaldı — sözleşmeyi onayla.</p>
+    {% else %}<p class="ac-sinav-not">Oryantasyon eğitimi ve sınavı bu sayfadaki içeriklerden hazırlanıyor.</p>
+    {% endif %}
+    <div class="ac-sinav-aksiyon">
+      {% if durum.gecti and not durum.tamamlandi and not durum.inceleme_bekliyor %}
+      <a href="{% url 'egitim_sozlesme' %}" class="btn btn-primary btn-mini">Sözleşmeyi Onayla</a>
+      {% elif not durum.tamamlandi and not durum.inceleme_bekliyor and not durum.gecti and acik and soru_var %}
+      <a href="{% url 'egitim_test' %}" class="btn btn-primary btn-mini">Sınava Başla</a>
+      {% endif %}
+      {% if durum.deneme and not durum.tamamlandi %}<a href="{% url 'egitim_sonucum' %}" class="ac-geri" style="color:#162AA3;">Son denemen: {{ durum.son_puan }}/{{ soru_sayisi }} — sonucu gör</a>{% endif %}
+      {% if durum.deneme and durum.tamamlandi %}<a href="{% url 'egitim_sonucum' %}" class="ac-geri" style="color:#162AA3;">Sınav sonucunu gör</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
   <div class="ac-baslik-satiri">
     <h1>{% if favoriler_mi %}⭐ Favorilerim{% elif secili_kategori %}{{ dokumanlar.0.get_kategori_display|default:"" }}{% else %}Tüm İçerikler{% endif %}</h1>
   </div>
