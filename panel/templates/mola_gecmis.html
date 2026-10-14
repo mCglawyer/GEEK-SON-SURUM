@@ -1,29 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Mola Takibi · Geek Panel
-<script>
-(function () {
-  var f = document.getElementById('mg-filtre');
-  if (!f) return;
-  var ac = document.getElementById('mg-f-ac'), det = document.getElementById('mg-f-detay');
-  ac.addEventListener('click', function () {
-    var a = det.classList.toggle('acik');
-    ac.setAttribute('aria-expanded', a ? 'true' : 'false');
-  });
-  var tarih = document.getElementById('mg-f-tarih');
-  function ozelGoster() {
-    var r = f.querySelector('input[name=hizli]:checked');
-    tarih.classList.toggle('gizli', !(r && r.value === 'ozel'));
-  }
-  f.querySelectorAll('input[name=hizli]').forEach(function (r) { r.addEventListener('change', ozelGoster); });
-  f.querySelectorAll('.mg-tarih').forEach(function (d) {
-    d.addEventListener('change', function () { f.querySelector('input[name=hizli][value=ozel]').checked = true; ozelGoster(); });
-  });
-  ozelGoster();
-  f.querySelectorAll('select').forEach(function (s) { s.addEventListener('change', function () { f.submit(); }); });
-  f.querySelectorAll('input[name=hizli]').forEach(function (r) { r.addEventListener('change', function () { if (r.value !== 'ozel') f.submit(); }); });
-})();
-</script>
-{% endblock %}
+{% block title %}Mola Takibi · Geek Panel{% endblock %}
 {% block body %}
 <div class="container">
   <div class="plan-head">

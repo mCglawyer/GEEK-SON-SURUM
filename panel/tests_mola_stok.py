@@ -261,6 +261,13 @@ class MolaRaporTestleri(TestCase):
         r = self.client.get(reverse('mola_gecmis') + '?hizli=bugun&sirala=uzun')
         self.assertEqual(r.context['gruplar'][0]['ad'], 'Ayşe')
 
+    def test_sayfa_basligi_temiz(self):
+        import re
+        r = self.client.get(reverse('mola_gecmis'))
+        baslik = re.search(r'<title>(.*?)</title>', r.content.decode(), re.S).group(1)
+        self.assertNotIn('<', baslik)
+        self.assertNotIn('function', baslik)
+
     def test_personel_raporu_goremez(self):
         self.client.force_login(self.p.user)
         self.assertEqual(self.client.get(reverse('mola_gecmis')).status_code, 302)
