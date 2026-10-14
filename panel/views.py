@@ -3044,11 +3044,17 @@ def mola_qr_giris(request, token):
             aktif.kullanilan_dk = gecen
             aktif.save(update_fields=['bitis', 'kullanilan_dk'])
             messages.success(request, "Molan bitti. Toplam %d dk mola kullandın." % gecen)
+        if islem == 'bitir' or (islem == 'sure_sec' and aktif is None):
+            # bitirme isteği (ilk ya da eski sekmeden tekrar) hiçbir zaman yeni mola başlatmasın
+            return redirect(reverse('mola_qr_giris', args=[token]) + '?bitti=1')
         return redirect('mola_qr_giris', token=token)
     aktif = _aktif_mola(personel)
     if aktif is None and request.headers.get('Sec-Fetch-Site') == 'cross-site':
         # başka bir siteden gelen bağlantı kendiliğinden mola başlatmasın
         return render(request, 'mola_qr_giris.html', {'personel': personel, 'hata': 'Molayı başlatmak için şubendeki QR kodu okut.'})
+    if aktif is None and request.GET.get('bitti'):
+        # "Molayı bitir"den dönen sayfa: yeni mola AÇMA (yenilense de açılmaz)
+        return render(request, 'mola_qr_giris.html', {'personel': personel, 'sube': tok.sube, 'bitti': True})
     if aktif is None:
         # QR okutulduğu an mola başlar; 15/45 seçimi sayfada, istediği zaman yapılır.
         aktif = MolaOturum.objects.create(personel=personel, sube=tok.sube, sure_dk=45,

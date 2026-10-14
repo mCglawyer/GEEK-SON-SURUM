@@ -17,6 +17,14 @@
     <h2>Mola QR sistemi şu an kapalı</h2>
     <p class="ea-not">{{ sube.ad }} · Sistem yönetici tarafından açıldığında molanı buradan başlatabilirsin.</p>
   </div>
+  {% elif bitti %}
+  <div class="card mola-kart">
+    <div class="mola-ikon">✓</div>
+    <h2>Molan bitti</h2>
+    <p class="mola-sube">{{ sube.ad }}</p>
+    <p class="ea-not">Yeni bir mola için şubendeki QR'ı tekrar okut.</p>
+    <a href="{% url 'ana_sayfa' %}" class="btn btn-primary mola-btn">Ana sayfa</a>
+  </div>
   {% elif aktif %}
   <div class="card mola-kart mola-aktif">
     <div class="mola-ikon"><svg class="mola-barista" viewBox="0 0 64 64" fill="none" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">

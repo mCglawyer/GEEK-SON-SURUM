@@ -70,6 +70,29 @@ class MolaTestleri(TestCase):
         m = MolaOturum.objects.get(personel=self.p)
         self.assertIsNotNone(m.bitis)
 
+    def test_bitir_sonrasi_yeni_mola_baslamaz(self):
+        self.client.get(self.url)
+        r = self.client.post(self.url, {'islem': 'bitir'}, follow=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(MolaOturum.objects.filter(personel=self.p).count(), 1)
+        self.assertFalse(MolaOturum.objects.filter(personel=self.p, bitis__isnull=True).exists())
+        self.assertContains(r, 'Molan bitti')
+        # sayfa yenilense de yeni mola açılmaz
+        self.client.get(r.redirect_chain[-1][0])
+        self.assertFalse(MolaOturum.objects.filter(personel=self.p, bitis__isnull=True).exists())
+
+    def test_bitirdikten_sonra_qr_tekrar_okutulursa_yeni_mola_baslar(self):
+        self.client.get(self.url)
+        self.client.post(self.url, {'islem': 'bitir'})
+        self.client.get(self.url)
+        self.assertEqual(MolaOturum.objects.filter(personel=self.p).count(), 2)
+
+    def test_eski_sekmeden_ikinci_bitir_yeni_mola_acmaz(self):
+        self.client.get(self.url)
+        self.client.post(self.url, {'islem': 'bitir'})
+        self.client.post(self.url, {'islem': 'bitir'}, follow=True)
+        self.assertEqual(MolaOturum.objects.filter(personel=self.p).count(), 1)
+
     def test_qr_kapaliyken_mola_acilmaz(self):
         MolaQRAyar.objects.update(acik=False)
         self.client.get(self.url)
