@@ -618,6 +618,8 @@ class MolaOturum(models.Model):
     personel = models.ForeignKey(Personel, on_delete=models.CASCADE, related_name='mola_oturumlari')
     sube = models.ForeignKey(Sube, null=True, blank=True, on_delete=models.SET_NULL, related_name='mola_oturumlari')
     sure_dk = models.IntegerField(default=45)
+    # QR okutulduğu an mola başlar; 15/45 seçimi sonradan yapılabilir. Seçilmezse 45 dk geçerlidir.
+    sure_secildi = models.BooleanField(default=True)
     baslangic = models.DateTimeField()
     bitis = models.DateTimeField(null=True, blank=True)
     kullanilan_dk = models.IntegerField(null=True, blank=True, verbose_name="Kullanılan Süre (dk)")

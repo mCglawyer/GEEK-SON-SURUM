@@ -1,13 +1,14 @@
-  <div class="card sv-talep">
-    <div class="sv-head">
-      <div><b>{{ t.sube.ad }}</b> · #{{ t.id }}<div class="sv-meta">{{ t.olusturan_ad|default:"—" }} · {{ t.olusturma|date:"d.m.Y H:i" }}</div></div>
+  <details class="card sv-talep"{% if t.mode and forloop.first %} open{% endif %}>
+    <summary class="sv-head">
+      <div class="sv-bas"><b>{{ t.sube.ad }}</b> <span class="sv-no">#{{ t.id }}</span><div class="sv-meta">{{ t.kalemler.all|length }} kalem · {{ t.olusturan_ad|default:"—" }} · {{ t.olusturma|date:"d.m H:i" }}</div></div>
       {% if t.durum == 'Talep' %}<span class="badge badge-wait">Satın Almada</span>
       {% elif t.durum == 'Sevkiyatta' %}<span class="badge badge-info">Sevkiyatta</span>
       {% elif t.durum == 'Onay Bekliyor' %}<span class="badge badge-wait">Çıkış Onayı</span>
       {% elif t.durum == 'Onaylandı' %}<span class="badge badge-ok">Onaylandı</span>
       {% elif t.durum == 'Reddedildi' %}<span class="badge badge-no">Düzeltmede</span>
       {% else %}<span class="badge badge-ok">{{ t.durum }}</span>{% endif %}
-    </div>
+    </summary>
+    <div class="sv-govde">
 
     {% if t.mode == 'sa' %}
     <form method="post">{% csrf_token %}
@@ -129,4 +130,5 @@
     </div>
     {% endif %}
     {% endif %}
-  </div>
+      </div>
+  </details>

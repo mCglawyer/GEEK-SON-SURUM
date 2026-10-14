@@ -29,6 +29,7 @@
     {% else %}
     <form method="post" class="stok-form">{% csrf_token %}
       <input type="hidden" name="islem" value="stok_kaydet">
+      <input type="hidden" name="kayit_ay" id="kayit-ay" value="">
       {% for g in gruplar %}
       <div class="card stok-grup">
         <h3>{{ g.kategori }}</h3>
@@ -94,6 +95,37 @@
 </div>
 
 {% if is_sef and katalog_var %}
+<div class="ay-onay" id="ay-onay" hidden role="dialog" aria-modal="true" aria-labelledby="ay-onay-baslik">
+  <div class="ay-onay-kutu">
+    <h3 id="ay-onay-baslik">Bu hangi ayın stoğu?</h3>
+    <p class="ea-not">Girdiğin sayım seçtiğin aya kaydedilecek. Gece 12'den sonra giriyorsan önceki ayı seç.</p>
+    <div class="ay-onay-secim">
+      {% for o in ay_secenekler %}
+      <button type="button" class="btn btn-primary ay-onay-btn" data-ay="{{ o.deger }}" data-var="{{ o.var|yesno:'1,0' }}">{{ o.etiket }}{% if o.bu_ay %}<small>bu ay</small>{% endif %}{% if o.var %}<small>kayıt var, güncellenir</small>{% endif %}</button>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn btn-ghost" id="ay-onay-vazgec">Vazgeç</button>
+  </div>
+</div>
+<script>
+(function () {
+  var form = document.querySelector('.stok-form'), kutu = document.getElementById('ay-onay');
+  if (!form || !kutu) return;
+  var gonderiyor = false;
+  form.addEventListener('submit', function (e) {
+    if (gonderiyor) return;
+    e.preventDefault(); kutu.hidden = false;
+    var ilk = kutu.querySelector('.ay-onay-btn'); if (ilk) ilk.focus();
+  });
+  kutu.addEventListener('click', function (e) {
+    var b = e.target.closest('.ay-onay-btn');
+    if (b) { document.getElementById('kayit-ay').value = b.dataset.ay; gonderiyor = true;
+      kutu.querySelectorAll('button').forEach(function (x) { x.disabled = true; }); form.submit(); return; }
+    if (e.target.id === 'ay-onay-vazgec' || e.target === kutu) kutu.hidden = true;
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') kutu.hidden = true; });
+})();
+</script>
 <script>
 (function () {
   function num(v){ v=parseFloat((v||'').toString().replace(',','.')); return isNaN(v)?0:v; }

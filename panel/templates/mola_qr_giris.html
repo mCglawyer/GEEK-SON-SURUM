@@ -29,10 +29,23 @@
       <path d="M43 26c0-2 2-2 2-4M48 26c0-2 2-2 2-4"/>
     </svg></div>
     <h2>Moladasın</h2>
-    <p class="mola-sube">{{ sube.ad }} · {{ aktif.sure_dk }} dakikalık mola</p>
+    <p class="mola-sube">{{ sube.ad }}{% if aktif.sure_secildi %} · {{ aktif.sure_dk }} dakikalık mola{% endif %}</p>
     <p class="mola-sayac" id="mola-sayac" data-baslangic="{{ aktif.baslangic|date:'c' }}">00:00</p>
+    {% if not aktif.sure_secildi %}
+    <div class="mola-sec">
+      <p class="ea-not"><b>Ne kadar mola kullanacaksın?</b> Süre, QR'ı okuttuğun andan itibaren sayılıyor.</p>
+      <div class="mola-sure-btn">
+        {% for s in sureler %}
+        <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="sure_sec"><input type="hidden" name="sure" value="{{ s }}">
+          <button class="btn btn-primary mola-btn">{{ s }} dk</button>
+        </form>
+        {% endfor %}
+      </div>
+      <p class="ea-not">Seçmezsen 45 dk sayılır.</p>
+    </div>
+    {% endif %}
     <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="bitir">
-      <button class="btn btn-primary mola-btn">Molayı Bitir</button>
+      <button class="btn {% if aktif.sure_secildi %}btn-primary{% else %}btn-ghost{% endif %} mola-btn">Molayı Bitir</button>
     </form>
     <p class="ea-not">Döndüğünü bildirmek için QR'ı tekrar okutup "Molayı Bitir"e basabilirsin.</p>
   </div>

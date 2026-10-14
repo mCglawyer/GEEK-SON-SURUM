@@ -207,3 +207,82 @@ html[data-theme="dark"] .lb-overlay { background:rgba(2,3,12,.95); }
 
 /* koyu modda toplam satırları */
 html[data-theme="dark"] .zy-tablo tr.toplam td { background:var(--surface-2); color:var(--ink); border-top-color:#3347D6; }
+
+/* ---- Stok: hangi ayın sayımı onayı ---- */
+.ay-onay { position:fixed; inset:0; z-index:200; background:rgba(11,15,46,.55); display:flex; align-items:center; justify-content:center; padding:1rem; }
+.ay-onay[hidden] { display:none; }
+.ay-onay-kutu { background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:1.3rem; width:100%; max-width:420px; box-shadow:var(--shadow); text-align:center; }
+.ay-onay-kutu h3 { margin:0 0 .3rem; }
+.ay-onay-secim { display:flex; flex-direction:column; gap:.6rem; margin:1rem 0 .8rem; }
+.ay-onay-btn { display:flex; flex-direction:column; align-items:center; gap:.1rem; min-height:56px; font-size:1.05rem; }
+.ay-onay-btn small { font-size:.72rem; font-weight:500; opacity:.85; }
+
+/* ============================================================================
+   SEVKİYAT — sade kartlar (satın alma, sevkiyat, çıkış onayı, şef)
+   ============================================================================ */
+.sv-talep { padding:0; overflow:hidden; }
+.sv-talep > summary.sv-head { list-style:none; cursor:pointer; padding:.85rem 1rem; margin:0; align-items:center; min-height:56px; }
+.sv-talep > summary.sv-head::-webkit-details-marker { display:none; }
+.sv-talep > summary.sv-head::after { content:"\203A"; font-size:1.4rem; color:var(--muted); margin-left:.2rem; transition:transform .15s; line-height:1; }
+.sv-talep[open] > summary.sv-head::after { transform:rotate(90deg); }
+.sv-talep > summary.sv-head > .badge { margin-left:auto; flex:none; }
+.sv-no { color:var(--muted); font-weight:500; font-size:.85rem; }
+.sv-bas { min-width:0; }
+.sv-govde { padding:.1rem 1rem 1rem; border-top:1px solid var(--line); }
+.sv-talep[open] > summary.sv-head { background:var(--surface-2); }
+
+/* kalem satırı: ad üstte, altında "istenen" + miktar + birim */
+.sv-kalemler li.sv-kalem-edit { display:grid; grid-template-columns:1fr auto; gap:.15rem .8rem; align-items:center; padding:.6rem 0; }
+.sv-kalem-edit .sv-urun-ad { grid-column:1; }
+.sv-kalem-edit .sv-adet { grid-column:1; font-size:.78rem; }
+.sv-kalem-edit .sv-girdi { grid-column:2; grid-row:1 / span 2; display:flex; gap:.4rem; }
+.sv-kalem-edit .sv-miktar { width:84px; min-height:46px; text-align:center; font-weight:600; }
+.sv-kalem-edit .sv-birim { min-height:46px; width:auto; min-width:88px; }
+.sv-hazir-li { grid-template-columns:auto 1fr auto !important; }
+.sv-hazir-li .sv-hazir-kutu { grid-column:1; grid-row:1 / span 2; }
+.sv-hazir-li .sv-urun-ad, .sv-hazir-li .sv-adet { grid-column:2; }
+.sv-hazir-li .sv-girdi { grid-column:3; }
+.sv-hazir-li.hazir .sv-urun-ad { text-decoration:line-through; color:var(--muted); }
+.sv-hazir-kutu input { width:26px; height:26px; }
+.sv-talep form > .btn-primary, .sv-cikis-btns .btn { min-height:48px; }
+.sv-talep form > .btn-primary { width:100%; margin-top:.8rem; }
+.sv-cikis-btns { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
+.sv-cikis-btns .btn { width:100%; margin:0; }
+.sv-iptal-form { text-align:center; }
+.sv-iptal-form .btn-danger { background:transparent; color:var(--no); border:none; box-shadow:none; text-decoration:underline; font-weight:500; }
+.sv-ek { margin-top:.6rem; }
+@media (max-width:560px) {
+  .sv-cikis-btns { grid-template-columns:1fr; }
+  .sv-kalem-edit .sv-miktar { width:72px; }
+  .sv-kalem-edit .sv-birim { min-width:78px; padding-left:.5rem; }
+}
+html[data-theme="dark"] .sv-talep[open] > summary.sv-head { background:var(--surface-2); }
+
+/* Takvim: dar ekranda şube adı yerine nokta (harf harf kırılmasın) */
+@media (max-width:700px) {
+  .sv-tkv-gun { min-height:46px; }
+  .sv-tkv-subeler { flex-direction:row; flex-wrap:wrap; justify-content:center; gap:3px; }
+  .sv-tkv-sube-rozet { font-size:0; width:8px; height:8px; padding:0; border-radius:50%; min-width:0; overflow:hidden; }
+}
+
+/* dar ekranda kalem satırı: ad + açıklama üstte, miktar/birim altta tam genişlik */
+@media (max-width:560px) {
+  .sv-kalemler li.sv-kalem-edit { grid-template-columns:1fr; }
+  .sv-kalem-edit .sv-girdi { grid-column:1; grid-row:auto; margin-top:.35rem; }
+  .sv-kalem-edit .sv-miktar { width:96px; }
+  .sv-kalem-edit .sv-birim { flex:1; }
+  .sv-hazir-li { grid-template-columns:auto 1fr !important; }
+  .sv-hazir-li .sv-girdi { grid-column:1 / -1; }
+}
+
+/* dar ekranda sütun asla ekrandan geniş olmasın */
+.ekip-grid { grid-template-columns:repeat(auto-fit, minmax(min(380px,100%), 1fr)); }
+.sv-kalem-edit .sv-girdi { width:100%; }
+@media (min-width:561px) { .sv-kalem-edit .sv-girdi { width:auto; } }
+
+/* taşma güvenlikleri */
+select, input, textarea { max-width:100%; }
+.sube-sec { max-width:100%; min-width:0; }
+.yon-secimler { max-width:100%; flex-wrap:wrap; }
+.tarih-aralik { display:flex; flex-wrap:wrap; align-items:center; gap:.4rem; max-width:100%; }
+.tarih-aralik input[type=date] { flex:1 1 130px; min-width:0; }

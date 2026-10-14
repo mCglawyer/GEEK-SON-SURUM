@@ -1344,6 +1344,29 @@ def irsaliye_sayfa(request):
         'bugun': today.strftime('%Y-%m-%d'),
     })
 
+_TR_AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+
+
+def _stok_ay_secenekleri(ay_str, sube):
+    """Kayıt sırasında sorulacak aylar: önceki ay + bu ay (+ ekranda açık olan farklı bir ay).
+    'var' = o şubenin o ay için kaydı zaten var (üzerine yazılacağı için uyarılır)."""
+    bugun = timezone.localdate()
+    bu_ay = bugun.replace(day=1)
+    onceki = (bu_ay - datetime.timedelta(days=1)).replace(day=1)
+    adaylar = [onceki, bu_ay]
+    try:
+        acik = _ay_araligi(ay_str)[0]
+        if acik not in adaylar:
+            adaylar.insert(0, acik)
+    except Exception:
+        pass
+    mevcut = set()
+    if sube is not None:
+        mevcut = set(StokSayim.objects.filter(sube=sube, ay__in=adaylar).values_list('ay', flat=True))
+    return [{'deger': a.strftime('%Y-%m'), 'etiket': '%s %d' % (_TR_AYLAR[a.month - 1], a.year),
+             'var': a in mevcut, 'bu_ay': a == bu_ay} for a in adaylar]
+
+
 def stok_sayimi(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -1370,6 +1393,12 @@ def stok_sayimi(request):
 
     if request.method == 'POST' and is_sef and sel_sube:
         if request.POST.get('islem') == 'stok_kaydet':
+            # Hangi ayın sayımı? Şef kaydederken seçer (gece 12'den sonra ay değişebiliyor).
+            izinli_aylar = {o['deger'] for o in _stok_ay_secenekleri(ay_str, None)}
+            secim = (request.POST.get('kayit_ay') or '').strip()
+            if secim and secim in izinli_aylar:
+                ay_str = secim
+                ay_ilk, _ = _ay_araligi(ay_str)
             sayim, _olusan = StokSayim.objects.get_or_create(sube=sel_sube, ay=ay_ilk)
             sayim.giren = personel
             sayim.giren_ad = personel.ad_soyad
@@ -1438,6 +1467,7 @@ def stok_sayimi(request):
         gruplar = [{'kategori': k, 'urunler': v} for k, v in kat_map.items()]
 
     return render(request, 'stok.html', {
+        'ay_secenekler': _stok_ay_secenekleri(ay_str, sel_sube) if is_sef else [],
         'personel': personel, 'aktif': 'stok', 'is_sef': is_sef, 'is_viewer': is_viewer,
         'subeler': subeler, 'sel_sube': sel_sube, 'gruplar': gruplar, 'sayim': sayim,
         'ek_kalemler': ek_kalemler,
@@ -2975,10 +3005,11 @@ def mola_qr_giris(request, token):
                 taze_mi = (timezone.now().timestamp() - float(tazelik)) <= MOLA_QR_GECERLILIK_SN
             except (TypeError, ValueError):
                 taze_mi = False
-        if not taze_mi:
+        if not taze_mi and islem != 'sure_sec':
             messages.error(request, "QR kodunun üzerinden biraz zaman geçmiş. Lütfen QR'ı tekrar okut.")
             return redirect('mola_tara')
         if islem == 'baslat' and aktif is None:
+            # (eski sayfa/yenileme uyumluluğu) süre seçilerek doğrudan başlatma
             try:
                 sure = int(request.POST.get('sure', '45'))
             except (TypeError, ValueError):
@@ -2987,6 +3018,20 @@ def mola_qr_giris(request, token):
                 sure = 45
             MolaOturum.objects.create(personel=personel, sube=tok.sube, sure_dk=sure, baslangic=timezone.now())
             messages.success(request, "Molan başladı (%d dk). Döndüğünde bu QR'ı tekrar okut." % sure)
+        elif islem == 'sure_sec':
+            try:
+                sure = int(request.POST.get('sure', ''))
+            except (TypeError, ValueError):
+                sure = 0
+            if aktif is None or aktif.sure_secildi:
+                messages.info(request, "Mola süren zaten belirlenmiş.")
+            elif sure not in MOLA_SURELER:
+                messages.error(request, "Geçersiz mola süresi.")
+            else:
+                aktif.sure_dk = sure
+                aktif.sure_secildi = True
+                aktif.save(update_fields=['sure_dk', 'sure_secildi'])
+                messages.success(request, "Mola süren %d dk olarak kaydedildi. Süre, QR'ı okuttuğun andan itibaren sayılıyor." % sure)
         elif islem == 'baslat' and aktif is not None:
             messages.info(request, "Zaten aktif bir molan var.")
         elif islem == 'bitir' and aktif is None:
@@ -2999,6 +3044,13 @@ def mola_qr_giris(request, token):
             messages.success(request, "Molan bitti. Toplam %d dk mola kullandın." % gecen)
         return redirect('mola_qr_giris', token=token)
     aktif = _aktif_mola(personel)
+    if aktif is None and request.headers.get('Sec-Fetch-Site') == 'cross-site':
+        # başka bir siteden gelen bağlantı kendiliğinden mola başlatmasın
+        return render(request, 'mola_qr_giris.html', {'personel': personel, 'hata': 'Molayı başlatmak için şubendeki QR kodu okut.'})
+    if aktif is None:
+        # QR okutulduğu an mola başlar; 15/45 seçimi sayfada, istediği zaman yapılır.
+        aktif = MolaOturum.objects.create(personel=personel, sube=tok.sube, sure_dk=45,
+                                          sure_secildi=False, baslangic=timezone.now())
     kalan = None
     if aktif is not None:
         bitecek = aktif.baslangic + datetime.timedelta(minutes=aktif.sure_dk)
