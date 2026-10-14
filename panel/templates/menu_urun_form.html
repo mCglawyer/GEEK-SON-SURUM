@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}{% if urun %}{{ urun.urun_adi }}{% else %}Yeni ürün{% endif %} · {{ marka.ad }}{% endblock %}
+{% block body %}
+{% include '_menu_stil.html' %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>{% if urun %}Ürünü düzenle{% else %}Yeni ürün{% endif %}</h2><span class="plan-aralik">{{ marka.ad }}{% if urun %} · kod: {{ urun.kod }}{% endif %}</span></div>
+    <a class="btn btn-ghost btn-mini" href="{% url 'menu_urunler' marka.kod %}{% if geri_kat %}?kat={{ geri_kat }}{% endif %}">← Listeye dön</a>
+  </div>
+  {% include '_menu_mesajlar.html' %}
+  {% if form.non_field_errors %}<div class="alert alert-error">{{ form.non_field_errors }}</div>{% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="card" id="mn-form">
+    {% csrf_token %}
+
+    <div class="mn-bolum" style="margin-top:0">Temel bilgiler</div>
+    <div class="mn-form-izgara">
+      <div>
+        <label class="mn-lbl" for="{{ form.kategori.id_for_label }}">Kategori</label>{{ form.kategori }}
+        {% for e in form.kategori.errors %}<div class="mn-hata">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="mn-lbl" for="{{ form.fiyat.id_for_label }}">Fiyat (₺)</label>{{ form.fiyat }}
+        {% for e in form.fiyat.errors %}<div class="mn-hata">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="mn-lbl" for="{{ form.urun_adi.id_for_label }}">Ürün adı (TR)</label>{{ form.urun_adi }}
+        {% for e in form.urun_adi.errors %}<div class="mn-hata">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="mn-lbl" for="{{ form.urun_adi_en.id_for_label }}">Ürün adı (EN)</label>{{ form.urun_adi_en }}
+      </div>
+      {% if form.kod %}
+      <div class="tam">
+        <label class="mn-lbl" for="{{ form.kod.id_for_label }}">Ürün kodu <span class="ea-not">(boş bırakırsan üründen otomatik üretilir, sonradan değişmez)</span></label>{{ form.kod }}
+        {% for e in form.kod.errors %}<div class="mn-hata">{{ e }}</div>{% endfor %}
+      </div>
+      {% endif %}
+      <div class="tam">
+        <label style="display:flex;gap:.6rem;align-items:center;font-weight:600">{{ form.aktif }} Menüde göster <span class="ea-not">(kapatırsan silinmeden gizlenir)</span></label>
+      </div>
+    </div>
+
+    <div class="mn-bolum">Açıklama</div>
+    <div class="mn-form-izgara">
+      <div><label class="mn-lbl" for="{{ form.aciklama.id_for_label }}">Açıklama (TR)</label>{{ form.aciklama }}</div>
+      <div><label class="mn-lbl" for="{{ form.aciklama_en.id_for_label }}">Açıklama (EN)</label>{{ form.aciklama_en }}</div>
+      {% if form.icerik %}
+      <div><label class="mn-lbl" for="{{ form.icerik.id_for_label }}">İçerik (TR)</label>{{ form.icerik }}</div>
+      <div><label class="mn-lbl" for="{{ form.icerik_en.id_for_label }}">İçerik (EN)</label>{{ form.icerik_en }}</div>
+      {% endif %}
+    </div>
+
+    <div class="mn-bolum">Besin değerleri</div>
+    <div class="mn-form-izgara">
+      <div><label class="mn-lbl" for="{{ form.kalori.id_for_label }}">Kalori (kcal)</label>{{ form.kalori }}
+        {% for e in form.kalori.errors %}<div class="mn-hata">{{ e }}</div>{% endfor %}</div>
+      <div><label class="mn-lbl" for="{{ form.protein.id_for_label }}">Protein (g) <span class="ea-not">· sitede yalnızca 40 g ve üzeri gösterilir</span></label>{{ form.protein }}
+        {% for e in form.protein.errors %}<div class="mn-hata">{{ e }}</div>{% endfor %}</div>
+    </div>
+
+    <div class="mn-bolum">Alerjenler ve beslenme</div>
+    <div class="mn-chipler">
+      {% for ad, etiket, alan in alerjen_alanlari %}
+      <label class="mn-chip">{{ alan }}<span>{{ etiket }}</span></label>
+      {% endfor %}
+      <label class="mn-chip vegan">{{ form.vegan }}<span>🌱 Vegan</span></label>
+    </div>
+
+    <div class="mn-bolum">Şube notu</div>
+    <div class="mn-form-izgara">
+      <div><label class="mn-lbl" for="{{ form.sube_notu.id_for_label }}">Şube notu (TR)</label>{{ form.sube_notu }}</div>
+      <div><label class="mn-lbl" for="{{ form.sube_notu_en.id_for_label }}">Şube notu (EN)</label>{{ form.sube_notu_en }}</div>
+    </div>
+
+    <div class="mn-bolum">Fotoğraf</div>
+    <div class="mn-foto">
+      <div class="mn-onizleme" id="mn-onizleme" {% if onizleme %}style="background-image:url('{{ onizleme }}')"{% endif %}>{% if not onizleme %}Fotoğraf yok{% endif %}</div>
+      <div style="flex:1;min-width:220px">
+        {{ form.foto }}
+        <div class="ea-not" id="mn-foto-bilgi" style="margin-top:.4rem">Seçtiğin fotoğraf yüklenmeden önce otomatik olarak en fazla 1200 px’e küçültülür.</div>
+        {% for e in form.foto.errors %}<div class="mn-hata">{{ e }}</div>{% endfor %}
+        {% if urun and urun.gorsel or urun and urun.gorsel_harici %}
+        <label style="display:flex;gap:.5rem;align-items:center;margin-top:.7rem;font-size:.85rem">{{ form.foto_kaldir }} Mevcut fotoğrafı kaldır</label>
+        {% endif %}
+        <label class="mn-lbl" for="{{ form.gorsel_harici.id_for_label }}" style="margin-top:.8rem">Harici görsel linki <span class="ea-not">(eski Drive linki; panelden fotoğraf yüklersen o kullanılır)</span></label>
+        {{ form.gorsel_harici }}
+      </div>
+    </div>
+
+    <div class="mn-sticky">
+      {% if urun %}<button type="submit" name="islem" value="sil" class="btn btn-danger btn-mini"
+        onclick="return confirm('“{{ urun.urun_adi|escapejs }}” kalıcı olarak silinsin mi? (Silmeden gizlemek için “Menüde göster” kutusunu kapat.)')" formnovalidate>Sil</button>{% else %}<span></span>{% endif %}
+      <button type="submit" class="btn btn-primary" id="mn-kaydet">Kaydet ve yayınla</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var inp = document.getElementById('mn-foto');
+  if (!inp) return;
+  var onizleme = document.getElementById('mn-onizleme');
+  var bilgi = document.getElementById('mn-foto-bilgi');
+  var kaydet = document.getElementById('mn-kaydet');
+  var MAX = 1200;
+
+  function kb(n) { return Math.round(n / 1024) + ' KB'; }
+
+  inp.addEventListener('change', function () {
+    var f = inp.files && inp.files[0];
+    if (!f) return;
+    var url = URL.createObjectURL(f);
+    var img = new Image();
+    img.onload = function () {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var olcek = Math.min(1, MAX / Math.max(w, h));
+      var cw = Math.round(w * olcek), ch = Math.round(h * olcek);
+      var c = document.createElement('canvas');
+      c.width = cw; c.height = ch;
+      var ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cw, ch);
+      ctx.drawImage(img, 0, 0, cw, ch);
+      c.toBlob(function (blob) {
+        URL.revokeObjectURL(url);
+        if (!blob) { bilgi.textContent = 'Fotoğraf küçültülemedi; sunucu küçültecek.'; return; }
+        var ad = (f.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg';
+        try {
+          var dt = new DataTransfer();
+          dt.items.add(new File([blob], ad, { type: 'image/jpeg' }));
+          inp.files = dt.files;
+          bilgi.textContent = 'Hazır: ' + cw + '×' + ch + ' px, ' + kb(blob.size) + ' (orijinal ' + kb(f.size) + ').';
+        } catch (e) {
+          bilgi.textContent = 'Tarayıcı küçültmeyi desteklemiyor; sunucu 1200 px’e küçültecek.';
+        }
+        onizleme.style.backgroundImage = "url('" + c.toDataURL('image/jpeg', 0.6) + "')";
+        onizleme.textContent = '';
+      }, 'image/jpeg', 0.85);
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      bilgi.textContent = 'Bu dosya görsel olarak okunamadı (HEIC ise galeriden JPEG olarak seç).';
+    };
+    img.src = url;
+  });
+
+  document.getElementById('mn-form').addEventListener('submit', function (e) {
+    if (e.submitter && e.submitter.value === 'sil') return;
+    if (kaydet) { kaydet.disabled = true; kaydet.textContent = 'Kaydediliyor…'; }
+  });
+})();
+</script>
+{% endblock %}

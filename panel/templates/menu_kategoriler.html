@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Kategoriler · {{ marka.ad }}{% endblock %}
+{% block body %}
+{% include '_menu_stil.html' %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>{{ marka.ad }} · Kategoriler</h2><span class="plan-aralik">Kod QR sitesinde sabittir; görünen ad değişebilir</span></div>
+    <a class="btn btn-ghost btn-mini" href="{% url 'menu_urunler' marka.kod %}">← Ürünlere dön</a>
+  </div>
+  {% include '_menu_mesajlar.html' %}
+
+  <div class="card">
+    <p class="ea-not" style="margin-top:0">QR sitesindeki kategori sırası sitenin kodunda sabittir. Buradaki sıra panelde ve CSV satır sırasında geçerlidir.
+      Sitede tanımlı olmayan bir kodla kategori eklersen, o kategorideki ürünler sitede görünmez.</p>
+    {% for k in kategoriler %}
+    <div class="mn-kat">
+      <form id="kaydet-{{ k.id }}" method="post" style="display:none">{% csrf_token %}<input type="hidden" name="islem" value="kaydet"><input type="hidden" name="kat_id" value="{{ k.id }}"></form>
+      <input class="input" form="kaydet-{{ k.id }}" name="ad" value="{{ k.ad }}" aria-label="Ad (TR)" placeholder="Ad (TR)">
+      <input class="input" form="kaydet-{{ k.id }}" name="ad_en" value="{{ k.ad_en }}" aria-label="Ad (EN)" placeholder="Ad (EN)">
+      <div class="mn-ok">
+        <button type="submit" form="kaydet-{{ k.id }}" class="btn btn-primary btn-mini">Kaydet</button>
+        <form method="post" style="margin:0">{% csrf_token %}<input type="hidden" name="islem" value="sirala"><input type="hidden" name="kat_id" value="{{ k.id }}"><input type="hidden" name="yon" value="yukari"><button class="mn-yon" title="Yukarı">↑</button></form>
+        <form method="post" style="margin:0">{% csrf_token %}<input type="hidden" name="islem" value="sirala"><input type="hidden" name="kat_id" value="{{ k.id }}"><input type="hidden" name="yon" value="asagi"><button class="mn-yon" title="Aşağı">↓</button></form>
+        <form method="post" style="margin:0" onsubmit="return confirm('“{{ k.ad|escapejs }}” kategorisi silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="sil"><input type="hidden" name="kat_id" value="{{ k.id }}"><button class="btn btn-danger btn-mini" {% if k.urun_sayisi %}disabled title="İçinde ürün var"{% endif %}>Sil</button></form>
+      </div>
+      <div class="kod">kod: <b>{{ k.kod }}</b> · {{ k.urun_sayisi }} ürün
+        {% if not k.sitede_tanimli %}<div class="mn-uyari">Bu kod QR sitesinde tanımlı değil — bu kategorideki ürünler sitede görünmez. Sitenin kodunda <code>CATEGORIES</code> dizisine eklenmesi gerekir.</div>{% endif %}</div>
+    </div>
+    {% empty %}
+    <p class="egitim-bos">Kategori yok. <code>python manage.py menu_aktar --yayinla</code> ile canlı Sheet’ten içeri aktar.</p>
+    {% endfor %}
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <h3 style="margin-top:0">Yeni kategori</h3>
+    <form method="post" class="mn-form-izgara">{% csrf_token %}
+      <input type="hidden" name="islem" value="ekle">
+      <div><label class="mn-lbl">Kod <span class="ea-not">(küçük harf/rakam, sonradan değişmez)</span></label><input class="input" name="kod" placeholder="ör. pizzalar" required pattern="[a-z0-9]{2,40}"></div>
+      <div><label class="mn-lbl">Ad (TR)</label><input class="input" name="ad" required></div>
+      <div><label class="mn-lbl">Ad (EN)</label><input class="input" name="ad_en"></div>
+      <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary">Ekle</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

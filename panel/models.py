@@ -1050,3 +1050,98 @@ class MusteriDegerlendirme(models.Model):
 
     def __str__(self):
         return '%s — %s/10 (%s)' % (self.sube, self.puan, self.olusturma.strftime('%d.%m.%Y'))
+
+
+# ------------------------------------------------------------------
+# QR Menü Yönetimi (Geek + Baga)
+# CSV sütunları ve marka şemaları için bkz. panel/menu_sema.py
+# ------------------------------------------------------------------
+class MenuMarka(models.Model):
+    """Yalnızca iki marka vardır: Geek ve Baga (migration ile oluşturulur)."""
+    kod = models.SlugField(max_length=20, unique=True, verbose_name="Kod")
+    ad = models.CharField(max_length=80, verbose_name="Marka Adı")
+    sira = models.PositiveIntegerField(default=0)
+    son_yayin = models.DateTimeField(null=True, blank=True, verbose_name="Son Başarılı CSV Yayını")
+    son_yayin_hata = models.CharField(max_length=400, blank=True, default='', verbose_name="Son Yayın Hatası")
+
+    class Meta:
+        ordering = ['sira', 'id']
+        verbose_name = "Menü Markası"
+        verbose_name_plural = "Menü Markaları"
+
+    def __str__(self):
+        return self.ad
+
+
+class MenuKategori(models.Model):
+    """Kategori KODU QR sitesinde sabittir (değişmez); görünen ad değişebilir."""
+    marka = models.ForeignKey(MenuMarka, on_delete=models.CASCADE, related_name='kategoriler')
+    kod = models.SlugField(max_length=40, verbose_name="Kategori Kodu")
+    ad = models.CharField(max_length=80, verbose_name="Ad (TR)")
+    ad_en = models.CharField(max_length=80, blank=True, default='', verbose_name="Ad (EN)")
+    sira = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sira', 'id']
+        unique_together = [('marka', 'kod')]
+        verbose_name = "Menü Kategorisi"
+        verbose_name_plural = "Menü Kategorileri"
+
+    def __str__(self):
+        return "%s / %s" % (self.marka.ad, self.ad)
+
+
+class MenuUrun(models.Model):
+    marka = models.ForeignKey(MenuMarka, on_delete=models.CASCADE, related_name='urunler')
+    kategori = models.ForeignKey(MenuKategori, on_delete=models.PROTECT, related_name='urunler')
+    kod = models.SlugField(max_length=80, verbose_name="Ürün Kodu")
+    urun_adi = models.CharField(max_length=160, verbose_name="Ürün Adı (TR)")
+    urun_adi_en = models.CharField(max_length=160, blank=True, default='', verbose_name="Ürün Adı (EN)")
+    fiyat = models.DecimalField(max_digits=8, decimal_places=2, default=0, verbose_name="Fiyat (₺)")
+    aciklama = models.TextField(blank=True, default='', verbose_name="Açıklama (TR)")
+    aciklama_en = models.TextField(blank=True, default='', verbose_name="Açıklama (EN)")
+    # Yalnızca Baga'da kullanılır
+    icerik = models.TextField(blank=True, default='', verbose_name="İçerik (TR)")
+    icerik_en = models.TextField(blank=True, default='', verbose_name="İçerik (EN)")
+    kalori = models.PositiveIntegerField(null=True, blank=True, verbose_name="Kalori (kcal)")
+    protein = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, verbose_name="Protein (g)")
+    # Alerjenler (Geek 11, Baga ilk 4'ünü kullanır: sut/yumurta/gluten/soya)
+    sut = models.BooleanField(default=False, verbose_name="Süt")
+    yumurta = models.BooleanField(default=False, verbose_name="Yumurta")
+    gluten = models.BooleanField(default=False, verbose_name="Gluten")
+    sert_kabuklu_yemis = models.BooleanField(default=False, verbose_name="Sert kabuklu yemiş")
+    yer_fistigi = models.BooleanField(default=False, verbose_name="Yer fıstığı")
+    susam = models.BooleanField(default=False, verbose_name="Susam")
+    soya = models.BooleanField(default=False, verbose_name="Soya")
+    hardal = models.BooleanField(default=False, verbose_name="Hardal")
+    sirke_tursu = models.BooleanField(default=False, verbose_name="Sirke / turşu")
+    balik = models.BooleanField(default=False, verbose_name="Balık")
+    koruyucu_madde = models.BooleanField(default=False, verbose_name="Koruyucu madde")
+    vegan = models.BooleanField(default=False, verbose_name="Vegan")
+    sube_notu = models.TextField(blank=True, default='', verbose_name="Şube Notu (TR)")
+    sube_notu_en = models.TextField(blank=True, default='', verbose_name="Şube Notu (EN)")
+    # Panelden yüklenen fotoğraf (R2). Yoksa gorsel_harici (eski Drive linki) kullanılır.
+    gorsel = models.ImageField(upload_to='menu/', null=True, blank=True, verbose_name="Fotoğraf")
+    gorsel_harici = models.CharField(max_length=600, blank=True, default='', verbose_name="Harici Görsel Linki")
+    sira = models.PositiveIntegerField(default=0)
+    aktif = models.BooleanField(default=True, verbose_name="Menüde Göster")
+    olusturma = models.DateTimeField(auto_now_add=True)
+    guncelleme = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['kategori__sira', 'sira', 'id']
+        unique_together = [('marka', 'kod')]
+        verbose_name = "Menü Ürünü"
+        verbose_name_plural = "Menü Ürünleri"
+
+    def __str__(self):
+        return "%s — %s" % (self.marka.ad, self.urun_adi)
+
+    def gorsel_url(self):
+        """CSV'ye ve önizlemeye yazılacak tam görsel adresi."""
+        if self.gorsel:
+            try:
+                return self.gorsel.url
+            except Exception:
+                pass
+        return self.gorsel_harici or ''

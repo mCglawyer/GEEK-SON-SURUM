@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import menu_views
 
 urlpatterns = [
     path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
@@ -87,4 +88,11 @@ urlpatterns = [
     path('kvkk/', views.kvkk, name='kvkk'),
     path('kullanim-kosullari/', views.kullanim_kosullari, name='kullanim_kosullari'),
     path('gizlilik/', views.gizlilik, name='gizlilik'),
+    # QR Menü Yönetimi (Geek + Baga) — Genel Müdür / Operatör / Yatırımcı
+    path('menu-yonetimi/', menu_views.menu_yonetim, name='menu_yonetim'),
+    path('menu-yonetimi/<slug:marka_kod>/', menu_views.menu_urunler, name='menu_urunler'),
+    path('menu-yonetimi/<slug:marka_kod>/urun/yeni/', menu_views.menu_urun_form, name='menu_urun_yeni'),
+    path('menu-yonetimi/<slug:marka_kod>/urun/<int:urun_id>/', menu_views.menu_urun_form, name='menu_urun_duzenle'),
+    path('menu-yonetimi/<slug:marka_kod>/kategoriler/', menu_views.menu_kategoriler, name='menu_kategoriler'),
+    path('menu-yonetimi/<slug:marka_kod>/yayinla/', menu_views.menu_yayinla_view, name='menu_yayinla'),
 ]

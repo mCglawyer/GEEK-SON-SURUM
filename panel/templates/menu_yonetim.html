@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}QR Menü Yönetimi · Geek Panel{% endblock %}
+{% block body %}
+{% include '_menu_stil.html' %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>QR Menü Yönetimi</h2><span class="plan-aralik">Geek ve Baga menüleri · değişiklikler QR sitelerine otomatik yayınlanır</span></div>
+  </div>
+  {% include '_menu_mesajlar.html' %}
+
+  <div class="mn-marka-izgara">
+    {% for k in kartlar %}
+    <div class="card mn-marka">
+      <h3>{{ k.marka.ad }}</h3>
+      <span class="ea-not">
+        {% if k.marka.son_yayin %}Son yayın: {{ k.marka.son_yayin|date:"d.m.Y H:i" }}{% else %}Henüz yayınlanmadı{% endif %}
+      </span>
+      {% if k.marka.son_yayin_hata %}<div class="mn-hata-kutu" style="margin-top:.7rem"><b>Son yayın başarısız:</b> {{ k.marka.son_yayin_hata }}</div>{% endif %}
+      <div class="mn-say">
+        <div><b>{{ k.aktif }}</b>menüde</div>
+        <div><b>{{ k.toplam }}</b>toplam ürün</div>
+        <div><b>{{ k.kategori }}</b>kategori</div>
+      </div>
+      <div class="mn-csv"><span id="csv-{{ k.marka.kod }}">{{ k.csv }}</span>
+        <button type="button" class="btn btn-ghost btn-mini" onclick="mnKopyala('csv-{{ k.marka.kod }}', this)">Kopyala</button></div>
+      <div class="mn-btnler">
+        <a class="btn btn-primary btn-mini" href="{% url 'menu_urunler' k.marka.kod %}">Ürünler</a>
+        <a class="btn btn-ghost btn-mini" href="{% url 'menu_urun_yeni' k.marka.kod %}">+ Ürün ekle</a>
+        <a class="btn btn-ghost btn-mini" href="{% url 'menu_kategoriler' k.marka.kod %}">Kategoriler</a>
+        <form method="post" action="{% url 'menu_yayinla' k.marka.kod %}" style="margin:0">{% csrf_token %}
+          <input type="hidden" name="sonraki" value="{% url 'menu_yonetim' %}">
+          <button type="submit" class="btn btn-ghost btn-mini">Yeniden yayınla</button>
+        </form>
+      </div>
+    </div>
+    {% empty %}
+    <p class="egitim-bos">Marka kaydı yok. <code>python manage.py migrate</code> çalıştırıldı mı?</p>
+    {% endfor %}
+  </div>
+</div>
+<script>
+function mnKopyala(id, btn){
+  var t = document.getElementById(id).textContent.trim();
+  var bitti = function(){ var e = btn.textContent; btn.textContent = 'Kopyalandı'; setTimeout(function(){ btn.textContent = e; }, 1500); };
+  if (navigator.clipboard) { navigator.clipboard.writeText(t).then(bitti); } else { var a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); bitti(); }
+}
+</script>
+{% endblock %}

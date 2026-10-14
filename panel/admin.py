@@ -5,7 +5,8 @@ from .models import (Sube, Personel, Vardiya, Puantaj, KodKilit, Kalibrasyon, Ir
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap,
                      DenetimBolum, DenetimMadde, Denetim, DenetimCevap,
                      GSosyalGonderi, GSosyalGorsel, IlginHaber, GeriBildirim,
-                     SubeDegerlendirmeToken, MusteriDegerlendirme)
+                     SubeDegerlendirmeToken, MusteriDegerlendirme,
+                     MenuMarka, MenuKategori, MenuUrun)
 
 @admin.register(Sube)
 class SubeAdmin(admin.ModelAdmin):
@@ -275,3 +276,53 @@ class MusteriDegerlendirmeAdmin(admin.ModelAdmin):
 @admin.register(SubeDegerlendirmeToken)
 class SubeDegerlendirmeTokenAdmin(admin.ModelAdmin):
     list_display = ('sube', 'token', 'olusturma')
+
+
+class _MenuYayinMixin:
+    """Admin'den yapılan menü değişiklikleri de QR menüsüne (CSV) yansısın."""
+
+    def _yayinla(self, request, marka):
+        from .menu_yayin import yayinla
+        ok, hata = yayinla(marka)
+        if ok:
+            self.message_user(request, "%s menüsü QR sitesine yayınlandı." % marka.ad)
+        else:
+            self.message_user(request, "Kayıt yapıldı ama QR menüsü yayınlanamadı: %s" % hata, level='ERROR')
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        self._yayinla(request, obj.marka)
+
+    def delete_model(self, request, obj):
+        marka = obj.marka
+        super().delete_model(request, obj)
+        self._yayinla(request, marka)
+
+    def delete_queryset(self, request, queryset):
+        markalar = {o.marka for o in queryset.select_related('marka')}
+        super().delete_queryset(request, queryset)
+        for m in markalar:
+            self._yayinla(request, m)
+
+
+@admin.register(MenuMarka)
+class MenuMarkaAdmin(admin.ModelAdmin):
+    list_display = ('ad', 'kod', 'son_yayin', 'son_yayin_hata')
+    readonly_fields = ('kod', 'son_yayin', 'son_yayin_hata')
+
+
+@admin.register(MenuKategori)
+class MenuKategoriAdmin(_MenuYayinMixin, admin.ModelAdmin):
+    list_display = ('ad', 'marka', 'kod', 'sira')
+    list_filter = ('marka',)
+
+    def get_readonly_fields(self, request, obj=None):
+        # Kategori kodu QR sitesinde sabittir; oluşturulduktan sonra değişmez.
+        return ('kod',) if obj else ()
+
+
+@admin.register(MenuUrun)
+class MenuUrunAdmin(_MenuYayinMixin, admin.ModelAdmin):
+    list_display = ('urun_adi', 'marka', 'kategori', 'fiyat', 'aktif')
+    list_filter = ('marka', 'kategori', 'aktif')
+    search_fields = ('urun_adi', 'urun_adi_en', 'kod')

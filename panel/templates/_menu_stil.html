@@ -1,0 +1,57 @@
+<style>
+.mn-mesaj{margin-bottom:.8rem}
+.mn-ust{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem}
+.mn-sek{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem}
+.mn-sek a{padding:.5rem .9rem;border-radius:999px;background:#fff;border:1px solid #E1E5EE;font-size:.88rem;font-weight:600;color:#3A4358;text-decoration:none}
+.mn-sek a.akt{background:var(--brand,#1F5FBF);border-color:var(--brand,#1F5FBF);color:#fff}
+.mn-marka-izgara{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
+.mn-marka h3{margin:0 0 .2rem;font-size:1.15rem}
+.mn-say{display:flex;gap:1.2rem;margin:.7rem 0;font-size:.85rem;color:#5B6478}
+.mn-say b{display:block;font-size:1.25rem;color:#1B2336}
+.mn-csv{display:flex;gap:.4rem;align-items:center;background:#F4F6FB;border-radius:10px;padding:.5rem .7rem;font-size:.76rem;word-break:break-all;margin:.6rem 0}
+.mn-csv span{flex:1}
+.mn-btnler{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem}
+.mn-filtre{display:grid;grid-template-columns:1fr 200px;gap:.6rem;margin-bottom:.8rem}
+@media(max-width:640px){.mn-filtre{grid-template-columns:1fr}}
+.mn-sat{display:grid;grid-template-columns:56px 1fr 112px 64px auto;gap:.7rem;align-items:center;padding:.65rem .2rem;border-bottom:1px solid #EEF1F6}
+.mn-sat.pasif{opacity:.55}
+.mn-alt2{display:contents}
+.mn-th{width:56px;height:56px;border-radius:10px;background:#EEF1F6 center/cover no-repeat;flex:none}
+.mn-ad{font-weight:600;line-height:1.25}
+.mn-alt{font-size:.78rem;color:#6A7388;margin-top:.15rem}
+.mn-fiyat{min-height:42px;text-align:right}
+.mn-akt{display:flex;flex-direction:column;align-items:center;font-size:.7rem;color:#6A7388;gap:.15rem}
+.mn-akt input{width:22px;height:22px}
+.mn-ok{display:flex;gap:.3rem;align-items:center}
+.mn-ok form{margin:0}
+.mn-ok button.mn-yon{border:1px solid #D9DEE9;background:#fff;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:.95rem}
+@media(max-width:640px){
+ .mn-sat{grid-template-columns:48px 1fr 92px;grid-template-areas:"t a f" "t b b"}
+ .mn-sat .mn-th{width:48px;height:48px;grid-area:t}
+ .mn-sat .mn-bil{grid-area:a}
+ .mn-sat .mn-fiyat{grid-area:f}
+ .mn-sat .mn-alt2{grid-area:b;display:flex;gap:.8rem;align-items:center;justify-content:space-between}
+}
+.mn-sticky{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,0),#fff 35%);padding:.9rem 0 1rem;display:flex;gap:.6rem;align-items:center;justify-content:space-between;flex-wrap:wrap;z-index:5}
+.mn-form-izgara{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+.mn-form-izgara .tam{grid-column:1/-1}
+@media(max-width:640px){.mn-form-izgara{grid-template-columns:1fr}}
+.mn-lbl{display:block;font-size:.8rem;font-weight:600;color:#3A4358;margin:0 0 .3rem}
+.mn-hata{color:#B3261E;font-size:.8rem;margin-top:.25rem}
+.mn-bolum{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:#6A7388;margin:1.2rem 0 .6rem;font-weight:700}
+.mn-chipler{display:flex;gap:.5rem;flex-wrap:wrap}
+.mn-chip{position:relative}
+.mn-chip input{position:absolute;opacity:0;inset:0;cursor:pointer;width:100%;height:100%;margin:0}
+.mn-chip span{display:inline-block;padding:.55rem .9rem;border-radius:999px;border:1.5px solid #D9DEE9;background:#fff;font-size:.88rem;font-weight:600;color:#3A4358}
+.mn-chip input:checked+span{background:#FFF1D6;border-color:#E3A21A;color:#7A4E00}
+.mn-chip.vegan input:checked+span{background:#E3F6EA;border-color:#2E9E5B;color:#13714C}
+.mn-foto{display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap}
+.mn-foto input[type=file]{font-size:.88rem;max-width:100%}
+.mn-foto input[type=file]::file-selector-button{margin-right:.7rem;padding:.55rem .9rem;border:1px solid #D9DEE9;border-radius:10px;background:#fff;font-weight:600;color:#1F3FA0;cursor:pointer}
+.mn-onizleme{width:150px;height:150px;border-radius:14px;background:#EEF1F6 center/cover no-repeat;border:1px solid #E1E5EE;display:flex;align-items:center;justify-content:center;color:#8A93A8;font-size:.78rem;text-align:center}
+.mn-kat{display:grid;grid-template-columns:1fr 1fr auto;gap:.6rem;align-items:center;padding:.8rem 0;border-bottom:1px solid #EEF1F6}
+.mn-kat .kod{font-size:.76rem;color:#6A7388;grid-column:1/-1}
+@media(max-width:640px){.mn-kat{grid-template-columns:1fr}}
+.mn-uyari{background:#FFF4E5;border:1px solid #F5D49B;color:#8A5300;border-radius:10px;padding:.55rem .75rem;font-size:.8rem;margin-top:.4rem}
+.mn-hata-kutu{background:#FDECEC;border:1px solid #F3C6C9;color:#8E2C31;border-radius:12px;padding:.8rem 1rem;font-size:.88rem;margin-bottom:1rem}
+</style>
