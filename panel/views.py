@@ -451,7 +451,7 @@ def vardiya_home(request):
 
 
 def _yonetici_vardiya(request, personel):
-    is_gm = personel.rol == Rol.GENEL_MUDUR
+    is_gm = personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR)
     subeler = _yon_subeler(personel)
     sel_sube = _yonetici_sube(request, subeler)
     secili = request.GET.get('hafta', 'gelecek')
@@ -722,7 +722,7 @@ def puantaj_sayfa(request):
     if personel is None or personel.rol == Rol.PERSONEL:
         return redirect('ana_sayfa')
 
-    is_gm = personel.rol == Rol.GENEL_MUDUR
+    is_gm = personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR)
     is_yon = personel.rol in UST_YONETIM or (personel.rol == Rol.MAGAZA_MUDURU and personel.sorumlu_subeler.exists())
     puantaj_duzenleyebilir = personel.rol in (Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR)
     subeler = _yon_subeler(personel) if is_yon else []
@@ -1762,7 +1762,7 @@ def sevkiyat_sayfa(request):
     is_satinalma = rol == Rol.SATIN_ALMA
     is_sevkiyat = rol == Rol.SEVKIYAT
     is_yon = rol in UST_YONETIM
-    cikis_yetkili = (rol in (Rol.GENEL_MUDUR, Rol.YATIRIMCI)) or is_satinalma
+    cikis_yetkili = (rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI)) or is_satinalma
     if not (is_sef or is_satinalma or is_sevkiyat or is_yon):
         return redirect('ana_sayfa')
 
@@ -2515,7 +2515,7 @@ CALISMAYAN_TIPLER = [VardiyaTipi.IZINLI, VardiyaTipi.YILLIK_IZIN, VardiyaTipi.RA
 
 KARNE_ROLLERI = [Rol.EGITMEN, Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
 
-SORU_YONETIM_ROLLERI = [Rol.EGITMEN, Rol.GENEL_MUDUR]
+SORU_YONETIM_ROLLERI = [Rol.EGITMEN, Rol.GENEL_MUDUR, Rol.OPERATOR]
 
 def _soru_sistemi_aktif():
     return SoruAyar.get().aktif
@@ -2528,7 +2528,7 @@ def _karne_gorebilir(personel):
                                [Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI])
 
 def _soru_yonetebilir(personel):
-    return bool(personel) and (_egitmen_mi(personel) or personel.rol == Rol.GENEL_MUDUR)
+    return bool(personel) and (_egitmen_mi(personel) or personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR))
 
 def _bugun_calisiyor_mu(personel, gun):
     v = personel.vardiyalar.filter(tarih=gun).first()
@@ -3771,7 +3771,7 @@ def yedekler(request):
     if _cikis_mi(request):
         return _logout(request)
     personel = _aktif_personel(request)
-    if personel is None or personel.rol != Rol.GENEL_MUDUR:
+    if personel is None or personel.rol not in (Rol.GENEL_MUDUR, Rol.OPERATOR):
         return redirect('ana_sayfa')
 
     if request.method == 'POST' and request.POST.get('islem') == 'al':
@@ -3802,7 +3802,7 @@ def yedek_indir(request, ad):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
     personel = _aktif_personel(request)
-    if personel is None or personel.rol != Rol.GENEL_MUDUR:
+    if personel is None or personel.rol not in (Rol.GENEL_MUDUR, Rol.OPERATOR):
         raise Http404()
     if not _YEDEK_AD_DESEN.match(ad or ''):
         raise Http404()
@@ -3948,6 +3948,12 @@ def rapor_indir(request, ad):
 
 
 GSOSYAL_EMOJILER = ['👍', '❤️', '😂', '😮', '😢', '👏']
+# Operatör hesabı şirketin süper admin hesabıdır: Geek Crew'de kişi adıyla değil marka adıyla paylaşır.
+GEEK_MARKA_ADI = 'Geek Coffee & Eatery'
+
+
+def _gosterim_adi(personel):
+    return GEEK_MARKA_ADI if personel.rol == Rol.OPERATOR else personel.ad_soyad
 
 
 def g_sosyal(request):
@@ -4003,11 +4009,11 @@ def g_sosyal(request):
                 return redirect('g_sosyal')
             gecerli_gorseller.append(gorsel)
         if metin or gecerli_gorseller:
-            g = GSosyalGonderi.objects.create(yazan=personel, yazan_ad=personel.ad_soyad, metin=metin[:4000])
+            g = GSosyalGonderi.objects.create(yazan=personel, yazan_ad=_gosterim_adi(personel), metin=metin[:4000])
             for i, gorsel in enumerate(gecerli_gorseller):
                 GSosyalGorsel.objects.create(gonderi=g, gorsel=gorsel, sira=i)
             _bildir(list(Personel.objects.exclude(id=personel.id)),
-                    "%s yeni bir Geek Crew paylaşımı yaptı" % personel.ad_soyad,
+                    "%s yeni bir Geek Crew paylaşımı yaptı" % _gosterim_adi(personel),
                     '/g-sosyal/', 'gsosyal')
             messages.success(request, "Paylaşıldı.")
         else:
@@ -4033,6 +4039,8 @@ def g_sosyal(request):
                 benim = t.emoji
             if sahibi:
                 verenler.append((t.personel.ad_soyad if t.personel else '—', t.emoji))
+        g.marka = bool((g.yazan and g.yazan.rol == Rol.OPERATOR) or g.yazan_ad == GEEK_MARKA_ADI)
+        g.gorunen_ad = GEEK_MARKA_ADI if g.marka else g.yazan_ad
         g.tepki_listesi = [(e, sayim.get(e, 0)) for e in GSOSYAL_EMOJILER]
         g.tepki_toplam = sum(sayim.values())
         g.benim_tepki = benim
@@ -4232,7 +4240,7 @@ EGITIM_GECME_VARSAYILAN = 6
 EGITIM_SURE_VARSAYILAN = 20
 EGITIM_HEDEF_ROLLER = [Rol.PERSONEL, Rol.SEF]
 EGITIM_GORUNTULE_ROLLER = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.EGITMEN]
-EGITIM_DUZENLE_ROLLER = [Rol.EGITMEN, Rol.MUDUR]
+EGITIM_DUZENLE_ROLLER = [Rol.EGITMEN, Rol.MUDUR, Rol.OPERATOR]
 EGITIM_ACMA_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.MUDUR]
 # Soru sayısı/süre/geçme puanını ayarlayabilecek roller (Eğitmen + Operatör).
 EGITIM_AYAR_ROLLER = [Rol.EGITMEN, Rol.OPERATOR, Rol.MUDUR]

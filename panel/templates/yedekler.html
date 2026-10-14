@@ -6,7 +6,7 @@
   {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
 
   <div class="plan-head">
-    <div><h2>Veri Yedekleri</h2><span class="plan-aralik">Otomatik gecelik yedek · yalnızca Genel Müdür</span></div>
+    <div><h2>Veri Yedekleri</h2><span class="plan-aralik">Otomatik gecelik yedek · yalnızca Genel Müdür ve Operatör</span></div>
     <form method="post"><input type="hidden" name="islem" value="al">{% csrf_token %}<button class="btn btn-primary">Şimdi yedek al</button></form>
   </div>
 

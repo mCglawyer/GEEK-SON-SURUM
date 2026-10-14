@@ -88,12 +88,14 @@
     {% for g in gonderiler %}
     <div class="card gs-post">
       <div class="gs-post-bas">
-        {% if g.yazan.profil_foto %}
+        {% if g.marka %}
+        <img src="{% static 'icons/icon-192.png' %}" class="gs-avatar gs-avatar-marka" alt="{{ g.gorunen_ad }}">
+        {% elif g.yazan.profil_foto %}
         <img src="{{ g.yazan.profil_foto.url }}" class="gs-avatar gs-avatar-foto" alt="{{ g.yazan_ad }}">
         {% else %}
         <div class="gs-avatar">{{ g.yazan_ad|first|upper }}</div>
         {% endif %}
-        <div class="gs-kim"><b>{{ g.yazan_ad }}</b><span>{{ g.olusturma|date:"d.m.Y H:i" }}</span></div>
+        <div class="gs-kim"><b>{{ g.gorunen_ad }}{% if g.marka %}<span class="gs-marka-rozet">Resmî</span>{% endif %}</b><span>{{ g.olusturma|date:"d.m.Y H:i" }}</span></div>
         {% if g.silebilir %}
         <form method="post" class="gs-sil-form" onsubmit="return confirm('Gönderi silinsin mi?');">
           {% csrf_token %}<input type="hidden" name="islem" value="gonderi_sil"><input type="hidden" name="gonderi_id" value="{{ g.id }}">
@@ -102,11 +104,23 @@
         {% endif %}
       </div>
       {% if g.metin %}<div class="gs-metin-govde">{{ g.metin|linebreaksbr }}</div>{% endif %}
-      {% if g.gorseller.all %}
-      <div class="gs-izgara gs-izgara-{{ g.gorseller.all|length }}">
-        {% for gr in g.gorseller.all %}<img class="gs-gorsel" src="{{ gr.gorsel.url }}" alt="">{% endfor %}
+      {% with imgs=g.gorseller.all %}
+      {% if imgs %}
+      <div class="gs-medya{% if imgs|length > 1 %} coklu{% endif %}">
+        <div class="gs-slayt">
+          {% for gr in imgs %}<a class="gs-slayt-oge lb-tetikleyici" href="{{ gr.gorsel.url }}" data-full="{{ gr.gorsel.url }}" data-grup="g{{ g.id }}"><img src="{{ gr.gorsel.url }}" alt="" loading="lazy"></a>{% endfor %}
+        </div>
+        {% if imgs|length > 1 %}
+        <span class="gs-sayac">1/{{ imgs|length }}</span>
+        <button type="button" class="gs-ok onceki" aria-label="Önceki">‹</button>
+        <button type="button" class="gs-ok sonraki" aria-label="Sonraki">›</button>
+        {% endif %}
       </div>
-      {% elif g.gorsel %}<img class="gs-gorsel" src="{{ g.gorsel.url }}" alt="">{% endif %}
+      {% if imgs|length > 1 %}<div class="gs-nokta">{% for gr in imgs %}<i{% if forloop.first %} class="aktif"{% endif %}></i>{% endfor %}</div>{% endif %}
+      {% elif g.gorsel %}
+      <div class="gs-medya"><div class="gs-slayt"><a class="gs-slayt-oge lb-tetikleyici" href="{{ g.gorsel.url }}" data-full="{{ g.gorsel.url }}" data-grup="g{{ g.id }}"><img src="{{ g.gorsel.url }}" alt="" loading="lazy"></a></div></div>
+      {% endif %}
+      {% endwith %}
       <div class="gs-tepki-bar" data-gid="{{ g.id }}">
         {% for emoji, say in g.tepki_listesi %}
         <button type="button" class="gs-tepki{% if g.benim_tepki == emoji %} aktif{% endif %}" data-emoji="{{ emoji }}">
@@ -272,6 +286,30 @@
       }
     }).catch(function () {}).finally(function () {
       bar.querySelectorAll('.gs-tepki').forEach(function (b) { b.disabled = false; });
+    });
+  });
+})();
+</script>
+<script>
+(function () {
+  document.querySelectorAll('.gs-medya.coklu').forEach(function (m) {
+    var slayt = m.querySelector('.gs-slayt');
+    var sayac = m.querySelector('.gs-sayac');
+    var noktalar = m.nextElementSibling && m.nextElementSibling.classList.contains('gs-nokta')
+      ? m.nextElementSibling.querySelectorAll('i') : [];
+    var n = slayt.children.length;
+    function simdiki() { return Math.round(slayt.scrollLeft / Math.max(1, slayt.clientWidth)); }
+    function guncelle() {
+      var i = Math.min(n - 1, Math.max(0, simdiki()));
+      if (sayac) { sayac.textContent = (i + 1) + '/' + n; }
+      noktalar.forEach(function (d, k) { d.classList.toggle('aktif', k === i); });
+    }
+    slayt.addEventListener('scroll', guncelle, { passive: true });
+    m.querySelector('.gs-ok.onceki').addEventListener('click', function () {
+      slayt.scrollBy({ left: -slayt.clientWidth, behavior: 'smooth' });
+    });
+    m.querySelector('.gs-ok.sonraki').addEventListener('click', function () {
+      slayt.scrollBy({ left: slayt.clientWidth, behavior: 'smooth' });
     });
   });
 })();
