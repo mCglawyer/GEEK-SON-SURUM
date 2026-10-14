@@ -19,7 +19,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>try{if(localStorage.getItem('geek_tema')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=76">
+  <link rel="stylesheet" href="{% static 'css/tema.css' %}?v=2">
   {% block extra_head %}{% endblock %}
 </head>
 <body{% if personel %} class="app"{% endif %}>
@@ -376,5 +378,19 @@
   })();
   </script>
   {% endif %}
+<script>
+(function(){
+  var k='geek_tema', r=document.documentElement;
+  function ayarla(d){ if(d) r.setAttribute('data-theme','dark'); else r.removeAttribute('data-theme');
+    var m=document.querySelector('meta[name=theme-color]'); if(m) m.setAttribute('content', d?'#0B0F2E':'#162AA3'); }
+  ayarla(r.getAttribute('data-theme')==='dark');
+  document.addEventListener('click',function(e){
+    var b=e.target.closest&&e.target.closest('.tema-btn'); if(!b) return;
+    var d=r.getAttribute('data-theme')!=='dark'; ayarla(d);
+    try{ localStorage.setItem(k, d?'dark':'light'); }catch(x){}
+    b.setAttribute('aria-pressed', d?'true':'false');
+  });
+})();
+</script>
 </body>
 </html>
