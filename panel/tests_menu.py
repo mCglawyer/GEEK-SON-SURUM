@@ -126,19 +126,32 @@ class AktarTesti(TestCase):
         u.refresh_from_db()
         self.assertEqual(str(u.fiyat), '245.50')
 
-    def test_baga_pizzalar_raporlanir_ve_gizli_alinir(self):
+    def test_baga_pizzalar_raporlanir_ve_canli_davranis_korunur(self):
         cikti = self._calistir('baga', self.baga)
         self.assertIn('SİTEDE TANIMLI DEĞİL', cikti)
         self.assertIn('[pizzalar] 2 ürün', cikti)
         baga = MenuMarka.objects.get(kod='baga')
         self.assertEqual(MenuUrun.objects.filter(marka=baga).count(), 4)
-        self.assertEqual(MenuUrun.objects.filter(marka=baga, aktif=False).count(), 2)
+        # bugün aramada çıkıyorlar -> menüde açık kalır, CSV'ye yazılır
+        self.assertEqual(MenuUrun.objects.filter(marka=baga, aktif=False).count(), 0)
         _sutunlar, satirlar = csv_satirlari(baga)
-        kodlar = [s[0] for s in satirlar]
-        self.assertEqual(kodlar, ['baga-burger', 'patates'])             # pizzalar CSV'ye girmez
+        self.assertEqual([s[0] for s in satirlar], ['baga-burger', 'patates', 'margherita', 'pepperoni'])
         b = MenuUrun.objects.get(marka=baga, kod='baga-burger')
         self.assertEqual(b.icerik, 'Dana köfte, cheddar')
         self.assertTrue(b.sut and b.gluten and not b.soya)
+
+    def test_tekrar_eden_kod_urunu_kaybettirmez(self):
+        satirlar = _baga_satirlari() + [
+            dict(kod='patates', kategori_kodu='atistirmalik', kategori='Atıştırmalık', urun_adi='Patates (Büyük)', fiyat='120')]
+        _csv_yaz(self.baga, MARKALAR['baga']['sutunlar'], satirlar)
+        cikti = self._calistir('baga', self.baga)
+        self.assertIn('patates → patates-2', cikti)
+        baga = MenuMarka.objects.get(kod='baga')
+        self.assertEqual(MenuUrun.objects.filter(marka=baga).count(), 5)
+        self.assertEqual(MenuUrun.objects.get(marka=baga, kod='patates-2').urun_adi, 'Patates (Büyük)')
+        # tekrar çalıştırınca yeni ürün oluşmaz (idempotent)
+        self._calistir('baga', self.baga)
+        self.assertEqual(MenuUrun.objects.filter(marka=baga).count(), 5)
 
 
 @override_settings(**_AYAR)

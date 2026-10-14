@@ -204,8 +204,11 @@ class Command(BaseCommand):
                 uyarilar.append('Kod üretilemedi, atlandı: %r' % ad)
                 continue
             if pkod in gorulen:
-                uyarilar.append('CSV’de tekrar eden kod, ikincisi atlandı: %s (%s)' % (pkod, ad))
-                continue
+                temel, n = pkod, 2
+                while '%s-%d' % (temel, n) in gorulen:
+                    n += 1
+                pkod = '%s-%d' % (temel, n)
+                uyarilar.append('CSV’de tekrar eden kod, ürün kaybolmasın diye yeni kod verildi: %s → %s (%s)' % (temel, pkod, ad))
             gorulen.add(pkod)
             kk = self._kat_kodu(s, sema)
             kat = kategoriler[kk]
@@ -237,15 +240,13 @@ class Command(BaseCommand):
                 alanlar[a] = _dogru(s.get(a))
             mevcut = MenuUrun.objects.filter(marka=marka, kod=pkod).first()
             if mevcut is None:
-                # Sitede tanımlı olmayan kategorideki ürünler zaten sitede görünmüyor:
-                # veriyi kaybetmemek için içeri alınır ama menüde GÖSTERİLMEZ (aktif=False).
-                MenuUrun.objects.create(marka=marka, kod=pkod, aktif=sitede_var, **alanlar)
+                # Sitede tanımlı olmayan kategorideki ürünler bugün kategori ekranlarında görünmüyor
+                # ama arama sonuçlarında çıkıyor. Canlı davranışı DEĞİŞTİRMEMEK için aktif alınır.
+                MenuUrun.objects.create(marka=marka, kod=pkod, aktif=True, **alanlar)
                 olusan += 1
             elif guncelle:
                 for k, v in alanlar.items():
                     setattr(mevcut, k, v)
-                if not sitede_var:
-                    mevcut.aktif = False
                 mevcut.save()
                 guncellenen += 1
             else:
@@ -267,14 +268,14 @@ class Command(BaseCommand):
             self.stdout.write('  %-16s %3d ürün   %s' % (kk, n, '' if kk in sitede else '← SİTEDE TANIMLI DEĞİL'))
         if bilinmeyen:
             self.stdout.write(self.style.WARNING(
-                '\n⚠ QR sitesinde tanımlı olmayan kategorideki ürünler (şu an sitede GÖRÜNMÜYOR; '
-                'panelde "menüde göster" kapalı olarak içeri alındı):'))
+                '\n⚠ QR sitesinde tanımlı olmayan kategorideki ürünler: kategori ekranlarında GÖRÜNMÜYOR, '
+                'yalnızca arama sonuçlarında çıkıyor. Canlı davranış korunsun diye menüde AÇIK içeri alındı:'))
             for kk, liste in bilinmeyen.items():
                 self.stdout.write(self.style.WARNING('  [%s] %d ürün:' % (kk, len(liste))))
                 for x in liste:
                     self.stdout.write(self.style.WARNING('     - %s' % x))
             self.stdout.write(self.style.WARNING(
-                '  Bunların görünmesi için QR sitesinin kodunda CATEGORIES dizisine ilgili kod eklenmeli '
-                've ikonu tanımlanmalı; sonra panelde ürünler "menüde göster" yapılır.'))
+                '  Kategori ekranlarında görünmeleri için QR sitesinin kodunda CATEGORIES dizisine ilgili kod '
+                've ikonu eklenmeli. Aramada da çıkmasın istersen panelde ürünün "menüde göster" kutusunu kapat.'))
         for u in uyarilar:
             self.stdout.write(self.style.WARNING('  uyarı: ' + u))
