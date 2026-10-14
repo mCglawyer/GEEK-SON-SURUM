@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from . import menu_views
-from . import zayi_views, sevkiyat_analiz_views
+from . import zayi_views, sevkiyat_analiz_views, temizlik_views
 
 urlpatterns = [
     path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
@@ -86,6 +86,10 @@ urlpatterns = [
     path('lavabo/', views.lavabo_sayfa, name='lavabo'),
     path('lavabo/veri/', views.lavabo_json, name='lavabo_json'),
     path('irsaliye/', views.irsaliye_sayfa, name='irsaliye'),
+    path('temizlik/', temizlik_views.temizlik_ana, name='temizlik'),
+    path('temizlik/giris/', temizlik_views.temizlik_giris, name='temizlik_giris'),
+    path('temizlik/rapor/', temizlik_views.temizlik_rapor, name='temizlik_rapor'),
+    path('temizlik/rapor/indir/', temizlik_views.temizlik_rapor_indir, name='temizlik_rapor_indir'),
     path('stok/', views.stok_sayimi, name='stok'),
     path('stok/excel/', views.stok_excel, name='stok_excel'),
     path('stok-duzenle/', views.stok_duzenle, name='stok_duzenle'),

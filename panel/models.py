@@ -1228,3 +1228,77 @@ class MutfakZayiKalemi(models.Model):
 
     def __str__(self):
         return f"{self.tarih:%d.%m.%Y} {self.sube_ad_arsiv} {self.urun} {self.miktar} {self.birim}"
+
+
+# ----------------------------------------------------------------------------
+# Temizlik malzemesi tüketimi: ay başı sayım + haftalık ilave (sevkiyattan) − ay sonu sayım
+# ----------------------------------------------------------------------------
+class TemizlikUrun(models.Model):
+    ad = models.CharField(max_length=200, verbose_name="Ürün Adı")
+    birim = models.CharField(max_length=20, default='ADET', verbose_name="Birim")
+    koli_icerigi = models.DecimalField(max_digits=10, decimal_places=2, default=1, verbose_name="Koli içeriği")
+    urun = models.ForeignKey('Urun', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                             verbose_name="Sevkiyat kataloğundaki karşılığı",
+                             help_text="Boş bırakılırsa sevkiyattaki ürün adıyla eşleştirilir.")
+    sira = models.PositiveIntegerField(default=0, verbose_name="Sıra")
+    aktif = models.BooleanField(default=True, verbose_name="Aktif")
+
+    class Meta:
+        verbose_name = "Temizlik Ürünü"
+        verbose_name_plural = "Temizlik Ürünleri"
+        ordering = ['sira', 'ad']
+
+    def __str__(self):
+        return self.ad
+
+
+class TemizlikSayim(models.Model):
+    TUR = [('ILK', 'İlk stok (ay başı)'), ('SON', 'Son stok (ay sonu)')]
+    sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='temizlik_sayimlari', verbose_name="Şube")
+    ay = models.DateField(verbose_name="Ay (ayın 1'i)")
+    tur = models.CharField(max_length=4, choices=TUR, verbose_name="Sayım türü")
+    tarih = models.DateField(verbose_name="Sayım tarihi")
+    giren = models.ForeignKey('Personel', on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='+', verbose_name="Giren")
+    giren_ad = models.CharField(max_length=100, blank=True, verbose_name="Giren (ad)")
+    olusturma = models.DateTimeField(auto_now_add=True)
+    guncelleme = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Temizlik Sayımı"
+        verbose_name_plural = "Temizlik Sayımları"
+        ordering = ['-ay', 'sube', 'tur']
+        constraints = [models.UniqueConstraint(fields=['sube', 'ay', 'tur'], name='temizlik_sayim_tekil')]
+
+    def __str__(self):
+        return f"{self.sube} · {self.ay:%m.%Y} · {self.get_tur_display()}"
+
+
+class TemizlikSayimKalem(models.Model):
+    sayim = models.ForeignKey(TemizlikSayim, on_delete=models.CASCADE, related_name='kalemler')
+    urun = models.ForeignKey(TemizlikUrun, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    urun_ad = models.CharField(max_length=200, default='')
+    miktar = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Miktar (taban birim)")
+
+    class Meta:
+        verbose_name = "Temizlik Sayım Kalemi"
+        verbose_name_plural = "Temizlik Sayım Kalemleri"
+
+
+class TemizlikDuzeltme(models.Model):
+    """İlave sütununa elle düzeltme: sevkiyat dışı gelen (+) ya da hatalı yazılan/iade edilen (−) miktar."""
+    sube = models.ForeignKey(Sube, on_delete=models.CASCADE, related_name='temizlik_duzeltmeleri')
+    ay = models.DateField(verbose_name="Ay (ayın 1'i)")
+    urun = models.ForeignKey(TemizlikUrun, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    urun_ad = models.CharField(max_length=200, default='')
+    tarih = models.DateField(verbose_name="Tarih")
+    miktar = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Miktar (+/−, taban birim)")
+    aciklama = models.CharField(max_length=200, blank=True, verbose_name="Açıklama")
+    giren = models.ForeignKey('Personel', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    giren_ad = models.CharField(max_length=100, blank=True)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Temizlik Düzeltmesi"
+        verbose_name_plural = "Temizlik Düzeltmeleri"
+        ordering = ['tarih', 'id']

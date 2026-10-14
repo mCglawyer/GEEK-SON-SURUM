@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load tz_filtreleri %}
+{% block title %}Temizlik Tüketim Raporu · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Temizlik tüketimi</h2><span class="plan-aralik">{{ ay_etiket }} · {% if secili %}{{ secili.ad }}{% else %}Tüm şubeler{% endif %}</span></div>
+    <div class="an-btns">
+      {% if giris_var %}<a class="btn btn-ghost btn-mini" href="{% url 'temizlik_giris' %}?ay={{ ay_deger }}">← Sayım girişi</a>{% endif %}
+      <a class="btn btn-primary btn-mini" href="{{ xlsx_url }}">Excel al</a>
+      <a class="btn btn-primary btn-mini" href="{{ pdf_url }}">PDF al</a>
+    </div>
+  </div>
+
+  <form method="get" class="card tz-filtre">
+    <div class="an-ay">
+      <a class="btn btn-ghost btn-mini" href="{{ onceki_url }}" aria-label="Önceki ay">‹</a>
+      <b>{{ ay_etiket }}</b>
+      <a class="btn btn-ghost btn-mini" href="{{ sonraki_url }}" aria-label="Sonraki ay">›</a>
+    </div>
+    <input type="hidden" name="ay" value="{{ ay_deger }}">
+    <div class="mg-donem" role="radiogroup" aria-label="Görünüm">
+      {% for k, v in gorunumler %}<label><input type="radio" name="gorunum" value="{{ k }}"{% if gorunum == k %} checked{% endif %} onchange="this.form.submit()"><span>{{ v }}</span></label>{% endfor %}
+    </div>
+    {% if coklu %}
+    <label>Şube
+      <select name="sube" class="sube-sec" onchange="this.form.submit()">
+        <option value="">Tüm şubeler</option>
+        {% for s in subeler %}<option value="{{ s.id }}"{% if secili and s.id == secili.id %} selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+      </select>
+    </label>
+    {% endif %}
+  </form>
+
+  <div class="card tz-durum-kart">
+    <h3>Sayım durumu <span class="tz-sayac">{{ veri.tam_sube }} / {{ veri.subeler|length }} şube tamamlandı</span></h3>
+    <div class="tz-kaydir">
+      <table class="tz-tablo tz-orta">
+        <thead><tr><th class="tz-ad">Şube</th><th>İlk sayım</th><th>Son sayım</th><th>Durum</th></tr></thead>
+        <tbody>
+          {% for c in veri.subeler %}
+          <tr>
+            <td class="tz-ad" data-et="Şube">{{ c.sube.ad }}</td>
+            <td data-et="İlk sayım">{% if c.ilk %}{{ c.ilk.tarih|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+            <td data-et="Son sayım">{% if c.son %}{{ c.son.tarih|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+            <td data-et="Durum">{% if c.tam %}<span class="badge badge-ok">Tamam</span>{% elif c.ilk %}<span class="badge badge-wait">Son sayım bekleniyor</span>{% else %}<span class="badge badge-info">İlk sayım bekleniyor</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if not veri.toplam %}
+  <div class="card an-bos">Bu ay için temizlik verisi yok. Başka bir ay ya da şube seç.</div>
+  {% else %}
+
+  <div class="card">
+    <h3>{% if gorunum == 'aylik' %}Aylık özet{% else %}Aylık özet (toplam){% endif %}</h3>
+    <div class="tz-kaydir">
+      <table class="tz-tablo tz-orta">
+        <thead><tr><th class="tz-ad">Ürün</th><th>Birim</th><th>İlk stok</th><th>İlave</th><th>Düzeltme</th><th>Son stok</th><th>Kullanım</th></tr></thead>
+        <tbody>
+          {% for r in veri.toplam %}
+          <tr>
+            <td class="tz-ad" data-et="Ürün">{{ r.urun.ad }}</td>
+            <td data-et="Birim">{{ r.urun.birim|lower }}</td>
+            <td data-et="İlk stok" class="tz-sayi">{{ r.ilk|tzsayi }}</td>
+            <td data-et="İlave" class="tz-sayi">{{ r.ilave|tzsayi }}</td>
+            <td data-et="Düzeltme" class="tz-sayi{% if not r.duzeltme %} bos{% endif %}">{{ r.duzeltme|tzsayi }}</td>
+            <td data-et="Son stok" class="tz-sayi">{{ r.son|tzsayi }}</td>
+            <td data-et="Kullanım" class="tz-sayi tz-kul{% if r.kullanim is None %} bos{% elif r.kullanim < 0 %} eksi{% endif %}">{{ r.kullanim|tzsayi }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tz-not">Kullanım = İlk stok + İlave + Düzeltme − Son stok. İlk ve son sayımı girilmemiş şubelerin kullanımı hesaplanmaz.</p>
+  </div>
+
+  {% if kirilim %}
+  <div class="card">
+    <h3>Şubelere göre kullanım</h3>
+    <div class="tz-kaydir">
+      <table class="tz-tablo tz-genis">
+        <thead><tr><th class="tz-ad">Ürün</th>{% for c in veri.subeler %}<th>{{ c.sube.ad }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for u, hucreler in kirilim %}
+          <tr><td class="tz-ad">{{ u.ad }}</td>{% for h in hucreler %}<td class="tz-sayi{% if h is None %} bos{% endif %}">{{ h|tzsayi }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tz-not">Boş (—) hücre: o şubenin ilk veya son sayımı henüz girilmemiş.</p>
+  </div>
+  {% endif %}
+
+  {% if gorunum != 'aylik' %}
+  <div class="card">
+    <h3>{% if gorunum == 'haftalik' %}Haftalık{% else %}Günlük{% endif %} ilave <span class="tz-sayac">gelen sevkiyat + düzeltme</span></h3>
+    <div class="tz-kaydir">
+      <table class="tz-tablo tz-genis">
+        <thead><tr><th class="tz-ad">Ürün</th>{% for p in parcalar %}<th>{% if gorunum == 'haftalik' %}{{ p.ad }}<small>{{ p.etiket }}</small>{% else %}{{ p.etiket }}{% endif %}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for u, degerler in ilave_tablo %}
+          <tr><td class="tz-ad">{{ u.ad }}</td>{% for v in degerler %}<td class="tz-sayi{% if not v %} bos{% endif %}">{% if v %}{{ v|tzsayi }}{% else %}·{% endif %}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <h3>{% if gorunum == 'haftalik' %}Haftalık{% else %}Günlük{% endif %} tüketim <span class="tz-sayac">tahmini</span></h3>
+    <p class="tz-not" style="margin-top:0">Gerçek tüketim yalnızca iki sayım arasında bilinir. Burada, aylık kullanım günlere eşit dağıtılmıştır; ilave ise kesindir.</p>
+    <div class="tz-kaydir">
+      <table class="tz-tablo tz-genis">
+        <thead><tr><th class="tz-ad">Ürün</th>{% for p in parcalar %}<th>{% if gorunum == 'haftalik' %}{{ p.ad }}<small>{{ p.etiket }}</small>{% else %}{{ p.etiket }}{% endif %}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for u, degerler in tuketim_tablo %}
+          <tr><td class="tz-ad">{{ u.ad }}</td>{% if degerler %}{% for v in degerler %}<td class="tz-sayi{% if not v %} bos{% endif %}">{% if v %}{{ v|tzsayi }}{% else %}·{% endif %}</td>{% endfor %}{% else %}{% for p in parcalar %}<td class="tz-sayi bos">—</td>{% endfor %}{% endif %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {% if eslesmeyen %}
+  <div class="card tz-uyari">
+    <h3>Eşleşmeyen sevkiyat ürünleri</h3>
+    <p class="tz-not" style="margin-top:0">Sevkiyatta “Temizlik” formunda gönderilmiş ama listedeki hiçbir ürünle eşleşmedi; ilaveye eklenmediler. Yönetim panelinde “Temizlik Ürünleri”nde ilgili ürünün “Sevkiyat kataloğundaki karşılığı” alanını seç.</p>
+    <p>{% for e in eslesmeyen %}<span class="mg-etkin-chip">{{ e }}</span> {% endfor %}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

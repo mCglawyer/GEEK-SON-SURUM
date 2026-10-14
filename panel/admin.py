@@ -335,3 +335,34 @@ class MenuUrunAdmin(_MenuYayinMixin, admin.ModelAdmin):
     list_display = ('urun_adi', 'marka', 'kategori', 'fiyat', 'aktif')
     list_filter = ('marka', 'kategori', 'aktif')
     search_fields = ('urun_adi', 'urun_adi_en', 'kod')
+
+
+from .models import TemizlikUrun, TemizlikSayim, TemizlikSayimKalem, TemizlikDuzeltme  # noqa: E402
+
+
+@admin.register(TemizlikUrun)
+class TemizlikUrunAdmin(admin.ModelAdmin):
+    list_display = ('ad', 'birim', 'koli_icerigi', 'urun', 'sira', 'aktif')
+    list_editable = ('sira', 'aktif')
+    list_filter = ('aktif',)
+    search_fields = ('ad',)
+    raw_id_fields = ('urun',)
+
+
+class TemizlikSayimKalemInline(admin.TabularInline):
+    model = TemizlikSayimKalem
+    extra = 0
+    raw_id_fields = ('urun',)
+
+
+@admin.register(TemizlikSayim)
+class TemizlikSayimAdmin(admin.ModelAdmin):
+    list_display = ('sube', 'ay', 'tur', 'tarih', 'giren_ad')
+    list_filter = ('tur', 'sube')
+    inlines = [TemizlikSayimKalemInline]
+
+
+@admin.register(TemizlikDuzeltme)
+class TemizlikDuzeltmeAdmin(admin.ModelAdmin):
+    list_display = ('sube', 'ay', 'urun_ad', 'tarih', 'miktar', 'aciklama', 'giren_ad')
+    list_filter = ('sube',)

@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load tz_filtreleri %}
+{% block title %}Temizlik Tüketimi · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Temizlik Tüketimi</h2><span class="plan-aralik">{{ ay_etiket }} · {{ sube.ad }}</span></div>
+    <div class="an-btns">
+      {% if rapor_gorebilir %}<a class="btn btn-primary btn-mini" href="{% url 'temizlik_rapor' %}?ay={{ ay_deger }}{% if subeler|length > 1 %}&sube={{ sube.id }}{% endif %}">Tüketim raporu</a>{% endif %}
+    </div>
+  </div>
+
+  {% for m in messages %}<div class="tz-ileti {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+  <div class="card tz-filtre">
+    <div class="an-ay">
+      <a class="btn btn-ghost btn-mini" href="{{ onceki_url }}" aria-label="Önceki ay">‹</a>
+      <b>{{ ay_etiket }}</b>
+      <a class="btn btn-ghost btn-mini" href="{{ sonraki_url }}" aria-label="Sonraki ay">›</a>
+    </div>
+    {% if subeler|length > 1 %}
+    <form method="get" class="tz-sube-form">
+      <input type="hidden" name="ay" value="{{ ay_deger }}">
+      <label>Şube
+        <select name="sube" class="sube-sec" onchange="this.form.submit()">
+          {% for s in subeler %}<option value="{{ s.id }}"{% if s.id == sube.id %} selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+        </select>
+      </label>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="card tz-adim">
+    <ol>
+      <li><b>İlk sayım</b> — ay başında, ilk sevkiyatı almadan 1 gün önce sayım yapıp “İlk stok”u kaydet.</li>
+      <li><b>İlave</b> — gelen sevkiyatlar haftalara göre kendiliğinden yazılır. Sevkiyat dışı gelen ya da hatalı bir miktar varsa “Düzeltme” ekle.</li>
+      <li><b>Son sayım</b> — 4 hafta sonunda tekrar sayıp “Son stok”u kaydet. <b>Kullanım</b> otomatik hesaplanır.</li>
+    </ol>
+    <p class="tz-durum">
+      İlk sayım: {% if c.ilk %}<b class="ok">{{ c.ilk.tarih|date:"d.m.Y" }}</b>{% else %}<b class="bekle">girilmedi</b>{% endif %}
+      · Son sayım: {% if c.son %}<b class="ok">{{ c.son.tarih|date:"d.m.Y" }}</b>{% else %}<b class="bekle">girilmedi</b>{% endif %}
+      {% if c.ilk and not c.son %}· İlave şu ana kadar: {{ c.bit|date:"d.m.Y" }}{% endif %}
+    </p>
+  </div>
+
+  <form method="post" class="card tz-form" id="tz-form">
+    {% csrf_token %}
+    <input type="hidden" name="sube" value="{{ sube.id }}">
+    <input type="hidden" name="ay" value="{{ ay_deger }}">
+    <div class="tz-sayim-bar">
+      <div class="tz-sayim-kutu">
+        <label>İlk sayım tarihi <input type="date" name="ilk_tarih" value="{{ ilk_tarih }}" class="input"></label>
+        <button class="btn btn-primary btn-mini" name="islem" value="ilk">İlk sayımı kaydet</button>
+      </div>
+      <div class="tz-sayim-kutu">
+        <label>Son sayım tarihi <input type="date" name="son_tarih" value="{{ son_tarih }}" class="input"></label>
+        <button class="btn btn-primary btn-mini" name="islem" value="son">Son sayımı kaydet</button>
+      </div>
+    </div>
+    <div class="tz-kaydir">
+      <table class="tz-tablo">
+        <thead>
+          <tr>
+            <th class="tz-ad">Ürün</th><th>Koli içeriği</th><th>İlk stok</th>
+            {% for h in haftalar %}<th>İlave<small>{{ h.etiket }}</small></th>{% endfor %}
+            <th>Düzeltme</th><th>Son stok</th><th>Kullanım</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in satirlar %}
+          <tr>
+            <td class="tz-ad" data-et="Ürün">{{ r.urun.ad }}</td>
+            <td data-et="Koli içeriği">{{ r.urun.koli_icerigi|floatformat:"-2" }} {{ r.urun.birim|lower }}</td>
+            <td data-et="İlk stok"><input type="text" inputmode="decimal" name="ilk_{{ r.urun.id }}" value="{{ r.ilk_girdi }}" class="input tz-girdi" aria-label="{{ r.urun.ad }} ilk stok"></td>
+            {% for v in r.hafta_degerleri %}<td data-et="İlave {{ forloop.counter }}. hafta" class="tz-sayi{% if not v %} bos{% endif %}">{{ v|tzsayi }}</td>{% endfor %}
+            <td data-et="Düzeltme" class="tz-sayi{% if not r.duzeltme %} bos{% endif %}">{{ r.duzeltme|tzsayi }}</td>
+            <td data-et="Son stok"><input type="text" inputmode="decimal" name="son_{{ r.urun.id }}" value="{{ r.son_girdi }}" class="input tz-girdi" aria-label="{{ r.urun.ad }} son stok"></td>
+            <td data-et="Kullanım" class="tz-sayi tz-kul{% if r.kullanim is None %} bos{% elif r.kullanim < 0 %} eksi{% endif %}">{% if r.kullanim is None %}—{% else %}{{ r.kullanim|tzsayi }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tz-not">Kutuyu boş bırakırsan o ürün sayılmamış (0) kabul edilir. Miktarlar ürünün biriminde (adet / paket / set) girilir. Kullanım negatif çıkarsa sayımı ya da düzeltmeyi kontrol et.</p>
+  </form>
+
+  <div class="card tz-duz">
+    <h3>Düzeltme</h3>
+    <p class="tz-not" style="margin-top:0">Sevkiyat dışında gelen (+) ya da yanlış yazılan / iade edilen (−) miktarı ilaveye ekler. Tarih, ilk sayımdan sonra olmalı.</p>
+    <form method="post" class="tz-duz-form">
+      {% csrf_token %}
+      <input type="hidden" name="sube" value="{{ sube.id }}">
+      <input type="hidden" name="ay" value="{{ ay_deger }}">
+      <input type="hidden" name="islem" value="duzeltme_ekle">
+      <label class="tz-duz-urun">Ürün
+        <select name="urun" class="sube-sec" required>
+          <option value="">Seç…</option>
+          {% for u in urunler %}<option value="{{ u.id }}">{{ u.ad }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Tarih <input type="date" name="tarih" class="input" required value="{{ son_tarih }}"></label>
+      <label>Miktar (+/−) <input type="text" inputmode="decimal" name="miktar" class="input" placeholder="örn. 5 ya da -2" required></label>
+      <label class="tz-duz-acik">Açıklama <input type="text" name="aciklama" class="input" maxlength="200" placeholder="isteğe bağlı"></label>
+      <button class="btn btn-primary btn-mini">Düzeltme ekle</button>
+    </form>
+    {% if duzeltmeler %}
+    <ul class="tz-duz-liste">
+      {% for d in duzeltmeler %}
+      <li>
+        <span class="tz-duz-t">{{ d.tarih|date:"d.m.Y" }}</span>
+        <span class="tz-duz-u">{{ d.urun_ad }}</span>
+        <b class="{% if d.miktar < 0 %}eksi{% else %}arti{% endif %}">{% if d.miktar > 0 %}+{% endif %}{{ d.miktar|tzsayi }}</b>
+        <span class="tz-duz-a">{{ d.aciklama }}{% if d.giren_ad %} · {{ d.giren_ad }}{% endif %}</span>
+        <form method="post" onsubmit="return confirm('Bu düzeltme silinsin mi?')">
+          {% csrf_token %}
+          <input type="hidden" name="sube" value="{{ sube.id }}">
+          <input type="hidden" name="ay" value="{{ ay_deger }}">
+          <input type="hidden" name="islem" value="duzeltme_sil">
+          <input type="hidden" name="id" value="{{ d.id }}">
+          <button class="btn btn-ghost btn-mini">Sil</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+
+  {% if eslesmeyen %}
+  <div class="card tz-uyari">
+    <h3>Eşleşmeyen sevkiyat ürünleri</h3>
+    <p class="tz-not" style="margin-top:0">Sevkiyatta “Temizlik” formunda gönderilmiş ama temizlik listesindeki hiçbir ürünle eşleşmedi; bu yüzden ilaveye eklenmediler. Yönetim panelinden “Temizlik Ürünleri”nde ilgili ürünün “Sevkiyat kataloğundaki karşılığı” alanını seç.</p>
+    <p>{% for e in eslesmeyen %}<span class="mg-etkin-chip">{{ e }}</span> {% endfor %}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
