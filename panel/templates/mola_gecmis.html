@@ -1,5 +1,29 @@
 {% extends 'base.html' %}
-{% block title %}Mola Takibi · Geek Panel{% endblock %}
+{% block title %}Mola Takibi · Geek Panel
+<script>
+(function () {
+  var f = document.getElementById('mg-filtre');
+  if (!f) return;
+  var ac = document.getElementById('mg-f-ac'), det = document.getElementById('mg-f-detay');
+  ac.addEventListener('click', function () {
+    var a = det.classList.toggle('acik');
+    ac.setAttribute('aria-expanded', a ? 'true' : 'false');
+  });
+  var tarih = document.getElementById('mg-f-tarih');
+  function ozelGoster() {
+    var r = f.querySelector('input[name=hizli]:checked');
+    tarih.classList.toggle('gizli', !(r && r.value === 'ozel'));
+  }
+  f.querySelectorAll('input[name=hizli]').forEach(function (r) { r.addEventListener('change', ozelGoster); });
+  f.querySelectorAll('.mg-tarih').forEach(function (d) {
+    d.addEventListener('change', function () { f.querySelector('input[name=hizli][value=ozel]').checked = true; ozelGoster(); });
+  });
+  ozelGoster();
+  f.querySelectorAll('select').forEach(function (s) { s.addEventListener('change', function () { f.submit(); }); });
+  f.querySelectorAll('input[name=hizli]').forEach(function (r) { r.addEventListener('change', function () { if (r.value !== 'ozel') f.submit(); }); });
+})();
+</script>
+{% endblock %}
 {% block body %}
 <div class="container">
   <div class="plan-head">
@@ -24,47 +48,74 @@
     </div>
   </div>
 
-  <!-- Özet sayaçlar -->
+  <!-- Özet sayaçlar (süzülmüş sonuca göre) -->
   <div class="mg-ozet-grid">
     <div class="mg-ozet-kart"><span class="mg-ozet-sayi">{{ toplam_kayit }}</span><span class="mg-ozet-etiket">Mola</span></div>
-    <div class="mg-ozet-kart"><span class="mg-ozet-sayi">{{ toplam_kisi }}</span><span class="mg-ozet-etiket">Farklı Kişi</span></div>
-    <div class="mg-ozet-kart{% if asan_sayisi %} uyari{% endif %}"><span class="mg-ozet-sayi">{{ asan_sayisi }}</span><span class="mg-ozet-etiket">Günlük Aşım</span></div>
+    <div class="mg-ozet-kart"><span class="mg-ozet-sayi">{{ toplam_kisi }}</span><span class="mg-ozet-etiket">Farklı kişi</span></div>
+    <div class="mg-ozet-kart{% if asan_sayisi %} uyari{% endif %}"><span class="mg-ozet-sayi">{{ asan_sayisi }}</span><span class="mg-ozet-etiket">Günlük aşım</span></div>
   </div>
 
-  <!-- Takvim / hızlı filtre -->
-  <div class="mg-filtre-card">
-    {% if subeler %}
-    <form method="get" class="mg-sube-form" id="mg-sube-form">
-      <input type="hidden" name="hizli" value="{{ hizli }}">
-      <input type="hidden" name="mg_bas" value="{{ mg_bas }}">
-      <input type="hidden" name="mg_bit" value="{{ mg_bit }}">
-      <select name="sube" class="sube-sec" onchange="this.form.submit()">
-        <option value="">Tüm şubeler</option>
-        {% for s in subeler %}<option value="{{ s.id }}" {% if secili == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
-      </select>
-    </form>
-    {% endif %}
-    <div class="mg-chip-satir">
-      <a class="mg-chip{% if hizli == 'bugun' %} akt{% endif %}" href="?hizli=bugun{% if secili %}&sube={{ secili }}{% endif %}">Bugün</a>
-      <a class="mg-chip{% if hizli == 'hafta' %} akt{% endif %}" href="?hizli=hafta{% if secili %}&sube={{ secili }}{% endif %}">Bu Hafta</a>
-      <a class="mg-chip{% if hizli == '14' %} akt{% endif %}" href="?hizli=14{% if secili %}&sube={{ secili }}{% endif %}">Son 14 Gün</a>
-      <a class="mg-chip{% if hizli == 'ay' %} akt{% endif %}" href="?hizli=ay{% if secili %}&sube={{ secili }}{% endif %}">Bu Ay</a>
+  <!-- Süzgeç -->
+  <form method="get" class="mg-filtre" id="mg-filtre">
+    <div class="mg-f-ust">
+      <input type="search" name="q" value="{{ q }}" class="input mg-ara" placeholder="Kişi ara…" autocomplete="off" aria-label="Kişi ara">
+      <button type="button" class="btn btn-ghost btn-mini mg-f-ac" id="mg-f-ac" aria-expanded="false">Süzgeçler{% if etkin %} <span class="mg-f-sayi">{{ etkin|length }}</span>{% endif %}</button>
+      <button class="btn btn-primary btn-mini">Ara</button>
     </div>
-    <form method="get" class="mg-takvim">
-      {% if secili %}<input type="hidden" name="sube" value="{{ secili }}">{% endif %}
-      <input type="date" name="mg_bas" value="{{ mg_bas }}" class="input mg-tarih">
-      <span class="mg-tire">–</span>
-      <input type="date" name="mg_bit" value="{{ mg_bit }}" class="input mg-tarih">
-      <button class="btn btn-ghost btn-mini">📅 Uygula</button>
-    </form>
+    <div class="mg-f-detay" id="mg-f-detay">
+      <div class="mg-donem" role="radiogroup" aria-label="Dönem">
+        <label><input type="radio" name="hizli" value="bugun" {% if hizli == 'bugun' %}checked{% endif %}><span>Bugün</span></label>
+        <label><input type="radio" name="hizli" value="hafta" {% if hizli == 'hafta' %}checked{% endif %}><span>Bu hafta</span></label>
+        <label><input type="radio" name="hizli" value="14" {% if hizli == '14' %}checked{% endif %}><span>14 gün</span></label>
+        <label><input type="radio" name="hizli" value="ay" {% if hizli == 'ay' %}checked{% endif %}><span>Bu ay</span></label>
+        <label><input type="radio" name="hizli" value="ozel" {% if hizli == 'ozel' %}checked{% endif %}><span>Tarih aralığı</span></label>
+      </div>
+      <div class="mg-f-grid">
+        <div class="mg-f-alan mg-f-tarih" id="mg-f-tarih">
+          <span class="mg-f-et">Tarih aralığı</span>
+          <div class="mg-takvim">
+            <input type="date" name="mg_bas" value="{{ mg_bas }}" class="input mg-tarih" aria-label="Başlangıç">
+            <span class="mg-tire">–</span>
+            <input type="date" name="mg_bit" value="{{ mg_bit }}" class="input mg-tarih" aria-label="Bitiş">
+          </div>
+        </div>
+        {% if subeler %}
+        <label class="mg-f-alan"><span class="mg-f-et">Şube</span>
+          <select name="sube" class="sube-sec">
+            <option value="">Tüm şubeler</option>
+            {% for s in subeler %}<option value="{{ s.id }}" {% if secili == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+          </select>
+        </label>
+        {% endif %}
+        <label class="mg-f-alan"><span class="mg-f-et">Durum</span>
+          <select name="durum" class="sube-sec">
+            {% for k, v in durumlar %}<option value="{{ k }}" {% if durum == k %}selected{% endif %}>{{ v }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="mg-f-alan"><span class="mg-f-et">Sıralama</span>
+          <select name="sirala" class="sube-sec">
+            {% for k, v in siralar %}<option value="{{ k }}" {% if sirala == k %}selected{% endif %}>{{ v }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+      <div class="mg-f-alt">
+        <button class="btn btn-primary btn-mini">Uygula</button>
+        {% if filtre_var %}<a class="btn btn-ghost btn-mini" href="{% url 'mola_gecmis' %}">Temizle</a>{% endif %}
+      </div>
+    </div>
+  </form>
+
+  <div class="mg-sonuc-bar">
+    <div class="mg-sonuc-metin">
+      <b>{{ toplam_grup }}</b> kayıt{% if toplam_grup %} · {{ sayfa_ilk }}–{{ sayfa_son }} gösteriliyor{% endif %}
+      <span class="mg-etkin">{% for e in etkin %}<span class="mg-etkin-chip">{{ e }}</span>{% endfor %}</span>
+    </div>
+    <div class="mg-rapor-bar">
+      <a class="btn btn-ghost btn-mini" href="?{{ rapor_q }}&bicim=xlsx">Excel</a>
+      <a class="btn btn-ghost btn-mini" href="?{{ rapor_q }}&bicim=pdf">PDF</a>
+    </div>
   </div>
 
-  <!-- Geçmiş — gün gün toplam + çıkış saatleri -->
-  <div class="mg-rapor-bar">
-    <a class="btn btn-ghost btn-mini" href="?{{ rapor_q }}&bicim=xlsx">Excel ↓</a>
-    <a class="btn btn-ghost btn-mini" href="?{{ rapor_q }}&bicim=pdf">PDF ↓</a>
-    <span class="ea-not">Günlük hak: {{ limit_dk }} dk · toplam, o gün yapılan tüm molaların toplamıdır.</span>
-  </div>
   <div class="card">
     {% if gruplar %}
     <div class="mg-liste">
@@ -80,16 +131,26 @@
         </div>
         <div class="mg-sure-blok">
           <span class="mg-sure{% if g.asti %} asti{% endif %}">{{ g.toplam_dk }} dk</span>
-          <span class="ea-not">/ {{ g.limit }} dk</span>
+          <span class="ea-not">/ {{ g.limit }}</span>
           {% if g.asti %}<span class="badge no mg-badge">Aşım</span>{% endif %}
         </div>
       </div>
       {% endfor %}
     </div>
     {% else %}
-    <p class="egitim-bos">Bu aralıkta biten mola kaydı yok.</p>
+    <p class="egitim-bos">{% if filtre_var %}Bu süzgeçlere uyan kayıt yok. <a href="{% url 'mola_gecmis' %}">Süzgeçleri temizle</a>{% else %}Bu aralıkta biten mola kaydı yok.{% endif %}</p>
     {% endif %}
   </div>
+
+  {% if sayfa_sayisi > 1 %}
+  <nav class="mg-sayfa" aria-label="Sayfalar">
+    {% if onceki %}<a class="mg-sayfa-ok" href="?{{ sayfa_q }}&sayfa={{ onceki }}">‹ Önceki</a>{% else %}<span class="mg-sayfa-ok pasif">‹ Önceki</span>{% endif %}
+    <span class="mg-sayfa-no">
+      {% for n in sayfa_linkleri %}{% if n == 0 %}<span class="mg-sayfa-bos">…</span>{% elif n == sayfa_no %}<span class="mg-sayfa-n akt">{{ n }}</span>{% else %}<a class="mg-sayfa-n" href="?{{ sayfa_q }}&sayfa={{ n }}">{{ n }}</a>{% endif %}{% endfor %}
+    </span>
+    {% if sonraki %}<a class="mg-sayfa-ok" href="?{{ sayfa_q }}&sayfa={{ sonraki }}">Sonraki ›</a>{% else %}<span class="mg-sayfa-ok pasif">Sonraki ›</span>{% endif %}
+  </nav>
+  {% endif %}
 </div>
 
 <script>
@@ -145,6 +206,30 @@
   getir();
   setInterval(getir, 15000);
   setInterval(function () { if (acik) ciz(); }, 1000);
+})();
+</script>
+
+<script>
+(function () {
+  var f = document.getElementById('mg-filtre');
+  if (!f) return;
+  var ac = document.getElementById('mg-f-ac'), det = document.getElementById('mg-f-detay');
+  ac.addEventListener('click', function () {
+    var a = det.classList.toggle('acik');
+    ac.setAttribute('aria-expanded', a ? 'true' : 'false');
+  });
+  var tarih = document.getElementById('mg-f-tarih');
+  function ozelGoster() {
+    var r = f.querySelector('input[name=hizli]:checked');
+    tarih.classList.toggle('gizli', !(r && r.value === 'ozel'));
+  }
+  f.querySelectorAll('input[name=hizli]').forEach(function (r) { r.addEventListener('change', ozelGoster); });
+  f.querySelectorAll('.mg-tarih').forEach(function (d) {
+    d.addEventListener('change', function () { f.querySelector('input[name=hizli][value=ozel]').checked = true; ozelGoster(); });
+  });
+  ozelGoster();
+  f.querySelectorAll('select').forEach(function (s) { s.addEventListener('change', function () { f.submit(); }); });
+  f.querySelectorAll('input[name=hizli]').forEach(function (r) { r.addEventListener('change', function () { if (r.value !== 'ozel') f.submit(); }); });
 })();
 </script>
 {% endblock %}

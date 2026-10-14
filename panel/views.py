@@ -3176,13 +3176,14 @@ def mola_gecmis(request):
     else:
         gecmis_ids = sube_ids
         secili = 0
-    aralik = _gun_araligi(request, 'mg_bas', 'mg_bit')
-    hizli = request.GET.get('hizli', '14')
+    from . import mola_kurallari as mk
+    hizli = request.GET.get('hizli', '')
+    aralik = _gun_araligi(request, 'mg_bas', 'mg_bit') if (hizli == 'ozel' or 'hizli' not in request.GET) else None
     if aralik:
         bas, bit_ust, bas_str, bit_str = aralik
         sinir = datetime.datetime.combine(bas, datetime.time.min, tzinfo=timezone.get_current_timezone())
         ust = datetime.datetime.combine(bit_ust, datetime.time.min, tzinfo=timezone.get_current_timezone())
-        hizli = ''
+        hizli = 'ozel'
     else:
         bugun = timezone.localdate()
         if hizli == 'bugun':
@@ -3198,19 +3199,28 @@ def mola_gecmis(request):
         ust = timezone.now() + datetime.timedelta(days=1)
         bas_str = bas_g.strftime('%Y-%m-%d')
         bit_str = bugun.strftime('%Y-%m-%d')
+    q = (request.GET.get('q') or '').strip()[:60]
+    durum = request.GET.get('durum', '')
+    if durum not in ('asim', 'oto', 'manuel'):
+        durum = ''
+    sirala = request.GET.get('sirala', 'yeni')
+    if sirala not in ('yeni', 'eski', 'uzun', 'ad'):
+        sirala = 'yeni'
     kayitlar = (MolaOturum.objects.filter(bitis__isnull=False, sube_id__in=gecmis_ids,
                                           baslangic__gte=sinir, baslangic__lt=ust)
                 .select_related('personel', 'sube').order_by('-baslangic'))
     if personel.rol == Rol.MUTFAK_SORUMLUSU:
         kayitlar = kayitlar.filter(personel__rol=Rol.MUTFAK_PERSONEL)
-    from . import mola_kurallari as mk
-    gruplar = mk.gunluk_gruplar(list(kayitlar[:3000]))
+    tum_gruplar = mk.gunluk_gruplar(list(kayitlar[:3000]))
+    gruplar = mk.gruplari_sirala(mk.gruplari_suz(tum_gruplar, q, durum), sirala)
     bicim = request.GET.get('bicim')
     if bicim in ('xlsx', 'pdf'):
         from . import mola_rapor
-        etiket = '%s – %s · %s' % (bas_str[8:] + '.' + bas_str[5:7] + '.' + bas_str[:4],
-                                   bit_str[8:] + '.' + bit_str[5:7] + '.' + bit_str[:4],
+        gst = lambda d: d[8:] + '.' + d[5:7] + '.' + d[:4]
+        etiket = '%s – %s · %s' % (gst(bas_str), gst(bit_str),
                                    (Sube.objects.filter(id=secili).first().ad if secili else 'Tüm şubeler'))
+        if q:
+            etiket += ' · “%s”' % q
         ad = 'mola_raporu_%s_%s' % (bas_str, bit_str)
         if bicim == 'xlsx':
             y = HttpResponse(mola_rapor.excel_bytes(gruplar, etiket),
@@ -3219,15 +3229,52 @@ def mola_gecmis(request):
             y = HttpResponse(mola_rapor.pdf_bytes(gruplar, etiket), content_type='application/pdf')
         y['Content-Disposition'] = 'attachment; filename="%s.%s"' % (ad, bicim)
         return y
-    toplam_kisi = len(set(g['ad'] for g in gruplar))
-    asan_sayisi = sum(1 for g in gruplar if g['asti'])
-    rapor_q = 'mg_bas=%s&mg_bit=%s%s' % (bas_str, bit_str, ('&sube=%s' % secili) if secili else '')
+    from urllib.parse import urlencode
+    ortak = {'hizli': hizli, 'mg_bas': bas_str, 'mg_bit': bit_str}
+    if secili and not tekli_rol:
+        ortak['sube'] = secili
+    if q:
+        ortak['q'] = q
+    if durum:
+        ortak['durum'] = durum
+    if sirala != 'yeni':
+        ortak['sirala'] = sirala
+    sayfa_no = request.GET.get('sayfa', '1')
+    sayfa_no = int(sayfa_no) if sayfa_no.isdigit() and int(sayfa_no) > 0 else 1
+    toplam_grup = len(gruplar)
+    sayfa_sayisi = max(1, -(-toplam_grup // mk.SAYFA_BOYU))
+    sayfa_no = min(sayfa_no, sayfa_sayisi)
+    sayfa_gruplari = gruplar[(sayfa_no - 1) * mk.SAYFA_BOYU: sayfa_no * mk.SAYFA_BOYU]
+    sayfa_linkleri = []
+    for n in range(1, sayfa_sayisi + 1):
+        if n in (1, sayfa_sayisi) or abs(n - sayfa_no) <= 1:
+            sayfa_linkleri.append(n)
+        elif sayfa_linkleri and sayfa_linkleri[-1] != 0:
+            sayfa_linkleri.append(0)  # üç nokta
+    # Etkin süzgeçler (özet çipleri)
+    etkin = []
+    if q:
+        etkin.append('“%s”' % q)
+    if secili and subeler:
+        etkin.append(next((s.ad for s in subeler if s.id == secili), ''))
+    if durum:
+        etkin.append(dict(mk.DURUMLAR)[durum])
+    if sirala != 'yeni':
+        etkin.append(dict(mk.SIRALAR)[sirala])
     return render(request, 'mola_gecmis.html', {
         'personel': personel, 'aktif': 'mola_gecmis',
-        'subeler': subeler, 'secili': secili, 'gruplar': gruplar,
+        'subeler': subeler, 'secili': secili, 'gruplar': sayfa_gruplari,
         'hizli': hizli, 'mg_bas': bas_str, 'mg_bit': bit_str,
-        'toplam_kayit': sum(g['adet'] for g in gruplar), 'toplam_kisi': toplam_kisi, 'asan_sayisi': asan_sayisi,
-        'limit_dk': mk.MOLA_GUNLUK_LIMIT_DK, 'rapor_q': rapor_q,
+        'toplam_kayit': sum(g['adet'] for g in gruplar), 'toplam_kisi': len(set(g['ad'] for g in gruplar)),
+        'asan_sayisi': sum(1 for g in gruplar if g['asti']),
+        'toplam_grup': toplam_grup, 'limit_dk': mk.MOLA_GUNLUK_LIMIT_DK,
+        'q': q, 'durum': durum, 'sirala': sirala, 'durumlar': mk.DURUMLAR, 'siralar': mk.SIRALAR,
+        'etkin': [e for e in etkin if e], 'filtre_var': bool(q or durum or secili or sirala != 'yeni' or hizli != '14'),
+        'rapor_q': urlencode(ortak), 'sayfa_q': urlencode(ortak),
+        'sayfa_no': sayfa_no, 'sayfa_sayisi': sayfa_sayisi, 'sayfa_linkleri': sayfa_linkleri,
+        'onceki': sayfa_no - 1 if sayfa_no > 1 else 0, 'sonraki': sayfa_no + 1 if sayfa_no < sayfa_sayisi else 0,
+        'sayfa_ilk': (sayfa_no - 1) * mk.SAYFA_BOYU + 1 if toplam_grup else 0,
+        'sayfa_son': min(sayfa_no * mk.SAYFA_BOYU, toplam_grup),
     })
 
 

@@ -211,6 +211,56 @@ class MolaRaporTestleri(TestCase):
         p = self.client.get(reverse('mola_gecmis') + '?hizli=bugun&bicim=pdf')
         self.assertTrue(p.content.startswith(b'%PDF'))
 
+    def _ek_kisi(self, ad, sube=None):
+        k = kisi(Rol.PERSONEL, sube or self.sube, ad)
+        b = timezone.localtime().replace(hour=9, minute=0, second=0, microsecond=0)
+        MolaOturum.objects.create(personel=k, sube=k.sube, sure_dk=60, baslangic=b,
+                                  bitis=b + datetime.timedelta(minutes=10), kullanilan_dk=10)
+        return k
+
+    def test_arama_turkce_harf_duyarsiz(self):
+        self._ek_kisi('İbrahim Şahin')
+        r = self.client.get(reverse('mola_gecmis') + '?hizli=bugun&q=ibrahim')
+        self.assertContains(r, 'İbrahim Şahin')
+        self.assertNotContains(r, 'Ayşe</b>')
+        r = self.client.get(reverse('mola_gecmis') + '?hizli=bugun&q=SAHIN')
+        self.assertContains(r, 'İbrahim Şahin')
+
+    def test_durum_asim_suzgeci_ve_sayaclar(self):
+        self._ek_kisi('Kısa Mola')
+        r = self.client.get(reverse('mola_gecmis') + '?hizli=bugun&durum=asim')
+        self.assertContains(r, 'Ayşe')
+        self.assertNotContains(r, 'Kısa Mola')
+        self.assertEqual(r.context['toplam_grup'], 1)
+        self.assertEqual(r.context['toplam_kayit'], 2)
+
+    def test_rapor_suzgece_uyar(self):
+        import io
+        import openpyxl
+        self._ek_kisi('Kısa Mola')
+        x = self.client.get(reverse('mola_gecmis') + '?hizli=bugun&durum=asim&bicim=xlsx')
+        wb = openpyxl.load_workbook(io.BytesIO(x.content))
+        adlar = [r[1].value for r in wb['Günlük Özet'].iter_rows(min_row=6) if r[1].value]
+        self.assertEqual(adlar, ['Ayşe'])
+
+    def test_sayfalama(self):
+        for i in range(25):
+            self._ek_kisi('Kişi %02d' % i)
+        r = self.client.get(reverse('mola_gecmis') + '?hizli=bugun')
+        self.assertEqual(r.context['toplam_grup'], 26)
+        self.assertEqual(len(r.context['gruplar']), 20)
+        self.assertEqual(r.context['sayfa_sayisi'], 2)
+        r2 = self.client.get(reverse('mola_gecmis') + '?hizli=bugun&sayfa=2')
+        self.assertEqual(len(r2.context['gruplar']), 6)
+        r3 = self.client.get(reverse('mola_gecmis') + '?hizli=bugun&sayfa=99')   # sınır dışı -> son sayfa
+        self.assertEqual(r3.context['sayfa_no'], 2)
+        self.assertEqual(self.client.get(reverse('mola_gecmis') + '?sayfa=abc&durum=zzz&sirala=x').status_code, 200)
+
+    def test_siralama_en_uzun(self):
+        self._ek_kisi('Kısa Mola')
+        r = self.client.get(reverse('mola_gecmis') + '?hizli=bugun&sirala=uzun')
+        self.assertEqual(r.context['gruplar'][0]['ad'], 'Ayşe')
+
     def test_personel_raporu_goremez(self):
         self.client.force_login(self.p.user)
         self.assertEqual(self.client.get(reverse('mola_gecmis')).status_code, 302)

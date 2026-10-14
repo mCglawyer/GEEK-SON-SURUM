@@ -151,3 +151,43 @@ def gunluk_gruplar(kayitlar):
         g['asti'] = g['toplam_dk'] > MOLA_GUNLUK_LIMIT_DK
         g['oto'] = any(x['oto'] for x in g['molalar'])
     return liste
+
+
+# ---------------------------------------------------------------- Mola Takibi filtreleri
+_TR_SADE = str.maketrans({'İ': 'i', 'I': 'i', 'ı': 'i', 'Ç': 'c', 'ç': 'c', 'Ş': 's', 'ş': 's',
+                          'Ğ': 'g', 'ğ': 'g', 'Ö': 'o', 'ö': 'o', 'Ü': 'u', 'ü': 'u'})
+
+DURUMLAR = (('', 'Tümü'), ('asim', 'Günlük aşım'), ('oto', 'Otomatik kapanan'), ('manuel', 'Elle eklenen'))
+SIRALAR = (('yeni', 'En yeni'), ('eski', 'En eski'), ('uzun', 'En uzun toplam'), ('ad', 'Ada göre'))
+SAYFA_BOYU = 20
+
+
+def sade(metin):
+    """Arama için: büyük/küçük harf ve Türkçe karakter farkını yok sayar."""
+    return (metin or '').translate(_TR_SADE).lower().strip()
+
+
+def gruplari_suz(gruplar, q='', durum=''):
+    q = sade(q)
+    cikti = []
+    for g in gruplar:
+        if q and q not in sade(g['ad']):
+            continue
+        if durum == 'asim' and not g['asti']:
+            continue
+        if durum == 'oto' and not g['oto']:
+            continue
+        if durum == 'manuel' and not any(m['manuel'] for m in g['molalar']):
+            continue
+        cikti.append(g)
+    return cikti
+
+
+def gruplari_sirala(gruplar, sirala='yeni'):
+    if sirala == 'eski':
+        return sorted(gruplar, key=lambda g: (g['tarih'], sade(g['ad'])))
+    if sirala == 'uzun':
+        return sorted(gruplar, key=lambda g: (-g['toplam_dk'], g['tarih'].toordinal() * -1))
+    if sirala == 'ad':
+        return sorted(gruplar, key=lambda g: (sade(g['ad']), -g['tarih'].toordinal()))
+    return list(gruplar)  # gunluk_gruplar zaten yeni günden eskiye
