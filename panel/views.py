@@ -2245,6 +2245,8 @@ def sevkiyat_sayfa(request):
         ctx['sel_gun'] = sel_gun
         ctx['gecmis'] = True
 
+    from .sevkiyat_analiz import ANALIZ_ROLLERI
+    ctx['analiz_yetkili'] = rol in ANALIZ_ROLLERI
     return render(request, 'sevkiyat.html', ctx)
 
 def sevkiyat_belge(request, talep_id, tip):

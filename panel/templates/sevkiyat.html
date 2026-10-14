@@ -12,7 +12,9 @@
       {% elif is_sevkiyat %}Sevkiyattakiler
       {% else %}Tüm siparişler{% endif %}
     </span>
-  </div></div>
+  </div>
+  {% if analiz_yetkili %}<a class="btn btn-primary btn-mini" href="{% url 'sevkiyat_analiz' %}">Talep analizi</a>{% endif %}
+  </div>
 
   {% if is_sef and sef_coklu_sube %}
   <form method="get" class="card sv-filtre">

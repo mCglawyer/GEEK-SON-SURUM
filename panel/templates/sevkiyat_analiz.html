@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}Talep analizi · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Talep analizi</h2><span class="plan-aralik">{{ ay_etiket }} · {% if secili %}{{ secili.ad }}{% else %}Tüm şubeler{% endif %}</span></div>
+    <div class="an-btns">
+      <a class="btn btn-ghost btn-mini" href="{% url 'sevkiyat' %}">← Sevkiyat</a>
+      <a class="btn btn-primary btn-mini" href="{{ xlsx_url }}">Excel ↓</a>
+      <a class="btn btn-primary btn-mini" href="{{ pdf_url }}">PDF ↓</a>
+    </div>
+  </div>
+
+  <form method="get" class="card an-filtre">
+    <div class="an-ay">
+      <a class="btn btn-ghost btn-mini" href="{{ onceki_url }}" aria-label="Önceki ay">‹</a>
+      <b>{{ ay_etiket }}</b>
+      <a class="btn btn-ghost btn-mini" href="{{ sonraki_url }}" aria-label="Sonraki ay">›</a>
+    </div>
+    <input type="hidden" name="ay" value="{{ ay_deger }}">
+    <label>Şube
+      <select name="sube" class="sube-sec" onchange="this.form.submit()">
+        <option value="">Tüm şubeler</option>
+        {% for s in subeler %}<option value="{{ s.id }}"{% if secili and s.id == secili.id %} selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+      </select>
+    </label>
+  </form>
+
+  <div class="an-ozet">
+    <div><b>{{ veri.toplam_siparis }}</b><span>Sipariş</span></div>
+    <div><b>{{ veri.toplam_onayli }}</b><span>Çıkışı onaylı</span></div>
+    <div><b>{{ veri.toplam_bekleyen }}</b><span>Bekleyen</span></div>
+  </div>
+
+  {% if not satirlar %}
+  <div class="card an-bos">Bu ayda {% if secili %}{{ secili.ad }} için{% endif %} sipariş yok. Başka bir ay ya da şube seç.</div>
+  {% else %}
+
+  <div class="card an-kart">
+    <h3>En çok talep edilen ürünler</h3>
+    <p class="an-not">Her ürün kendi biriminde gösterilir. Koli/paket gibi üst birimler taban birime çevrilir.</p>
+    <div class="an-lejant"><span class="an-l an-l-t"></span>Talep <span class="an-l an-l-g"></span>Giden (çıkışı onaylı)</div>
+    <div class="an-kaydir">
+      <div class="an-grafik">
+        {% for g in grafik_urun %}
+        <div class="an-grup" title="{{ g.ad }}: talep {{ g.t_yaz }}, giden {{ g.g_yaz }} {{ g.birim }}">
+          <div class="an-sutunlar">
+            <div class="an-sut an-t" style="height:{{ g.t_yuzde|stringformat:'.1f' }}%"><em>{{ g.t_yaz }}</em></div>
+            <div class="an-sut an-g" style="height:{{ g.g_yuzde|stringformat:'.1f' }}%"><em>{{ g.g_yaz }}</em></div>
+          </div>
+          <div class="an-et">{{ g.ad }}<small>{{ g.birim }}</small></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {% if not secili and grafik_sube %}
+  <div class="card an-kart">
+    <h3>Şubeler arası: {{ secili_urun.ad }}</h3>
+    <form method="get" class="an-urunsec">
+      <input type="hidden" name="ay" value="{{ ay_deger }}">
+      <label>Ürün
+        <select name="urun" class="sube-sec" onchange="this.form.submit()">
+          {% for u in veri.urunler %}<option value="{{ u.anahtar }}"{% if u.anahtar == secili_urun.anahtar %} selected{% endif %}>{{ u.ad }} ({{ u.birim }})</option>{% endfor %}
+        </select>
+      </label>
+    </form>
+    <p class="an-not">Hangi şube bu üründen ne kadar istedi, ne kadarı gitti ({{ secili_urun.birim }}).</p>
+    <div class="an-lejant"><span class="an-l an-l-t"></span>Talep <span class="an-l an-l-g"></span>Giden</div>
+    <div class="an-kaydir">
+      <div class="an-grafik">
+        {% for g in grafik_sube %}
+        <div class="an-grup" title="{{ g.ad }}: talep {{ g.t_yaz }}, giden {{ g.g_yaz }} {{ secili_urun.birim }}">
+          <div class="an-sutunlar">
+            <div class="an-sut an-t" style="height:{{ g.t_yuzde|stringformat:'.1f' }}%"><em>{{ g.t_yaz }}</em></div>
+            <div class="an-sut an-g" style="height:{{ g.g_yuzde|stringformat:'.1f' }}%"><em>{{ g.g_yaz }}</em></div>
+          </div>
+          <div class="an-et">{{ g.ad }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card an-kart">
+    <h3>Tüm ürünler</h3>
+    <div class="an-tablo-kap">
+      <table class="an-tablo">
+        <thead><tr><th>Ürün</th><th>Birim</th><th class="sag">Talep</th><th class="sag">Giden</th><th class="sag">Bekleyen</th><th class="sag">Karşılama</th></tr></thead>
+        <tbody>
+          {% for s in satirlar %}
+          <tr><td>{{ s.ad }}</td><td>{{ s.birim }}</td><td class="sag">{{ s.t_yaz }}</td><td class="sag">{{ s.g_yaz }}</td><td class="sag">{{ s.b_yaz }}</td><td class="sag">{% if s.karsilama != None %}%{{ s.karsilama }}{% else %}—{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="an-not">Bekleyen: çıkışı henüz onaylanmamış siparişlerin talebi. Karşılama: giden ÷ onaylı siparişlerin talebi.</p>
+  </div>
+
+  {% if not secili %}
+  <div class="card an-kart">
+    <h3>Şube özeti</h3>
+    <div class="an-tablo-kap">
+      <table class="an-tablo">
+        <thead><tr><th>Şube</th><th class="sag">Sipariş</th><th class="sag">Onaylı</th><th class="sag">Bekleyen</th><th class="sag">Ürün çeşidi</th></tr></thead>
+        <tbody>
+          {% for o in veri.ozet %}<tr><td>{{ o.sube.ad }}</td><td class="sag">{{ o.siparis }}</td><td class="sag">{{ o.onayli }}</td><td class="sag">{{ o.bekleyen }}</td><td class="sag">{{ o.cesit }}</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

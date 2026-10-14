@@ -286,3 +286,42 @@ select, input, textarea { max-width:100%; }
 .yon-secimler { max-width:100%; flex-wrap:wrap; }
 .tarih-aralik { display:flex; flex-wrap:wrap; align-items:center; gap:.4rem; max-width:100%; }
 .tarih-aralik input[type=date] { flex:1 1 130px; min-width:0; }
+
+/* ============================================================================
+   SEVKİYAT — talep analizi (sütun grafiği)
+   ============================================================================ */
+.an-btns { display:flex; gap:.5rem; flex-wrap:wrap; }
+.an-filtre { display:flex; align-items:flex-end; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+.an-filtre label, .an-urunsec label { display:flex; flex-direction:column; gap:.3rem; font-size:.8rem; color:var(--muted); font-weight:600; }
+.an-ay { display:flex; align-items:center; gap:.7rem; min-height:44px; }
+.an-ay b { min-width:110px; text-align:center; }
+.an-ozet { display:grid; grid-template-columns:repeat(3,1fr); gap:.7rem; margin-bottom:1rem; }
+.an-ozet div { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:.8rem 1rem; display:flex; flex-direction:column; gap:.1rem; }
+.an-ozet b { font-size:1.5rem; color:var(--ink); font-variant-numeric:tabular-nums; }
+.an-ozet span { font-size:.78rem; color:var(--muted); }
+.an-kart { margin-bottom:1rem; }
+.an-kart h3 { margin:0 0 .2rem; font-size:1.05rem; }
+.an-not { font-size:.8rem; color:var(--muted); margin:.2rem 0 .6rem; }
+.an-bos { text-align:center; color:var(--muted); border-style:dashed; padding:1.4rem 1rem; }
+.an-lejant { display:flex; align-items:center; gap:.45rem; font-size:.8rem; color:var(--muted); margin-bottom:.4rem; }
+.an-l { width:12px; height:12px; border-radius:3px; display:inline-block; margin-left:.6rem; }
+.an-l:first-child { margin-left:0; }
+.an-l-t { background:var(--brand); } .an-l-g { background:var(--crema); }
+.an-kaydir { overflow-x:auto; padding-bottom:.4rem; -webkit-overflow-scrolling:touch; }
+.an-grafik { display:flex; gap:.5rem; align-items:flex-start; min-width:100%; width:max-content; padding-top:1.4rem; }
+.an-grup { width:84px; flex:none; display:flex; flex-direction:column; align-items:stretch; }
+.an-sutunlar { height:190px; display:flex; align-items:flex-end; justify-content:center; gap:5px; border-bottom:2px solid var(--line); }
+.an-sut { width:30px; border-radius:6px 6px 0 0; position:relative; min-height:2px; transition:height .4s ease; }
+.an-sut em { position:absolute; bottom:100%; left:50%; transform:translateX(-50%); font-style:normal; font-size:.66rem; font-weight:600; color:var(--ink); white-space:nowrap; padding-bottom:2px; font-variant-numeric:tabular-nums; }
+.an-t { background:var(--brand); } .an-g { background:var(--crema); }
+.an-et { font-size:.74rem; text-align:center; margin-top:.4rem; line-height:1.2; font-weight:600; word-break:break-word; hyphens:auto; }
+.an-et small { display:block; font-weight:400; color:var(--muted); font-size:.68rem; }
+.an-urunsec { margin:.5rem 0; }
+.an-urunsec select { max-width:100%; }
+.an-tablo-kap { overflow-x:auto; }
+.an-tablo { width:100%; border-collapse:collapse; font-size:.88rem; }
+.an-tablo th { text-align:left; font-size:.74rem; color:var(--muted); font-weight:600; padding:.5rem .5rem; border-bottom:2px solid var(--line); white-space:nowrap; }
+.an-tablo td { padding:.55rem .5rem; border-bottom:1px solid var(--line); }
+.an-tablo .sag { text-align:right; font-variant-numeric:tabular-nums; }
+@media (max-width:560px) { .an-ozet b { font-size:1.25rem; } .an-grup { width:72px; } .an-sut { width:26px; } }
+@media (prefers-reduced-motion:reduce) { .an-sut { transition:none; } }

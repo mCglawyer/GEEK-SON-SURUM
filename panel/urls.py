@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from . import menu_views
-from . import zayi_views
+from . import zayi_views, sevkiyat_analiz_views
 
 urlpatterns = [
     path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
@@ -75,6 +75,8 @@ urlpatterns = [
     path('soru-yonetimi/', views.soru_yonetimi, name='soru_yonetimi'),
     path('puantaj/excel/', views.puantaj_excel_export, name='puantaj_excel_export'),
     path('sevkiyat/', views.sevkiyat_sayfa, name='sevkiyat'),
+    path('sevkiyat/analiz/', sevkiyat_analiz_views.sevkiyat_analiz, name='sevkiyat_analiz'),
+    path('sevkiyat/analiz/rapor/', sevkiyat_analiz_views.sevkiyat_analiz_rapor, name='sevkiyat_analiz_rapor'),
     path('sevkiyat-duzenle/', views.sevkiyat_duzenle, name='sevkiyat_duzenle'),
     path('sevkiyat/<int:talep_id>/belge/<str:tip>/', views.sevkiyat_belge, name='sevkiyat_belge'),
     path('sevkiyat/<int:talep_id>/excel/', views.sevkiyat_excel, name='sevkiyat_excel'),
