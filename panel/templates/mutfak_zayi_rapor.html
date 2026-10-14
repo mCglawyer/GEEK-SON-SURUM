@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}Mutfak Zayi Raporu · Geek Panel{% endblock %}
+{% block body %}
+{% include '_zayi_stil.html' %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head">
+    <div><h2>Mutfak Zayi Raporu</h2></div>
+    <div class="yon-secimler">
+      <a class="btn btn-ghost btn-mini" href="{% url 'mutfak_zayi' %}">← Zayi kayıtları</a>
+      <a class="btn btn-primary btn-mini" href="{{ xlsx_url }}">⬇ Excel</a>
+      <a class="btn btn-primary btn-mini" href="{{ pdf_url }}">⬇ PDF</a>
+    </div>
+  </div>
+
+  <div class="zy-sekme">
+    {% for kod, ad in donemler %}
+    <a href="?donem={{ kod }}&tarih={{ tarih }}{% if secili_sube %}&sube={{ secili_sube }}{% endif %}{% if kod == 'ozel' %}&bas={{ bas }}&bit={{ bit }}{% endif %}" class="{% if donem == kod %}akt{% endif %}">{{ ad }}</a>
+    {% endfor %}
+  </div>
+
+  <form method="get" class="zy-filtre">
+    <input type="hidden" name="donem" value="{{ donem }}">
+    {% if donem == 'ozel' %}
+      <div><label class="zy-lbl" for="r-bas">Başlangıç</label><input type="date" class="ay-sec" id="r-bas" name="bas" value="{{ bas }}"></div>
+      <div><label class="zy-lbl" for="r-bit">Bitiş</label><input type="date" class="ay-sec" id="r-bit" name="bit" value="{{ bit }}"></div>
+    {% else %}
+      <div><label class="zy-lbl" for="r-tarih">{% if donem == 'gun' %}Gün{% elif donem == 'hafta' %}Haftadan bir gün{% else %}Ayın bir günü{% endif %}</label>
+        <input type="date" class="ay-sec" id="r-tarih" name="tarih" value="{{ tarih }}"></div>
+    {% endif %}
+    {% if subeler_hepsi|length > 1 %}
+    <div><label class="zy-lbl" for="r-sube">Şube</label>
+      <select class="sube-sec" id="r-sube" name="sube">
+        <option value="">Tüm şubeler</option>
+        {% for s in subeler_hepsi %}<option value="{{ s.id }}" {% if secili_sube == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+      </select></div>
+    {% endif %}
+    <div><button class="btn btn-ghost btn-mini" type="submit">Göster</button></div>
+  </form>
+
+  <div class="zy-gezin">
+    {% if onceki_url %}<a class="btn btn-ghost btn-mini" href="{{ onceki_url }}">‹ Önceki</a>{% endif %}
+    <span class="etiket">{{ etiket }}</span>
+    {% if sonraki_url %}<a class="btn btn-ghost btn-mini" href="{{ sonraki_url }}">Sonraki ›</a>{% endif %}
+    <span class="zy-kim">· {{ sube_etiketi }}</span>
+  </div>
+  {% if uyari %}<div class="zy-uyari">{{ uyari }}</div>{% endif %}
+
+  <div class="zy-ozet">
+    <div><span>Kayıt sayısı</span><b>{{ veri.genel.kayit }}</b></div>
+    <div><span>Toplam ağırlık</span><b>{{ veri.genel.yazi.agirlik|default:"—" }}</b></div>
+    <div><span>Toplam hacim</span><b>{{ veri.genel.yazi.hacim|default:"—" }}</b></div>
+    <div><span>Toplam adet</span><b>{{ veri.genel.yazi.adet|default:"—" }}</b></div>
+  </div>
+
+  {% if cok_sube %}
+  <div class="zy-kutu">
+    <h3>Şubeler arası karşılaştırma</h3>
+    <p class="zy-ipucu">Ağırlık (gr+kg), hacim (ml+lt) ve adet ayrı toplanır; farklı ölçüler birbirine eklenmez.</p>
+    <div class="zy-kaydir"><table class="zy-tablo">
+      <thead><tr><th>Şube</th><th class="sag">Kayıt</th><th class="sag">Ağırlık</th><th class="sag">Hacim</th><th class="sag">Adet</th></tr></thead>
+      <tbody>
+      {% for o in veri.ozet %}
+        <tr><td>{{ o.sube.ad }}</td><td class="sag say">{{ o.kayit }}</td>
+          <td class="sag say">{{ o.yazi.agirlik|default:"—" }}</td><td class="sag say">{{ o.yazi.hacim|default:"—" }}</td><td class="sag say">{{ o.yazi.adet|default:"—" }}</td></tr>
+      {% endfor %}
+        <tr class="toplam"><td>Toplam</td><td class="sag say">{{ veri.genel.kayit }}</td>
+          <td class="sag say">{{ veri.genel.yazi.agirlik|default:"—" }}</td><td class="sag say">{{ veri.genel.yazi.hacim|default:"—" }}</td><td class="sag say">{{ veri.genel.yazi.adet|default:"—" }}</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  {% endif %}
+
+  <div class="zy-kutu">
+    <h3>Ürün bazında zayi</h3>
+    {% if veri.urunler %}
+    <div class="zy-kaydir"><table class="zy-tablo">
+      <thead><tr><th>Ürün</th>{% if cok_sube %}{% for s in veri.subeler %}<th class="sag">{{ s.ad }}</th>{% endfor %}{% endif %}<th class="sag">Toplam</th></tr></thead>
+      <tbody>
+      {% for u in veri.urunler %}
+        <tr><td>{{ u.ad }}</td>{% if cok_sube %}{% for h in u.hucreler %}<td class="sag say">{{ h.yazi|default:"—" }}</td>{% endfor %}{% endif %}<td class="sag say"><b>{{ u.toplam_yazi }}</b></td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="zy-bos">Bu dönemde zayi kaydı yok.</p>{% endif %}
+  </div>
+
+  {% if veri.gunler|length > 1 %}
+  <div class="zy-kutu">
+    <h3>Gün gün</h3>
+    <div class="zy-kaydir"><table class="zy-tablo">
+      <thead><tr><th>Tarih</th><th class="sag">Kayıt</th><th class="sag">Ağırlık</th><th class="sag">Hacim</th><th class="sag">Adet</th></tr></thead>
+      <tbody>
+      {% for g in veri.gunler %}
+        <tr><td>{{ g.tarih|date:"d.m.Y, l" }}</td><td class="sag say">{{ g.kayit }}</td>
+          <td class="sag say">{{ g.yazi.agirlik|default:"—" }}</td><td class="sag say">{{ g.yazi.hacim|default:"—" }}</td><td class="sag say">{{ g.yazi.adet|default:"—" }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+  {% endif %}
+
+  <div class="zy-kutu">
+    <h3>Kayıtlar ({{ detay_toplam }})</h3>
+    {% if detay %}
+    <div class="zy-kaydir"><table class="zy-tablo">
+      <thead><tr><th>Tarih</th><th>Şube</th><th>Ürün</th><th class="sag">Miktar</th><th>Giren</th></tr></thead>
+      <tbody>
+      {% for d in detay %}
+        <tr><td class="say">{{ d.tarih|date:"d.m.Y" }}</td><td>{{ d.sube }}</td>
+          <td>{{ d.urun }}{% if d.aciklama %}<span class="zy-not">{{ d.aciklama }}</span>{% endif %}</td>
+          <td class="sag say">{{ d.miktar }}</td><td class="zy-kim">{{ d.giren }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% if detay_kisaltildi %}<p class="zy-ipucu" style="margin-top:.6rem">İlk {{ detay_maks }} kayıt gösteriliyor. Tüm kayıtlar Excel ve PDF çıktısındadır.</p>{% endif %}
+    {% else %}<p class="zy-bos">Bu dönemde kayıt yok.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

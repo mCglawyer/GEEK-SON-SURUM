@@ -1,4 +1,5 @@
 import secrets
+import unicodedata
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import pre_delete
@@ -42,6 +43,9 @@ class Sube(models.Model):
     depo_mu = models.BooleanField(
         default=False, verbose_name="Depo mu?",
         help_text="İşaretliyse bu şube vardiya planına dahil edilmez.")
+    mutfak_var = models.BooleanField(
+        default=False, verbose_name="Mutfağı var",
+        help_text="İşaretliyse bu şubede mutfak zayi kaydı tutulur ve mutfak zayi sayfası bu şube için açılır.")
 
     class Meta:
         verbose_name = "Şube"; verbose_name_plural = "Şubeler"; ordering = ['ad']
@@ -1145,3 +1149,80 @@ class MenuUrun(models.Model):
             except Exception:
                 pass
         return self.gorsel_harici or ''
+
+
+# --- Mutfak zayi (yazılı kayıt) --------------------------------------------------
+
+class ZayiBirim(models.TextChoices):
+    GR = 'gr', 'gr'
+    KG = 'kg', 'kg'
+    ML = 'ml', 'ml'
+    LT = 'lt', 'lt'
+    ADET = 'adet', 'adet'
+
+
+# birim -> (taban birime çarpan, ölçü türü). Toplama sadece aynı türde yapılır:
+# gr/kg birlikte, ml/lt birlikte, adet kendi başına. Gram ile mililitre toplanmaz.
+ZAYI_BIRIM_OLCU = {
+    'gr': (1, 'agirlik'), 'kg': (1000, 'agirlik'),
+    'ml': (1, 'hacim'), 'lt': (1000, 'hacim'),
+    'adet': (1, 'adet'),
+}
+
+
+def zayi_urun_anahtar(ad):
+    """Ürün adını gruplamak için normalleştirir (büyük/küçük harf, fazla boşluk, İ/ı)."""
+    s = ' '.join((ad or '').split())
+    s = s.replace('İ', 'i').replace('I', 'ı').lower()
+    return unicodedata.normalize('NFC', s)[:120]
+
+
+def zayi_urun_baslik(anahtar):
+    """'pesto sos' -> 'Pesto Sos' (Türkçe i/ı kurallarıyla)."""
+    kelimeler = []
+    for w in (anahtar or '').split(' '):
+        if not w:
+            continue
+        f = 'İ' if w[0] == 'i' else ('I' if w[0] == 'ı' else w[0].upper())
+        kelimeler.append(f + w[1:])
+    return ' '.join(kelimeler)
+
+
+class MutfakZayiKalemi(models.Model):
+    """Günlük elle girilen mutfak zayi satırı (ör. Domates 100 gr)."""
+    sube = models.ForeignKey(Sube, on_delete=models.SET_NULL, null=True, blank=True,
+                             related_name='zayi_kalemleri', verbose_name="Şube")
+    sube_ad_arsiv = models.CharField(max_length=100, blank=True, default='')
+    personel = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='zayi_kalemleri', verbose_name="Giren")
+    personel_ad_arsiv = models.CharField(max_length=160, blank=True, default='')
+    tarih = models.DateField(db_index=True, verbose_name="Zayi Tarihi")
+    urun = models.CharField(max_length=120, verbose_name="Ürün")
+    urun_anahtar = models.CharField(max_length=120, db_index=True, editable=False, default='')
+    miktar = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Miktar")
+    birim = models.CharField(max_length=8, choices=ZayiBirim.choices, verbose_name="Birim")
+    olcu = models.CharField(max_length=8, editable=False, default='')
+    taban_miktar = models.DecimalField(max_digits=14, decimal_places=2, editable=False, default=0,
+                                       help_text="gr / ml / adet cinsinden")
+    aciklama = models.CharField(max_length=500, blank=True, default='', verbose_name="Açıklama")
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Mutfak Zayi Kalemi"; verbose_name_plural = "Mutfak Zayi Kalemleri"
+        ordering = ['-tarih', '-olusturma']
+        indexes = [models.Index(fields=['sube', 'tarih'], name='zayikalem_sube_tarih')]
+
+    def save(self, *args, **kwargs):
+        self.urun = ' '.join((self.urun or '').split())[:120]
+        self.urun_anahtar = zayi_urun_anahtar(self.urun)
+        carpan, olcu = ZAYI_BIRIM_OLCU.get(self.birim, (1, 'adet'))
+        self.olcu = olcu
+        self.taban_miktar = (self.miktar or 0) * carpan
+        if self.sube_id and not self.sube_ad_arsiv:
+            self.sube_ad_arsiv = self.sube.ad
+        if self.personel_id and not self.personel_ad_arsiv:
+            self.personel_ad_arsiv = self.personel.ad_soyad
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.tarih:%d.%m.%Y} {self.sube_ad_arsiv} {self.urun} {self.miktar} {self.birim}"

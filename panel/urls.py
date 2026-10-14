@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from . import menu_views
+from . import zayi_views
 
 urlpatterns = [
     path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
@@ -22,7 +23,8 @@ urlpatterns = [
     path('mesai/kayitlar/', views.mesai_kayitlari, name='mesai_kayitlari'),
     path('mutfak/vardiya/', views.mutfak_vardiya_sayfa, name='mutfak_vardiya'),
     path('mutfak/atamalar/', views.mutfak_atamalari_sayfa, name='mutfak_atamalari'),
-    path('mutfak/zayi/', views.mutfak_zayi_sayfa, name='mutfak_zayi'),
+    path('mutfak/zayi/', zayi_views.mutfak_zayi_sayfa, name='mutfak_zayi'),
+    path('mutfak/zayi/rapor/', zayi_views.mutfak_zayi_rapor, name='mutfak_zayi_rapor'),
     path('mutfak/puantaj/', views.mutfak_puantaj_sayfa, name='mutfak_puantaj'),
     path('mutfak/maliyet/', views.mutfak_maliyet_sayfa, name='mutfak_maliyet'),
     path('insaat/', views.insaat_liste, name='insaat_liste'),

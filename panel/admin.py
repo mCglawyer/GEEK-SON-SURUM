@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (Sube, Personel, Vardiya, Puantaj, KodKilit, Kalibrasyon, Irsaliye, StokUrun, StokSayim, StokSayimKalem, SevkiyatTalep, SevkiyatKalem, Urun, SiparisHareket, KahveSoru, GunlukSoru, SoruAyar,
                      MolaOturum, SubeMolaToken, MesaiKayit, SubeMesaiToken,
-                     MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi,
+                     MutfakZayi, MutfakZayiKalemi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap,
                      DenetimBolum, DenetimMadde, Denetim, DenetimCevap,
                      GSosyalGonderi, GSosyalGorsel, IlginHaber, GeriBildirim,
@@ -10,8 +10,8 @@ from .models import (Sube, Personel, Vardiya, Puantaj, KodKilit, Kalibrasyon, Ir
 
 @admin.register(Sube)
 class SubeAdmin(admin.ModelAdmin):
-    list_display = ('ad', 'depo_mu')
-    list_filter = ('depo_mu',)
+    list_display = ('ad', 'depo_mu', 'mutfak_var')
+    list_filter = ('depo_mu', 'mutfak_var')
     search_fields = ('ad',)
 
 @admin.action(description="Seçili personelin giriş kodunu yenile")
@@ -160,6 +160,15 @@ class MutfakZayiAdmin(admin.ModelAdmin):
     search_fields = ('personel__ad_soyad', 'personel_ad_arsiv', 'aciklama')
     readonly_fields = ('olusturma',)
     date_hierarchy = 'olusturma'
+    autocomplete_fields = ('personel', 'sube')
+
+@admin.register(MutfakZayiKalemi)
+class MutfakZayiKalemiAdmin(admin.ModelAdmin):
+    list_display = ('tarih', 'sube', 'urun', 'miktar', 'birim', 'personel_ad_arsiv')
+    list_filter = ('sube', 'birim', 'tarih')
+    search_fields = ('urun', 'personel_ad_arsiv', 'aciklama')
+    readonly_fields = ('olusturma', 'urun_anahtar', 'olcu', 'taban_miktar')
+    date_hierarchy = 'tarih'
     autocomplete_fields = ('personel', 'sube')
 
 @admin.register(MutfakMaliyetKalemi)

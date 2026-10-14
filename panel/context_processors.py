@@ -112,3 +112,17 @@ def acilis_ctx(request):
     except Exception:
         pass
     return {}
+
+
+def zayi_ctx(request):
+    """Menüde 'Mutfak Zayi' bağlantısının gösterilip gösterilmeyeceği: mutfağı olmayan
+    şubelerin yöneticileri bu sayfayı hiç görmez."""
+    u = getattr(request, 'user', None)
+    if not u or not getattr(u, 'is_authenticated', False):
+        return {}
+    try:
+        from .zayi_kapsam import zayi_menusu_gorunur
+        p = Personel.objects.filter(user=u).select_related('sube').first()
+        return {'zayi_gorunur': zayi_menusu_gorunur(p)}
+    except Exception:
+        return {'zayi_gorunur': False}

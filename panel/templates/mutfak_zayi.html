@@ -1,124 +1,135 @@
 {% extends 'base.html' %}
 {% block title %}Mutfak Zayi · Geek Panel{% endblock %}
 {% block body %}
+{% include '_zayi_stil.html' %}
 <div class="container">
   {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
   <div class="plan-head">
     <div><h2>Mutfak Zayi</h2></div>
     <div class="yon-secimler">
-      {% if subeler %}
-      <select class="sube-sec" onchange="location.href='?sube='+this.value+'&mz_tarih={{ secili_tarih }}'">
-        <option value="">Tüm şubeler</option>
-        {% for s in subeler %}<option value="{{ s.id }}" {% if secili == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
-      </select>
-      {% endif %}
-      <input type="date" class="ay-sec" value="{{ secili_tarih }}" max="{{ bugun }}"
-             onchange="location.href='?{% if secili %}sube={{ secili }}&{% endif %}mz_tarih='+this.value">
+      {% if rapor_gorebilir %}<a class="btn btn-primary btn-mini" href="{% url 'mutfak_zayi_rapor' %}">📊 Rapor / Excel / PDF</a>{% endif %}
     </div>
   </div>
 
-  {% if ekleyebilir %}
-  <div class="card kal-cam">
-    <div class="kal-video-wrap">
-      <video id="kamera" autoplay playsinline muted></video>
-    </div>
-    <canvas id="tuval" hidden></canvas>
-    <div id="kamera-hata" class="kal-hata" hidden></div>
-    <form method="post" id="kal-form">
-      {% csrf_token %}<input type="hidden" name="islem" value="mutfak_zayi_yukle">
-      <input type="hidden" name="foto_data" id="foto_data">
-      <textarea name="aciklama" rows="2" placeholder="Açıklama ekle (ör. hangi ürün, ne kadar, neden)…" class="mz-aciklama"></textarea>
-      <button type="button" id="cek-btn" class="btn btn-primary kal-cek">📸 Çek ve Yükle</button>
-    </form>
-  </div>
+  {% if engel %}
+  <div class="zy-uyari">{{ engel }}</div>
   {% endif %}
 
-  <div class="card">
-    <div class="hafta-head"><h3>Kayıtlar <span class="ea-not">{{ secili_tarih }}</span></h3><span class="hafta-aralik">{{ gorseller|length }} kayıt · {{ saklama_gun }} günde silinir</span></div>
+  {% if ekleyebilir %}
+  <form method="post" class="zy-kutu" id="zayi-form" autocomplete="off">
+    {% csrf_token %}<input type="hidden" name="islem" value="zayi_ekle">
+    <h3>Zayi yaz{% if giris_subesi %} · {{ giris_subesi.ad }}{% endif %}</h3>
+    <p class="zy-ipucu">Ürünü, miktarı ve birimi yazın (ör. Domates · 100 · gr). Birden fazla ürünü aynı anda ekleyebilirsiniz. Açıklama isteğe bağlıdır.</p>
+
+    {% if sorumlu %}
+    <div class="zy-ust">
+      <div><label class="zy-lbl" for="zy-sube">Şube</label>
+        <select name="sube_id" id="zy-sube" required>
+          {% if subeler|length != 1 %}<option value="">Şube seçin…</option>{% endif %}
+          {% for s in subeler %}<option value="{{ s.id }}" {% if form_sube == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+        </select></div>
+      <div><label class="zy-lbl" for="zy-tarih">Zayi tarihi</label>
+        <input type="date" name="tarih" id="zy-tarih" value="{{ form_tarih }}" min="{{ en_eski_giris }}" max="{{ bugun }}" required></div>
+    </div>
+    {% endif %}
+
+    <div id="zy-satirlar">
+      {% for s in satirlar %}
+      <div class="zy-sat">
+        <div class="zy-ur"><input type="text" name="urun" list="zy-oneri" maxlength="120" placeholder="Ürün (ör. Domates)" value="{{ s.urun }}" aria-label="Ürün"></div>
+        <input type="text" name="miktar" inputmode="decimal" placeholder="Miktar" value="{{ s.miktar }}" aria-label="Miktar">
+        <select name="birim" aria-label="Birim">{% for b in birimler %}<option value="{{ b }}" {% if s.birim == b %}selected{% endif %}>{{ b }}</option>{% endfor %}</select>
+        <input type="text" name="aciklama" class="zy-ac" maxlength="500" placeholder="Açıklama (isteğe bağlı)" value="{{ s.aciklama }}" aria-label="Açıklama">
+      </div>
+      {% endfor %}
+    </div>
+    <datalist id="zy-oneri">{% for o in oneriler %}<option value="{{ o }}">{% endfor %}</datalist>
+    <div class="zy-alt">
+      <button type="button" class="zy-satirekle" id="zy-ekle">+ Satır ekle</button>
+      <button type="submit" class="btn btn-primary" id="zy-kaydet">Kaydet</button>
+    </div>
+  </form>
+  {% endif %}
+
+  <div class="zy-kutu">
+    <div class="zy-filtre">
+      <div><label class="zy-lbl" for="f-tarih">Tarih</label>
+        <input type="date" class="ay-sec" id="f-tarih" value="{{ secili_tarih }}" max="{{ bugun }}"
+               onchange="location.href='?{% if secili_sube %}sube={{ secili_sube }}&{% endif %}tarih='+this.value"></div>
+      {% if subeler|length > 1 %}
+      <div><label class="zy-lbl" for="f-sube">Şube</label>
+        <select class="sube-sec" id="f-sube" onchange="location.href='?tarih={{ secili_tarih }}'+(this.value?'&sube='+this.value:'')">
+          <option value="">Tüm şubeler</option>
+          {% for s in subeler %}<option value="{{ s.id }}" {% if secili_sube == s.id %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+        </select></div>
+      {% endif %}
+    </div>
+    <h3>Kayıtlar <span class="ea-not">{{ secili_tarih }}</span></h3>
+    {% if kayitlar %}
+    <div class="zy-kaydir">
+    <table class="zy-tablo">
+      <thead><tr>{% if subeler|length > 1 %}<th>Şube</th>{% endif %}<th>Ürün</th><th class="sag">Miktar</th><th>Giren</th><th></th></tr></thead>
+      <tbody>
+      {% for r in kayitlar %}
+        <tr>
+          {% if subeler|length > 1 %}<td>{{ r.sube }}</td>{% endif %}
+          <td>{{ r.k.urun }}{% if r.k.aciklama %}<span class="zy-not">{{ r.k.aciklama }}</span>{% endif %}</td>
+          <td class="sag say">{{ r.miktar }}</td>
+          <td class="zy-kim">{{ r.giren }}<br>{{ r.k.olusturma|date:"H:i" }}</td>
+          <td>{% if r.silinebilir %}
+            <form method="post" onsubmit="return confirm('Bu zayi satırı silinsin mi?');">{% csrf_token %}
+              <input type="hidden" name="islem" value="zayi_sil"><input type="hidden" name="kalem_id" value="{{ r.k.id }}">
+              <button class="zy-sil" type="submit">Sil</button></form>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="zy-bos">Bu gün için zayi kaydı yok.</p>
+    {% endif %}
+  </div>
+
+  {% if eski_kayitlar %}
+  <div class="zy-kutu">
+    <h3>Eski fotoğraflı kayıtlar</h3>
+    <p class="zy-ipucu">Yazılı sisteme geçmeden önce yüklenen görüntüler. Bu kayıtlar 35 gün sonra otomatik silinir.</p>
     <div class="kal-galeri">
-      {% for g in gorseller %}
+      {% for g in eski_kayitlar %}
       <figure class="kal-item">
-        <a href="{{ g.foto.url }}" target="_blank" rel="noopener" class="lb-tetikleyici" data-full="{{ g.foto.url }}"><img src="{{ g.foto.url }}" alt="Mutfak zayi görüntüsü" loading="lazy"></a>
+        <a href="{{ g.foto.url }}" target="_blank" rel="noopener" class="lb-tetikleyici" data-full="{{ g.foto.url }}"><img src="{{ g.foto.url }}" alt="Eski zayi görüntüsü" loading="lazy"></a>
         <figcaption>{{ g.personel_ad_arsiv|default:"—" }}{% if g.sube %} · {{ g.sube.ad }}{% endif %}<span>{{ g.olusturma|date:"d.m.Y H:i" }}</span>
-          {% if g.aciklama %}<span class="mz-not">{{ g.aciklama }}</span>{% endif %}
-        </figcaption>
+          {% if g.aciklama %}<span class="mz-not">{{ g.aciklama }}</span>{% endif %}</figcaption>
       </figure>
-      {% empty %}
-      <p class="egitim-bos">Henüz kayıt yok.</p>
       {% endfor %}
     </div>
   </div>
+  {% endif %}
 </div>
 
 {% if ekleyebilir %}
 <script>
 (function () {
-  var video = document.getElementById('kamera');
-  var hata = document.getElementById('kamera-hata');
-  var btn = document.getElementById('cek-btn');
-  var foto = document.getElementById('foto_data');
-  var form = document.getElementById('kal-form');
-  var stream = null;
-  function hataGoster(msg) {
-    hata.hidden = false;
-    hata.innerHTML = '';
-    var p = document.createElement('p');
-    p.textContent = msg;
-    p.style.margin = '0 0 .6rem';
-    hata.appendChild(p);
-    var tekrarBtn = document.createElement('button');
-    tekrarBtn.type = 'button';
-    tekrarBtn.className = 'btn btn-ghost btn-mini';
-    tekrarBtn.textContent = '🔄 Tekrar Dene';
-    tekrarBtn.addEventListener('click', function () {
-      hata.hidden = true; hata.innerHTML = ''; btn.disabled = false;
-      kamerayiBaslat();
-    });
-    hata.appendChild(tekrarBtn);
-    btn.disabled = true;
-  }
-  function kameraHatasiIsle(err) {
-    var ad = err && err.name;
-    if (ad === 'NotAllowedError' || ad === 'PermissionDeniedError') {
-      hataGoster('Kamera izni reddedildi. Tarayıcı/site ayarlarından bu siteye kamera izni verip tekrar deneyin.');
-    } else if (ad === 'NotFoundError' || ad === 'DevicesNotFoundError') {
-      hataGoster('Cihazda kullanılabilir kamera bulunamadı.');
-    } else if (ad === 'NotReadableError' || ad === 'TrackStartError') {
-      hataGoster('Kamera başka bir uygulama ya da bu sitenin açık kalmış başka bir sekmesi tarafından kullanılıyor olabilir. Diğer sekmeleri/uygulamaları kapatıp "Tekrar Dene"ye basın; olmazsa tarayıcıyı tamamen kapatıp yeniden açın.');
-    } else if (ad === 'OverconstrainedError') {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then(function (s) { stream = s; video.srcObject = s; })
-        .catch(function () { hataGoster('Kameraya erişilemedi.'); });
-    } else {
-      hataGoster('Kameraya erişilemedi. Tarayıcı izinlerini kontrol edip tekrar deneyin.');
-    }
-  }
-  function kamerayiBaslat() {
-    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
-    if (!window.isSecureContext) {
-      hataGoster('Bu sayfa güvenli (https://) bağlantı ile açılmalı. Adres çubuğunda https:// olduğundan emin olun.'); return;
-    }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      hataGoster('Bu cihaz/tarayıcı canlı kamerayı desteklemiyor.'); return;
-    }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
-      .then(function (s) { stream = s; video.srcObject = s; })
-      .catch(kameraHatasiIsle);
-  }
-  kamerayiBaslat();
-  btn.addEventListener('click', function () {
-    if (!stream || !video.videoWidth) { return; }
-    var maxw = 1024, scale = Math.min(1, maxw / video.videoWidth);
-    var cw = Math.round(video.videoWidth * scale), ch = Math.round(video.videoHeight * scale);
-    var cv = document.getElementById('tuval'); cv.width = cw; cv.height = ch;
-    cv.getContext('2d').drawImage(video, 0, 0, cw, ch);
-    foto.value = cv.toDataURL('image/jpeg', 0.7);
-    btn.disabled = true; btn.textContent = 'Yükleniyor...';
-    stream.getTracks().forEach(function (t) { t.stop(); });
-    form.submit();
+  var kap = document.getElementById('zy-satirlar');
+  var form = document.getElementById('zayi-form');
+  var maks = {{ satir_maks }};
+  var birimler = [{% for b in birimler %}'{{ b }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+  document.getElementById('zy-ekle').addEventListener('click', function () {
+    var n = kap.querySelectorAll('.zy-sat').length;
+    if (n >= maks) { return; }
+    var s = kap.querySelector('.zy-sat').cloneNode(true);
+    s.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    s.querySelector('select').value = 'gr';
+    kap.appendChild(s);
+    s.querySelector('input').focus();
   });
-  window.addEventListener('pagehide', function () {
-    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+  form.addEventListener('submit', function () {
+    var b = document.getElementById('zy-kaydet');
+    b.disabled = true; b.textContent = 'Kaydediliyor…';
+  });
+  window.addEventListener('pageshow', function () {
+    var b = document.getElementById('zy-kaydet');
+    if (b) { b.disabled = false; b.textContent = 'Kaydet'; }
   });
 })();
 </script>

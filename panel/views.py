@@ -492,7 +492,6 @@ def _yonetici_vardiya(request, personel):
 
 
 MUTFAK_YONETEBILEN = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.MUTFAK_SORUMLUSU]
-MUTFAK_ZAYI_GORUNTULE = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
 
 
 def mutfak_vardiya_sayfa(request):
@@ -605,110 +604,6 @@ def mutfak_atamalari_sayfa(request):
     liste = [{'tarih': g, 'kisiler': gunluk[g]} for g in gunler]
     return render(request, 'mutfak_atamalari.html', {
         'personel': personel, 'aktif': 'mutfak_atamalari', 'sube': sube, 'liste': liste,
-    })
-
-
-MUTFAK_ZAYI_GUN = 35
-
-
-def _mutfak_zayi_temizle():
-    sinir = timezone.now() - datetime.timedelta(days=MUTFAK_ZAYI_GUN)
-    for z in MutfakZayi.objects.filter(olusturma__lt=sinir):
-        if z.foto:
-            z.foto.delete(save=False)
-        z.delete()
-
-
-def mutfak_zayi_sayfa(request):
-    if not request.user.is_authenticated:
-        return redirect('ana_sayfa')
-    if _cikis_mi(request):
-        return _logout(request)
-    personel = _aktif_personel(request)
-    if personel is None:
-        return redirect('ana_sayfa')
-    ekleyebilir = personel.rol == Rol.MUTFAK_PERSONEL
-    goruntuleyebilir = personel.rol in MUTFAK_ZAYI_GORUNTULE or personel.rol in (Rol.MAGAZA_MUDURU, Rol.MUTFAK_SORUMLUSU) or ekleyebilir
-    if not goruntuleyebilir:
-        return redirect('ana_sayfa')
-    _mutfak_zayi_temizle()
-
-    if request.method == 'POST' and ekleyebilir:
-        if request.POST.get('islem') == 'mutfak_zayi_yukle':
-            data = request.POST.get('foto_data', '')
-            raw = None
-            if data.startswith('data:image'):
-                try:
-                    raw = base64.b64decode(data.split(',', 1)[1])
-                except (ValueError, IndexError):
-                    raw = None
-            aciklama = (request.POST.get('aciklama') or '').strip()
-            bugun = timezone.localdate()
-            aktif_gorev = Vardiya.objects.filter(personel=personel, tarih=bugun,
-                                                 vardiya_tipi=VardiyaTipi.MUTFAK_GOREVI).first()
-            sube = (aktif_gorev.atanan_sube if aktif_gorev else None) or personel.sube
-            if sube is None:
-                messages.error(request, "Profilinizde bir şube tanımlı değil, bu yüzden yüklemeniz "
-                                "kimseye görünmez. Lütfen yöneticinizden profilinize şube atamasını isteyin.")
-                return redirect('mutfak_zayi')
-            if raw and 100 < len(raw) <= 8 * 1024 * 1024:
-                z = MutfakZayi(personel=personel, personel_ad_arsiv=personel.ad_soyad,
-                               sube=sube, aciklama=aciklama[:2000])
-                fname = f"mutfakzayi_{personel.id}_{timezone.now():%Y%m%d_%H%M%S}.jpg"
-                z.foto.save(fname, ContentFile(raw), save=True)
-                messages.success(request, "Zayi kaydı yüklendi.")
-            else:
-                messages.error(request, "Görüntü alınamadı. Lütfen kameradan tekrar çekin.")
-        return redirect('mutfak_zayi')
-
-    # Şube bazlı görünürlük kapsamı
-    subeler_secim = []
-    if personel.rol == Rol.MAGAZA_MUDURU:
-        if personel.sorumlu_subeler.exists():
-            sube_ids = list(personel.sorumlu_subeler.values_list('id', flat=True))
-            subeler_secim = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if len(sube_ids) > 1 else []
-        else:
-            sube_ids = [personel.sube_id] if personel.sube_id else []
-    elif personel.rol == Rol.MUDUR:
-        sube_ids = list(personel.sorumlu_subeler.values_list('id', flat=True))
-        subeler_secim = list(Sube.objects.filter(id__in=sube_ids).order_by('ad')) if len(sube_ids) > 1 else []
-    elif personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.MUTFAK_SORUMLUSU):
-        sube_ids = list(Sube.objects.values_list('id', flat=True))
-        subeler_secim = list(Sube.objects.order_by('ad'))
-    else:
-        sube_ids = []
-
-    sec = request.GET.get('sube')
-    if sec and sec.isdigit() and int(sec) in sube_ids:
-        filtre_ids = [int(sec)]
-        secili = int(sec)
-    else:
-        filtre_ids = sube_ids
-        secili = 0
-
-    today = timezone.localdate()
-    try:
-        secili_tarih = datetime.datetime.strptime(request.GET.get('mz_tarih', ''), '%Y-%m-%d').date()
-    except ValueError:
-        secili_tarih = today
-    secili_tarih = min(secili_tarih, today)
-    gun_bas = datetime.datetime.combine(secili_tarih, datetime.time.min, tzinfo=timezone.get_current_timezone())
-    gun_son = gun_bas + datetime.timedelta(days=1)
-
-    if ekleyebilir:
-        gorseller = list(MutfakZayi.objects.filter(personel=personel, olusturma__gte=gun_bas, olusturma__lt=gun_son)
-                         .select_related('personel', 'sube').order_by('-olusturma'))
-    else:
-        gorseller = list(MutfakZayi.objects.filter(
-            Q(sube_id__in=filtre_ids) | Q(sube__isnull=True, personel__sube_id__in=filtre_ids),
-            olusturma__gte=gun_bas, olusturma__lt=gun_son)
-                         .select_related('personel', 'sube').order_by('-olusturma'))
-
-    return render(request, 'mutfak_zayi.html', {
-        'personel': personel, 'aktif': 'mutfak_zayi', 'ekleyebilir': ekleyebilir, 'gorseller': gorseller,
-        'subeler': subeler_secim, 'secili': secili,
-        'secili_tarih': secili_tarih.strftime('%Y-%m-%d'), 'bugun': today.strftime('%Y-%m-%d'),
-        'saklama_gun': MUTFAK_ZAYI_GUN,
     })
 
 
@@ -2969,14 +2864,26 @@ def sube_yeni(request):
     if personel is None or personel.rol not in [Rol.GENEL_MUDUR, Rol.OPERATOR]:
         return redirect('ana_sayfa')
     if request.method == 'POST':
+        if request.POST.get('islem') == 'mutfak_ayar':
+            sb = Sube.objects.filter(id=request.POST.get('sube_id')).first()
+            if sb is None:
+                messages.error(request, "Şube bulunamadı.")
+            elif sb.depo_mu:
+                messages.error(request, "Depo olarak işaretli şubede mutfak tanımlanamaz.")
+            else:
+                sb.mutfak_var = request.POST.get('mutfak_var') == 'on'
+                sb.save(update_fields=['mutfak_var'])
+                messages.success(request, "%s: mutfak %s." % (sb.ad, "var" if sb.mutfak_var else "yok"))
+            return redirect('sube_yeni')
         ad = (request.POST.get('ad') or '').strip()
         depo_mu = request.POST.get('depo_mu') == 'on'
+        mutfak_var = request.POST.get('mutfak_var') == 'on' and not depo_mu
         if not ad:
             messages.error(request, "Şube adı boş olamaz.")
         elif Sube.objects.filter(ad__iexact=ad).exists():
             messages.error(request, "Bu isimde bir şube zaten var.")
         else:
-            Sube.objects.create(ad=ad, depo_mu=depo_mu)
+            Sube.objects.create(ad=ad, depo_mu=depo_mu, mutfak_var=mutfak_var)
             messages.success(request, "Yeni şube eklendi: %s" % ad)
         return redirect('sube_yeni')
     subeler = Sube.objects.all().order_by('ad')
