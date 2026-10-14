@@ -26,9 +26,9 @@
 
   <!-- Özet sayaçlar -->
   <div class="mg-ozet-grid">
-    <div class="mg-ozet-kart"><span class="mg-ozet-sayi">{{ toplam_kayit }}</span><span class="mg-ozet-etiket">Kayıt</span></div>
+    <div class="mg-ozet-kart"><span class="mg-ozet-sayi">{{ toplam_kayit }}</span><span class="mg-ozet-etiket">Mola</span></div>
     <div class="mg-ozet-kart"><span class="mg-ozet-sayi">{{ toplam_kisi }}</span><span class="mg-ozet-etiket">Farklı Kişi</span></div>
-    <div class="mg-ozet-kart{% if asan_sayisi %} uyari{% endif %}"><span class="mg-ozet-sayi">{{ asan_sayisi }}</span><span class="mg-ozet-etiket">Süre Aşımı</span></div>
+    <div class="mg-ozet-kart{% if asan_sayisi %} uyari{% endif %}"><span class="mg-ozet-sayi">{{ asan_sayisi }}</span><span class="mg-ozet-etiket">Günlük Aşım</span></div>
   </div>
 
   <!-- Takvim / hızlı filtre -->
@@ -59,21 +59,29 @@
     </form>
   </div>
 
-  <!-- Geçmiş — öncelikli içerik -->
+  <!-- Geçmiş — gün gün toplam + çıkış saatleri -->
+  <div class="mg-rapor-bar">
+    <a class="btn btn-ghost btn-mini" href="?{{ rapor_q }}&bicim=xlsx">Excel ↓</a>
+    <a class="btn btn-ghost btn-mini" href="?{{ rapor_q }}&bicim=pdf">PDF ↓</a>
+    <span class="ea-not">Günlük hak: {{ limit_dk }} dk · toplam, o gün yapılan tüm molaların toplamıdır.</span>
+  </div>
   <div class="card">
-    {% if kayitlar %}
+    {% if gruplar %}
     <div class="mg-liste">
-      {% for k in kayitlar %}
-      <div class="mg-satir{% if k.asti %} asti{% endif %}">
-        <div class="mg-avatar">{{ k.ad|slice:":1" }}</div>
+      {% for g in gruplar %}
+      <div class="mg-satir{% if g.asti %} asti{% endif %}">
+        <div class="mg-avatar">{{ g.ad|slice:":1" }}</div>
         <div class="mg-govde">
-          <div class="mg-ust"><b>{{ k.ad }}</b>{% if k.manuel_mi %}<span class="badge-manuel">manuel</span>{% endif %}<span class="mg-sube-adi">{{ k.sube }}</span></div>
-          <div class="mg-alt">{{ k.giris|date:"d.m.Y H:i" }} — {{ k.cikis|date:"H:i" }}</div>
+          <div class="mg-ust"><b>{{ g.ad }}</b><span class="mg-sube-adi">{{ g.sube }}</span></div>
+          <div class="mg-alt">{{ g.tarih|date:"d.m.Y" }} · {{ g.adet }} mola</div>
+          <div class="mg-zamanlar">
+            {% for m in g.molalar %}<span class="mg-zaman{% if m.oto %} oto{% endif %}">{{ m.giris|date:"H:i" }}–{{ m.cikis|date:"H:i" }} <em>{{ m.dk }} dk{% if m.oto %} · oto{% endif %}{% if m.manuel %} · manuel{% endif %}</em></span>{% endfor %}
+          </div>
         </div>
         <div class="mg-sure-blok">
-          <span class="mg-sure{% if k.asti %} asti{% endif %}">{{ k.sure_dk }} dk</span>
-          <span class="ea-not">/ {{ k.limit }} dk</span>
-          {% if k.asti %}<span class="badge no mg-badge">Aşım</span>{% endif %}
+          <span class="mg-sure{% if g.asti %} asti{% endif %}">{{ g.toplam_dk }} dk</span>
+          <span class="ea-not">/ {{ g.limit }} dk</span>
+          {% if g.asti %}<span class="badge no mg-badge">Aşım</span>{% endif %}
         </div>
       </div>
       {% endfor %}

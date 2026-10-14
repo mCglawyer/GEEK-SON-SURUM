@@ -113,3 +113,14 @@ class AnalizTestleri(TestCase):
             self.assertEqual(self.client.get(reverse('sevkiyat_analiz') + q).status_code, 200, q)
         self.assertEqual(self.client.get(reverse('sevkiyat_analiz_rapor') + '?bicim=pdf').status_code, 200)
         self.assertEqual(self.client.get(reverse('sevkiyat_analiz_rapor') + '?bicim=xlsx').status_code, 200)
+
+
+@override_settings(**_AYAR)
+class TakvimSubeAdiTesti(TestCase):
+    def test_satin_alma_takviminde_sube_adi_yazar(self):
+        a = Sube.objects.create(ad='Gaziantep Merkez')
+        SevkiyatTalep.objects.create(sube=a, durum='Onaylandı', olusturan_ad='x')
+        self.client.force_login(kisi(Rol.SATIN_ALMA, a).user)
+        r = self.client.get(reverse('sevkiyat'))
+        self.assertContains(r, 'sv-tkv-liste')
+        self.assertContains(r, '<span class="sv-tkv-ad">Gaziantep Merkez</span>')

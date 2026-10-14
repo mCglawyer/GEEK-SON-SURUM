@@ -258,12 +258,6 @@ html[data-theme="dark"] .zy-tablo tr.toplam td { background:var(--surface-2); co
 }
 html[data-theme="dark"] .sv-talep[open] > summary.sv-head { background:var(--surface-2); }
 
-/* Takvim: dar ekranda şube adı yerine nokta (harf harf kırılmasın) */
-@media (max-width:700px) {
-  .sv-tkv-gun { min-height:46px; }
-  .sv-tkv-subeler { flex-direction:row; flex-wrap:wrap; justify-content:center; gap:3px; }
-  .sv-tkv-sube-rozet { font-size:0; width:8px; height:8px; padding:0; border-radius:50%; min-width:0; overflow:hidden; }
-}
 
 /* dar ekranda kalem satırı: ad + açıklama üstte, miktar/birim altta tam genişlik */
 @media (max-width:560px) {
@@ -325,3 +319,56 @@ select, input, textarea { max-width:100%; }
 .an-tablo .sag { text-align:right; font-variant-numeric:tabular-nums; }
 @media (max-width:560px) { .an-ozet b { font-size:1.25rem; } .an-grup { width:72px; } .an-sut { width:26px; } }
 @media (prefers-reduced-motion:reduce) { .an-sut { transition:none; } }
+
+/* ============================================================================
+   MOLA — QR ile başla/bitir, günlük toplam
+   ============================================================================ */
+.alert-info { background:var(--brand-050); color:var(--brand-700); border:1px solid var(--brand-100); }
+.mola-ipucu { font-size:.88rem; color:var(--muted); margin:.4rem 0 .8rem; }
+.mola-gun { margin-top:1rem; }
+.mola-gun-bas { display:flex; justify-content:space-between; align-items:baseline; gap:1rem; margin-bottom:.5rem; }
+.mola-gun-top { font-size:1.3rem; font-weight:700; font-variant-numeric:tabular-nums; color:var(--ink); }
+.mola-gun-top small { font-size:.75rem; font-weight:500; color:var(--muted); }
+.mola-gun-top.asti { color:var(--no); }
+.mola-gun-liste { list-style:none; margin:0; padding:0; }
+.mola-gun-liste li { display:flex; justify-content:space-between; gap:.8rem; padding:.55rem 0; border-top:1px solid var(--line); font-variant-numeric:tabular-nums; }
+.mola-oto { font-style:normal; font-size:.72rem; color:var(--wait); background:var(--wait-bg); border-radius:999px; padding:.05rem .5rem; margin-left:.3rem; }
+.mola-asim { color:var(--no); margin:.4rem 0 0; }
+.mg-rapor-bar { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin-bottom:.7rem; }
+.mg-zamanlar { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.4rem; }
+.mg-zaman { font-size:.78rem; font-weight:600; background:var(--brand-050); color:var(--brand-700); border-radius:8px; padding:.15rem .5rem; font-variant-numeric:tabular-nums; }
+.mg-zaman em { font-style:normal; font-weight:400; color:var(--muted); }
+.mg-zaman.oto { background:var(--wait-bg); color:var(--wait); }
+html[data-theme="dark"] .mg-zaman { background:#1F2A5C; color:#C9D2FF; }
+html[data-theme="dark"] .mg-zaman.oto { background:#3A2F12; color:#F0CF82; }
+html[data-theme="dark"] .alert-info { background:#18214F; color:#C9D2FF; border-color:#2A3680; }
+
+/* Takvim: dar ekranda ızgara yerine "gün + şube adları" listesi */
+.sv-tkv-liste { display:none; }
+@media (max-width:700px) {
+  .sv-takvim { display:none; }
+  .sv-tkv-liste { display:flex; flex-direction:column; gap:.4rem; }
+  .sv-tkv-satir { display:grid; grid-template-columns:52px 1fr auto; gap:.7rem; align-items:center; text-decoration:none; color:var(--text);
+    background:var(--brand-050); border:1px solid var(--brand-100); border-radius:12px; padding:.6rem .7rem; min-height:56px; }
+  .sv-tkv-satir.secili { background:var(--brand); border-color:var(--brand); color:#fff; }
+  .sv-tkv-tarih { display:flex; flex-direction:column; align-items:center; line-height:1.1; }
+  .sv-tkv-tarih b { font-size:1.2rem; }
+  .sv-tkv-tarih small { font-size:.7rem; opacity:.75; }
+  .sv-tkv-adlar { display:flex; flex-wrap:wrap; gap:.3rem; }
+  .sv-tkv-ad { font-size:.82rem; font-weight:600; background:var(--brand); color:#fff; border-radius:8px; padding:.15rem .5rem; }
+  .sv-tkv-satir.secili .sv-tkv-ad { background:#fff; color:var(--brand); }
+  .sv-tkv-adet { font-size:.78rem; color:var(--muted); font-weight:600; }
+  .sv-tkv-satir.secili .sv-tkv-adet { color:#fff; }
+}
+html[data-theme="dark"] .sv-tkv-satir { background:var(--surface-2); border-color:var(--line); }
+html[data-theme="dark"] .sv-tkv-ad { background:#3347D6; }
+
+/* Talep analizi: sayılar sütunların üstünde değil altında, ayrı satırlarda (üst üste binmesin) */
+.an-sut em { display:none; }
+.an-grafik { padding-top:.4rem; }
+.an-grup { width:96px; }
+.an-sayilar { display:flex; flex-direction:column; gap:.1rem; margin-top:.4rem; font-size:.78rem; font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink); }
+.an-sayilar span { display:flex; align-items:center; justify-content:center; gap:.3rem; white-space:nowrap; }
+.an-nok { width:9px; height:9px; border-radius:2px; display:inline-block; flex:none; }
+.an-nok.an-t { background:var(--brand); } .an-nok.an-g { background:var(--crema); }
+@media (max-width:560px) { .an-grup { width:88px; } }

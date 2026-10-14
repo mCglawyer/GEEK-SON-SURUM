@@ -10,7 +10,7 @@
   {% endif %}
 
   <div class="card mola-kart">
-    <p class="ea-not">Şube girişindeki <b>Mola QR</b> kodunu kameraya göster. Galeriden fotoğraf yüklenemez; yalnızca canlı kamera kullanılır.</p>
+    <p class="ea-not">Şube girişindeki <b>Mola QR</b> kodunu kameraya göster: mola <b>anında başlar</b>. Dönünce tekrar okut: mola <b>anında biter</b>. Galeriden fotoğraf yüklenemez; yalnızca canlı kamera kullanılır.</p>
     <div id="tara-alan" class="tara-alan" hidden>
       <video id="tara-video" playsinline muted></video>
       <div class="tara-hedef"></div>
@@ -24,7 +24,7 @@
   {% if kendi_molasi %}
   <div class="mola-tara-alt-baslik">Molandasın</div>
   <div class="card mola-kart">
-    <p class="mola-sube">{{ kendi_molasi.sube.ad }} · {{ kendi_molasi.sure_dk }} dakikalık mola</p>
+    <p class="mola-sube">{{ kendi_molasi.sube.ad }} · {{ kendi_molasi.baslangic|time:"H:i" }}'de başladı</p>
     <p class="mola-sayac" id="mola-kendi-sayac" data-baslangic="{{ kendi_molasi.baslangic|date:'c' }}">00:00</p>
   </div>
   <script>

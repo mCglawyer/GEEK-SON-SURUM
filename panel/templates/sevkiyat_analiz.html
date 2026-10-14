@@ -45,9 +45,10 @@
         {% for g in grafik_urun %}
         <div class="an-grup" title="{{ g.ad }}: talep {{ g.t_yaz }}, giden {{ g.g_yaz }} {{ g.birim }}">
           <div class="an-sutunlar">
-            <div class="an-sut an-t" style="height:{{ g.t_yuzde|stringformat:'.1f' }}%"><em>{{ g.t_yaz }}</em></div>
-            <div class="an-sut an-g" style="height:{{ g.g_yuzde|stringformat:'.1f' }}%"><em>{{ g.g_yaz }}</em></div>
+            <div class="an-sut an-t" style="height:{{ g.t_yuzde|stringformat:'.1f' }}%"></div>
+            <div class="an-sut an-g" style="height:{{ g.g_yuzde|stringformat:'.1f' }}%"></div>
           </div>
+          <div class="an-sayilar"><span><i class="an-nok an-t"></i>{{ g.t_yaz }}</span><span><i class="an-nok an-g"></i>{{ g.g_yaz }}</span></div>
           <div class="an-et">{{ g.ad }}<small>{{ g.birim }}</small></div>
         </div>
         {% endfor %}
@@ -73,9 +74,10 @@
         {% for g in grafik_sube %}
         <div class="an-grup" title="{{ g.ad }}: talep {{ g.t_yaz }}, giden {{ g.g_yaz }} {{ secili_urun.birim }}">
           <div class="an-sutunlar">
-            <div class="an-sut an-t" style="height:{{ g.t_yuzde|stringformat:'.1f' }}%"><em>{{ g.t_yaz }}</em></div>
-            <div class="an-sut an-g" style="height:{{ g.g_yuzde|stringformat:'.1f' }}%"><em>{{ g.g_yaz }}</em></div>
+            <div class="an-sut an-t" style="height:{{ g.t_yuzde|stringformat:'.1f' }}%"></div>
+            <div class="an-sut an-g" style="height:{{ g.g_yuzde|stringformat:'.1f' }}%"></div>
           </div>
+          <div class="an-sayilar"><span><i class="an-nok an-t"></i>{{ g.t_yaz }}</span><span><i class="an-nok an-g"></i>{{ g.g_yaz }}</span></div>
           <div class="an-et">{{ g.ad }}</div>
         </div>
         {% endfor %}

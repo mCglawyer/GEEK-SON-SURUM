@@ -188,6 +188,15 @@
       </div>
       {% endfor %}
     </div>
+    <div class="sv-tkv-liste">
+      {% for hafta in takvim.haftalar %}{% for d in hafta %}{% if d.sayi and d.bu_ay %}
+      <a class="sv-tkv-satir{% if d.secili %} secili{% endif %}" href="?sube={{ sel_id|default:'' }}&gun={{ d.gun }}">
+        <span class="sv-tkv-tarih"><b>{{ d.no }}</b><small>{{ d.haftagun }}</small></span>
+        <span class="sv-tkv-adlar">{% for ad in d.subeler %}<span class="sv-tkv-ad">{{ ad }}</span>{% endfor %}</span>
+        <span class="sv-tkv-adet">{{ d.sayi }}</span>
+      </a>
+      {% endif %}{% endfor %}{% endfor %}
+    </div>
     {% if sel_gun %}<div class="sv-tkv-secim sv-meta">Seçili gün: <b>{{ sel_gun|date:"d.m.Y" }}</b> · {{ gecmis_talepler|length }} sevkiyat · <a href="?sube={{ sel_id|default:'' }}&ay={{ takvim.yil }}-{% if takvim.ay < 10 %}0{% endif %}{{ takvim.ay }}">ayın tümü</a></div>{% endif %}
   </div>
 

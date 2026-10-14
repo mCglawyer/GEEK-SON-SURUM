@@ -6,7 +6,7 @@ from django.utils import timezone
 
 
 class Command(BaseCommand):
-    help = "Aktif molaları kontrol eder; bitişe 5 dk kala 'süren doluyor' bildirimi atar. Always-On task olarak sürekli çalıştırın."
+    help = "Aktif molaları kontrol eder; günlük hak bitmeden 5 dk kala bildirim atar, unutulan molaları otomatik kapatır. Always-On task olarak sürekli çalıştırın."
 
     def add_arguments(self, parser):
         parser.add_argument('--once', action='store_true', help='Tek sefer çalış, döngü kurma (test için).')
@@ -28,7 +28,11 @@ class Command(BaseCommand):
     def _kontrol(self):
         from panel.models import MolaOturum, Personel, Rol
         from panel.views import _bildir
+        from panel import mola_kurallari as mk
         now = timezone.now()
+        kapatilan = mk.eskileri_kapat(now)   # dönüş QR'ı okutulmayan molaları kapat
+        if kapatilan:
+            self.stdout.write("%d unutulan mola otomatik kapatıldı." % kapatilan)
         aktifler = list(MolaOturum.objects.filter(bitis__isnull=True, uyarildi=False).select_related('personel', 'sube'))
         for m in aktifler:
             try:
@@ -42,7 +46,7 @@ class Command(BaseCommand):
                     alicilar = [m.personel]
                     if m.sube_id:
                         alicilar += list(Personel.objects.filter(sube_id=m.sube_id, rol=Rol.SEF))
-                    _bildir(alicilar, "%s için molanın bitmesine 5 dakika kaldı." % m.personel.ad_soyad,
+                    _bildir(alicilar, "%s için günlük mola hakkının bitmesine 5 dakika kaldı." % m.personel.ad_soyad,
                             '/mola/tara/', 'mola')
                     m.uyarildi = True
                     m.save(update_fields=['uyarildi'])

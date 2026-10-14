@@ -1724,7 +1724,7 @@ def _takvim_kur(yil, ay, sel_gun, sayac, sube_map=None):
             satir.append({
                 'no': d.day, 'gun': d.isoformat(), 'bu_ay': (d.month == ay),
                 'sayi': sayac.get(d, 0), 'secili': (sel_gun == d), 'bugun': (d == bugun),
-                'subeler': adlar,
+                'subeler': adlar, 'haftagun': _GUN_KISA[d.weekday()],
             })
         haftalar.append(satir)
     onceki = datetime.date(yil, ay, 1) - datetime.timedelta(days=1)
@@ -2981,92 +2981,89 @@ def mola_qr_yonetim(request):
     })
 
 
-def mola_qr_giris(request, token):
+def _mola_personeli(request):
+    """(personel, yönlendirme) — mola ekranlarının ortak giriş kontrolü."""
     if not request.user.is_authenticated:
-        return redirect('ana_sayfa')
+        return None, redirect('ana_sayfa')
     if _cikis_mi(request):
-        return _logout(request)
+        return None, _logout(request)
     personel = _aktif_personel(request)
     if personel is None:
-        return redirect('ana_sayfa')
+        return None, redirect('ana_sayfa')
     if personel.rol == Rol.MUTFAK_SORUMLUSU:
         messages.info(request, "Mutfak Sorumlusu rolü için mola sistemi kullanılmaz.")
-        return redirect('ana_sayfa')
+        return None, redirect('ana_sayfa')
+    return personel, None
+
+
+def mola_qr_giris(request, token):
+    """Şube QR'ı okutuldu: mola yoksa BAŞLAR, varsa BİTER (buton yok).
+
+    İşlem yapıldıktan sonra sonuç sayfasına yönlendirilir; böylece sonuç sayfası yenilense
+    ya da geri tuşuna basılsa bile ikinci bir işlem tetiklenmez.
+    """
+    personel, git = _mola_personeli(request)
+    if git:
+        return git
     tok = SubeMolaToken.objects.filter(token=token).select_related('sube').first()
     if tok is None:
         return render(request, 'mola_qr_giris.html', {'personel': personel, 'hata': 'Geçersiz veya güncelliğini yitirmiş QR kodu.'})
     if not _mola_qr_acik():
         return render(request, 'mola_qr_giris.html', {'personel': personel, 'sube': tok.sube, 'kapali': True})
-    aktif = _aktif_mola(personel)
     if request.method == 'POST':
-        islem = request.POST.get('islem')
-        tazelik = request.session.get('mola_qr_zaman_%s' % tok.sube_id)
-        taze_mi = False
-        if tazelik:
-            try:
-                taze_mi = (timezone.now().timestamp() - float(tazelik)) <= MOLA_QR_GECERLILIK_SN
-            except (TypeError, ValueError):
-                taze_mi = False
-        if not taze_mi and islem != 'sure_sec':
-            messages.error(request, "QR kodunun üzerinden biraz zaman geçmiş. Lütfen QR'ı tekrar okut.")
-            return redirect('mola_tara')
-        if islem == 'baslat' and aktif is None:
-            # (eski sayfa/yenileme uyumluluğu) süre seçilerek doğrudan başlatma
-            try:
-                sure = int(request.POST.get('sure', '45'))
-            except (TypeError, ValueError):
-                sure = 45
-            if sure not in MOLA_SURELER:
-                sure = 45
-            MolaOturum.objects.create(personel=personel, sube=tok.sube, sure_dk=sure, baslangic=timezone.now())
-            messages.success(request, "Molan başladı (%d dk). Döndüğünde bu QR'ı tekrar okut." % sure)
-        elif islem == 'sure_sec':
-            try:
-                sure = int(request.POST.get('sure', ''))
-            except (TypeError, ValueError):
-                sure = 0
-            if aktif is None or aktif.sure_secildi:
-                messages.info(request, "Mola süren zaten belirlenmiş.")
-            elif sure not in MOLA_SURELER:
-                messages.error(request, "Geçersiz mola süresi.")
-            else:
-                aktif.sure_dk = sure
-                aktif.sure_secildi = True
-                aktif.save(update_fields=['sure_dk', 'sure_secildi'])
-                messages.success(request, "Mola süren %d dk olarak kaydedildi. Süre, QR'ı okuttuğun andan itibaren sayılıyor." % sure)
-        elif islem == 'baslat' and aktif is not None:
-            messages.info(request, "Zaten aktif bir molan var.")
-        elif islem == 'bitir' and aktif is None:
-            messages.info(request, "Aktif bir molan görünmüyor (belki az önce bitirildi).")
-        elif islem == 'bitir' and aktif is not None:
-            aktif.bitis = timezone.now()
-            gecen = max(0, int((aktif.bitis - aktif.baslangic).total_seconds() // 60))
-            aktif.kullanilan_dk = gecen
-            aktif.save(update_fields=['bitis', 'kullanilan_dk'])
-            messages.success(request, "Molan bitti. Toplam %d dk mola kullandın." % gecen)
-        if islem == 'bitir' or (islem == 'sure_sec' and aktif is None):
-            # bitirme isteği (ilk ya da eski sekmeden tekrar) hiçbir zaman yeni mola başlatmasın
-            return redirect(reverse('mola_qr_giris', args=[token]) + '?bitti=1')
-        return redirect('mola_qr_giris', token=token)
-    aktif = _aktif_mola(personel)
-    if aktif is None and request.headers.get('Sec-Fetch-Site') == 'cross-site':
-        # başka bir siteden gelen bağlantı kendiliğinden mola başlatmasın
-        return render(request, 'mola_qr_giris.html', {'personel': personel, 'hata': 'Molayı başlatmak için şubendeki QR kodu okut.'})
-    if aktif is None and request.GET.get('bitti'):
-        # "Molayı bitir"den dönen sayfa: yeni mola AÇMA (yenilense de açılmaz)
-        return render(request, 'mola_qr_giris.html', {'personel': personel, 'sube': tok.sube, 'bitti': True})
-    if aktif is None:
-        # QR okutulduğu an mola başlar; 15/45 seçimi sayfada, istediği zaman yapılır.
-        aktif = MolaOturum.objects.create(personel=personel, sube=tok.sube, sure_dk=45,
-                                          sure_secildi=False, baslangic=timezone.now())
-    kalan = None
-    if aktif is not None:
-        bitecek = aktif.baslangic + datetime.timedelta(minutes=aktif.sure_dk)
-        kalan = int((bitecek - timezone.now()).total_seconds() // 60)
-    request.session['mola_qr_zaman_%s' % tok.sube_id] = timezone.now().timestamp()
+        # Eski (butonlu) sayfa açık kalmış olabilir: yalnızca "bitir" geçerli, diğerleri durum sayfasına döner.
+        if request.POST.get('islem') != 'bitir':
+            return redirect('mola_durum')
+    elif request.headers.get('Sec-Fetch-Site') == 'cross-site':
+        # başka bir siteden gelen bağlantı kendiliğinden mola başlatıp bitirmesin
+        return render(request, 'mola_qr_giris.html', {'personel': personel, 'hata': 'Molayı başlatmak ya da bitirmek için şubendeki QR kodu kameranla okut.'})
+
+    from . import mola_kurallari as mk
+    sonuc = mk.okut(personel, tok.sube)
+    m, eylem = sonuc['mola'], sonuc['eylem']
+    if sonuc['oto']:
+        messages.info(request, "Önceki molan dönüş QR'ı okutulmadığı için otomatik kapatıldı.")
+    yerel = lambda d: timezone.localtime(d).strftime('%H:%M')
+    if eylem == 'basladi':
+        kullanilan = mk.gunluk_kullanim(personel)
+        mesaj = "Molan %s'de başladı. Dönünce QR'ı tekrar okut." % yerel(m.baslangic)
+        messages.success(request, mesaj)
+        _bildir([personel], "%s Bugünkü kalan hakkın: %d dk." % (mesaj, mk.hak_dk(kullanilan)), '/mola/durum/', 'mola')
+    elif eylem == 'bitti':
+        toplam = mk.gunluk_kullanim(personel)
+        mesaj = "Molan bitti: %d dk. Bugün toplam %d dk mola kullandın." % (mk.dakika(m), toplam)
+        messages.success(request, mesaj)
+        _bildir([personel], mesaj, '/mola/durum/', 'mola')
+    elif eylem == 'zaten_basladi':
+        messages.info(request, "Molan zaten %s'de başladı. Bitirmek için dönünce QR'ı tekrar okut." % yerel(m.baslangic))
+    else:
+        messages.info(request, "Molan az önce (%s) bitti. Yeni mola için biraz sonra tekrar okut." % yerel(m.bitis))
+    return redirect('mola_durum')
+
+
+def mola_durum(request):
+    """Kişinin kendi mola durumu: sayaç, bugünkü molaları ve toplamı. Yenilemek hiçbir şeyi değiştirmez."""
+    personel, git = _mola_personeli(request)
+    if git:
+        return git
+    from . import mola_kurallari as mk
+    mk.eskileri_kapat(personel=personel)
+    simdi = timezone.now()
+    bugun = mk.gunun_molalari(personel, timezone.localdate())
+    aktif = next((m for m in bugun if m.bitis is None), None) or _aktif_mola(personel)
+    satirlar = []
+    for m in bugun:
+        satirlar.append({'giris': timezone.localtime(m.baslangic),
+                         'cikis': timezone.localtime(m.bitis) if m.bitis else None,
+                         'dk': mk.dakika(m, simdi), 'oto': mk.oto_kapandi_mi(m)})
+    onceki = sum(mk.dakika(m, simdi) for m in bugun if m.bitis is not None)
+    toplam = sum(s['dk'] for s in satirlar)
+    son = next((m for m in reversed(bugun) if m.bitis is not None), None)
     return render(request, 'mola_qr_giris.html', {
-        'personel': personel, 'sube': tok.sube, 'token': token,
-        'aktif': aktif, 'kalan': kalan, 'sureler': MOLA_SURELER,
+        'personel': personel, 'durum_sayfasi': True, 'aktif': aktif, 'satirlar': satirlar,
+        'onceki_dk': onceki, 'toplam_dk': toplam, 'limit_dk': mk.MOLA_GUNLUK_LIMIT_DK,
+        'kalan_hak': mk.hak_dk(onceki), 'son_bitti': son,
+        'sube': (aktif.sube if aktif and aktif.sube_id else (son.sube if son and son.sube_id else None)),
     })
 
 
@@ -3136,6 +3133,8 @@ def mola_izleme_json(request):
         sube_ids = [personel.sube_id]
     else:
         sube_ids = []
+    from . import mola_kurallari as mk
+    mk.eskileri_kapat()   # çalışan arka plan görevi olmasa bile unutulan molalar kapanır
     now = timezone.now()
     out = []
     qs = (MolaOturum.objects.filter(bitis__isnull=True, sube_id__in=sube_ids)
@@ -3204,30 +3203,31 @@ def mola_gecmis(request):
                 .select_related('personel', 'sube').order_by('-baslangic'))
     if personel.rol == Rol.MUTFAK_SORUMLUSU:
         kayitlar = kayitlar.filter(personel__rol=Rol.MUTFAK_PERSONEL)
-    kayitlar = kayitlar[:500]
-    liste = []
-    for m in kayitlar:
-        if m.kullanilan_dk is not None:
-            dk = m.kullanilan_dk
+    from . import mola_kurallari as mk
+    gruplar = mk.gunluk_gruplar(list(kayitlar[:3000]))
+    bicim = request.GET.get('bicim')
+    if bicim in ('xlsx', 'pdf'):
+        from . import mola_rapor
+        etiket = '%s – %s · %s' % (bas_str[8:] + '.' + bas_str[5:7] + '.' + bas_str[:4],
+                                   bit_str[8:] + '.' + bit_str[5:7] + '.' + bit_str[:4],
+                                   (Sube.objects.filter(id=secili).first().ad if secili else 'Tüm şubeler'))
+        ad = 'mola_raporu_%s_%s' % (bas_str, bit_str)
+        if bicim == 'xlsx':
+            y = HttpResponse(mola_rapor.excel_bytes(gruplar, etiket),
+                             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         else:
-            dk = max(0, int((m.bitis - m.baslangic).total_seconds() // 60))
-        liste.append({
-            'ad': m.personel.ad_soyad if m.personel else '—',
-            'sube': m.sube.ad if m.sube else '—',
-            'giris': timezone.localtime(m.baslangic),
-            'cikis': timezone.localtime(m.bitis),
-            'sure_dk': dk,
-            'limit': m.sure_dk,
-            'asti': dk > m.sure_dk,
-            'manuel_mi': m.manuel_mi,
-        })
-    toplam_kisi = len(set(k['ad'] for k in liste))
-    asan_sayisi = sum(1 for k in liste if k['asti'])
+            y = HttpResponse(mola_rapor.pdf_bytes(gruplar, etiket), content_type='application/pdf')
+        y['Content-Disposition'] = 'attachment; filename="%s.%s"' % (ad, bicim)
+        return y
+    toplam_kisi = len(set(g['ad'] for g in gruplar))
+    asan_sayisi = sum(1 for g in gruplar if g['asti'])
+    rapor_q = 'mg_bas=%s&mg_bit=%s%s' % (bas_str, bit_str, ('&sube=%s' % secili) if secili else '')
     return render(request, 'mola_gecmis.html', {
         'personel': personel, 'aktif': 'mola_gecmis',
-        'subeler': subeler, 'secili': secili, 'kayitlar': liste,
+        'subeler': subeler, 'secili': secili, 'gruplar': gruplar,
         'hizli': hizli, 'mg_bas': bas_str, 'mg_bit': bit_str,
-        'toplam_kayit': len(liste), 'toplam_kisi': toplam_kisi, 'asan_sayisi': asan_sayisi,
+        'toplam_kayit': sum(g['adet'] for g in gruplar), 'toplam_kisi': toplam_kisi, 'asan_sayisi': asan_sayisi,
+        'limit_dk': mk.MOLA_GUNLUK_LIMIT_DK, 'rapor_q': rapor_q,
     })
 
 

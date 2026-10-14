@@ -35,6 +35,7 @@ urlpatterns = [
     path('degerlendirmeler/', views.degerlendirmeler, name='degerlendirmeler'),
     path('degerlendirme/<str:token>/', views.musteri_degerlendirme, name='musteri_degerlendirme'),
     path('mola/tara/', views.mola_tara, name='mola_tara'),
+    path('mola/durum/', views.mola_durum, name='mola_durum'),
     path('mola/izleme/', views.mola_izleme, name='mola_izleme'),
     path('mola/izleme/veri/', views.mola_izleme_json, name='mola_izleme_json'),
     path('mola/gecmis/', views.mola_gecmis, name='mola_gecmis'),

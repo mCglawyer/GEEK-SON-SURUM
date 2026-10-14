@@ -2,7 +2,7 @@
 {% block title %}Mola · Geek Panel{% endblock %}
 {% block body %}
 <div class="container mola-giris">
-  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+  {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% elif 'info' in m.tags %}alert-info{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
 
   {% if hata %}
   <div class="card mola-kart">
@@ -15,15 +15,7 @@
   <div class="card mola-kart">
     <div class="mola-ikon">⏸</div>
     <h2>Mola QR sistemi şu an kapalı</h2>
-    <p class="ea-not">{{ sube.ad }} · Sistem yönetici tarafından açıldığında molanı buradan başlatabilirsin.</p>
-  </div>
-  {% elif bitti %}
-  <div class="card mola-kart">
-    <div class="mola-ikon">✓</div>
-    <h2>Molan bitti</h2>
-    <p class="mola-sube">{{ sube.ad }}</p>
-    <p class="ea-not">Yeni bir mola için şubendeki QR'ı tekrar okut.</p>
-    <a href="{% url 'ana_sayfa' %}" class="btn btn-primary mola-btn">Ana sayfa</a>
+    <p class="ea-not">{{ sube.ad }} · Sistem yönetici tarafından açıldığında QR okutarak molanı başlatabilirsin.</p>
   </div>
   {% elif aktif %}
   <div class="card mola-kart mola-aktif">
@@ -37,25 +29,11 @@
       <path d="M43 26c0-2 2-2 2-4M48 26c0-2 2-2 2-4"/>
     </svg></div>
     <h2>Moladasın</h2>
-    <p class="mola-sube">{{ sube.ad }}{% if aktif.sure_secildi %} · {{ aktif.sure_dk }} dakikalık mola{% endif %}</p>
+    <p class="mola-sube">{% if sube %}{{ sube.ad }} · {% endif %}{{ aktif.baslangic|time:"H:i" }}'de başladı</p>
     <p class="mola-sayac" id="mola-sayac" data-baslangic="{{ aktif.baslangic|date:'c' }}">00:00</p>
-    {% if not aktif.sure_secildi %}
-    <div class="mola-sec">
-      <p class="ea-not"><b>Ne kadar mola kullanacaksın?</b> Süre, QR'ı okuttuğun andan itibaren sayılıyor.</p>
-      <div class="mola-sure-btn">
-        {% for s in sureler %}
-        <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="sure_sec"><input type="hidden" name="sure" value="{{ s }}">
-          <button class="btn btn-primary mola-btn">{{ s }} dk</button>
-        </form>
-        {% endfor %}
-      </div>
-      <p class="ea-not">Seçmezsen 45 dk sayılır.</p>
-    </div>
-    {% endif %}
-    <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="bitir">
-      <button class="btn {% if aktif.sure_secildi %}btn-primary{% else %}btn-ghost{% endif %} mola-btn">Molayı Bitir</button>
-    </form>
-    <p class="ea-not">Döndüğünü bildirmek için QR'ı tekrar okutup "Molayı Bitir"e basabilirsin.</p>
+    <p class="ea-not">Bugünkü hakkın <b>{{ limit_dk }} dk</b>{% if onceki_dk %} · önceki molaların <b>{{ onceki_dk }} dk</b>, kalan <b>{{ kalan_hak }} dk</b>{% endif %}.</p>
+    <p class="mola-ipucu">Dönünce şubedeki QR'ı tekrar okut, mola kendiliğinden biter.</p>
+    <a href="{% url 'mola_tara' %}" class="btn btn-ghost">QR okutmaya git</a>
   </div>
   <script>
   (function () {
@@ -65,35 +43,31 @@
     function ikiHane(n) { return (n < 10 ? '0' : '') + n; }
     function guncelle() {
       var gecenSn = Math.max(0, Math.floor((Date.now() - bas) / 1000));
-      var dk = Math.floor(gecenSn / 60);
-      el.textContent = ikiHane(dk) + ':' + ikiHane(gecenSn % 60);
+      el.textContent = ikiHane(Math.floor(gecenSn / 60)) + ':' + ikiHane(gecenSn % 60);
     }
     guncelle();
     setInterval(guncelle, 1000);
   })();
   </script>
-  {% else %}
+  {% elif durum_sayfasi %}
   <div class="card mola-kart">
-    <div class="mola-ikon"><svg class="mola-barista" viewBox="0 0 64 64" fill="none" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="24" cy="15" r="7"/>
-      <path d="M12 50v-6a12 12 0 0 1 24 0v6"/>
-      <path d="M18 31h12"/>
-      <path d="M20 31l4 11 4-11"/>
-      <path d="M40 33h10v9a5 5 0 0 1-5 5 5 5 0 0 1-5-5z"/>
-      <path d="M50 35h3a3 3 0 0 1 0 6h-3"/>
-      <path d="M43 26c0-2 2-2 2-4M48 26c0-2 2-2 2-4"/>
-    </svg></div>
-    <h2>Molaya çık</h2>
-    <p class="mola-sube">{{ sube.ad }}</p>
-    <p class="ea-not">Ne kadar mola kullanacaksın?</p>
-    <div class="mola-sure-btn">
-      {% for s in sureler %}
-      <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="baslat"><input type="hidden" name="sure" value="{{ s }}">
-        <button class="btn btn-primary mola-btn">{{ s }} dk</button>
-      </form>
+    <div class="mola-ikon">{% if son_bitti %}✓{% else %}☕{% endif %}</div>
+    <h2>{% if son_bitti %}Molan bitti{% else %}Şu an molada değilsin{% endif %}</h2>
+    {% if son_bitti %}<p class="mola-sube">{{ son_bitti.baslangic|time:"H:i" }} – {{ son_bitti.bitis|time:"H:i" }}</p>{% endif %}
+    <p class="ea-not">Yeni mola için şubendeki QR'ı okut.</p>
+    <a href="{% url 'mola_tara' %}" class="btn btn-primary mola-btn">QR okut</a>
+  </div>
+  {% endif %}
+
+  {% if durum_sayfasi and satirlar %}
+  <div class="card mola-gun">
+    <div class="mola-gun-bas"><b>Bugünkü molalarım</b><span class="mola-gun-top{% if toplam_dk > limit_dk %} asti{% endif %}">{{ toplam_dk }} dk <small>/ {{ limit_dk }}</small></span></div>
+    <ul class="mola-gun-liste">
+      {% for s in satirlar %}
+      <li><span>{{ s.giris|time:"H:i" }} – {% if s.cikis %}{{ s.cikis|time:"H:i" }}{% else %}devam ediyor{% endif %}{% if s.oto %} <em class="mola-oto">otomatik kapatıldı</em>{% endif %}</span><b>{{ s.dk }} dk</b></li>
       {% endfor %}
-    </div>
-    <p class="ea-not">Bitmesine 5 dakika kala telefonuna bildirim gelir.</p>
+    </ul>
+    {% if toplam_dk > limit_dk %}<p class="ea-not mola-asim">Günlük hakkını {{ toplam_dk|add:"0" }} dk ile aştın.</p>{% endif %}
   </div>
   {% endif %}
 </div>
