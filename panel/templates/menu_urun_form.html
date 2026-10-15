@@ -110,6 +110,13 @@
   inp.addEventListener('change', function () {
     var f = inp.files && inp.files[0];
     if (!f) return;
+    var isaret = document.getElementById('mn-foto-secildi');
+    if (!isaret) {
+      isaret = document.createElement('input');
+      isaret.type = 'hidden'; isaret.name = 'foto_secildi'; isaret.id = 'mn-foto-secildi';
+      document.getElementById('mn-form').appendChild(isaret);
+    }
+    isaret.value = '1';
     var url = URL.createObjectURL(f);
     var img = new Image();
     img.onload = function () {

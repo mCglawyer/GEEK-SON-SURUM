@@ -38,7 +38,7 @@
   <div class="card">
     <div class="hafta-head">
       <h3>{% if ekleyebilir %}Bugün Yüklenenler{% else %}{{ secili_tarih }} Görüntüleri{% endif %}</h3>
-      <span class="hafta-aralik">{{ gorseller|length }} görüntü</span>
+      <span class="hafta-aralik">{{ gorseller|length }} görüntü{% if gorseller and kontrol_edebilir and kontrolsuz %} · <b class="kal-bekleyen">{{ kontrolsuz }} kontrol bekliyor</b>{% endif %}</span>
     </div>
     {% if gorseller %}
     <div class="kal-galeri">
@@ -46,6 +46,14 @@
       <figure class="kal-item">
         <a href="{{ g.foto.url }}" target="_blank" rel="noopener" class="lb-tetikleyici" data-full="{{ g.foto.url }}"><img src="{{ g.foto.url }}" alt="Kalibrasyon görüntüsü" loading="lazy"></a>
         <figcaption>{{ g.giren_ad|default:"—" }}<span>{{ g.olusturma|date:"d.m.Y H:i" }}</span></figcaption>
+        <div class="kal-kontrol">
+          {% for x in g.kontrol_listesi %}<span class="kal-tik" title="{{ x.zaman|date:'d.m.Y H:i' }}">✓ {{ x.ad|default:"—" }} <small>{{ x.rol }} · {{ x.zaman|date:"H:i" }}</small></span>{% empty %}<span class="kal-bekle">Kontrol bekliyor</span>{% endfor %}
+          {% if kontrol_edebilir %}
+          <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="kalibrasyon_kontrol"><input type="hidden" name="kid" value="{{ g.id }}">
+            <button class="btn btn-mini {% if g.benim_tikim %}btn-ghost{% else %}btn-primary{% endif %}">{% if g.benim_tikim %}Tiki kaldır{% else %}✓ Kontrol ettim{% endif %}</button>
+          </form>
+          {% endif %}
+        </div>
       </figure>
       {% endfor %}
     </div>

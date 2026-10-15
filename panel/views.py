@@ -22,7 +22,7 @@ from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.models import User
 
-from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Irsaliye,
+from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, KalibrasyonKontrol, Irsaliye,
                      StokUrun, StokSayim, StokSayimKalem,
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      SevkiyatForm, Urun, SiparisHareket,
@@ -940,7 +940,7 @@ def ekip_sayfa(request):
 
         if islem == 'egitmen_ekle':
             s = Personel.objects.filter(id=request.POST.get('personel_id'),
-                                        rol__in=[Rol.PERSONEL, Rol.SEF]).first()
+                                        rol__in=[Rol.PERSONEL, Rol.SEF, Rol.MUDUR]).first()
             if s:
                 s.egitmen = True
                 s.save(update_fields=['egitmen'])
@@ -991,7 +991,7 @@ def ekip_sayfa(request):
             m.atanan_ids = set(m.sorumlu_subeler.values_list('id', flat=True))
         egitmenler = list(Personel.objects.filter(egitmen=True)
                           .select_related('sube').order_by('ad_soyad'))
-        egitmen_adaylari = list(Personel.objects.filter(rol__in=[Rol.PERSONEL, Rol.SEF], egitmen=False)
+        egitmen_adaylari = list(Personel.objects.filter(rol__in=[Rol.PERSONEL, Rol.SEF, Rol.MUDUR], egitmen=False)
                                 .select_related('sube').order_by('ad_soyad'))
         manuel_yetkili_liste = list(Personel.objects.filter(manuel_giris_yetkisi=True)
                                    .select_related('sube').order_by('ad_soyad'))
@@ -1166,6 +1166,24 @@ def kalibrasyon_sayfa(request):
     else:
         ref = today
 
+    kontrol_edebilir = bool(sel_sube) and personel.rol in (Rol.SEF, Rol.MAGAZA_MUDURU, Rol.MUDUR)
+
+    if request.method == 'POST' and request.POST.get('islem') == 'kalibrasyon_kontrol':
+        # Şef / bölge müdürü / mağaza müdürü: görüntüyü kontrol ettim tiki (tekrar basınca geri alınır)
+        k = Kalibrasyon.objects.filter(id=request.POST.get('kid') or 0, sube=sel_sube).first() if kontrol_edebilir else None
+        if k is None:
+            messages.error(request, "Bu görüntüyü işaretleme yetkin yok.")
+        else:
+            mevcut = KalibrasyonKontrol.objects.filter(kalibrasyon=k, personel=personel).first()
+            if mevcut:
+                mevcut.delete()
+                messages.success(request, "Kontrol işareti kaldırıldı.")
+            else:
+                KalibrasyonKontrol.objects.create(kalibrasyon=k, personel=personel, ad=personel.ad_soyad,
+                                                  rol=personel.rol)
+                messages.success(request, "Görüntüyü kontrol ettiğin işaretlendi.")
+        return redirect(request.get_full_path())
+
     if request.method == 'POST' and ekleyebilir:
         if not sel_sube:
             messages.error(request, "Şubeniz tanımlı değil. Yöneticinize başvurun.")
@@ -1193,10 +1211,16 @@ def kalibrasyon_sayfa(request):
 
     gorseller = []
     if sel_sube:
-        gorseller = list(Kalibrasyon.objects.filter(sube=sel_sube, olusturma__date=ref).select_related('giren'))
+        gorseller = list(Kalibrasyon.objects.filter(sube=sel_sube, olusturma__date=ref)
+                         .select_related('giren').prefetch_related('kontroller'))
+    for g in gorseller:
+        g.kontrol_listesi = list(g.kontroller.all())
+        g.benim_tikim = any(x.personel_id == personel.id for x in g.kontrol_listesi)
+    kontrolsuz = sum(1 for g in gorseller if not g.kontrol_listesi)
 
     return render(request, 'kalibrasyon.html', {
         'personel': personel, 'aktif': 'kalibrasyon', 'ekleyebilir': ekleyebilir, 'is_yon': is_yon,
+        'kontrol_edebilir': kontrol_edebilir, 'kontrolsuz': kontrolsuz,
         'subeler': subeler, 'sel_sube': sel_sube, 'gorseller': gorseller,
         'secili_tarih': ref.strftime('%Y-%m-%d'), 'en_eski_tarih': en_eski.strftime('%Y-%m-%d'),
         'bugun': today.strftime('%Y-%m-%d'), 'saklama_gun': KALIBRASYON_GUN,
@@ -1212,6 +1236,28 @@ def _lavabo_temizle():
         if k.foto:
             k.foto.delete(save=False)
         k.delete()
+
+
+_GUN_ADLARI = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
+
+
+def _lavabo_gunler(kayitlar):
+    """Lavabo görüntülerini gün gün, her gün içinde yeniden eskiye (saat saat satır satır) gruplar."""
+    bugun = timezone.localdate()
+    gunler = []
+    for k in kayitlar:
+        an = timezone.localtime(k.olusturma)
+        gun = an.date()
+        if not gunler or gunler[-1]['tarih'] != gun:
+            fark = (bugun - gun).days
+            etiket = 'Bugün' if fark == 0 else 'Dün' if fark == 1 else gun.strftime('%d.%m.%Y')
+            gunler.append({'tarih': gun, 'etiket': etiket, 'gun_adi': _GUN_ADLARI[gun.weekday()], 'kayitlar': []})
+        gunler[-1]['kayitlar'].append({'k': k, 'saat': an.strftime('%H:%M')})
+    for g in gunler:
+        saatler = [x['saat'] for x in g['kayitlar']]
+        g['adet'] = len(saatler)
+        g['ilk'], g['son'] = min(saatler), max(saatler)
+    return gunler
 
 
 def lavabo_sayfa(request):
@@ -1257,7 +1303,7 @@ def lavabo_sayfa(request):
 
     return render(request, 'lavabo.html', {
         'personel': personel, 'aktif': 'lavabo', 'ekleyebilir': ekleyebilir, 'is_yon': is_yon,
-        'subeler': subeler, 'sel_sube': sel_sube, 'gorseller': gorseller,
+        'subeler': subeler, 'sel_sube': sel_sube, 'gorseller': gorseller, 'gunler': _lavabo_gunler(gorseller),
         'saklama_gun': LAVABO_GUN,
     })
 
@@ -1276,10 +1322,11 @@ def lavabo_json(request):
         sel_sube = personel.sube
     if not sel_sube:
         return JsonResponse({'gorseller': []})
-    qs = LavaboDenetim.objects.filter(sube=sel_sube).select_related('giren')[:60]
-    out = [{'url': g.foto.url, 'ad': g.giren_ad or '—',
-            'zaman': timezone.localtime(g.olusturma).strftime('%d.%m.%Y %H:%M')} for g in qs]
-    return JsonResponse({'gorseller': out})
+    qs = list(LavaboDenetim.objects.filter(sube=sel_sube).select_related('giren')[:60])
+    from django.template.loader import render_to_string
+    return JsonResponse({'sayi': len(qs),
+                         'html': render_to_string('_lavabo_satirlar.html', {'gunler': _lavabo_gunler(qs)}, request=request),
+                         'gorseller': [{'url': g.foto.url, 'ad': g.giren_ad or '—'} for g in qs]})
 
 
 def _irsaliye_temizle():
@@ -5694,4 +5741,62 @@ def denetim_yonetim(request):
     return render(request, 'denetim_yonetim.html', {
         'personel': personel, 'aktif': 'denetim_yonetim',
         'bolumler': bolumler,
+    })
+
+
+# ───────── Bölge müdürü uygulama girişleri ─────────
+OTURUM_SAKLAMA_GUN = 180
+
+
+def mudur_girisleri(request):
+    """Hangi bölge müdürü günde kaç kez uygulamaya girmiş (GM / Operatör / Yatırımcı görür)."""
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None or personel.rol not in TAM_YETKILI:
+        return redirect('ana_sayfa')
+
+    from .models import OturumKaydi
+    bugun = timezone.localdate()
+    OturumKaydi.objects.filter(an__lt=timezone.now() - datetime.timedelta(days=OTURUM_SAKLAMA_GUN)).delete()
+
+    try:
+        gun = datetime.datetime.strptime(request.GET.get('gun', ''), '%Y-%m-%d').date()
+    except ValueError:
+        gun = bugun
+    gun = min(gun, bugun)
+
+    mudurler = list(Personel.objects.filter(rol=Rol.MUDUR).order_by('ad_soyad'))
+    bas = timezone.make_aware(datetime.datetime.combine(gun - datetime.timedelta(days=13), datetime.time.min))
+    bitis = timezone.make_aware(datetime.datetime.combine(gun + datetime.timedelta(days=1), datetime.time.min))
+    kayitlar = list(OturumKaydi.objects.filter(an__gte=bas, an__lt=bitis, personel__rol=Rol.MUDUR))
+
+    gunler = [gun - datetime.timedelta(days=i) for i in range(13, -1, -1)]
+    sayac = {}      # (personel_id, tarih) -> sayı
+    gun_saatleri = {}  # personel_id -> [(saat, tur)]
+    for k in kayitlar:
+        yerel = timezone.localtime(k.an)
+        sayac[(k.personel_id, yerel.date())] = sayac.get((k.personel_id, yerel.date()), 0) + 1
+        if yerel.date() == gun:
+            gun_saatleri.setdefault(k.personel_id, []).append((yerel.strftime('%H:%M'), k.tur))
+
+    satirlar = []
+    for m in mudurler:
+        saatler = sorted(gun_saatleri.get(m.id, []))
+        satirlar.append({
+            'mudur': m, 'adet': len(saatler), 'saatler': saatler,
+            'ilk': saatler[0][0] if saatler else None, 'son': saatler[-1][0] if saatler else None,
+            'gunluk': [sayac.get((m.id, g), 0) for g in gunler],
+            'toplam14': sum(sayac.get((m.id, g), 0) for g in gunler),
+        })
+    satirlar.sort(key=lambda s: (-s['adet'], s['mudur'].ad_soyad))
+    return render(request, 'mudur_girisleri.html', {
+        'personel': personel, 'aktif': 'mudur_girisleri',
+        'satirlar': satirlar, 'gunler': gunler, 'gun': gun, 'bugun': bugun,
+        'giren_sayisi': sum(1 for s in satirlar if s['adet']),
+        'toplam_giris': sum(s['adet'] for s in satirlar),
+        'onceki': (gun - datetime.timedelta(days=1)).isoformat(),
+        'sonraki': (gun + datetime.timedelta(days=1)).isoformat() if gun < bugun else '',
     })

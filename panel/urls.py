@@ -71,6 +71,7 @@ urlpatterns = [
     path('raporlar/indir/<str:ad>/', views.rapor_indir, name='rapor_indir'),
     path('yedekler/indir/<str:ad>/', views.yedek_indir, name='yedek_indir'),
     path('ekip/', views.ekip_sayfa, name='ekip'),
+    path('mudur-girisleri/', views.mudur_girisleri, name='mudur_girisleri'),
     path('gunluk-soru/', views.gunluk_soru, name='gunluk_soru'),
     path('bilgi-karnesi/', views.bilgi_karnesi, name='bilgi_karnesi'),
     path('soru-yonetimi/', views.soru_yonetimi, name='soru_yonetimi'),

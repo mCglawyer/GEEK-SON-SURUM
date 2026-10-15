@@ -286,6 +286,27 @@ class PanelTesti(TestCase):
         self.assertIn(u.gorsel.url, csv_metni)
         self.assertIn(',1250.5,', csv_metni)
 
+    def test_secilen_fotograf_ulasmadiysa_kaydedilmez_ve_basarili_demez(self):
+        self.client.force_login(self.gm)
+        kat = MenuKategori.objects.get(marka__kod='geek', kod='bowl')
+        r = self.client.post(reverse('menu_urun_yeni', args=['geek']), {
+            'kategori': kat.id, 'urun_adi': 'Fotosuz Bowl', 'fiyat': '100', 'aktif': 'on', 'foto_secildi': '1'})
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'sunucuya ulaşmadı')
+        self.assertFalse(MenuUrun.objects.filter(urun_adi='Fotosuz Bowl').exists())
+
+    def test_fotograf_yuklenince_basari_mesaji_bunu_soyler(self):
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new('RGB', (800, 600), (30, 30, 200)).save(buf, 'JPEG')
+        self.client.force_login(self.gm)
+        kat = MenuKategori.objects.get(marka__kod='geek', kod='bowl')
+        r = self.client.post(reverse('menu_urun_yeni', args=['geek']), {
+            'kategori': kat.id, 'urun_adi': 'Fotolu Bowl', 'fiyat': '100', 'aktif': 'on', 'foto_secildi': '1',
+            'foto': SimpleUploadedFile('f.jpg', buf.getvalue(), content_type='image/jpeg')}, follow=True)
+        self.assertContains(r, 'Fotoğraf yüklendi.')
+        self.assertTrue(MenuUrun.objects.get(urun_adi='Fotolu Bowl').gorsel)
+
     def test_ayni_kod_reddedilir_ve_baga_formu_geek_alerjenlerini_icermez(self):
         self.client.force_login(self.gm)
         kat = MenuKategori.objects.get(marka__kod='geek', kod='tost')

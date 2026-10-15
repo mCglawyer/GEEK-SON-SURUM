@@ -21,6 +21,11 @@ class Command(BaseCommand):
                 self._kontrol()
             except Exception as e:
                 self.stderr.write("mola_kontrol hata: %s" % e)
+            try:
+                from panel.mesai_hatirlat import calistir
+                calistir()
+            except Exception as e:
+                self.stderr.write("mesai_hatirlat hata: %s" % e)
             if once:
                 break
             time.sleep(aralik)

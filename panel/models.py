@@ -1360,3 +1360,38 @@ class TemizlikFiyat(models.Model):
 
     def __str__(self):
         return f"{self.urun} · {self.fiyat} TL/{self.birim.lower()} ({self.gecerli:%d.%m.%Y})"
+
+
+class KalibrasyonKontrol(models.Model):
+    """Şube şefi / bölge müdürünün kalibrasyon görüntüsünü gördüğünü işaretlediği tik."""
+    kalibrasyon = models.ForeignKey(Kalibrasyon, on_delete=models.CASCADE, related_name='kontroller')
+    personel = models.ForeignKey('Personel', on_delete=models.CASCADE, related_name='+')
+    ad = models.CharField(max_length=100, blank=True, verbose_name="Kontrol eden")
+    rol = models.CharField(max_length=40, blank=True)
+    zaman = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Kalibrasyon Kontrolü"
+        verbose_name_plural = "Kalibrasyon Kontrolleri"
+        ordering = ['zaman']
+        constraints = [models.UniqueConstraint(fields=['kalibrasyon', 'personel'], name='kalibrasyon_kontrol_tekil')]
+
+    def __str__(self):
+        return f"{self.ad} ✓ {self.kalibrasyon}"
+
+
+class OturumKaydi(models.Model):
+    """Bölge müdürlerinin uygulamaya giriş / açılış kaydı (günde kaç kez kullandığını görmek için)."""
+    TUR = [('giris', 'Giriş (şifre/kod ile)'), ('acilis', 'Açılış (30 dk+ aradan sonra)')]
+    personel = models.ForeignKey('Personel', on_delete=models.CASCADE, related_name='oturum_kayitlari')
+    an = models.DateTimeField(default=timezone.now, db_index=True)
+    tur = models.CharField(max_length=8, choices=TUR, default='giris')
+
+    class Meta:
+        verbose_name = "Oturum Kaydı"
+        verbose_name_plural = "Oturum Kayıtları"
+        ordering = ['-an']
+        indexes = [models.Index(fields=['personel', 'an'])]
+
+    def __str__(self):
+        return f"{self.personel} · {self.an:%d.%m.%Y %H:%M} · {self.tur}"

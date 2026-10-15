@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Müdür Girişleri · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Müdür girişleri</h2><span class="plan-aralik">Bölge müdürlerinin uygulamayı günde kaç kez açtığı</span></div>
+    <div class="an-btns">
+      <div class="an-ay">
+        <a class="btn btn-ghost btn-mini" href="?gun={{ onceki }}" aria-label="Önceki gün">‹</a>
+        <b>{{ gun|date:"d.m.Y" }}</b>
+        {% if sonraki %}<a class="btn btn-ghost btn-mini" href="?gun={{ sonraki }}" aria-label="Sonraki gün">›</a>{% else %}<span class="btn btn-ghost btn-mini mg-pasif" aria-hidden="true">›</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="tz-stat-satir">
+    <div class="tz-stat"><span>Giriş yapan müdür</span><b>{{ giren_sayisi }} / {{ satirlar|length }}</b><small>{{ gun|date:"d F" }}</small></div>
+    <div class="tz-stat"><span>Toplam giriş</span><b>{{ toplam_giris }}</b><small>gün içinde</small></div>
+  </div>
+
+  <div class="card">
+    <h3>Günlük döküm</h3>
+    {% if satirlar %}
+    <div class="tz-kaydir">
+      <table class="tz-tablo tz-orta">
+        <thead><tr><th class="tz-ad">Bölge müdürü</th><th>Giriş sayısı</th><th>İlk</th><th>Son</th><th>Saatler</th></tr></thead>
+        <tbody>
+          {% for s in satirlar %}
+          <tr>
+            <td class="tz-ad" data-et="Müdür">{{ s.mudur.ad_soyad }}</td>
+            <td data-et="Giriş sayısı" class="tz-sayi{% if not s.adet %} bos{% endif %}"><b>{{ s.adet }}</b></td>
+            <td data-et="İlk">{{ s.ilk|default:"—" }}</td>
+            <td data-et="Son">{{ s.son|default:"—" }}</td>
+            <td data-et="Saatler" class="mgi-saat">{% for h, t in s.saatler %}<span class="mgi-chip{% if t == 'giris' %} giris{% endif %}" title="{% if t == 'giris' %}Şifre/kod ile giriş{% else %}30 dk+ aradan sonra açılış{% endif %}">{{ h }}</span>{% empty %}—{% endfor %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tz-not">Giriş = şifre/kodla oturum açma. Açılış = oturum açıkken 30 dakikadan uzun aradan sonra uygulamaya dönüş. Aynı kullanım içindeki sayfa gezintileri sayılmaz.</p>
+    {% else %}
+    <p class="egitim-bos">Henüz bölge müdürü tanımlı değil.</p>
+    {% endif %}
+  </div>
+
+  {% if satirlar %}
+  <div class="card">
+    <h3>Son 14 gün <span class="tz-sayac">günlük giriş sayısı</span></h3>
+    <div class="tz-kaydir">
+      <table class="tz-tablo tz-genis">
+        <thead><tr><th class="tz-ad">Bölge müdürü</th>{% for g in gunler %}<th>{{ g|date:"d.m" }}</th>{% endfor %}<th>Toplam</th></tr></thead>
+        <tbody>
+          {% for s in satirlar %}
+          <tr><td class="tz-ad">{{ s.mudur.ad_soyad }}</td>{% for n in s.gunluk %}<td class="tz-sayi{% if not n %} bos{% endif %}">{% if n %}{{ n }}{% else %}·{% endif %}</td>{% endfor %}<td class="tz-sayi tz-kul">{{ s.toplam14 }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tz-not">Kayıtlar bu özelliğin devreye girdiği andan itibaren tutulur ve 180 gün saklanır.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -247,6 +247,26 @@ def _gorsel_hazirla(dosya, marka_kod, urun_kod):
     return ad, ContentFile(cikis.getvalue())
 
 
+def _gorsel_dogrula(alan):
+    """Yüklenen görsel gerçekten depoda mı ve herkese açık adresten okunuyor mu? (ok, açıklama).
+    Yerel diskte (geliştirme) adres http değilse yalnızca dosyanın varlığına bakılır."""
+    try:
+        if not alan or not alan.name:
+            return False, 'Görsel kaydı oluşmadı.'
+        if not alan.storage.exists(alan.name):
+            return False, 'Dosya depoya yazılamadı.'
+        url = alan.url
+        if url.startswith('http'):
+            import urllib.request
+            istek = urllib.request.Request(url, method='HEAD', headers={'User-Agent': 'GeekPanel-kontrol'})
+            with urllib.request.urlopen(istek, timeout=6) as r:
+                if r.status >= 400:
+                    return False, 'Adres %s döndürdü (%s).' % (r.status, url)
+    except Exception as e:
+        return False, ('%s: %s' % (e.__class__.__name__, e))[:220]
+    return True, ''
+
+
 def _eski_dosyayi_sil(alan):
     try:
         if alan and alan.name:
@@ -348,6 +368,12 @@ def menu_urun_form(request, marka_kod, urun_id=None):
 
     if request.method == 'POST':
         form = MenuUrunForm(request.POST, request.FILES, instance=urun, marka=marka)
+        foto_secildi = request.POST.get('foto_secildi') == '1'
+        if foto_secildi and 'foto' not in request.FILES:
+            # tarayıcıda fotoğraf seçilmiş ama sunucuya ulaşmamış: sessizce "kaydedildi" deme
+            messages.error(request, 'Seçtiğin fotoğraf sunucuya ulaşmadı, ürün KAYDEDİLMEDİ. Fotoğrafı yeniden seçip tekrar dene '
+                                    '(dosya çok büyükse ya da bağlantı kesildiyse bu olur).')
+            return render(request, 'menu_urun_form.html', _form_ctx(request, personel, marka, sema, urun, form, geri))
         if form.is_valid():
             obj = form.save(commit=False)
             obj.marka = marka
@@ -375,7 +401,15 @@ def menu_urun_form(request, marka_kod, urun_id=None):
                 messages.error(request, 'Fotoğraf yüklenemedi: %s' % e)
                 return render(request, 'menu_urun_form.html', _form_ctx(request, personel, marka, sema, urun, form, geri))
             obj.save()
-            _yayinla_ve_bildir(request, marka, '"%s" %s.' % (obj.urun_adi, 'eklendi' if yeni else 'kaydedildi'))
+            foto_notu = ''
+            if foto:
+                ok, aciklama = _gorsel_dogrula(obj.gorsel)
+                if ok:
+                    foto_notu = ' Fotoğraf yüklendi.'
+                else:
+                    messages.warning(request, 'Fotoğraf kaydedildi ama okunabildiği doğrulanamadı: %s — R2 ayarlarını '
+                                              '(R2_PUBLIC_URL, bucket erişimi) kontrol et.' % aciklama)
+            _yayinla_ve_bildir(request, marka, '"%s" %s.%s' % (obj.urun_adi, 'eklendi' if yeni else 'kaydedildi', foto_notu))
             return redirect('%s?kat=%d' % (reverse('menu_urunler', args=[marka.kod]), obj.kategori_id))
     else:
         baslangic = {}

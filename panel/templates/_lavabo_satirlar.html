@@ -1,0 +1,18 @@
+{% for g in gunler %}
+<section class="lv-gun">
+  <header class="lv-gun-baslik">
+    <b>{{ g.etiket }}</b><span>{% if g.etiket != g.gun_adi %}{{ g.gun_adi }} · {% endif %}{{ g.adet }} görüntü · ilk {{ g.ilk }} · son {{ g.son }}</span>
+  </header>
+  <ul class="lv-liste">
+    {% for x in g.kayitlar %}
+    <li class="lv-satir">
+      <time class="lv-saat">{{ x.saat }}</time>
+      <span class="lv-kim">{{ x.k.giren_ad|default:"—" }}</span>
+      <a href="{{ x.k.foto.url }}" target="_blank" rel="noopener" class="lb-tetikleyici lv-kucuk" data-full="{{ x.k.foto.url }}" data-grup="lavabo" aria-label="{{ x.saat }} görüntüsünü büyüt"><img src="{{ x.k.foto.url }}" alt="Lavabo denetim görüntüsü, {{ x.saat }}" loading="lazy"></a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% empty %}
+<p class="egitim-bos" id="lav-bos">Henüz görüntü yok.</p>
+{% endfor %}

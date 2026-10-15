@@ -36,16 +36,7 @@
       <h3>Görüntüler <span class="lav-canli-nokta" title="Canlı güncelleniyor"></span></h3>
       <span class="hafta-aralik" id="lav-sayi">{{ gorseller|length }} görüntü</span>
     </div>
-    <div class="kal-galeri" id="lav-galeri">
-      {% for g in gorseller %}
-      <figure class="kal-item">
-        <a href="{{ g.foto.url }}" target="_blank" rel="noopener" class="lb-tetikleyici" data-full="{{ g.foto.url }}"><img src="{{ g.foto.url }}" alt="Lavabo denetim görüntüsü" loading="lazy"></a>
-        <figcaption>{{ g.giren_ad|default:"—" }}<span>{{ g.olusturma|date:"d.m.Y H:i" }}</span></figcaption>
-      </figure>
-      {% empty %}
-      <p class="egitim-bos" id="lav-bos">Henüz görüntü yok.</p>
-      {% endfor %}
-    </div>
+    <div id="lav-galeri" class="lv-zaman">{% include "_lavabo_satirlar.html" %}</div>
   </div>
 
 </div>
@@ -128,21 +119,13 @@
 (function () {
   var galeri = document.getElementById('lav-galeri');
   var sayi = document.getElementById('lav-sayi');
-  function ciz(gorseller) {
-    if (!gorseller.length) { galeri.innerHTML = '<p class="egitim-bos">Henüz görüntü yok.</p>'; return; }
-    var html = '';
-    gorseller.forEach(function (g) {
-      html += '<figure class="kal-item"><a href="' + g.url + '" target="_blank"><img src="' + g.url + '" alt="Lavabo denetim görüntüsü" loading="lazy"></a><figcaption>' + g.ad + '<span>' + g.zaman + '</span></figcaption></figure>';
-    });
-    galeri.innerHTML = html;
-  }
   function getir() {
     fetch('{% url "lavabo_json" %}{% if sel_sube %}?sube_id={{ sel_sube.id }}{% endif %}', { headers: { 'X-Requested-With': 'fetch' } })
       .then(function (r) { return r.json(); })
       .then(function (d) {
-        var g = (d && d.gorseller) || [];
-        sayi.textContent = g.length + ' görüntü';
-        ciz(g);
+        if (!d || typeof d.html !== 'string') return;
+        sayi.textContent = (d.sayi || 0) + ' görüntü';
+        galeri.innerHTML = d.html;
       })
       .catch(function () {});
   }
