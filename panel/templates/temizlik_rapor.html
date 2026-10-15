@@ -6,6 +6,7 @@
   <div class="plan-head">
     <div><h2>Temizlik tüketimi</h2><span class="plan-aralik">{{ ay_etiket }} · {% if secili %}{{ secili.ad }}{% else %}Tüm şubeler{% endif %}</span></div>
     <div class="an-btns">
+      {% if urun_duzenleyebilir %}<a class="btn btn-ghost btn-mini" href="{% url 'temizlik_urunler' %}">Ürünleri düzenle</a>{% endif %}
       {% if giris_var %}<a class="btn btn-ghost btn-mini" href="{% url 'temizlik_giris' %}?ay={{ ay_deger }}">← Sayım girişi</a>{% endif %}
       <a class="btn btn-primary btn-mini" href="{{ xlsx_url }}">Excel al</a>
       <a class="btn btn-primary btn-mini" href="{{ pdf_url }}">PDF al</a>
@@ -69,7 +70,7 @@
             <td data-et="İlave" class="tz-sayi">{{ r.ilave|tzsayi }}</td>
             <td data-et="Düzeltme" class="tz-sayi{% if not r.duzeltme %} bos{% endif %}">{{ r.duzeltme|tzsayi }}</td>
             <td data-et="Son stok" class="tz-sayi">{{ r.son|tzsayi }}</td>
-            <td data-et="Kullanım" class="tz-sayi tz-kul{% if r.kullanim is None %} bos{% elif r.kullanim < 0 %} eksi{% endif %}">{{ r.kullanim|tzsayi }}</td>
+            <td data-et="Kullanım" class="tz-sayi tz-kul{% if r.kullanim is None %} bos{% elif r.kullanim < 0 %} eksi{% endif %}">{{ r.kullanim|tzsayi }}{% with h=r.kullanim|tzhacim:r.urun %}{% if h %}<small class="tz-hacim">{{ h }}</small>{% endif %}{% endwith %}</td>
           </tr>
           {% endfor %}
         </tbody>

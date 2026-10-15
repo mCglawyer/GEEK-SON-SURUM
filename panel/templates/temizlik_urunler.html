@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Temizlik ürünleri · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Temizlik ürünleri</h2><span class="plan-aralik">Sayım ve tüketim çizelgesindeki ürün listesi</span></div>
+    <div class="an-btns"><a class="btn btn-ghost btn-mini" href="{% url 'temizlik' %}">← Temizlik</a></div>
+  </div>
+
+  {% for m in messages %}<div class="tz-ileti {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+  <div class="card tz-adim">
+    <p style="margin:0 0 .5rem"><b>Alanlar ne işe yarar?</b></p>
+    <ul class="tz-kural">
+      <li><b>Birim</b> — ürünün sayıldığı birim: adet, paket, set veya kutu.</li>
+      <li><b>Koli içeriği</b> — bir kolide kaç birim var. Sayımda “koli” yazılınca bu sayıyla çarpılır; sevkiyattan gelen koliler de bununla adede çevrilir.</li>
+      <li><b>Bir adetin kapasitesi</b> — yalnızca sıvı/toz ürünlerde: bir şişenin içeriği (örn. 500 ml). Doldurursan sayımda “açık kapta kalan” kutusu çıkar: 10 kapalı + 300 ml açık → 10,6 adet.</li>
+      <li><b>Sevkiyat karşılığı</b> — sevkiyat listesindeki ürün. Adı aynıysa kendiliğinden eşleşir; farklıysa buradan seç.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Yeni ürün ekle</h3>
+    <form method="post" class="tzu-form">
+      {% csrf_token %}<input type="hidden" name="islem" value="ekle">
+      <label class="tzu-ad">Ürün adı<input type="text" name="ad" class="input" maxlength="200" required></label>
+      <label>Birim<select name="birim" class="sube-sec">{% for b in birimler %}<option value="{{ b }}">{{ b|lower }}</option>{% endfor %}</select></label>
+      <label>Koli içeriği<input type="text" inputmode="decimal" name="koli_icerigi" class="input" value="1"></label>
+      <label>Bir adetin kapasitesi<span class="tzu-cift"><input type="text" inputmode="decimal" name="hacim" class="input" placeholder="boş = yok"><select name="hacim_birim" class="sube-sec">{% for b in kapasite_birimleri %}<option value="{{ b }}">{{ b|lower }}</option>{% endfor %}</select></span></label>
+      <label class="tzu-ad">Sevkiyat karşılığı<select name="urun" class="sube-sec"><option value="">Adı aynıysa otomatik</option>{% for u in katalog %}<option value="{{ u.id }}">{{ u.ad }}</option>{% endfor %}</select></label>
+      <button class="btn btn-primary btn-mini">Ürünü ekle</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Ürünler <span class="tz-sayac">{{ aktifler|length }} ürün</span></h3>
+    {% for u in aktifler %}
+    <form method="post" class="tzu-form tzu-satir">
+      {% csrf_token %}<input type="hidden" name="id" value="{{ u.id }}">
+      <label class="tzu-sira">Sıra<input type="text" inputmode="numeric" name="sira" class="input" value="{{ u.sira }}"></label>
+      <label class="tzu-ad">Ürün adı<input type="text" name="ad" class="input" maxlength="200" value="{{ u.ad }}" required></label>
+      <label>Birim<select name="birim" class="sube-sec">{% for b in birimler %}<option value="{{ b }}"{% if u.birim|upper == b %} selected{% endif %}>{{ b|lower }}</option>{% endfor %}</select></label>
+      <label>Koli içeriği<input type="text" inputmode="decimal" name="koli_icerigi" class="input" value="{{ u.koli_icerigi|floatformat:'-2' }}"></label>
+      <label>Bir adetin kapasitesi<span class="tzu-cift"><input type="text" inputmode="decimal" name="hacim" class="input" placeholder="boş = yok" value="{% if u.hacim %}{{ u.hacim|floatformat:'-2' }}{% endif %}"><select name="hacim_birim" class="sube-sec">{% for b in kapasite_birimleri %}<option value="{{ b }}"{% if u.hacim_birim == b %} selected{% endif %}>{{ b|lower }}</option>{% endfor %}</select></span></label>
+      <label class="tzu-ad">Sevkiyat karşılığı<select name="urun" class="sube-sec"><option value="">Adı aynıysa otomatik</option>{% for k in katalog %}<option value="{{ k.id }}"{% if u.urun_id == k.id %} selected{% endif %}>{{ k.ad }}</option>{% endfor %}</select></label>
+      <div class="tzu-btn">
+        <button class="btn btn-primary btn-mini" name="islem" value="kaydet">Kaydet</button>
+        <button class="btn btn-ghost btn-mini tzu-cikar" name="islem" value="cikar" onclick="return confirm('“{{ u.ad|escapejs }}” listeden çıkarılsın mı? Geçmiş sayımlar korunur.')">Çıkar</button>
+      </div>
+    </form>
+    {% empty %}<p class="egitim-bos">Henüz ürün yok. Yukarıdan ekleyebilirsin.</p>
+    {% endfor %}
+  </div>
+
+  {% if pasifler %}
+  <div class="card">
+    <h3>Çıkarılanlar <span class="tz-sayac">{{ pasifler|length }} ürün</span></h3>
+    <p class="tz-not" style="margin-top:0">Bu ürünler sayım listesinde görünmez; geçmiş ayların kayıtları durur.</p>
+    <ul class="tz-duz-liste">
+      {% for u in pasifler %}
+      <li class="tzu-pasif"><span class="tz-duz-u">{{ u.ad }}</span>
+        <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="geri_al"><input type="hidden" name="id" value="{{ u.id }}"><button class="btn btn-ghost btn-mini">Geri al</button></form></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

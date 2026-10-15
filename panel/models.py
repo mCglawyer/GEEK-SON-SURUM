@@ -1237,6 +1237,10 @@ class TemizlikUrun(models.Model):
     ad = models.CharField(max_length=200, verbose_name="Ürün Adı")
     birim = models.CharField(max_length=20, default='ADET', verbose_name="Birim")
     koli_icerigi = models.DecimalField(max_digits=10, decimal_places=2, default=1, verbose_name="Koli içeriği")
+    hacim = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                verbose_name="Bir adetin kapasitesi",
+                                help_text="Sıvı/toz ürünlerde bir kabın içeriği (örn. 500). Boşsa açık kap girişi çıkmaz.")
+    hacim_birim = models.CharField(max_length=5, blank=True, default='', verbose_name="Kapasite birimi")
     urun = models.ForeignKey('Urun', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
                              verbose_name="Sevkiyat kataloğundaki karşılığı",
                              help_text="Boş bırakılırsa sevkiyattaki ürün adıyla eşleştirilir.")
@@ -1279,6 +1283,10 @@ class TemizlikSayimKalem(models.Model):
     urun = models.ForeignKey(TemizlikUrun, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     urun_ad = models.CharField(max_length=200, default='')
     miktar = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Miktar (taban birim)")
+    koli = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Kapalı koli")
+    adet = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Kapalı adet")
+    acik = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+                               verbose_name="Açık kaplarda kalan (kapasite birimi)")
 
     class Meta:
         verbose_name = "Temizlik Sayım Kalemi"

@@ -515,7 +515,6 @@ html[data-theme="dark"] .mg-donem input:checked + span { background:var(--brand-
 html[data-theme="dark"] .mg-f-sayi, html[data-theme="dark"] .mg-sayfa-n.akt { background:#3347D6; color:#fff; }
 html[data-theme="dark"] a.mg-sayfa-n:hover { background:rgba(255,255,255,.08); }
 @media (max-width:900px) { html[data-theme="dark"] .sidebar { background:rgba(14,18,48,.94); } }
-.mg-liste { padding:0 .4rem; }
 .mg-satir { padding:.8rem .6rem; border-radius:12px; }
 .mg-satir.asti { border-bottom-color:transparent; }
 .mg-zaman { white-space:nowrap; }
@@ -535,4 +534,132 @@ html[data-theme="dark"] a.mg-sayfa-n:hover { background:rgba(255,255,255,.08); }
   html[data-theme="dark"] .mobil-bar { background:rgba(10,13,38,.78); border-top-color:rgba(255,255,255,.08); }
   html[data-theme="dark"] .yan-marka img { filter:brightness(0) invert(1); }
 }
-.oz-personel-liste { padding:.3rem .9rem; }
+
+/* Kartlarda iç boşluk: yazı ve sayılar çerçeveye yapışmasın, her kart aynı hizada dursun.
+   :where() özgüllüğü sıfırladığı için kendi iç boşluğunu tanımlayan kartlar etkilenmez. */
+:where(body.app .card) { padding:1.15rem 1.35rem; }
+@media (max-width:640px) { :where(body.app .card) { padding:1rem 1rem; } }
+.bd-liste { padding:.7rem 1.1rem; }
+.plan-aralik { display:block; margin:.25rem 0 0; }
+
+/* ---- Temizlik tüketimi ----------------------------------------------------- */
+.tz-ileti { border-radius:12px; padding:.7rem 1rem; margin-bottom:.9rem; font-size:.9rem; border:1px solid var(--line); background:var(--surface); }
+.tz-ileti.success { background:var(--ok-bg); color:var(--ok); border-color:transparent; }
+.tz-ileti.error { background:var(--no-bg); color:var(--no); border-color:transparent; }
+.tz-filtre { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.8rem 1.2rem; }
+.tz-filtre label { display:flex; align-items:center; gap:.5rem; margin:0; font-size:.85rem; color:var(--muted); font-weight:600; }
+.tz-sube-form { margin:0; }
+.tz-adim ol { margin:0; padding-left:1.2rem; display:grid; gap:.35rem; font-size:.9rem; }
+.tz-durum { margin:.8rem 0 0; font-size:.85rem; color:var(--muted); }
+.tz-durum b.ok { color:var(--ok); } .tz-durum b.bekle { color:var(--wait); }
+.tz-sayim-bar { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:.8rem 1.2rem; margin-bottom:1rem; }
+.tz-sayim-kutu { display:flex; flex-wrap:wrap; align-items:flex-end; gap:.6rem; padding:.8rem; border-radius:14px; background:var(--bg); }
+.tz-sayim-kutu label { display:flex; flex-direction:column; gap:.25rem; margin:0; font-size:.78rem; font-weight:600; color:var(--muted); flex:1 1 150px; }
+.tz-sayim-kutu .input { min-height:40px; }
+.tz-kaydir { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.tz-tablo { width:100%; border-collapse:collapse; font-size:.86rem; }
+.tz-tablo th { font-size:.74rem; font-weight:600; color:var(--muted); text-align:center; padding:.5rem .45rem; border-bottom:1px solid var(--line); white-space:nowrap; vertical-align:bottom; }
+.tz-tablo th small { display:block; font-weight:400; font-size:.68rem; opacity:.85; }
+.tz-tablo td { padding:.4rem .45rem; border-bottom:1px solid var(--line); text-align:center; vertical-align:middle; }
+.tz-tablo tr:last-child td { border-bottom:none; }
+.tz-tablo .tz-ad { text-align:left; min-width:200px; font-weight:500; }
+.tz-tablo th.tz-ad { text-align:left; }
+.tz-sayi { font-variant-numeric:tabular-nums; }
+.tz-sayi.bos { color:var(--muted); opacity:.55; }
+.tz-kul { font-weight:700; color:var(--ink); }
+.tz-kul.eksi { color:var(--no); }
+.tz-girdi { width:84px; min-height:38px; padding:.35rem .5rem; text-align:center; font-size:.9rem; margin:0 auto; }
+.tz-genis td, .tz-genis th { min-width:74px; }
+.tz-genis .tz-ad { min-width:200px; }
+.tz-not { font-size:.78rem; color:var(--muted); margin:.8rem 0 0; }
+.tz-sayac { font-size:.76rem; font-weight:500; color:var(--muted); margin-left:.4rem; }
+.tz-duz-form { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.7rem; align-items:end; }
+.tz-duz-form label { display:flex; flex-direction:column; gap:.25rem; margin:0; font-size:.78rem; font-weight:600; color:var(--muted); }
+.tz-duz-form .input, .tz-duz-form select { min-height:40px; width:100%; }
+.tz-duz-urun, .tz-duz-acik { grid-column:span 2; }
+.tz-duz-liste { list-style:none; margin:1rem 0 0; padding:0; }
+.tz-duz-liste li { display:grid; grid-template-columns:90px minmax(120px,1.4fr) 70px minmax(0,2fr) auto; gap:.6rem; align-items:center; padding:.55rem 0; border-top:1px solid var(--line); font-size:.86rem; }
+.tz-duz-liste b.eksi { color:var(--no); } .tz-duz-liste b.arti { color:var(--ok); }
+.tz-duz-a { color:var(--muted); font-size:.8rem; }
+.tz-duz-liste form { margin:0; }
+.tz-uyari { border-color:var(--wait); }
+.tz-durum-kart h3, .card h3 { display:flex; align-items:baseline; flex-wrap:wrap; gap:.2rem; }
+
+@media (max-width:700px) {
+  .tz-tablo.tz-orta thead, .tz-form .tz-tablo thead { display:none; }
+  .tz-tablo.tz-orta, .tz-tablo.tz-orta tbody, .tz-form .tz-tablo, .tz-form .tz-tablo tbody { display:block; }
+  .tz-tablo.tz-orta tr, .tz-form .tz-tablo tr { display:grid; grid-template-columns:1fr 1fr; gap:.2rem .8rem; padding:.8rem 0; border-bottom:1px solid var(--line); }
+  .tz-tablo.tz-orta tr:last-child, .tz-form .tz-tablo tr:last-child { border-bottom:none; }
+  .tz-tablo.tz-orta td, .tz-form .tz-tablo td { display:flex; flex-direction:column; align-items:flex-start; gap:.15rem; border:none; padding:.15rem 0; text-align:left; }
+  .tz-tablo.tz-orta td::before, .tz-form .tz-tablo td::before { content:attr(data-et); font-size:.7rem; color:var(--muted); font-weight:600; }
+  .tz-tablo.tz-orta .tz-ad, .tz-form .tz-tablo .tz-ad { grid-column:1 / -1; font-size:.95rem; min-width:0; }
+  .tz-tablo.tz-orta .tz-ad::before, .tz-form .tz-tablo .tz-ad::before { display:none; }
+  .tz-girdi { width:100%; margin:0; }
+  .tz-duz-urun, .tz-duz-acik { grid-column:auto; }
+  .tz-duz-liste li { grid-template-columns:1fr auto; }
+  .tz-duz-liste .tz-duz-a { grid-column:1 / -1; }
+}
+html[data-theme="dark"] .tz-sayim-kutu { background:var(--surface-2); }
+html[data-theme="dark"] .tz-ileti { background:var(--surface); }
+@media (max-width:700px) {
+  .tz-form .tz-tablo tr { grid-template-columns:repeat(3,1fr); gap:.1rem .6rem; padding:.7rem 0; }
+  .tz-form .tz-tablo td.tz-sayi.bos { display:none; }
+  .tz-form .tz-tablo td.tz-kul { grid-column:auto; }
+  .tz-form .tz-girdi { min-height:42px; }
+  .tz-sayim-bar { grid-template-columns:1fr; }
+}
+
+/* Sayı kutuları: sayı ve etiket her zaman ortada */
+.an-ozet div, .mg-ozet-kart { align-items:center; text-align:center; justify-content:center; }
+.gs-kart:not(.gs-kart-genis):not(.gs-saat-kart) { align-items:center; text-align:center; justify-content:center; }
+.mn-say { display:flex; justify-content:space-around; gap:.8rem; text-align:center; }
+.mn-say > * { flex:1; display:flex; flex-direction:column; align-items:center; }
+.gs-kart-genis { align-items:center; text-align:center; justify-content:center; }
+.gs-kart-genis .gs-prog { align-self:stretch; }
+
+/* ---- Temizlik: sayım sayfası ve ürün düzenleme ------------------------------ */
+.tz-kural { margin:0; padding-left:1.2rem; display:grid; gap:.3rem; font-size:.88rem; }
+.tz-ornek { margin:.8rem 0 0; padding:.7rem .9rem; border-radius:12px; background:var(--brand-050); font-size:.86rem; }
+.tz-sayim-bilgi { display:flex; flex-direction:column; flex:1 1 140px; }
+.tz-sayim-bilgi span, .tz-sayim-ipucu { font-size:.78rem; color:var(--muted); }
+.tz-sayim-alt { display:flex; gap:.6rem; flex-wrap:wrap; margin-top:1rem; }
+.tz-hacim { display:block; font-weight:400; font-size:.7rem; color:var(--muted); }
+.tzs-baslik, .tzs-satir { display:grid; grid-template-columns:minmax(0,2.4fr) repeat(3,minmax(90px,1fr)) minmax(90px,.9fr); gap:.5rem .8rem; align-items:center; }
+.tzs-baslik { font-size:.74rem; font-weight:600; color:var(--muted); padding:0 0 .5rem; border-bottom:1px solid var(--line); text-align:center; }
+.tzs-baslik span:first-child { text-align:left; }
+.tzs-satir { padding:.6rem 0; border-bottom:1px solid var(--line); }
+.tzs-satir:last-child { border-bottom:none; }
+.tzs-ad b { display:block; font-weight:500; font-size:.9rem; }
+.tzs-ad small { color:var(--muted); font-size:.74rem; }
+.tzs-alan { display:block; margin:0; text-align:center; }
+.tzs-alan > span, .tzs-toplam > span { display:none; }
+.tzs-alan .tz-girdi { width:100%; max-width:130px; }
+.tzs-yok { color:var(--muted); opacity:.5; }
+.tzs-toplam { text-align:center; font-variant-numeric:tabular-nums; }
+.tzs-toplam b { font-size:1.05rem; color:var(--muted); }
+.tzs-satir.dolu .tzs-toplam b { color:var(--ink); }
+.tzs-toplam em { font-style:normal; font-size:.74rem; color:var(--muted); }
+.tzu-form { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.7rem; align-items:end; }
+.tzu-form label { display:flex; flex-direction:column; gap:.25rem; margin:0; font-size:.76rem; font-weight:600; color:var(--muted); min-width:0; }
+.tzu-form .input, .tzu-form select { width:100%; min-height:40px; }
+.tzu-ad { grid-column:span 2; }
+.tzu-cift { display:grid; grid-template-columns:1fr 80px; gap:.4rem; }
+.tzu-satir { padding:.9rem 0; border-top:1px solid var(--line); }
+.tzu-sira { max-width:90px; }
+.tzu-btn { display:flex; gap:.5rem; }
+.tzu-pasif { grid-template-columns:1fr auto !important; }
+@media (max-width:760px) {
+  .tzs-baslik { display:none; }
+  .tzs-satir { grid-template-columns:1fr 1fr; padding:.9rem 0; }
+  .tzs-ad { grid-column:1 / -1; }
+  .tzs-alan > span, .tzs-toplam > span { display:block; font-size:.7rem; color:var(--muted); font-weight:600; margin-bottom:.15rem; text-align:left; }
+  .tzs-alan { text-align:left; }
+  .tzs-alan .tz-girdi { max-width:none; }
+  .tzs-toplam { text-align:left; grid-column:1 / -1; }
+  .tzs-yok { display:none; }
+  .tzu-ad { grid-column:1 / -1; }
+  .tzu-form { grid-template-columns:1fr 1fr; }
+  .tzu-sira { max-width:none; }
+  .tzu-btn { grid-column:1 / -1; }
+}
+html[data-theme="dark"] .tz-ornek { background:var(--surface-2); }

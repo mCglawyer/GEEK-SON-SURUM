@@ -40,13 +40,15 @@ class TemizlikTestleri(TestCase):
                                      istenen_miktar=adet_koli, istenen_birim='KOLİ',
                                      sevkiyat_miktar=adet_koli, sevkiyat_birim='KOLİ')
 
-    def kaydet(self, kisi_, tur, tarih, deger, sube=None, urun=None):
+    def kaydet(self, kisi_, tur, tarih, deger, sube=None, urun=None, koli='', acik=''):
+        """Sayım sayfasına POST (tur: 'ilk' | 'son'); deger = kapalı adet kutusu."""
         self.client.force_login(kisi_.user)
         urun = urun or self.urun
-        veri = {'islem': tur, 'ay': '2026-09', '%s_tarih' % tur: tarih, '%s_%d' % (tur, urun.id): deger}
+        veri = {'ay': '2026-09', 'tarih': tarih, 'adet_%d' % urun.id: deger,
+                'koli_%d' % urun.id: koli, 'acik_%d' % urun.id: acik}
         if sube:
             veri['sube'] = sube.id
-        return self.client.post(reverse('temizlik_giris'), veri)
+        return self.client.post(reverse('temizlik_sayim', args=[tur]), veri)
 
     def hesap(self, sube=None):
         v = tz.veri_hesapla([sube or self.merkez], AY, bugun=D(2026, 10, 5))
@@ -150,10 +152,11 @@ class TemizlikTestleri(TestCase):
         self.assertEqual(self.client.get(reverse('temizlik_rapor')).status_code, 302)
         self.client.force_login(self.sa.user)
         self.assertEqual(self.client.get(reverse('temizlik_rapor')).status_code, 200)
-        r = self.client.post(reverse('temizlik_giris'), {'islem': 'ilk', 'ay': '2026-09', 'ilk_tarih': '2026-08-31',
-                                                          'sube': self.merkez.id, 'ilk_%d' % self.urun.id: '5'})
+        r = self.client.post(reverse('temizlik_sayim', args=['ilk']), {
+            'ay': '2026-09', 'tarih': '2026-08-31', 'sube': self.merkez.id, 'adet_%d' % self.urun.id: '5'})
         self.assertEqual(r.status_code, 302)
         self.assertEqual(TemizlikSayim.objects.count(), 0)          # satın alma sayım giremez
+        self.assertEqual(self.client.get(reverse('temizlik_sayim', args=['ilk'])).status_code, 302)
         self.client.logout()
         self.assertEqual(self.client.get(reverse('temizlik_rapor')).status_code, 302)
 
@@ -208,3 +211,118 @@ class TemizlikTestleri(TestCase):
         for kisi_ in (self.sef, self.gm, self.sa):
             self.client.force_login(kisi_.user)
             self.assertContains(self.client.get(reverse('temizlik_rapor')), reverse('temizlik'))
+
+
+@override_settings(**_AYAR)
+class TemizlikUrunVeSayimTestleri(TestCase):
+    def setUp(self):
+        self.merkez = Sube.objects.create(ad='Merkez')
+        self.sef = kisi(Rol.SEF, self.merkez, 'Şef')
+        self.gm = kisi(Rol.GENEL_MUDUR, None, 'GM')
+        self.sa = kisi(Rol.SATIN_ALMA, None, 'SA')
+        self.cam = TemizlikUrun.objects.get(ad='CAM SİL 500 ML')        # koli 20, kapasite 500 ml
+        self.mop = TemizlikUrun.objects.get(ad='MOP BEZİ')              # kapasitesiz
+
+    def sayim(self, kisi_, tur, tarih, **alanlar):
+        self.client.force_login(kisi_.user)
+        veri = {'ay': '2026-09', 'tarih': tarih}
+        veri.update(alanlar)
+        return self.client.post(reverse('temizlik_sayim', args=[tur]), veri)
+
+    # ---- kapalı + açık
+    def test_koli_adet_ve_acik_kap_toplami(self):
+        self.sayim(self.sef, 'ilk', '2026-08-31', **{'koli_%d' % self.cam.id: '1', 'adet_%d' % self.cam.id: '10',
+                                                     'acik_%d' % self.cam.id: '300'})
+        k = TemizlikSayim.objects.get().kalemler.get()
+        self.assertEqual(k.miktar, Decimal('30.60'))                    # 1×20 + 10 + 300/500
+        self.assertEqual((k.koli, k.adet, k.acik), (Decimal('1'), Decimal('10'), Decimal('300')))
+
+    def test_kullanim_hacim_karsiligi(self):
+        self.assertEqual(tz.toplam_adet(self.cam, None, Decimal('10'), Decimal('300')), Decimal('10.60'))
+        self.assertEqual(tz.hacim_karsiligi(Decimal('12.4'), self.cam), '≈ 6.200 ml')
+        self.assertEqual(tz.hacim_karsiligi(Decimal('3'), self.mop), '')
+
+    def test_kapasitesiz_urunde_acik_deger_yok_sayilir(self):
+        self.sayim(self.sef, 'ilk', '2026-08-31', **{'adet_%d' % self.mop.id: '4', 'acik_%d' % self.mop.id: '999'})
+        self.assertEqual(TemizlikSayim.objects.get().kalemler.get().miktar, Decimal('4.00'))
+
+    def test_sayim_sayfasi_ve_onceki_degerler(self):
+        self.sayim(self.sef, 'ilk', '2026-08-31', **{'adet_%d' % self.cam.id: '10', 'acik_%d' % self.cam.id: '300'})
+        r = self.client.get(reverse('temizlik_sayim', args=['ilk']) + '?ay=2026-09')
+        self.assertContains(r, 'İlk stok sayımı')
+        self.assertContains(r, 'value="300"')
+        self.assertContains(r, 'Açık kapta kalan')
+        self.assertEqual(self.client.get(reverse('temizlik_sayim', args=['x'])).status_code, 302)
+
+    def test_hatali_sayim_girdileri_kayit_olusturmaz(self):
+        for alanlar in ({'adet_%d' % self.cam.id: 'abc'}, {'koli_%d' % self.cam.id: '-1'}, {}):
+            self.sayim(self.sef, 'ilk', '2026-08-31', **alanlar)
+        self.assertEqual(TemizlikSayim.objects.count(), 0)
+
+    def test_koli_icerigi_degisse_eski_sayim_bozulmaz(self):
+        self.sayim(self.sef, 'ilk', '2026-08-31', **{'koli_%d' % self.cam.id: '2'})      # 2 × 20 = 40
+        self.cam.koli_icerigi = 24
+        self.cam.save()
+        self.assertEqual(TemizlikSayim.objects.get().kalemler.get().miktar, Decimal('40.00'))
+
+    # ---- ürün düzenleme
+    def urun_post(self, kisi_, **alanlar):
+        self.client.force_login(kisi_.user)
+        return self.client.post(reverse('temizlik_urunler'), alanlar)
+
+    def test_urun_ekle_duzenle(self):
+        self.urun_post(self.gm, islem='ekle', ad='  Yeni   Sprey ', birim='ADET', koli_icerigi='12', hacim='750',
+                       hacim_birim='ML')
+        u = TemizlikUrun.objects.get(ad='Yeni Sprey')
+        self.assertEqual((u.koli_icerigi, u.hacim, u.hacim_birim, u.aktif), (Decimal('12'), Decimal('750'), 'ML', True))
+        self.assertGreater(u.sira, 43)
+        self.urun_post(self.sa, islem='kaydet', id=u.id, ad='Yeni Sprey 1 LT', birim='PAKET', koli_icerigi='6',
+                       hacim='', hacim_birim='ML', sira='5')
+        u.refresh_from_db()
+        self.assertEqual((u.ad, u.birim, u.hacim, u.hacim_birim, u.sira), ('Yeni Sprey 1 LT', 'PAKET', None, '', 5))
+
+    def test_urun_dogrulama(self):
+        sayi = TemizlikUrun.objects.count()
+        for alanlar in (dict(ad=''), dict(ad='cam sil 500 ml'), dict(ad='X', birim='LITRE'), dict(ad='X', koli_icerigi='0'),
+                        dict(ad='X', koli_icerigi='abc'), dict(ad='X', hacim='500', hacim_birim=''),
+                        dict(ad='X', hacim='-5', hacim_birim='ML')):
+            self.urun_post(self.gm, islem='ekle', **dict(dict(birim='ADET', koli_icerigi='1'), **alanlar))
+        self.assertEqual(TemizlikUrun.objects.count(), sayi)
+
+    def test_kullanilmis_urun_pasiflesir_kullanilmamis_silinir(self):
+        self.sayim(self.sef, 'ilk', '2026-08-31', **{'adet_%d' % self.cam.id: '3'})
+        self.urun_post(self.gm, islem='cikar', id=self.cam.id)
+        self.cam.refresh_from_db()
+        self.assertFalse(self.cam.aktif)                                   # geçmiş sayım var -> silinmedi
+        self.assertEqual(TemizlikSayim.objects.get().kalemler.count(), 1)
+        self.urun_post(self.gm, islem='cikar', id=self.mop.id)             # hiç kullanılmadı -> silinir
+        self.assertFalse(TemizlikUrun.objects.filter(id=self.mop.id).exists())
+        self.urun_post(self.gm, islem='geri_al', id=self.cam.id)
+        self.cam.refresh_from_db()
+        self.assertTrue(self.cam.aktif)
+
+    def test_pasif_urun_sayim_listesinde_yok_ama_gecmis_raporda_var(self):
+        self.sayim(self.sef, 'ilk', '2026-08-31', **{'adet_%d' % self.cam.id: '3'})
+        self.urun_post(self.gm, islem='cikar', id=self.cam.id)
+        self.client.force_login(self.sef.user)
+        self.assertNotContains(self.client.get(reverse('temizlik_sayim', args=['son']) + '?ay=2026-09'), 'name="adet_%d"' % self.cam.id)
+        v = tz.veri_hesapla([self.merkez], AY, bugun=D(2026, 9, 20))
+        self.assertTrue(any(r['urun'].id == self.cam.id and r['ilk'] == Decimal('3') for r in v['toplam']))
+
+    def test_urun_duzenleme_yetkisi(self):
+        self.client.force_login(self.sef.user)
+        self.assertEqual(self.client.get(reverse('temizlik_urunler')).status_code, 302)
+        sayi = TemizlikUrun.objects.count()
+        self.urun_post(self.sef, islem='ekle', ad='Yetkisiz', birim='ADET', koli_icerigi='1')
+        self.assertEqual(TemizlikUrun.objects.count(), sayi)
+        for k in (self.gm, self.sa):
+            self.client.force_login(k.user)
+            r = self.client.get(reverse('temizlik_urunler'))
+            self.assertEqual(r.status_code, 200)
+            self.assertContains(r, 'Yeni ürün ekle')
+
+    def test_giris_sayfasinda_urun_duzenle_baglantisi(self):
+        self.client.force_login(self.gm.user)
+        self.assertContains(self.client.get(reverse('temizlik_giris')), reverse('temizlik_urunler'))
+        self.client.force_login(self.sef.user)
+        self.assertNotContains(self.client.get(reverse('temizlik_giris')), reverse('temizlik_urunler'))

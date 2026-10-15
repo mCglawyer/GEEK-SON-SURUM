@@ -27,6 +27,7 @@ from .sevkiyat_analiz import ay_etiketi, ay_komsulari, ay_oku, sayi_yaz  # noqa:
 
 GIRIS_ROLLERI = (Rol.SEF, Rol.MAGAZA_MUDURU, Rol.GENEL_MUDUR, Rol.OPERATOR)
 RAPOR_ROLLERI = (Rol.YATIRIMCI, Rol.SATIN_ALMA, Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.SEF, Rol.MAGAZA_MUDURU)
+URUN_ROLLERI = (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.SATIN_ALMA)
 GORUNUMLER = (('aylik', 'Aylık'), ('haftalik', 'Haftalık'), ('gunluk', 'Günlük'))
 
 _GELEN_DURUMLAR = (SevkiyatDurumu.ONAYLANDI, SevkiyatDurumu.TESLIM)
@@ -94,6 +95,46 @@ def girdi_yaz(d):
     if '.' in s:
         s = s.rstrip('0').rstrip('.')
     return s.replace('.', ',')
+
+
+BIRIMLER = ('ADET', 'PAKET', 'SET', 'KUTU')
+KAPASITE_BIRIMLERI = ('ML', 'LT', 'GR', 'KG')
+
+
+def toplam_adet(urun, koli, adet, acik):
+    """Sayım satırı -> ürünün birimi (adet/paket/set) cinsinden toplam.
+
+    koli  : kapalı koli sayısı           (× koli içeriği)
+    adet  : kapalı, tek tek sayılan adet
+    acik  : açılmış kaplarda KALAN toplam miktar (kapasite biriminde: ml, kg ...). Kapasiteye bölünüp adet olur:
+            10 kapalı + 300 ml açık, kapasite 500 ml  ->  10 + 0,6 = 10,6
+    """
+    t = (koli or _SIFIR) * (urun.koli_icerigi or 1) + (adet or _SIFIR)
+    if acik and urun.hacim:
+        t += acik / urun.hacim
+    return t.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
+def hacim_karsiligi(adet_miktar, urun):
+    """12,4 adet (500 ml'lik) -> '≈ 6.200 ml'. Kapasitesi tanımsız ürünlerde boş."""
+    if adet_miktar is None or not urun.hacim:
+        return ''
+    return '≈ %s %s' % (sayi_yaz(adet_miktar * urun.hacim), (urun.hacim_birim or '').lower())
+
+
+def sayim_degerleri(sayim):
+    """Kayıtlı sayımı forma geri koyar: urun_id -> (koli, adet, acik). Eski (yalnız toplam girilmiş) kayıtlar adet sayılır."""
+    cikti = {}
+    if sayim is None:
+        return cikti
+    for k in sayim.kalemler.all():
+        if k.urun_id is None:
+            continue
+        if k.koli is None and k.adet is None and k.acik is None:
+            cikti[k.urun_id] = (None, k.miktar, None)
+        else:
+            cikti[k.urun_id] = (k.koli, k.adet, k.acik)
+    return cikti
 
 
 def ay_sonu(ay_ilk):
@@ -365,10 +406,12 @@ def excel_bytes(veri, secili, gorunum):
 
     ws = wb.active
     ws.title = 'Aylık Özet'
-    satirlar = [(r['urun'].ad, r['urun'].birim, r['ilk'], r['ilave'], r['duzeltme'], r['son'], r['kullanim'])
+    satirlar = [(r['urun'].ad, r['urun'].birim, r['ilk'], r['ilave'], r['duzeltme'], r['son'], r['kullanim'],
+                 hacim_karsiligi(r['kullanim'], r['urun']))
                 for r in veri['toplam']]
     sayfa(ws, 'Temizlik Malzemesi Tüketimi', ['Ürün', 'Birim', 'İlk stok', 'İlave (sevkiyat)', 'Düzeltme', 'Son stok',
-                                              'Kullanım'], satirlar, [46, 10, 12, 16, 12, 12, 14], 3,
+                                              'Kullanım', 'Kullanım (hacim)'], satirlar,
+          [46, 10, 12, 16, 12, 12, 14, 18], 3,
           'Kullanım = İlk stok + İlave + Düzeltme − Son stok. İlk ve son sayımı girilmemiş şubelerde kullanım hesaplanmaz '
           '(%d / %d şube tamamlandı).' % (veri['tam_sube'], len(veri['subeler'])))
 
@@ -442,11 +485,13 @@ def pdf_bytes(veri, secili, gorunum):
     el = [Paragraph('Temizlik Malzemesi Tüketimi', st_baslik), Paragraph(escape(_etiket(veri, secili, gorunum)), st_alt),
           Paragraph('Şube: %d / %d tamamlandı (ilk ve son sayım girilmiş)' % (veri['tam_sube'], len(veri['subeler'])), st_alt),
           Spacer(1, 6)]
-    rows = [[P(h, st_cw) for h in ('Ürün', 'Birim', 'İlk stok', 'İlave', 'Düzeltme', 'Son stok', 'Kullanım')]]
+    rows = [[P(h, st_cw) for h in ('Ürün', 'Birim', 'İlk stok', 'İlave', 'Düzeltme', 'Son stok', 'Kullanım',
+                                   'Kullanım (hacim)')]]
     for r in veri['toplam']:
         rows.append([P(r['urun'].ad), P(r['urun'].birim), P(sayi(r['ilk'])), P(sayi(r['ilave'])),
-                     P(sayi(r['duzeltme'])), P(sayi(r['son'])), P(sayi(r['kullanim']))])
-    el.append(tablo(rows, [W * .38, W * .09, W * .1, W * .1, W * .1, W * .1, W * .13]))
+                     P(sayi(r['duzeltme'])), P(sayi(r['son'])), P(sayi(r['kullanim'])),
+                     P(hacim_karsiligi(r['kullanim'], r['urun']))])
+    el.append(tablo(rows, [W * .3, W * .08, W * .09, W * .09, W * .09, W * .09, W * .11, W * .15]))
     el.append(Spacer(1, 8))
 
     if gorunum == 'aylik' and len(veri['subeler']) > 1:

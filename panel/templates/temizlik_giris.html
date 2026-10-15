@@ -6,6 +6,7 @@
   <div class="plan-head">
     <div><h2>Temizlik Tüketimi</h2><span class="plan-aralik">{{ ay_etiket }} · {{ sube.ad }}</span></div>
     <div class="an-btns">
+      {% if urun_duzenleyebilir %}<a class="btn btn-ghost btn-mini" href="{% url 'temizlik_urunler' %}">Ürünleri düzenle</a>{% endif %}
       {% if rapor_gorebilir %}<a class="btn btn-primary btn-mini" href="{% url 'temizlik_rapor' %}?ay={{ ay_deger }}{% if subeler|length > 1 %}&sube={{ sube.id }}{% endif %}">Tüketim raporu</a>{% endif %}
     </div>
   </div>
@@ -32,7 +33,7 @@
 
   <div class="card tz-adim">
     <ol>
-      <li><b>İlk sayım</b> — ay başında, ilk sevkiyatı almadan 1 gün önce sayım yapıp “İlk stok”u kaydet.</li>
+      <li><b>İlk sayım</b> — ay başında, ilk sevkiyatı almadan 1 gün önce sayım yapıp “İlk sayımı gir” ile kaydet. Sayarken kapalı koli, kapalı adet ve açık kapta kalan miktarı ayrı ayrı yazarsın.</li>
       <li><b>İlave</b> — gelen sevkiyatlar haftalara göre kendiliğinden yazılır. Sevkiyat dışı gelen ya da hatalı bir miktar varsa “Düzeltme” ekle.</li>
       <li><b>Son sayım</b> — 4 hafta sonunda tekrar sayıp “Son stok”u kaydet. <b>Kullanım</b> otomatik hesaplanır.</li>
     </ol>
@@ -43,18 +44,15 @@
     </p>
   </div>
 
-  <form method="post" class="card tz-form" id="tz-form">
-    {% csrf_token %}
-    <input type="hidden" name="sube" value="{{ sube.id }}">
-    <input type="hidden" name="ay" value="{{ ay_deger }}">
+  <div class="card tz-form">
     <div class="tz-sayim-bar">
       <div class="tz-sayim-kutu">
-        <label>İlk sayım tarihi <input type="date" name="ilk_tarih" value="{{ ilk_tarih }}" class="input"></label>
-        <button class="btn btn-primary btn-mini" name="islem" value="ilk">İlk sayımı kaydet</button>
+        <div class="tz-sayim-bilgi"><b>İlk stok</b><span>{% if c.ilk %}{{ c.ilk.tarih|date:"d.m.Y" }} tarihinde sayıldı{% else %}henüz sayılmadı{% endif %}</span></div>
+        <a class="btn btn-primary btn-mini" href="{{ ilk_url }}">{% if c.ilk %}İlk sayımı düzenle{% else %}İlk sayımı gir{% endif %}</a>
       </div>
       <div class="tz-sayim-kutu">
-        <label>Son sayım tarihi <input type="date" name="son_tarih" value="{{ son_tarih }}" class="input"></label>
-        <button class="btn btn-primary btn-mini" name="islem" value="son">Son sayımı kaydet</button>
+        <div class="tz-sayim-bilgi"><b>Son stok</b><span>{% if c.son %}{{ c.son.tarih|date:"d.m.Y" }} tarihinde sayıldı{% else %}henüz sayılmadı{% endif %}</span></div>
+        <a class="btn btn-primary btn-mini" href="{{ son_url }}">{% if c.son %}Son sayımı düzenle{% else %}Son sayımı gir{% endif %}</a>
       </div>
     </div>
     <div class="tz-kaydir">
@@ -71,18 +69,18 @@
           <tr>
             <td class="tz-ad" data-et="Ürün">{{ r.urun.ad }}</td>
             <td data-et="Koli içeriği">{{ r.urun.koli_icerigi|floatformat:"-2" }} {{ r.urun.birim|lower }}</td>
-            <td data-et="İlk stok"><input type="text" inputmode="decimal" name="ilk_{{ r.urun.id }}" value="{{ r.ilk_girdi }}" class="input tz-girdi" aria-label="{{ r.urun.ad }} ilk stok"></td>
+            <td data-et="İlk stok" class="tz-sayi{% if r.ilk is None %} bos{% endif %}">{{ r.ilk|tzsayi }}</td>
             {% for v in r.hafta_degerleri %}<td data-et="İlave {{ forloop.counter }}. hafta" class="tz-sayi{% if not v %} bos{% endif %}">{{ v|tzsayi }}</td>{% endfor %}
             <td data-et="Düzeltme" class="tz-sayi{% if not r.duzeltme %} bos{% endif %}">{{ r.duzeltme|tzsayi }}</td>
-            <td data-et="Son stok"><input type="text" inputmode="decimal" name="son_{{ r.urun.id }}" value="{{ r.son_girdi }}" class="input tz-girdi" aria-label="{{ r.urun.ad }} son stok"></td>
-            <td data-et="Kullanım" class="tz-sayi tz-kul{% if r.kullanim is None %} bos{% elif r.kullanim < 0 %} eksi{% endif %}">{% if r.kullanim is None %}—{% else %}{{ r.kullanim|tzsayi }}{% endif %}</td>
+            <td data-et="Son stok" class="tz-sayi{% if r.son is None %} bos{% endif %}">{{ r.son|tzsayi }}</td>
+            <td data-et="Kullanım" class="tz-sayi tz-kul{% if r.kullanim is None %} bos{% elif r.kullanim < 0 %} eksi{% endif %}">{% if r.kullanim is None %}—{% else %}{{ r.kullanim|tzsayi }}{% with h=r.kullanim|tzhacim:r.urun %}{% if h %}<small class="tz-hacim">{{ h }}</small>{% endif %}{% endwith %}{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-    <p class="tz-not">Kutuyu boş bırakırsan o ürün sayılmamış (0) kabul edilir. Miktarlar ürünün biriminde (adet / paket / set) girilir. Kullanım negatif çıkarsa sayımı ya da düzeltmeyi kontrol et.</p>
-  </form>
+    <p class="tz-not">Sayımlar “İlk sayımı gir / Son sayımı gir” düğmesiyle ayrı sayfada girilir. Sevkiyatlar “İlave” sütunlarına kendiliğinden yazılır. Kullanım negatif çıkarsa sayımı ya da düzeltmeyi kontrol et.</p>
+  </div>
 
   <div class="card tz-duz">
     <h3>Düzeltme</h3>
