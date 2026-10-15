@@ -6,6 +6,7 @@
     <div><h2>{{ tur_adi }} sayımı</h2><span class="plan-aralik">{{ ay_etiket }} · {{ sube.ad }}</span></div>
     <div class="an-btns"><a class="btn btn-ghost btn-mini" href="{{ geri_url }}">← Çizelge</a></div>
   </div>
+  {% include '_temizlik_serit.html' %}
 
   {% for m in messages %}<div class="tz-ileti {{ m.tags }}">{{ m }}</div>{% endfor %}
 

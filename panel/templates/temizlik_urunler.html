@@ -6,6 +6,7 @@
     <div><h2>Temizlik ürünleri</h2><span class="plan-aralik">Sayım ve tüketim çizelgesindeki ürün listesi</span></div>
     <div class="an-btns"><a class="btn btn-ghost btn-mini" href="{% url 'temizlik' %}">← Temizlik</a></div>
   </div>
+  {% include '_temizlik_serit.html' %}
 
   {% for m in messages %}<div class="tz-ileti {{ m.tags }}">{{ m }}</div>{% endfor %}
 

@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Temizlik · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="card tz-kapali-kart">
+    <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>
+    <h2>Temizlik tüketimi şu an kapalı</h2>
+    <p>Bu bölüm henüz açılmadı.{% if ayar.baslangic %} Sistem <b>{{ ayar.baslangic|date:"d.m.Y" }}</b> tarihinde başlayacak.{% endif %} Açıldığında menüde görünecek ve sayım girişi buradan yapılacak.</p>
+    <a class="btn btn-primary btn-mini" href="{% url 'ana_sayfa' %}">Ana sayfaya dön</a>
+  </div>
+</div>
+{% endblock %}

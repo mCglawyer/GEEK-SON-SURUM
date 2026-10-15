@@ -8,7 +8,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from . import temizlik as tz
-from .models import (Rol, SevkiyatKalem, SevkiyatTalep, Sube, TemizlikDuzeltme, TemizlikSayim, TemizlikUrun)
+from .models import (Rol, SevkiyatKalem, SevkiyatTalep, Sube, TemizlikAyar, TemizlikDuzeltme, TemizlikFiyat,
+                     TemizlikSayim, TemizlikUrun)
 from .tests_mola_stok import _AYAR, kisi
 
 AY = datetime.date(2026, 9, 1)
@@ -22,6 +23,8 @@ def _zaman(gun):
 @override_settings(**_AYAR)
 class TemizlikTestleri(TestCase):
     def setUp(self):
+        TemizlikAyar.objects.all().delete()
+        TemizlikAyar.objects.create(aktif=True, baslangic=None)
         self.merkez = Sube.objects.create(ad='Merkez')
         self.diger = Sube.objects.create(ad='Diğer')
         self.sef = kisi(Rol.SEF, self.merkez, 'Şef Ayşe')
@@ -216,6 +219,8 @@ class TemizlikTestleri(TestCase):
 @override_settings(**_AYAR)
 class TemizlikUrunVeSayimTestleri(TestCase):
     def setUp(self):
+        TemizlikAyar.objects.all().delete()
+        TemizlikAyar.objects.create(aktif=True, baslangic=None)
         self.merkez = Sube.objects.create(ad='Merkez')
         self.sef = kisi(Rol.SEF, self.merkez, 'Şef')
         self.gm = kisi(Rol.GENEL_MUDUR, None, 'GM')
@@ -326,3 +331,272 @@ class TemizlikUrunVeSayimTestleri(TestCase):
         self.assertContains(self.client.get(reverse('temizlik_giris')), reverse('temizlik_urunler'))
         self.client.force_login(self.sef.user)
         self.assertNotContains(self.client.get(reverse('temizlik_giris')), reverse('temizlik_urunler'))
+
+
+@override_settings(**_AYAR)
+class TemizlikSistemVeFiyatTestleri(TestCase):
+    """Aç/kapa, başlangıç tarihi, sıfırlama, fiyat yetkisi ve tutar hesabı."""
+
+    def setUp(self):
+        TemizlikAyar.objects.all().delete()
+        self.ayar = TemizlikAyar.objects.create(aktif=True, baslangic=None)
+        self.merkez = Sube.objects.create(ad='Merkez')
+        self.sef = kisi(Rol.SEF, self.merkez, 'Şef')
+        self.mm = kisi(Rol.MAGAZA_MUDURU, self.merkez, 'MM')
+        self.gm = kisi(Rol.GENEL_MUDUR, None, 'GM')
+        self.op = kisi(Rol.OPERATOR, None, 'Op')
+        self.sa = kisi(Rol.SATIN_ALMA, None, 'SA')
+        self.yat = kisi(Rol.YATIRIMCI, None, 'Yat')
+        self.mud = kisi(Rol.MUDUR, None, 'Bölge')
+        self.mud.sorumlu_subeler.add(self.merkez)
+        self.cam = TemizlikUrun.objects.get(ad='CAM SİL 500 ML')      # 500 ml / adet, koli 20
+        self.erna = TemizlikUrun.objects.filter(hacim_birim='KG').first()   # kg kapasiteli
+        self.mop = TemizlikUrun.objects.get(ad='MOP BEZİ')            # kapasitesiz
+
+    def get(self, kisi_, ad, **q):
+        self.client.force_login(kisi_.user)
+        return self.client.get(reverse(ad), q)
+
+    def post(self, kisi_, ad, **veri):
+        self.client.force_login(kisi_.user)
+        return self.client.post(reverse(ad), veri)
+
+    def tam_sayim(self, ilk=10, son=4, urun=None):
+        """Merkez şubesinde Eylül dönemi: ilk 10, son 4, sevkiyat yok -> kullanım 6."""
+        urun = urun or self.cam
+        for tur, gun, d in (('ILK', D(2026, 9, 1), ilk), ('SON', D(2026, 9, 30), son)):
+            sy = TemizlikSayim.objects.create(sube=self.merkez, ay=AY, tur=tur, tarih=gun)
+            sy.kalemler.create(urun=urun, urun_ad=urun.ad, miktar=Decimal(d), adet=Decimal(d))
+
+    # ---- aç / kapa
+    def test_kapaliyken_sef_ve_muduru_goremez_yonetim_gorur(self):
+        self.ayar.aktif = False
+        self.ayar.save()
+        for k in (self.sef, self.mm, self.mud, self.yat):
+            for ad in ('temizlik_giris', 'temizlik_rapor', 'temizlik_fiyatlar'):
+                r = self.get(k, ad)
+                self.assertEqual(r.status_code, 200, (k, ad))
+                self.assertContains(r, 'şu an kapalı')
+        for k in (self.gm, self.op, self.sa):
+            self.assertEqual(self.get(k, 'temizlik_rapor').status_code, 200)
+            self.assertNotContains(self.get(k, 'temizlik_rapor'), 'şu an kapalı')
+
+    def test_menu_baglantisi_kapaliyken_gizlenir(self):
+        self.ayar.aktif = False
+        self.ayar.save()
+        self.assertNotContains(self.get(self.sef, 'sevkiyat'), 'href="/temizlik/"')
+        self.assertContains(self.get(self.gm, 'sevkiyat'), 'href="/temizlik/"')
+        self.ayar.aktif = True
+        self.ayar.save()
+        self.assertContains(self.get(self.sef, 'sevkiyat'), 'href="/temizlik/"')
+
+    def test_ac_kapa_yalniz_gm_ve_operator(self):
+        self.post(self.gm, 'temizlik_ayarlar', islem='kapat')
+        self.ayar.refresh_from_db()
+        self.assertFalse(self.ayar.aktif)
+        self.post(self.op, 'temizlik_ayarlar', islem='ac')
+        self.ayar.refresh_from_db()
+        self.assertTrue(self.ayar.aktif)
+        for k in (self.sef, self.mm, self.sa, self.yat, self.mud):
+            r = self.post(k, 'temizlik_ayarlar', islem='kapat')
+            self.assertEqual(r.status_code, 302)
+            self.ayar.refresh_from_db()
+            self.assertTrue(self.ayar.aktif, k)
+
+    def test_varsayilan_ayar_kapali_ve_gelecek_ay(self):
+        TemizlikAyar.objects.all().delete()
+        a = TemizlikAyar.al()
+        self.assertFalse(a.aktif)
+        self.assertEqual(a.baslangic.day, 1)
+        self.assertGreater(a.baslangic, datetime.date.today())
+
+    # ---- başlangıç tarihi
+    def test_baslangictan_onceki_sevkiyat_sayilmaz(self):
+        self.tam_sayim()
+        t = SevkiyatTalep.objects.create(sube=self.merkez, durum='Teslim Edildi')
+        SevkiyatTalep.objects.filter(pk=t.pk).update(onay_tarih=_zaman(D(2026, 9, 5)))
+        SevkiyatKalem.objects.create(talep=t, urun=None, urun_ad=self.cam.ad, form='TEMIZLIK', koli_icerigi=20,
+                                     istenen_miktar=1, istenen_birim='KOLİ', sevkiyat_miktar=1, sevkiyat_birim='KOLİ')
+
+        def ilave():
+            v = tz.veri_hesapla([self.merkez], AY, bugun=D(2026, 10, 5))
+            return next(r for r in v['toplam'] if r['urun'].id == self.cam.id)['ilave']
+        self.assertEqual(ilave(), Decimal('20'))
+        self.ayar.baslangic = D(2026, 9, 10)
+        self.ayar.save()
+        self.assertEqual(ilave(), Decimal('0'))
+
+    def test_baslangic_ayindan_onceki_aya_sayim_girilemez(self):
+        self.ayar.baslangic = D(2026, 11, 1)
+        self.ayar.save()
+        self.client.force_login(self.sef.user)
+        r = self.client.post(reverse('temizlik_sayim', args=['ilk']), {
+            'ay': '2026-09', 'tarih': '2026-09-01', 'adet_%d' % self.cam.id: '5'})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(TemizlikSayim.objects.exists())
+        r = self.client.post(reverse('temizlik_sayim', args=['ilk']), {
+            'ay': '2026-11', 'tarih': '2026-10-31', 'adet_%d' % self.cam.id: '5'})
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(TemizlikSayim.objects.filter(ay=D(2026, 11, 1), tur='ILK', tarih=D(2026, 10, 31)).exists())
+
+    def test_baslangic_kaydet_ve_kaldir(self):
+        self.post(self.gm, 'temizlik_ayarlar', islem='baslangic', baslangic='2026-11-01')
+        self.ayar.refresh_from_db()
+        self.assertEqual(self.ayar.baslangic, D(2026, 11, 1))
+        self.post(self.gm, 'temizlik_ayarlar', islem='baslangic', baslangic='bozuk')
+        self.ayar.refresh_from_db()
+        self.assertEqual(self.ayar.baslangic, D(2026, 11, 1))
+        self.post(self.gm, 'temizlik_ayarlar', islem='baslangic', baslangic='')
+        self.ayar.refresh_from_db()
+        self.assertIsNone(self.ayar.baslangic)
+
+    # ---- sıfırlama
+    def test_sifirla_onay_ister_ve_sevkiyata_dokunmaz(self):
+        self.tam_sayim()
+        TemizlikDuzeltme.objects.create(sube=self.merkez, ay=AY, urun=self.cam, urun_ad=self.cam.ad, tarih=D(2026, 9, 5),
+                                        miktar=Decimal('2'))
+        t = SevkiyatTalep.objects.create(sube=self.merkez, durum='Teslim Edildi')
+        self.post(self.gm, 'temizlik_ayarlar', islem='sifirla', sube='', onay='yanlis')
+        self.assertEqual(TemizlikSayim.objects.count(), 2)
+        self.post(self.gm, 'temizlik_ayarlar', islem='sifirla', sube='', onay=' sifirla ')
+        self.assertEqual(TemizlikSayim.objects.count(), 0)
+        self.assertEqual(TemizlikDuzeltme.objects.count(), 0)
+        self.assertTrue(SevkiyatTalep.objects.filter(pk=t.pk).exists())
+        self.assertTrue(TemizlikUrun.objects.exists())
+        self.ayar.refresh_from_db()
+        self.assertIsNotNone(self.ayar.son_sifirlama)
+
+    def test_sifirla_tek_sube_ve_yetki(self):
+        diger = Sube.objects.create(ad='Diğer')
+        self.tam_sayim()
+        for tur, gun in (('ILK', D(2026, 9, 1)), ('SON', D(2026, 9, 30))):
+            TemizlikSayim.objects.create(sube=diger, ay=AY, tur=tur, tarih=gun)
+        for k in (self.sef, self.sa, self.yat):
+            self.post(k, 'temizlik_ayarlar', islem='sifirla', sube='', onay='SIFIRLA')
+        self.assertEqual(TemizlikSayim.objects.count(), 4)
+        self.post(self.op, 'temizlik_ayarlar', islem='sifirla', sube=diger.id, onay='SIFIRLA')
+        self.assertEqual(set(TemizlikSayim.objects.values_list('sube__ad', flat=True)), {'Merkez'})
+
+    # ---- fiyat yetkisi
+    def test_fiyat_sayfasi_yetkileri(self):
+        for k in (self.sa, self.gm, self.op, self.yat, self.mud):
+            self.assertEqual(self.get(k, 'temizlik_fiyatlar').status_code, 200, k)
+        for k in (self.sef, self.mm):
+            r = self.get(k, 'temizlik_fiyatlar')
+            self.assertEqual(r.status_code, 302, k)
+        self.assertContains(self.get(self.sa, 'temizlik_fiyatlar'), 'name="fiyat_%d"' % self.cam.id)
+        self.assertNotContains(self.get(self.op, 'temizlik_fiyatlar'), 'name="fiyat_%d"' % self.cam.id)
+        self.assertNotContains(self.get(self.yat, 'temizlik_fiyatlar'), 'name="fiyat_%d"' % self.cam.id)
+
+    def test_fiyati_yalniz_satin_alma_ve_gm_yazar(self):
+        for k in (self.op, self.yat, self.mud, self.sef, self.mm):
+            self.post(k, 'temizlik_fiyatlar', **{'fiyat_%d' % self.cam.id: '10', 'birim_%d' % self.cam.id: 'ADET'})
+        self.assertFalse(TemizlikFiyat.objects.exists())
+        self.post(self.sa, 'temizlik_fiyatlar', **{'fiyat_%d' % self.cam.id: '12,50', 'birim_%d' % self.cam.id: 'ADET'})
+        self.assertEqual(TemizlikFiyat.objects.get(urun=self.cam).fiyat, Decimal('12.50'))
+        self.post(self.gm, 'temizlik_fiyatlar', **{'fiyat_%d' % self.cam.id: '14', 'birim_%d' % self.cam.id: 'ADET'})
+        self.assertEqual(TemizlikFiyat.objects.get(urun=self.cam).fiyat, Decimal('14.00'))      # aynı gün: güncellenir
+        self.assertEqual(TemizlikFiyat.objects.count(), 1)
+
+    def test_fiyat_dogrulama(self):
+        kg = self.erna
+        for veri in ({'fiyat_%d' % self.cam.id: 'abc', 'birim_%d' % self.cam.id: 'ADET'},
+                     {'fiyat_%d' % self.cam.id: '-5', 'birim_%d' % self.cam.id: 'ADET'},
+                     {'fiyat_%d' % self.cam.id: '0', 'birim_%d' % self.cam.id: 'ADET'},
+                     {'fiyat_%d' % self.cam.id: '10', 'birim_%d' % self.cam.id: 'KG'},      # ml kapasiteli ürüne kg fiyatı
+                     {'fiyat_%d' % self.mop.id: '10', 'birim_%d' % self.mop.id: 'LT'},      # kapasitesiz ürüne litre fiyatı
+                     {'fiyat_%d' % kg.id: '10', 'birim_%d' % kg.id: 'LT'}):
+            self.post(self.sa, 'temizlik_fiyatlar', **veri)
+        self.assertFalse(TemizlikFiyat.objects.exists())
+        # hatalı satır varsa geçerli satır da kaydedilmez
+        self.post(self.sa, 'temizlik_fiyatlar', **{'fiyat_%d' % self.cam.id: '10', 'birim_%d' % self.cam.id: 'ADET',
+                                                    'fiyat_%d' % self.mop.id: 'x', 'birim_%d' % self.mop.id: 'ADET'})
+        self.assertFalse(TemizlikFiyat.objects.exists())
+
+    def test_birim_donusumu(self):
+        self.assertEqual(tz.adet_fiyati(self.cam, Decimal('40'), 'LT'), Decimal('20'))       # 500 ml = 0,5 lt
+        self.assertEqual(tz.adet_fiyati(self.cam, Decimal('7'), 'ADET'), Decimal('7'))
+        self.assertIsNone(tz.adet_fiyati(self.cam, Decimal('40'), 'KG'))
+        self.assertIsNone(tz.adet_fiyati(self.mop, Decimal('40'), 'LT'))
+        self.assertEqual(tz.adet_fiyati(self.erna, Decimal('100'), 'KG'), Decimal('500'))     # 5 kg
+        self.assertEqual(tz.para_yaz(Decimal('1250.5')), '1.250,50')
+
+    def test_fiyat_gecmisi_aylara_gore(self):
+        f1 = TemizlikFiyat.objects.create(urun=self.cam, fiyat=Decimal('10'), birim='ADET', gecerli=D(2026, 8, 20))
+        TemizlikFiyat.objects.create(urun=self.cam, fiyat=Decimal('12'), birim='ADET', gecerli=D(2026, 10, 3))
+        self.assertEqual(tz.fiyat_haritasi(D(2026, 9, 1))[self.cam.id]['fiyat'], Decimal('10'))
+        self.assertEqual(tz.fiyat_haritasi(D(2026, 10, 1))[self.cam.id]['fiyat'], Decimal('12'))
+        self.assertEqual(tz.fiyat_haritasi(D(2026, 7, 1))[self.cam.id]['fiyat'], Decimal('10'))   # öncesi: en eski
+        self.assertEqual(tz.fiyat_haritasi(None)[self.cam.id]['fiyat'], Decimal('12'))
+        self.assertTrue(f1.pk)
+
+    # ---- tutar
+    def test_tutar_hesabi_ve_eksik_fiyat(self):
+        self.tam_sayim(ilk=10, son=4)                                    # kullanım 6 adet
+        TemizlikFiyat.objects.create(urun=self.cam, fiyat=Decimal('40'), birim='LT', gecerli=D(2026, 8, 1))
+        v = tz.veri_hesapla([self.merkez], AY, bugun=D(2026, 10, 5), fiyatli=True)
+        r = next(x for x in v['toplam'] if x['urun'].id == self.cam.id)
+        self.assertEqual(r['kullanim'], Decimal('6'))
+        self.assertEqual(r['tutar'], Decimal('120.0000'))                # 6 × 20 TL
+        self.assertEqual(v['genel_tutar'], Decimal('120'))
+        self.assertEqual(v['subeler'][0]['tutar'], Decimal('120'))
+        self.assertEqual(v['fiyat_eksik'], [])
+        # fiyatsız ürün kullanımı -> uyarı, toplama girmez
+        for sy in TemizlikSayim.objects.all():
+            sy.kalemler.create(urun=self.mop, urun_ad=self.mop.ad, miktar=Decimal('5' if sy.tur == 'ILK' else '2'))
+        v = tz.veri_hesapla([self.merkez], AY, bugun=D(2026, 10, 5), fiyatli=True)
+        self.assertEqual(v['fiyat_eksik'], [self.mop.ad])
+        self.assertEqual(v['genel_tutar'], Decimal('120'))
+        # fiyatsız istek -> alanlar hiç yok
+        v = tz.veri_hesapla([self.merkez], AY, bugun=D(2026, 10, 5))
+        self.assertNotIn('genel_tutar', v)
+        self.assertNotIn('tutar', v['toplam'][0])
+
+    def test_rapor_tutari_yalniz_yetkili_roller_gorur(self):
+        self.tam_sayim()
+        TemizlikFiyat.objects.create(urun=self.cam, fiyat=Decimal('40'), birim='LT', gecerli=D(2026, 8, 1))
+        q = {'ay': '2026-09', 'sube': self.merkez.id}
+        for k in (self.sa, self.yat, self.mud, self.op, self.gm):
+            r = self.get(k, 'temizlik_rapor', **q)
+            self.assertContains(r, 'Toplam tutar', msg_prefix=str(k))
+            self.assertContains(r, '120,00 ₺')
+        for k in (self.sef, self.mm):
+            r = self.get(k, 'temizlik_rapor', **q)
+            self.assertNotContains(r, 'Toplam tutar')
+            self.assertNotContains(r, '120,00')
+            self.assertNotContains(r, 'Birim fiyat')
+
+    def test_excel_ve_pdf_tutar_sutunlari(self):
+        import openpyxl
+        self.tam_sayim()
+        TemizlikFiyat.objects.create(urun=self.cam, fiyat=Decimal('40'), birim='LT', gecerli=D(2026, 8, 1))
+        q = {'ay': '2026-09', 'sube': self.merkez.id, 'bicim': 'xlsx'}
+        r = self.get(self.sa, 'temizlik_rapor_indir', **q)
+        wb = openpyxl.load_workbook(io.BytesIO(r.content))
+        self.assertIn('Şube Tutarı', wb.sheetnames)
+        ws = wb['Aylık Özet']
+        basliklar = [c.value for c in ws[5]]
+        self.assertIn('Tutar (TL)', basliklar)
+        self.assertTrue(any(c.value == 120 for row in ws.iter_rows(min_row=6) for c in row))
+        r = self.get(self.sef, 'temizlik_rapor_indir', **q)
+        wb = openpyxl.load_workbook(io.BytesIO(r.content))
+        self.assertNotIn('Şube Tutarı', wb.sheetnames)
+        self.assertNotIn('Tutar (TL)', [c.value for c in wb['Aylık Özet'][5]])
+        q['bicim'] = 'pdf'
+        for k in (self.sa, self.sef):
+            self.assertTrue(self.get(k, 'temizlik_rapor_indir', **q).content.startswith(b'%PDF'))
+
+    def test_varsayilan_ay_sistem_baslamadiysa_baslangic_ayi(self):
+        self.ayar.baslangic = datetime.date.today().replace(day=1) + datetime.timedelta(days=40)
+        self.ayar.baslangic = self.ayar.baslangic.replace(day=1)
+        self.ayar.save()
+        self.assertEqual(tz.varsayilan_ay(self.ayar), self.ayar.baslangic)
+        self.ayar.baslangic = None
+        self.assertEqual(tz.varsayilan_ay(self.ayar), tz.ay_oku(None))
+
+    def test_sayfalar_aciliyor(self):
+        for k, ad in ((self.gm, 'temizlik_ayarlar'), (self.op, 'temizlik_ayarlar'), (self.sa, 'temizlik_fiyatlar'),
+                      (self.gm, 'temizlik_giris'), (self.gm, 'temizlik_rapor'), (self.sa, 'temizlik_urunler')):
+            self.assertEqual(self.get(k, ad).status_code, 200, (k, ad))
+        for k in (self.sef, self.sa, self.yat, self.mud, self.mm):
+            self.assertEqual(self.get(k, 'temizlik_ayarlar').status_code, 302)

@@ -10,6 +10,7 @@
       {% if rapor_gorebilir %}<a class="btn btn-primary btn-mini" href="{% url 'temizlik_rapor' %}?ay={{ ay_deger }}{% if subeler|length > 1 %}&sube={{ sube.id }}{% endif %}">Tüketim raporu</a>{% endif %}
     </div>
   </div>
+  {% include '_temizlik_serit.html' %}
 
   {% for m in messages %}<div class="tz-ileti {{ m.tags }}">{{ m }}</div>{% endfor %}
 

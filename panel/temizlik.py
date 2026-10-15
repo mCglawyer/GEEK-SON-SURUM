@@ -21,13 +21,17 @@ from django.db.models import DateTimeField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from .models import (Rol, SevkiyatBirim, SevkiyatDurumu, SevkiyatKalem, Sube, TemizlikDuzeltme, TemizlikSayim,
-                     TemizlikUrun)
+from .models import (Rol, SevkiyatBirim, SevkiyatDurumu, SevkiyatKalem, Sube, TemizlikAyar, TemizlikDuzeltme,
+                     TemizlikFiyat, TemizlikSayim, TemizlikUrun)
 from .sevkiyat_analiz import ay_etiketi, ay_komsulari, ay_oku, sayi_yaz  # noqa: F401  (ekranlar buradan alır)
 
 GIRIS_ROLLERI = (Rol.SEF, Rol.MAGAZA_MUDURU, Rol.GENEL_MUDUR, Rol.OPERATOR)
 RAPOR_ROLLERI = (Rol.YATIRIMCI, Rol.SATIN_ALMA, Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.SEF, Rol.MAGAZA_MUDURU)
 URUN_ROLLERI = (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.SATIN_ALMA)
+FIYAT_GOR = (Rol.SATIN_ALMA, Rol.YATIRIMCI, Rol.MUDUR, Rol.OPERATOR, Rol.GENEL_MUDUR)   # fiyatı ve tutarı görenler
+FIYAT_YAZ = (Rol.SATIN_ALMA, Rol.GENEL_MUDUR)                                         # fiyatı girebilenler
+AYAR_ROLLERI = (Rol.GENEL_MUDUR, Rol.OPERATOR)                                        # aç/kapa, başlangıç, sıfırlama
+YONETIM_ROLLERI = (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.SATIN_ALMA)                     # sistem kapalıyken de girebilenler
 GORUNUMLER = (('aylik', 'Aylık'), ('haftalik', 'Haftalık'), ('gunluk', 'Günlük'))
 
 _GELEN_DURUMLAR = (SevkiyatDurumu.ONAYLANDI, SevkiyatDurumu.TESLIM)
@@ -42,6 +46,32 @@ def sade(metin):
 
 
 # ----------------------------------------------------------------------------- yetki
+def fiyat_gorur(personel):
+    return personel is not None and personel.rol in FIYAT_GOR
+
+
+def fiyat_yazar(personel):
+    return personel is not None and personel.rol in FIYAT_YAZ
+
+
+def erisebilir(personel, ayar):
+    """Sistem kapalıyken yalnızca yönetim (GM, Operatör, Satın Alma) içeri girer."""
+    return bool(ayar.aktif) or (personel is not None and personel.rol in YONETIM_ROLLERI)
+
+
+def baslamamis(ayar, ay_ilk):
+    """Başlangıç ayından önceki aylara kayıt girilemez."""
+    return bool(ayar.baslangic and ay_ilk < ayar.baslangic.replace(day=1))
+
+
+def varsayilan_ay(ayar):
+    """Ay seçilmemişse: bu ay; sistem henüz başlamadıysa başlangıç ayı."""
+    bugun = ay_oku(None)
+    if ayar.baslangic and bugun < ayar.baslangic.replace(day=1):
+        return ayar.baslangic.replace(day=1)
+    return bugun
+
+
 def _depo_disi():
     return Sube.objects.filter(depo_mu=False).order_by('ad')
 
@@ -147,6 +177,55 @@ def sayim_tarihi_gecerli(tur, tarih, ay_ilk):
     return abs((tarih - sinir).days) <= 10
 
 
+# ----------------------------------------------------------------------------- fiyat
+_KG = {'KG': Decimal('1'), 'GR': Decimal('0.001')}
+_LT = {'LT': Decimal('1'), 'ML': Decimal('0.001')}
+
+
+def fiyat_birimi_uygun(urun, birim):
+    """Fiyat birimi ürünün kapasitesiyle hesaplanabilir mi? (KG için kg/gr, LT için lt/ml kapasite gerekir.)"""
+    if birim == 'ADET':
+        return True
+    if not urun.hacim:
+        return False
+    return (urun.hacim_birim in (_KG if birim == 'KG' else _LT))
+
+
+def adet_fiyati(urun, fiyat, birim):
+    """Fiyatı ürünün sayım birimi (adet/paket/set) başına TL'ye çevirir; çevrilemezse None."""
+    if fiyat is None:
+        return None
+    if birim == 'ADET':
+        return fiyat
+    if not fiyat_birimi_uygun(urun, birim):
+        return None
+    katsayi = (_KG if birim == 'KG' else _LT)[urun.hacim_birim]
+    return (fiyat * urun.hacim * katsayi).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+
+
+def fiyat_haritasi(ay_ilk=None):
+    """urun_id -> {fiyat, birim, gecerli, adet}. ay_ilk verilirse o ayın sonunda geçerli fiyat (yoksa en eski kayıt);
+    verilmezse en güncel fiyat."""
+    son = ay_sonu(ay_ilk) if ay_ilk else None
+    secilen, ilk = {}, {}
+    for f in TemizlikFiyat.objects.select_related('urun').order_by('urun_id', 'gecerli'):
+        ilk.setdefault(f.urun_id, f)
+        if son is None or f.gecerli <= son:
+            secilen[f.urun_id] = f
+    for uid, f in ilk.items():
+        secilen.setdefault(uid, f)
+    return {uid: {'fiyat': f.fiyat, 'birim': f.birim, 'gecerli': f.gecerli,
+                  'adet': adet_fiyati(f.urun, f.fiyat, f.birim)} for uid, f in secilen.items()}
+
+
+def para_yaz(d):
+    """1250.5 -> '1.250,50'"""
+    if d is None:
+        return '—'
+    s = '{:,.2f}'.format(Decimal(d).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+    return s.replace(',', '§').replace('.', ',').replace('§', '.')
+
+
 # ----------------------------------------------------------------------------- hesap
 def _adet(k, tu, miktar, birim):
     """Sevkiyat miktarını ürünün taban birimine (adet/paket/set) çevirir."""
@@ -172,7 +251,7 @@ def _aralik_gunleri(bas, bit):
     return [bas + datetime.timedelta(days=i) for i in range(1, n + 1)]
 
 
-def veri_hesapla(subeler, ay_ilk, bugun=None):
+def veri_hesapla(subeler, ay_ilk, bugun=None, fiyatli=False):
     """Seçili şubeler için ay verisi.
 
     Dönen sözlük:
@@ -180,8 +259,10 @@ def veri_hesapla(subeler, ay_ilk, bugun=None):
       urunler : katalog (veri olan/aktif)
       toplam  : tüm şubelerin ürün bazında toplamı (aynı satır biçimi)
       eslesmeyen : sevkiyatta 'Temizlik' formunda olup kataloğa bağlanamayan ürün adları
+      fiyatli=True ise satırlara birim fiyat + tutar (TL) eklenir; yalnızca fiyatı görmeye yetkili roller için istenir.
     """
     bugun = bugun or timezone.localdate()
+    baslangic = TemizlikAyar.al().baslangic
     son_gun = ay_sonu(ay_ilk)
     ids = [s.id for s in subeler]
     tum_urunler = list(TemizlikUrun.objects.all())
@@ -222,6 +303,8 @@ def veri_hesapla(subeler, ay_ilk, bugun=None):
             bas, bit = donemler[k.talep.sube_id]
             if not (bas < gun <= bit):
                 continue
+            if baslangic and gun < baslangic:
+                continue          # sistem başlangıcından önce gelen sevkiyat sayılmaz
             tu = bagli.get(k.urun_id) or adli.get(sade(k.urun_ad or (k.urun.ad if k.urun_id else '')))
             if tu is None:
                 if (k.form or '') == 'TEMIZLIK':
@@ -235,7 +318,7 @@ def veri_hesapla(subeler, ay_ilk, bugun=None):
             if dz.urun_id is None:
                 continue
             bas, bit = donemler[dz.sube_id]
-            if not (bas < dz.tarih <= bit):
+            if not (bas < dz.tarih <= bit) or (baslangic and dz.tarih < baslangic):
                 continue          # dönem dışına düşen düzeltme hesaba girmez (ekranda uyarılır)
             d = gun_duz.setdefault((dz.sube_id, dz.urun_id), {})
             d[dz.tarih] = d.get(dz.tarih, _SIFIR) + dz.miktar
@@ -271,6 +354,23 @@ def veri_hesapla(subeler, ay_ilk, bugun=None):
                              'kullanim': kullanim, 'gun_ilave': gun_ilave, 'gun_tuketim': gun_tuketim})
         cikti.append({'sube': s, 'ilk': ilk_sy, 'son': son_sy, 'bas': bas, 'bit': bit, 'tam': tam,
                       'satirlar': satirlar})
+    fiyat_eksik = {}
+    if fiyatli:
+        fm = fiyat_haritasi(ay_ilk)
+
+        def tutar_ekle(r):
+            f = fm.get(r['urun'].id)
+            r['fiyat'] = f
+            adet_f = f['adet'] if f else None
+            r['adet_fiyat'] = adet_f
+            r['tutar'] = (r['kullanim'] * adet_f) if (r['kullanim'] is not None and adet_f is not None) else None
+            if adet_f is None and r['kullanim']:
+                fiyat_eksik[r['urun'].id] = r['urun'].ad
+
+        for c in cikti:
+            for r in c['satirlar']:
+                tutar_ekle(r)
+            c['tutar'] = sum((r['tutar'] for r in c['satirlar'] if r['tutar'] is not None), _SIFIR) if c['tam'] else None
 
     toplam = []
     for i, tu in enumerate(tum_urunler):
@@ -295,9 +395,19 @@ def veri_hesapla(subeler, ay_ilk, bugun=None):
             for g, v in r['gun_tuketim'].items():
                 satir['gun_tuketim'][g] = satir['gun_tuketim'].get(g, _SIFIR) + v
         if var and (satir['ilk'] or satir['son'] or satir['ilave'] or satir['duzeltme']):
+            if fiyatli:
+                satir['fiyat'] = fm.get(tu.id)
+                satir['adet_fiyat'] = satir['fiyat']['adet'] if satir['fiyat'] else None
+                parcalar = [x['tutar'] for c in cikti for x in c['satirlar'] if x['urun'].id == tu.id and x['tutar'] is not None]
+                satir['tutar'] = sum(parcalar, _SIFIR) if parcalar else None
             toplam.append(satir)
-    return {'ay': ay_ilk, 'etiket': ay_etiketi(ay_ilk), 'subeler': cikti, 'toplam': toplam,
-            'tam_sube': sum(1 for c in cikti if c['tam']), 'eslesmeyen': sorted(eslesmeyen.values())}
+    sonuc = {'ay': ay_ilk, 'etiket': ay_etiketi(ay_ilk), 'subeler': cikti, 'toplam': toplam,
+             'tam_sube': sum(1 for c in cikti if c['tam']), 'eslesmeyen': sorted(eslesmeyen.values()),
+             'fiyatli': fiyatli}
+    if fiyatli:
+        sonuc['genel_tutar'] = sum((c['tutar'] for c in cikti if c['tutar'] is not None), _SIFIR)
+        sonuc['fiyat_eksik'] = sorted(fiyat_eksik.values())
+    return sonuc
 
 
 def hafta_parcalari(bas, bit):
@@ -377,7 +487,7 @@ def excel_bytes(veri, secili, gorunum):
     ince = Side(style='thin', color='D7DCEB')
     kenar = Border(left=ince, right=ince, top=ince, bottom=ince)
 
-    def sayfa(ws, baslik, basliklar, satirlar, olculer, sayisal_baslangic=2, alt_not=''):
+    def sayfa(ws, baslik, basliklar, satirlar, olculer, sayisal_baslangic=2, alt_not='', para=()):
         excel_logo(ws)
         ws['C2'] = baslik
         ws['C2'].font = Font(bold=True, size=14, color='162AA3')
@@ -395,7 +505,7 @@ def excel_bytes(veri, secili, gorunum):
                 if (r - ust) % 2 == 0:
                     c.fill = zebra
                 if i >= sayisal_baslangic:
-                    c.number_format = '#,##0.##'
+                    c.number_format = '#,##0.00' if i in para else '#,##0.##'
                     c.alignment = Alignment(horizontal='right')
         for i in range(1, len(basliklar) + 1):
             ws.column_dimensions[get_column_letter(i)].width = olculer[i - 1] if i <= len(olculer) else 11
@@ -404,21 +514,40 @@ def excel_bytes(veri, secili, gorunum):
             n = ws.cell(row=ust + len(satirlar) + 2, column=1, value=alt_not)
             n.font = Font(italic=True, color='6B7280')
 
+    fiyatli = veri.get('fiyatli', False)
     ws = wb.active
     ws.title = 'Aylık Özet'
-    satirlar = [(r['urun'].ad, r['urun'].birim, r['ilk'], r['ilave'], r['duzeltme'], r['son'], r['kullanim'],
-                 hacim_karsiligi(r['kullanim'], r['urun']))
-                for r in veri['toplam']]
-    sayfa(ws, 'Temizlik Malzemesi Tüketimi', ['Ürün', 'Birim', 'İlk stok', 'İlave (sevkiyat)', 'Düzeltme', 'Son stok',
-                                              'Kullanım', 'Kullanım (hacim)'], satirlar,
-          [46, 10, 12, 16, 12, 12, 14, 18], 3,
-          'Kullanım = İlk stok + İlave + Düzeltme − Son stok. İlk ve son sayımı girilmemiş şubelerde kullanım hesaplanmaz '
-          '(%d / %d şube tamamlandı).' % (veri['tam_sube'], len(veri['subeler'])))
+    basliklar = ['Ürün', 'Birim', 'İlk stok', 'İlave (sevkiyat)', 'Düzeltme', 'Son stok', 'Kullanım', 'Kullanım (hacim)']
+    olculer = [46, 10, 12, 16, 12, 12, 14, 18]
+    satirlar = [[r['urun'].ad, r['urun'].birim, r['ilk'], r['ilave'], r['duzeltme'], r['son'], r['kullanim'],
+                 hacim_karsiligi(r['kullanim'], r['urun'])] for r in veri['toplam']]
+    para = ()
+    not_metni = ('Kullanım = İlk stok + İlave + Düzeltme − Son stok. İlk ve son sayımı girilmemiş şubelerde kullanım '
+                 'hesaplanmaz (%d / %d şube tamamlandı).' % (veri['tam_sube'], len(veri['subeler'])))
+    if fiyatli:
+        basliklar += ['Birim fiyat (TL / adet)', 'Tutar (TL)']
+        olculer += [18, 16]
+        para = (9, 10)
+        for satir, r in zip(satirlar, veri['toplam']):
+            satir += [r['adet_fiyat'], r['tutar']]
+        satirlar.append(['TOPLAM TUTAR', '', None, None, None, None, None, '', None, veri['genel_tutar']])
+        if veri['fiyat_eksik']:
+            not_metni += ' Fiyatı girilmemiş ürünler toplama dahil değil: %s.' % ', '.join(veri['fiyat_eksik'])
+    sayfa(ws, 'Temizlik Malzemesi Tüketimi', basliklar, [tuple(x) for x in satirlar], olculer, 3, not_metni, para)
+
+    if fiyatli:
+        w0 = wb.create_sheet('Şube Tutarı')
+        sayfa(w0, 'Şubelere göre aylık tutar', ['Şube', 'Durum', 'Tutar (TL)'],
+              [(c['sube'].ad, 'Tamam' if c['tam'] else 'Sayım eksik', c['tutar']) for c in veri['subeler']]
+              + [('TOPLAM', '', veri['genel_tutar'])], [34, 16, 16], 3,
+              'Yalnızca ilk ve son sayımı girilmiş şubelerin tutarı hesaplanır.', (3,))
 
     if gorunum == 'aylik' and len(veri['subeler']) > 1:
         w2 = wb.create_sheet('Şube Kırılımı')
         bas = ['Ürün', 'Birim'] + [c['sube'].ad for c in veri['subeler']]
         sat = [(u.ad, u.birim) + tuple(h) for u, h in sube_kirilimi(veri)]
+        if fiyatli:
+            sat.append(('Toplam tutar (TL)', '') + tuple(c['tutar'] for c in veri['subeler']))
         sayfa(w2, 'Şubelere göre kullanım', bas, sat, [46, 10] + [14] * len(veri['subeler']), 3,
               'Boş hücre: o şubenin ilk veya son sayımı henüz girilmemiş.')
     elif gorunum in ('haftalik', 'gunluk'):
@@ -485,14 +614,35 @@ def pdf_bytes(veri, secili, gorunum):
     el = [Paragraph('Temizlik Malzemesi Tüketimi', st_baslik), Paragraph(escape(_etiket(veri, secili, gorunum)), st_alt),
           Paragraph('Şube: %d / %d tamamlandı (ilk ve son sayım girilmiş)' % (veri['tam_sube'], len(veri['subeler'])), st_alt),
           Spacer(1, 6)]
-    rows = [[P(h, st_cw) for h in ('Ürün', 'Birim', 'İlk stok', 'İlave', 'Düzeltme', 'Son stok', 'Kullanım',
-                                   'Kullanım (hacim)')]]
+    fiyatli = veri.get('fiyatli', False)
+    basliklar = ['Ürün', 'Birim', 'İlk stok', 'İlave', 'Düzeltme', 'Son stok', 'Kullanım', 'Kullanım (hacim)']
+    if fiyatli:
+        basliklar += ['Birim fiyat', 'Tutar (TL)']
+    rows = [[P(h, st_cw) for h in basliklar]]
     for r in veri['toplam']:
-        rows.append([P(r['urun'].ad), P(r['urun'].birim), P(sayi(r['ilk'])), P(sayi(r['ilave'])),
-                     P(sayi(r['duzeltme'])), P(sayi(r['son'])), P(sayi(r['kullanim'])),
-                     P(hacim_karsiligi(r['kullanim'], r['urun']))])
-    el.append(tablo(rows, [W * .3, W * .08, W * .09, W * .09, W * .09, W * .09, W * .11, W * .15]))
+        satir = [P(r['urun'].ad), P(r['urun'].birim), P(sayi(r['ilk'])), P(sayi(r['ilave'])),
+                 P(sayi(r['duzeltme'])), P(sayi(r['son'])), P(sayi(r['kullanim'])),
+                 P(hacim_karsiligi(r['kullanim'], r['urun']))]
+        if fiyatli:
+            satir += [P(para_yaz(r['adet_fiyat'])), P(para_yaz(r['tutar']))]
+        rows.append(satir)
+    if fiyatli:
+        rows.append([P('TOPLAM TUTAR', st_cw if False else st_c)] + [P('')] * 8 + [P(para_yaz(veri['genel_tutar']))])
+        oran = [.22, .06, .07, .07, .07, .07, .09, .12, .10, .13]
+    else:
+        oran = [.3, .08, .09, .09, .09, .09, .11, .15]
+    el.append(tablo(rows, [W * o for o in oran]))
     el.append(Spacer(1, 8))
+    if fiyatli:
+        el.append(Paragraph('Şubelere göre aylık tutar', st_sb))
+        rows = [[P('Şube', st_cw), P('Durum', st_cw), P('Tutar (TL)', st_cw)]]
+        for c in veri['subeler']:
+            rows.append([P(c['sube'].ad), P('Tamam' if c['tam'] else 'Sayım eksik'), P(para_yaz(c['tutar']))])
+        rows.append([P('TOPLAM'), P(''), P(para_yaz(veri['genel_tutar']))])
+        el.append(tablo(rows, [W * .5, W * .25, W * .25], sag_ilk=2))
+        if veri['fiyat_eksik']:
+            el.append(Paragraph('Fiyatı girilmemiş ürünler toplama dahil değil: ' + escape(', '.join(veri['fiyat_eksik'])), st_not))
+        el.append(Spacer(1, 8))
 
     if gorunum == 'aylik' and len(veri['subeler']) > 1:
         n = len(veri['subeler'])
@@ -500,6 +650,8 @@ def pdf_bytes(veri, secili, gorunum):
         rows = [[P('Ürün', st_cw)] + [P(c['sube'].ad, st_cw) for c in veri['subeler']]]
         for u, h in sube_kirilimi(veri):
             rows.append([P(u.ad)] + [P(sayi(x)) for x in h])
+        if fiyatli:
+            rows.append([P('Toplam tutar (TL)')] + [P(para_yaz(c['tutar'])) for c in veri['subeler']])
         el.append(tablo(rows, [W * .26] + [W * .74 / n] * n, sag_ilk=1))
     elif gorunum in ('haftalik', 'gunluk'):
         parcalar = _parcalar(veri, gorunum)

@@ -338,6 +338,7 @@ class MenuUrunAdmin(_MenuYayinMixin, admin.ModelAdmin):
 
 
 from .models import TemizlikUrun, TemizlikSayim, TemizlikSayimKalem, TemizlikDuzeltme  # noqa: E402
+from .models import TemizlikAyar, TemizlikFiyat  # noqa: E402
 
 
 @admin.register(TemizlikUrun)
@@ -366,3 +367,16 @@ class TemizlikSayimAdmin(admin.ModelAdmin):
 class TemizlikDuzeltmeAdmin(admin.ModelAdmin):
     list_display = ('sube', 'ay', 'urun_ad', 'tarih', 'miktar', 'aciklama', 'giren_ad')
     list_filter = ('sube',)
+
+
+@admin.register(TemizlikAyar)
+class TemizlikAyarAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'aktif', 'baslangic', 'guncelleyen', 'son_sifirlama')
+
+
+@admin.register(TemizlikFiyat)
+class TemizlikFiyatAdmin(admin.ModelAdmin):
+    list_display = ('urun', 'fiyat', 'birim', 'gecerli', 'giren_ad')
+    list_filter = ('birim',)
+    search_fields = ('urun__ad',)
+    raw_id_fields = ('urun',)

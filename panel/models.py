@@ -1310,3 +1310,53 @@ class TemizlikDuzeltme(models.Model):
         verbose_name = "Temizlik Düzeltmesi"
         verbose_name_plural = "Temizlik Düzeltmeleri"
         ordering = ['tarih', 'id']
+
+
+class TemizlikAyar(models.Model):
+    """Temizlik tüketim sisteminin tek satırlık ayarı: açık/kapalı + başlangıç tarihi."""
+    aktif = models.BooleanField(default=False, verbose_name="Sistem açık",
+                                help_text="Kapalıyken yalnızca Genel Müdür, Operatör ve Satın Alma görür.")
+    baslangic = models.DateField(null=True, blank=True, verbose_name="Başlangıç tarihi",
+                                 help_text="Bu tarihten önce gelen sevkiyatlar ilaveye sayılmaz; önceki aylara sayım girilemez.")
+    guncelleyen = models.CharField(max_length=100, blank=True, verbose_name="Son değiştiren")
+    guncelleme = models.DateTimeField(auto_now=True)
+    son_sifirlama = models.DateTimeField(null=True, blank=True, verbose_name="Son sıfırlama")
+    son_sifirlayan = models.CharField(max_length=100, blank=True, verbose_name="Sıfırlayan")
+
+    class Meta:
+        verbose_name = "Temizlik Sistemi Ayarı"
+        verbose_name_plural = "Temizlik Sistemi Ayarı"
+
+    def __str__(self):
+        return "Temizlik sistemi: " + ("açık" if self.aktif else "kapalı")
+
+    @classmethod
+    def al(cls):
+        """Tek ayar satırı; yoksa kapalı + gelecek ayın 1'i başlangıç olarak oluşturulur."""
+        obj = cls.objects.order_by('id').first()
+        if obj is None:
+            import datetime
+            bugun = datetime.date.today()
+            ilk = (bugun.replace(day=1) + datetime.timedelta(days=32)).replace(day=1)
+            obj = cls.objects.create(aktif=False, baslangic=ilk)
+        return obj
+
+
+class TemizlikFiyat(models.Model):
+    """Ürünün birim fiyatı (geçmişli): adet / kg / litre başına TL."""
+    BIRIM = [('ADET', 'Adet / paket başına'), ('KG', 'Kilogram başına'), ('LT', 'Litre başına')]
+    urun = models.ForeignKey(TemizlikUrun, on_delete=models.CASCADE, related_name='fiyatlar')
+    fiyat = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Fiyat (TL)")
+    birim = models.CharField(max_length=4, choices=BIRIM, default='ADET', verbose_name="Fiyat birimi")
+    gecerli = models.DateField(verbose_name="Geçerlilik başlangıcı")
+    giren_ad = models.CharField(max_length=100, blank=True)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Temizlik Ürün Fiyatı"
+        verbose_name_plural = "Temizlik Ürün Fiyatları"
+        ordering = ['urun', '-gecerli']
+        constraints = [models.UniqueConstraint(fields=['urun', 'gecerli'], name='temizlik_fiyat_tekil')]
+
+    def __str__(self):
+        return f"{self.urun} · {self.fiyat} TL/{self.birim.lower()} ({self.gecerli:%d.%m.%Y})"

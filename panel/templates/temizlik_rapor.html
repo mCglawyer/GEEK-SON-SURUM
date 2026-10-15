@@ -12,6 +12,7 @@
       <a class="btn btn-primary btn-mini" href="{{ pdf_url }}">PDF al</a>
     </div>
   </div>
+  {% include '_temizlik_serit.html' %}
 
   <form method="get" class="card tz-filtre">
     <div class="an-ay">
@@ -56,11 +57,19 @@
   <div class="card an-bos">Bu ay için temizlik verisi yok. Başka bir ay ya da şube seç.</div>
   {% else %}
 
+  {% if veri.fiyatli %}
+  <div class="tz-stat-satir">
+    <div class="tz-stat"><span>Toplam tutar</span><b>{{ veri.genel_tutar|tzpara }}</b><small>{{ veri.tam_sube }} / {{ veri.subeler|length }} şube sayımı tamam</small></div>
+    {% if secili %}<div class="tz-stat"><span>Şube</span><b>{{ secili.ad }}</b><small>{{ ay_etiket }}</small></div>{% endif %}
+    <div class="tz-stat{% if veri.fiyat_eksik %} uyari{% endif %}"><span>Fiyatı girilmemiş ürün</span><b>{{ veri.fiyat_eksik|length }}</b><small>{% if veri.fiyat_eksik %}toplama dahil değil{% else %}hepsinin fiyatı var{% endif %}</small></div>
+  </div>
+  {% endif %}
+
   <div class="card">
     <h3>{% if gorunum == 'aylik' %}Aylık özet{% else %}Aylık özet (toplam){% endif %}</h3>
     <div class="tz-kaydir">
       <table class="tz-tablo tz-orta">
-        <thead><tr><th class="tz-ad">Ürün</th><th>Birim</th><th>İlk stok</th><th>İlave</th><th>Düzeltme</th><th>Son stok</th><th>Kullanım</th></tr></thead>
+        <thead><tr><th class="tz-ad">Ürün</th><th>Birim</th><th>İlk stok</th><th>İlave</th><th>Düzeltme</th><th>Son stok</th><th>Kullanım</th>{% if veri.fiyatli %}<th>Birim fiyat</th><th>Tutar</th>{% endif %}</tr></thead>
         <tbody>
           {% for r in veri.toplam %}
           <tr>
@@ -71,11 +80,17 @@
             <td data-et="Düzeltme" class="tz-sayi{% if not r.duzeltme %} bos{% endif %}">{{ r.duzeltme|tzsayi }}</td>
             <td data-et="Son stok" class="tz-sayi">{{ r.son|tzsayi }}</td>
             <td data-et="Kullanım" class="tz-sayi tz-kul{% if r.kullanim is None %} bos{% elif r.kullanim < 0 %} eksi{% endif %}">{{ r.kullanim|tzsayi }}{% with h=r.kullanim|tzhacim:r.urun %}{% if h %}<small class="tz-hacim">{{ h }}</small>{% endif %}{% endwith %}</td>
+            {% if veri.fiyatli %}
+            <td data-et="Birim fiyat" class="tz-sayi{% if r.adet_fiyat is None %} bos{% endif %}">{{ r.adet_fiyat|tzpara }}{% if r.fiyat and r.fiyat.birim != 'ADET' %}<small class="tz-hacim">{{ r.fiyat.fiyat|tzpara }} / {% if r.fiyat.birim == 'KG' %}kg{% else %}lt{% endif %}</small>{% endif %}</td>
+            <td data-et="Tutar" class="tz-sayi tz-kul{% if r.tutar is None %} bos{% endif %}">{{ r.tutar|tzpara }}</td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>
+        {% if veri.fiyatli %}<tfoot><tr class="tz-toplam"><td class="tz-ad" colspan="7">Toplam tutar</td><td></td><td class="tz-sayi tz-kul">{{ veri.genel_tutar|tzpara }}</td></tr></tfoot>{% endif %}
       </table>
     </div>
+    {% if veri.fiyatli and veri.fiyat_eksik %}<p class="tz-not tz-uyari-not">Fiyatı girilmemiş ürünler toplam tutara dahil değil: {{ veri.fiyat_eksik|join:", " }}. Fiyatlar sayfasından girilebilir.</p>{% endif %}
     <p class="tz-not">Kullanım = İlk stok + İlave + Düzeltme − Son stok. İlk ve son sayımı girilmemiş şubelerin kullanımı hesaplanmaz.</p>
   </div>
 
@@ -90,6 +105,7 @@
           <tr><td class="tz-ad">{{ u.ad }}</td>{% for h in hucreler %}<td class="tz-sayi{% if h is None %} bos{% endif %}">{{ h|tzsayi }}</td>{% endfor %}</tr>
           {% endfor %}
         </tbody>
+        {% if veri.fiyatli %}<tfoot><tr class="tz-toplam"><td class="tz-ad">Toplam tutar</td>{% for c in veri.subeler %}<td class="tz-sayi">{{ c.tutar|tzpara }}</td>{% endfor %}</tr></tfoot>{% endif %}
       </table>
     </div>
     <p class="tz-not">Boş (—) hücre: o şubenin ilk veya son sayımı henüz girilmemiş.</p>
