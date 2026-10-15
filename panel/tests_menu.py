@@ -307,6 +307,29 @@ class PanelTesti(TestCase):
         self.assertContains(r, 'Fotoğraf yüklendi.')
         self.assertTrue(MenuUrun.objects.get(urun_adi='Fotolu Bowl').gorsel)
 
+    def test_mevcut_fotograf_degistirilince_yeni_dosya_silinmez(self):
+        """Hata: eski FieldFile ile yeni aynı nesneydi, yeni yüklenen dosya siliniyordu."""
+        from PIL import Image
+
+        def jpg(renk):
+            b = io.BytesIO(); Image.new('RGB', (400, 300), renk).save(b, 'JPEG'); return b.getvalue()
+        self.client.force_login(self.gm)
+        kat = MenuKategori.objects.get(marka__kod='geek', kod='bowl')
+        self.client.post(reverse('menu_urun_yeni', args=['geek']), {
+            'kategori': kat.id, 'urun_adi': 'Degisen Bowl', 'fiyat': '100', 'aktif': 'on', 'foto_secildi': '1',
+            'foto': SimpleUploadedFile('a.jpg', jpg((200, 0, 0)), content_type='image/jpeg')})
+        u = MenuUrun.objects.get(urun_adi='Degisen Bowl')
+        eski = u.gorsel.name
+        r = self.client.post(reverse('menu_urun_duzenle', args=['geek', u.id]), {
+            'kategori': kat.id, 'urun_adi': 'Degisen Bowl', 'fiyat': '100', 'aktif': 'on', 'foto_secildi': '1',
+            'foto': SimpleUploadedFile('b.jpg', jpg((0, 0, 200)), content_type='image/jpeg')}, follow=True)
+        self.assertContains(r, 'Fotoğraf yüklendi.')
+        u.refresh_from_db()
+        self.assertNotEqual(u.gorsel.name, eski)
+        self.assertTrue(u.gorsel.storage.exists(u.gorsel.name), 'yeni dosya silinmemeli')
+        self.assertFalse(u.gorsel.storage.exists(eski), 'eski dosya temizlenmeli')
+        u.gorsel.storage.delete(u.gorsel.name)
+
     def test_ayni_kod_reddedilir_ve_baga_formu_geek_alerjenlerini_icermez(self):
         self.client.force_login(self.gm)
         kat = MenuKategori.objects.get(marka__kod='geek', kod='tost')

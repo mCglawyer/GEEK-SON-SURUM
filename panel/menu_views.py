@@ -386,6 +386,7 @@ def menu_urun_form(request, marka_kod, urun_id=None):
                 son = MenuUrun.objects.filter(marka=marka, kategori=obj.kategori).aggregate(m=Max('sira'))['m'] or 0
                 obj.sira = son + 10
             foto = form.cleaned_data.get('foto')
+            eski_ad = ''
             try:
                 if form.cleaned_data.get('foto_kaldir') and not foto:
                     _eski_dosyayi_sil(obj.gorsel)
@@ -393,14 +394,19 @@ def menu_urun_form(request, marka_kod, urun_id=None):
                     obj.gorsel_harici = ''
                 elif foto:
                     ad, icerik = _gorsel_hazirla(foto, marka.kod, obj.kod)
-                    eski = obj.gorsel if obj.pk else None
+                    # DİKKAT: obj.gorsel her çağrıda aynı FieldFile nesnesidir; .save() onu yerinde günceller.
+                    # Eski dosya ADI önceden metin olarak alınmalı, yoksa yeni yüklenen dosya silinir.
+                    eski_ad = (obj.gorsel.name if obj.pk and obj.gorsel else '') or ''
                     obj.gorsel.save(ad, icerik, save=False)
-                    if eski:
-                        _eski_dosyayi_sil(eski)
             except Exception as e:
                 messages.error(request, 'Fotoğraf yüklenemedi: %s' % e)
                 return render(request, 'menu_urun_form.html', _form_ctx(request, personel, marka, sema, urun, form, geri))
             obj.save()
+            if foto and eski_ad and eski_ad != obj.gorsel.name:
+                try:
+                    obj.gorsel.storage.delete(eski_ad)      # yeni kayıt başarılı olduktan sonra eskiyi sil
+                except Exception:
+                    pass
             foto_notu = ''
             if foto:
                 ok, aciklama = _gorsel_dogrula(obj.gorsel)

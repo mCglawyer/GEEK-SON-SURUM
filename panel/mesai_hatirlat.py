@@ -3,6 +3,8 @@
 Sabahçı 07.30–16.30, akşamcı 15.30–00.30. Her kişiye:
   1) vardiya başlangıcından 15 dk önce  "mesai QR'ınızı okutunuz" bildirimi,
   2) başlangıçtan 15 dk sonra hâlâ giriş kaydı yoksa bir kez daha.
+Vardiya bitişinde (16.30 / 00.30) girişi olup çıkış QR'ı okutmamış olanlara "çıkış QR'ınızı okutunuz",
+15 dk sonra hâlâ çıkış yapmamışsa bir kez daha.
 Aynı bildirim aynı güne iki kez gitmez (Bildirim tablosundan kontrol edilir).
 """
 import datetime
@@ -15,6 +17,8 @@ ONCE_DK = 15
 TEKRAR_DK = 15
 PENCERE_DK = 60      # başlangıçtan bu kadar sonra artık hatırlatma yapma
 TUR_ILK, TUR_TEKRAR = 'mesai_qr', 'mesai_qr2'
+TUR_CIKIS, TUR_CIKIS2 = 'mesai_cikis', 'mesai_cikis2'
+SURE_SA = 9          # 07.30→16.30 ve 15.30→00.30 (9 saat)
 LINK = '/mesai/tara/'
 
 
@@ -53,4 +57,37 @@ def calistir(simdi=None, bildir=None):
                     tip.lower(), saat.hour, saat.minute, BITIS[tip])
             bildir([p], msg, LINK, tur)
             gonderilen += 1
+    return gonderilen + _cikis(simdi, bildir)
+
+
+def _cikis(simdi, bildir):
+    """Vardiya bitişinde, çıkış QR'ı okutmamış (açık mesai kaydı olan) kişilere bildirim."""
+    from .models import Vardiya, OnayDurumu, MesaiKayit, Bildirim, Rol
+    gonderilen = 0
+    for gun_farki in (0, 1):                       # akşamcı vardiyası ertesi gün 00.30'da biter
+        gun = simdi.date() - datetime.timedelta(days=gun_farki)
+        for tip, saat in BASLANGIC.items():
+            bas = timezone.make_aware(datetime.datetime.combine(gun, saat))
+            bitis = bas + datetime.timedelta(hours=SURE_SA)
+            if not (bitis <= simdi < bitis + datetime.timedelta(minutes=PENCERE_DK)):
+                continue
+            vardiyalar = (Vardiya.objects
+                          .filter(tarih=gun, vardiya_tipi=tip, durum=OnayDurumu.ONAYLANDI,
+                                  personel__rol__in=[Rol.SEF, Rol.PERSONEL])
+                          .select_related('personel'))
+            for v in vardiyalar:
+                p = v.personel
+                acik = MesaiKayit.objects.filter(personel=p, cikis__isnull=True,
+                                                 giris__gte=bas - datetime.timedelta(hours=2),
+                                                 giris__lt=bitis).exists()
+                if not acik:
+                    continue
+                tekrar = simdi >= bitis + datetime.timedelta(minutes=TEKRAR_DK)
+                tur = TUR_CIKIS2 if tekrar else TUR_CIKIS
+                if Bildirim.objects.filter(alici=p, tur=tur, olusturma__gte=bitis - datetime.timedelta(minutes=1)).exists():
+                    continue
+                msg = ("Mesainiz bitti ama çıkış QR'ını henüz okutmadınız. Lütfen okutunuz." if tekrar else
+                       "Mesainiz bitti (%s). Çıkış için mesai QR'ınızı okutunuz lütfen." % BITIS[tip])
+                bildir([p], msg, LINK, tur)
+                gonderilen += 1
     return gonderilen

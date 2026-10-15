@@ -156,6 +156,27 @@ class MesaiHatirlatTestleri(TestCase):
         self.assertIn('15.30–00.30', Bildirim.objects.get().mesaj)
 
 
+    def test_bitiste_cikis_hatirlatmasi(self):
+        MesaiKayit.objects.create(sube=self.sube, personel=self.p1, giris=self.an(7, 28))
+        MesaiKayit.objects.create(sube=self.sube, personel=self.sef, giris=self.an(7, 29), cikis=self.an(16, 29))
+        self.assertEqual(self.calistir(16, 31), 1)          # yalnız çıkışı açık kalan p1
+        b = Bildirim.objects.get()
+        self.assertEqual((b.alici_id, b.tur), (self.p1.id, 'mesai_cikis'))
+        Bildirim.objects.update(olusturma=self.an(16, 31))   # test saati gerçek saatten farklı
+        self.assertEqual(self.calistir(16, 35), 0)
+        self.assertEqual(self.calistir(16, 50), 1)          # tekrar
+        self.assertTrue(Bildirim.objects.filter(tur='mesai_cikis2').exists())
+
+    def test_aksamci_gece_yarisi_sonrasi_cikis(self):
+        MesaiKayit.objects.create(sube=self.sube, personel=self.p2, giris=self.an(15, 28))
+        sonra = timezone.make_aware(datetime.datetime(2026, 10, 16, 0, 31))
+        from .mesai_hatirlat import calistir
+        n = calistir(sonra, bildir=lambda al, msg, link, tur: [
+            Bildirim.objects.create(alici=a, mesaj=msg, link=link, tur=tur) for a in al])
+        self.assertEqual(n, 1)
+        self.assertEqual(Bildirim.objects.get().alici_id, self.p2.id)
+
+
 @override_settings(**_AYAR)
 class LavaboSatirTestleri(TestCase):
     def setUp(self):
