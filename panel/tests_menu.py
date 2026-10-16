@@ -172,7 +172,8 @@ class CsvTesti(TestCase):
         for kod in ('geek', 'baga'):
             satirlar, ham = self._oku(kod)
             ilk = ham.decode('utf-8').split('\n', 1)[0]
-            self.assertEqual(ilk.split(','), MARKALAR[kod]['sutunlar'])
+            ek = ['ek_alerjenler', 'ek_alerjenler_en']            # panelden eklenen alerjenler EN SONDA
+            self.assertEqual(ilk.split(','), MARKALAR[kod]['sutunlar'] + ek)
             self.assertFalse(ham.startswith(b'\xef\xbb\xbf'))             # BOM yok
 
     def test_site_gibi_okunabilir_degerler(self):
@@ -397,3 +398,99 @@ class PanelTesti(TestCase):
         self.client.post(reverse('menu_urunler', args=['geek']), {'islem': 'sirala', 'urun_id': son.id, 'yon': 'yukari'})
         yeni = list(MenuUrun.objects.filter(kategori=kat).order_by('sira', 'id').values_list('kod', flat=True))
         self.assertEqual(yeni[-2], ids[-1])
+
+
+@override_settings(**_AYAR)
+class AlerjenYonetimiTesti(PanelTesti):
+    """Alerjen listesi: ekle, menüden kaldır/geri al, sil; form ve CSV'ye etkisi."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.gm)
+        self.geek = MenuMarka.objects.get(kod='geek')
+        self.url = reverse('menu_alerjenler', args=['geek'])
+        self.urun = MenuUrun.objects.get(marka=self.geek, kod='avokado-tost')
+
+    def csv(self, kod='geek'):
+        m = MenuMarka.objects.get(kod=kod)
+        return {r['kod']: r for r in csv.DictReader(io.StringIO(csv_uret(m).decode('utf-8')))}
+
+    def post(self, **v):
+        return self.client.post(self.url, v, follow=True)
+
+    def test_sayfa_acilir_ve_sistem_alerjenleri_olusur(self):
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.context['alerjenler']), 11)
+        r = self.client.get(reverse('menu_alerjenler', args=['baga']))
+        self.assertEqual(len(r.context['alerjenler']), 4)
+
+    def test_yeni_alerjen_forma_ve_csvye_gider(self):
+        self.post(islem='ekle', ad='Kereviz', ad_en='Celery')
+        a = self.geek.alerjenler.get(kod='kereviz')
+        self.assertFalse(a.sistem)
+        r = self.client.get(reverse('menu_urun_duzenle', args=['geek', self.urun.id]))
+        self.assertContains(r, 'Kereviz')
+        self.client.post(reverse('menu_urun_duzenle', args=['geek', self.urun.id]), {
+            'kategori': self.urun.kategori_id, 'urun_adi': self.urun.urun_adi, 'fiyat': '245,50',
+            'aktif': 'on', 'ek_alerjenler': ['kereviz']})
+        self.urun.refresh_from_db()
+        self.assertEqual(self.urun.ek_alerjenler, ['kereviz'])
+        satir = self.csv()['avokado-tost']
+        self.assertEqual((satir['ek_alerjenler'], satir['ek_alerjenler_en']), ('Kereviz', 'Celery'))
+
+    def test_ayni_alerjen_iki_kez_eklenmez(self):
+        self.post(islem='ekle', ad='Kereviz')
+        r = self.post(islem='ekle', ad='kereviz')
+        self.assertContains(r, 'zaten listede')
+        r = self.post(islem='ekle', ad='Süt')
+        self.assertContains(r, 'zaten listede')
+
+    def test_sistem_alerjeni_kaldirilinca_formdan_ve_csvden_cikar_geri_alinca_doner(self):
+        self.assertEqual(self.csv()['avokado-tost']['gluten'], 'TRUE')
+        a = self.geek.alerjenler.get(kod='gluten') if self.geek.alerjenler.exists() else None
+        self.client.get(self.url)                                   # satırları oluşturur
+        a = self.geek.alerjenler.get(kod='gluten')
+        self.post(islem='degistir', alerjen_id=a.id)
+        self.assertEqual(self.csv()['avokado-tost']['gluten'], 'FALSE')
+        r = self.client.get(reverse('menu_urun_duzenle', args=['geek', self.urun.id]))
+        self.assertNotIn('gluten', r.context['form'].fields)
+        self.urun.refresh_from_db()
+        self.assertTrue(self.urun.gluten)                           # veri silinmedi
+        self.post(islem='degistir', alerjen_id=a.id)
+        self.assertEqual(self.csv()['avokado-tost']['gluten'], 'TRUE')
+
+    def test_sistem_alerjeni_silinemez_adi_degismez(self):
+        self.client.get(self.url)
+        a = self.geek.alerjenler.get(kod='sut')
+        self.post(islem='sil', alerjen_id=a.id)
+        self.post(islem='kaydet', alerjen_id=a.id, ad='Başka')
+        a.refresh_from_db()
+        self.assertEqual(a.ad, 'Süt')
+
+    def test_ek_alerjen_silinince_urunlerden_temizlenir(self):
+        self.post(islem='ekle', ad='Kereviz')
+        MenuUrun.objects.filter(pk=self.urun.pk).update(ek_alerjenler=['kereviz'])
+        self.post(islem='sil', alerjen_id=self.geek.alerjenler.get(kod='kereviz').id)
+        self.urun.refresh_from_db()
+        self.assertEqual(self.urun.ek_alerjenler, [])
+        self.assertFalse(self.geek.alerjenler.filter(kod='kereviz').exists())
+
+    def test_pasif_ek_alerjen_isareti_korunur(self):
+        self.post(islem='ekle', ad='Kereviz')
+        a = self.geek.alerjenler.get(kod='kereviz')
+        MenuUrun.objects.filter(pk=self.urun.pk).update(ek_alerjenler=['kereviz'])
+        self.post(islem='degistir', alerjen_id=a.id)               # kaldır
+        self.assertEqual(self.csv()['avokado-tost']['ek_alerjenler'], '')
+        self.post(islem='ekle', ad='Lupin')
+        self.client.post(reverse('menu_urun_duzenle', args=['geek', self.urun.id]), {
+            'kategori': self.urun.kategori_id, 'urun_adi': self.urun.urun_adi, 'fiyat': '245,50',
+            'aktif': 'on', 'ek_alerjenler': ['lupin']})
+        self.urun.refresh_from_db()
+        self.assertEqual(sorted(self.urun.ek_alerjenler), ['kereviz', 'lupin'])
+        self.post(islem='degistir', alerjen_id=a.id)               # geri al
+        self.assertEqual(self.csv()['avokado-tost']['ek_alerjenler'], 'Kereviz, Lupin')
+
+    def test_yetkisiz_rol_giremez(self):
+        self.client.force_login(self._kullanici(Rol.SEF, 'sef_x'))
+        self.assertEqual(self.client.get(self.url).status_code, 302)

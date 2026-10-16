@@ -34,11 +34,18 @@ def _sayi(d):
     return format(d.normalize(), 'f')
 
 
-def csv_satirlari(marka):
-    """(sütun_listesi, satır_listesi) — yalnızca aktif ürünler."""
+EK_SUTUNLAR = ['ek_alerjenler', 'ek_alerjenler_en']   # CSV'nin EN SONUNA eklenir (site sütun sırası bozulmaz)
+
+
+def csv_satirlari(marka, ek=False):
+    """(sütun_listesi, satır_listesi) — yalnızca aktif ürünler.
+    ek=True: panelden eklenen alerjenler için iki sütun daha sona eklenir."""
     from .models import MenuUrun
+    from . import menu_alerjen
     sema = MARKALAR[marka.kod]
-    sutunlar = sema['sutunlar']
+    sutunlar = list(sema['sutunlar']) + (EK_SUTUNLAR if ek else [])
+    pasif = menu_alerjen.pasif_sistem(marka)
+    ekler = {a.kod: a for a in menu_alerjen.aktif_ekler(marka)}
     urunler = (MenuUrun.objects.filter(marka=marka, aktif=True)
                .select_related('kategori')
                .order_by('kategori__sira', 'kategori__id', 'sira', 'id'))
@@ -64,14 +71,17 @@ def csv_satirlari(marka):
             'gorsel_link': u.gorsel_url(),
         }
         for a in sema['alerjenler']:
-            veri[a] = _bool(getattr(u, a))
+            veri[a] = _bool(getattr(u, a) and a not in pasif)     # menüden kaldırılan alerjen sitede hep FALSE
+        secili = [ekler[k] for k in (u.ek_alerjenler or []) if k in ekler]
+        veri['ek_alerjenler'] = ', '.join(a.ad for a in secili)
+        veri['ek_alerjenler_en'] = ', '.join((a.ad_en or a.ad) for a in secili)
         satirlar.append([veri.get(c, '') for c in sutunlar])
     return sutunlar, satirlar
 
 
 def csv_uret(marka):
     """CSV içeriğini UTF-8 (BOM'suz) bayt olarak döndürür."""
-    sutunlar, satirlar = csv_satirlari(marka)
+    sutunlar, satirlar = csv_satirlari(marka, ek=True)
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator='\n', quoting=csv.QUOTE_MINIMAL)
     w.writerow(sutunlar)

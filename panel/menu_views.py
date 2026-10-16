@@ -24,7 +24,8 @@ from django.db.models.deletion import ProtectedError
 
 from .menu_sema import ALERJEN_ETIKET, MARKALAR, MENU_YETKILI_ROLLER
 from .menu_yayin import csv_adresi, yayinla
-from .models import MenuKategori, MenuMarka, MenuUrun
+from . import menu_alerjen
+from .models import MenuAlerjen, MenuKategori, MenuMarka, MenuUrun
 from .views import _aktif_personel, _cikis_mi, _logout
 
 
@@ -281,6 +282,8 @@ class MenuUrunForm(forms.ModelForm):
     protein = forms.CharField(required=False, label='Protein (g)')
     foto = forms.ImageField(required=False, label='Fotoğraf')
     foto_kaldir = forms.BooleanField(required=False, label='Fotoğrafı kaldır')
+    ek_alerjenler = forms.MultipleChoiceField(required=False, label='Ek alerjenler',
+                                              widget=forms.CheckboxSelectMultiple)
 
     class Meta:
         model = MenuUrun
@@ -306,9 +309,16 @@ class MenuUrunForm(forms.ModelForm):
         self.fields['protein'].widget.attrs.update({'inputmode': 'decimal', 'autocomplete': 'off'})
         self.fields['foto'].widget.attrs.update({'accept': 'image/*', 'id': 'mn-foto'})
         # Markada olmayan alanları formdan çıkar (Baga: 4 alerjen, içerik alanları; Geek: içerik yok)
+        pasif = menu_alerjen.pasif_sistem(marka)          # panelden menüden kaldırılmış alerjenler de formdan çıkar
         for a in list(ALERJEN_ETIKET):
-            if a not in sema['alerjenler']:
+            if a not in sema['alerjenler'] or a in pasif:
                 self.fields.pop(a, None)
+        ekler = menu_alerjen.aktif_ekler(marka)
+        self.fields['ek_alerjenler'].choices = [(a.kod, a.ad) for a in ekler]
+        if self.instance and self.instance.pk:
+            self.initial['ek_alerjenler'] = list(self.instance.ek_alerjenler or [])
+        if not ekler:
+            self.fields.pop('ek_alerjenler')
         if not sema['icerik']:
             self.fields.pop('icerik', None)
             self.fields.pop('icerik_en', None)
@@ -385,6 +395,11 @@ def menu_urun_form(request, marka_kod, urun_id=None):
             elif form.instance.pk and 'kategori' in form.changed_data:
                 son = MenuUrun.objects.filter(marka=marka, kategori=obj.kategori).aggregate(m=Max('sira'))['m'] or 0
                 obj.sira = son + 10
+            if 'ek_alerjenler' in form.fields:
+                # pasifteki ek alerjenlerin işareti kaybolmasın (geri açılınca dönsün)
+                aktif_kodlar = {a.kod for a in menu_alerjen.aktif_ekler(marka)}
+                korunan = [k for k in (obj.ek_alerjenler or []) if k not in aktif_kodlar]
+                obj.ek_alerjenler = korunan + list(form.cleaned_data.get('ek_alerjenler') or [])
             foto = form.cleaned_data.get('foto')
             eski_ad = ''
             try:
@@ -426,9 +441,71 @@ def menu_urun_form(request, marka_kod, urun_id=None):
 
 
 def _form_ctx(request, personel, marka, sema, urun, form, geri):
-    alerjen_alanlari = [(a, ALERJEN_ETIKET[a], form[a]) for a in sema['alerjenler'] if a in form.fields]
+    adlar = {a.kod: a.ad for a in menu_alerjen.liste(marka)}
+    alerjen_alanlari = [(a, adlar.get(a) or ALERJEN_ETIKET[a], form[a]) for a in sema['alerjenler'] if a in form.fields]
     return _ctx(request, personel, marka, urun=urun, form=form, alerjen_alanlari=alerjen_alanlari,
                 geri_kat=geri, onizleme=urun.gorsel_url() if urun else '')
+
+
+# ------------------------------------------------------------------ alerjenler
+def menu_alerjenler(request, marka_kod):
+    """Markanın alerjen listesi: ekle, adını değiştir, menüden kaldır/geri al, sil."""
+    personel, yanit = _giris(request)
+    if yanit:
+        return yanit
+    marka = _marka_al(marka_kod)
+    menu_alerjen.hazirla(marka)
+    url = request.path
+
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        if islem == 'ekle':
+            ad = (request.POST.get('ad') or '').strip()[:60]
+            ad_en = (request.POST.get('ad_en') or '').strip()[:60]
+            kod = tr_slug(ad)[:40]
+            if not ad or not kod:
+                messages.error(request, 'Alerjen adı boş olamaz.')
+            elif MenuAlerjen.objects.filter(marka=marka).filter(Q(kod=kod) | Q(ad__iexact=ad)).exists():
+                messages.error(request, 'Bu alerjen zaten listede: %s' % ad)
+            else:
+                son = MenuAlerjen.objects.filter(marka=marka).aggregate(m=Max('sira'))['m'] or 0
+                MenuAlerjen.objects.create(marka=marka, kod=kod, ad=ad, ad_en=ad_en, sira=son + 10)
+                _yayinla_ve_bildir(request, marka, 'Alerjen eklendi: %s.' % ad)
+            return redirect(url)
+        a = MenuAlerjen.objects.filter(marka=marka, id=request.POST.get('alerjen_id') or 0).first()
+        if not a:
+            return redirect(url)
+        if islem == 'kaydet' and not a.sistem:
+            ad = (request.POST.get('ad') or '').strip()[:60]
+            if not ad:
+                messages.error(request, 'Alerjen adı boş olamaz.')
+            else:
+                a.ad = ad
+                a.ad_en = (request.POST.get('ad_en') or '').strip()[:60]
+                a.save(update_fields=['ad', 'ad_en'])
+                _yayinla_ve_bildir(request, marka, 'Alerjen kaydedildi.')
+        elif islem == 'degistir':
+            a.aktif = not a.aktif
+            a.save(update_fields=['aktif'])
+            _yayinla_ve_bildir(request, marka, '"%s" %s.' % (a.ad, 'menüde kullanılıyor' if a.aktif else 'menüden kaldırıldı'))
+        elif islem == 'sil' and not a.sistem:
+            for u in MenuUrun.objects.filter(marka=marka):
+                if a.kod in (u.ek_alerjenler or []):
+                    u.ek_alerjenler = [k for k in u.ek_alerjenler if k != a.kod]
+                    u.save(update_fields=['ek_alerjenler'])
+            ad = a.ad
+            a.delete()
+            _yayinla_ve_bildir(request, marka, 'Alerjen silindi: %s.' % ad)
+        return redirect(url)
+
+    urunler = list(MenuUrun.objects.filter(marka=marka))
+    satirlar = menu_alerjen.liste(marka)
+    for a in satirlar:
+        if a.sistem:
+            a.kullanim = sum(1 for u in urunler if getattr(u, a.kod, False))
+        else:
+            a.kullanim = sum(1 for u in urunler if a.kod in (u.ek_alerjenler or []))
+    return render(request, 'menu_alerjenler.html', _ctx(request, personel, marka, alerjenler=satirlar))
 
 
 # ------------------------------------------------------------------ kategoriler

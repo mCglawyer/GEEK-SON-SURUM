@@ -108,5 +108,6 @@ urlpatterns = [
     path('menu-yonetimi/<slug:marka_kod>/urun/yeni/', menu_views.menu_urun_form, name='menu_urun_yeni'),
     path('menu-yonetimi/<slug:marka_kod>/urun/<int:urun_id>/', menu_views.menu_urun_form, name='menu_urun_duzenle'),
     path('menu-yonetimi/<slug:marka_kod>/kategoriler/', menu_views.menu_kategoriler, name='menu_kategoriler'),
+    path('menu-yonetimi/<slug:marka_kod>/alerjenler/', menu_views.menu_alerjenler, name='menu_alerjenler'),
     path('menu-yonetimi/<slug:marka_kod>/yayinla/', menu_views.menu_yayinla_view, name='menu_yayinla'),
 ]

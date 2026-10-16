@@ -1097,6 +1097,28 @@ class MenuKategori(models.Model):
         return "%s / %s" % (self.marka.ad, self.ad)
 
 
+class MenuAlerjen(models.Model):
+    """Markanın alerjen listesi. sistem=True: QR sitesinin CSV'de sütun olarak okuduğu alerjenler
+    (silinemez, yalnızca menüden kaldırılabilir/geri alınabilir). sistem=False: panelden eklenenler
+    (CSV'nin son sütunlarında gider)."""
+    marka = models.ForeignKey(MenuMarka, on_delete=models.CASCADE, related_name='alerjenler')
+    kod = models.SlugField(max_length=40)
+    ad = models.CharField(max_length=60, verbose_name="Ad (TR)")
+    ad_en = models.CharField(max_length=60, blank=True, default='', verbose_name="Ad (EN)")
+    aktif = models.BooleanField(default=True, verbose_name="Menüde kullanılıyor")
+    sistem = models.BooleanField(default=False)
+    sira = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sira', 'id']
+        unique_together = [('marka', 'kod')]
+        verbose_name = "Menü Alerjeni"
+        verbose_name_plural = "Menü Alerjenleri"
+
+    def __str__(self):
+        return "%s / %s" % (self.marka.ad, self.ad)
+
+
 class MenuUrun(models.Model):
     marka = models.ForeignKey(MenuMarka, on_delete=models.CASCADE, related_name='urunler')
     kategori = models.ForeignKey(MenuKategori, on_delete=models.PROTECT, related_name='urunler')
@@ -1123,6 +1145,8 @@ class MenuUrun(models.Model):
     sirke_tursu = models.BooleanField(default=False, verbose_name="Sirke / turşu")
     balik = models.BooleanField(default=False, verbose_name="Balık")
     koruyucu_madde = models.BooleanField(default=False, verbose_name="Koruyucu madde")
+    # Panelden eklenen ek alerjenlerin kodları (MenuAlerjen.kod, sistem=False)
+    ek_alerjenler = models.JSONField(default=list, blank=True, verbose_name="Ek alerjenler")
     vegan = models.BooleanField(default=False, verbose_name="Vegan")
     sube_notu = models.TextField(blank=True, default='', verbose_name="Şube Notu (TR)")
     sube_notu_en = models.TextField(blank=True, default='', verbose_name="Şube Notu (EN)")

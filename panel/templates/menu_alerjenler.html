@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Alerjenler · {{ marka.ad }}{% endblock %}
+{% block body %}
+{% include '_menu_stil.html' %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>{{ marka.ad }} · Alerjenler</h2><span class="plan-aralik">Ürün formunda çıkacak alerjen listesi</span></div>
+    <a class="btn btn-ghost btn-mini" href="{% url 'menu_urunler' marka.kod %}">← Ürünlere dön</a>
+  </div>
+  {% include '_menu_mesajlar.html' %}
+
+  <div class="card">
+    <p class="ea-not" style="margin-top:0">Menüden kaldırdığın alerjen ürün formunda çıkmaz ve QR sitesinde hiçbir üründe gösterilmez; ürünlerdeki işaretler silinmez, geri alınca döner.
+      <b>Rozetli</b> alerjenler QR sitesinin kendi sütunlarıdır (silinemez, yalnızca menüden kaldırılır).
+      Sonradan eklediğin alerjenler CSV'nin sonundaki <code>ek_alerjenler</code> sütununa yazılır; QR sitesinin bunu göstermesi için sitede küçük bir kod eklemesi gerekir.</p>
+    {% for a in alerjenler %}
+    <div class="mn-kat">
+      {% if a.sistem %}
+      <div class="mn-al-ad"><b>{{ a.ad }}</b> <span class="mn-rozet">sitede sütunu var</span>{% if not a.aktif %} <span class="mn-rozet pasif">menüden kaldırıldı</span>{% endif %}</div>
+      <div></div>
+      {% else %}
+      <form id="kaydet-{{ a.id }}" method="post" style="display:none">{% csrf_token %}<input type="hidden" name="islem" value="kaydet"><input type="hidden" name="alerjen_id" value="{{ a.id }}"></form>
+      <input class="input" form="kaydet-{{ a.id }}" name="ad" value="{{ a.ad }}" aria-label="Ad (TR)" placeholder="Ad (TR)">
+      <input class="input" form="kaydet-{{ a.id }}" name="ad_en" value="{{ a.ad_en }}" aria-label="Ad (EN)" placeholder="Ad (EN)">
+      {% endif %}
+      <div class="mn-ok">
+        {% if not a.sistem %}<button type="submit" form="kaydet-{{ a.id }}" class="btn btn-primary btn-mini">Kaydet</button>{% endif %}
+        <form method="post" style="margin:0">{% csrf_token %}<input type="hidden" name="islem" value="degistir"><input type="hidden" name="alerjen_id" value="{{ a.id }}">
+          <button class="btn btn-ghost btn-mini">{% if a.aktif %}Menüden kaldır{% else %}Geri al{% endif %}</button></form>
+        {% if not a.sistem %}
+        <form method="post" style="margin:0" onsubmit="return confirm('“{{ a.ad|escapejs }}” silinsin mi? {{ a.kullanim }} üründeki işareti de kalkar.');">{% csrf_token %}<input type="hidden" name="islem" value="sil"><input type="hidden" name="alerjen_id" value="{{ a.id }}"><button class="btn btn-danger btn-mini">Sil</button></form>
+        {% endif %}
+      </div>
+      <div class="kod">{{ a.kullanim }} üründe işaretli{% if not a.aktif %} · şu an formda ve sitede görünmüyor{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card" style="margin-top:1rem">
+    <h3 style="margin-top:0">Yeni alerjen</h3>
+    <form method="post" class="mn-form-izgara">{% csrf_token %}
+      <input type="hidden" name="islem" value="ekle">
+      <div><label class="mn-lbl">Ad (TR)</label><input class="input" name="ad" required maxlength="60" placeholder="ör. Kereviz"></div>
+      <div><label class="mn-lbl">Ad (EN)</label><input class="input" name="ad_en" maxlength="60" placeholder="ör. Celery"></div>
+      <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary">Ekle</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

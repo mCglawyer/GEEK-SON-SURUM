@@ -747,3 +747,18 @@ html[data-theme="dark"] .tz-kapali-bant { background:var(--surface); }
 .card table{overflow-wrap:normal}
 .card .egitim-bos,.card .an-bos{text-align:center}
 .an-bos{padding:1.2rem 1rem}
+
+/* PDF / Excel açma: önizleme, bekleme, bildirim */
+.dosya-bekle{opacity:.6;pointer-events:none}
+.dosya-acik{overflow:hidden}
+.dosya-onizleme{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;background:var(--bg,#fff)}
+.dosya-bar{display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;border-bottom:1px solid var(--line,#ddd);background:var(--surface,#fff);padding-top:max(.6rem,env(safe-area-inset-top))}
+.dosya-ad{flex:1;min-width:0;text-align:center;font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dosya-onizleme iframe{flex:1;width:100%;border:0;background:#fff}
+.dosya-toast{position:fixed;left:50%;bottom:5.5rem;transform:translateX(-50%);z-index:9999;max-width:90vw;padding:.6rem 1rem;border-radius:999px;background:#162AA3;color:#fff;font-size:.9rem;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:opacity .4s}
+.dosya-toast.git{opacity:0}
+
+/* Menü alerjenleri */
+.mn-al-ad{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.mn-rozet{display:inline-block;padding:.1rem .5rem;border-radius:999px;background:rgba(59,130,246,.15);font-size:.75rem}
+.mn-rozet.pasif{background:rgba(220,38,38,.14)}

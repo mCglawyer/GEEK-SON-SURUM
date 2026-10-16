@@ -64,6 +64,7 @@
       {% for ad, etiket, alan in alerjen_alanlari %}
       <label class="mn-chip">{{ alan }}<span>{{ etiket }}</span></label>
       {% endfor %}
+      {% if form.ek_alerjenler %}{% for c in form.ek_alerjenler %}<label class="mn-chip">{{ c.tag }}<span>{{ c.choice_label }}</span></label>{% endfor %}{% endif %}
       <label class="mn-chip vegan">{{ form.vegan }}<span>🌱 Vegan</span></label>
     </div>
 
