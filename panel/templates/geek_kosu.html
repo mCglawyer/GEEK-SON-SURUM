@@ -10,8 +10,8 @@
 
   <div class="card kosu-hero">
     <div class="kosu-hero-metin">
-      <h3>Tam ekran, 3 şeritli koşu</h3>
-      <p>Sen bir <b>g</b> harfisin. Şerit değiştir, zıpla, kay; kahve çekirdeklerini topla, Espresso ile engelleri kır. Haftanın en iyileri Geek Crew'de yayınlanır.</p>
+      <h3>Tam ekran, 3 boyutlu, 3 şeritli koşu</h3>
+      <p>Geek tişörtlü baristayı koştur. Şerit değiştir, zıpla, kay; kahve çekirdeklerini topla, Espresso ile engelleri kır. Her 1000 metrede hız bir kademe artar. Haftanın en iyileri Geek Crew'de yayınlanır.</p>
       <p class="kosu-ipucu">Klavye: ← → şerit · ↑ / Boşluk zıpla · ↓ kay · P duraklat. Telefonda: kaydır ve dokun.</p>
       <p>Kişisel en iyin: <b>{{ benim_en }}</b></p>
       <button type="button" class="btn" data-kosu-ac>Tam ekranda oyna</button>
@@ -30,7 +30,8 @@
   <div class="kosu-hud">
     <div class="kh-sol">
       <div class="kh-skor" id="kh-skor">0</div>
-      <div class="kh-alt"><span class="kh-cek" aria-hidden="true"></span><b id="kh-cekirdek">0</b><span class="kh-hiz" id="kh-hiz">x1.0</span></div>
+      <div class="kh-alt"><span class="kh-cek" aria-hidden="true"></span><b id="kh-cekirdek">0</b><span class="kh-hiz" id="kh-mesafe">0 m</span></div>
+      <div class="kh-sev"><span id="kh-sev">Seviye 1</span><div class="kh-sev-iz"><div id="kh-sev-bar"></div></div></div>
       <div class="kh-guc-kap" hidden><span>Espresso</span><div class="kh-guc-iz"><div id="kh-guc-bar"></div></div></div>
     </div>
     <div class="kh-sag">
@@ -40,12 +41,15 @@
       <button type="button" class="kh-btn kh-kapat" data-kosu-kapat aria-label="Oyundan çık">Çık</button>
     </div>
     <div class="kh-mesaj" id="kh-mesaj" role="status" aria-live="polite"></div>
+    <div class="kh-geri" id="kh-geri" aria-live="assertive"></div>
   </div>
+  <div class="kosu-vinyet" aria-hidden="true"></div>
+  <div class="kosu-flas" id="kosu-flas" aria-hidden="true"></div>
 
   <div class="kosu-panel" id="kosu-menu" hidden>
     <div class="kosu-kutu">
       <h2>Geek Koşusu</h2>
-      <p>Bir <b>g</b> harfi olarak kahveci sokağında koş. Engellerden zıpla, pankartların altından kay, çekirdekleri topla.</p>
+      <p>Geek tişörtlü barista olarak kahveci sokağında koş. Engellerden zıpla, pankartların altından kay, çekirdekleri topla. Her 1000 metrede hız artar.</p>
       <ul class="kosu-kontrol">
         <li><kbd>←</kbd><kbd>→</kbd> şerit değiştir</li>
         <li><kbd>↑</kbd> / <kbd>Boşluk</kbd> zıpla (havada bir kez daha)</li>
@@ -78,5 +82,5 @@
   </div>
 </div>
 <script src="{% static 'js/vendor/three.min.js' %}" defer></script>
-<script src="{% static 'js/geekkosu.js' %}?v=2" defer></script>
+<script src="{% static 'js/geekkosu.js' %}?v=3" defer></script>
 {% endblock %}
