@@ -33,6 +33,75 @@
     <div class="radyo-not" id="radyo-not" hidden></div>
   </section>
 
+  {% if anketler or anket_yonetebilir %}
+  <section class="anket-bolum" id="anketler">
+    {% for k in anketler %}
+    <article class="card anket{% if not k.a.aktif %} kapali{% endif %}">
+      <div class="anket-ust">
+        <span class="anket-et">📊 Anket{% if not k.a.aktif %} · kapandı{% endif %}</span>
+        <span class="ea-not">{{ k.tarih|date:"d.m.Y" }} · {{ k.toplam }} oy</span>
+      </div>
+      <h3 class="anket-soru">{{ k.a.soru }}</h3>
+      {% if k.a.aktif and not k.oy_verdi %}
+      <form method="post" class="anket-oy-form">
+        {% csrf_token %}<input type="hidden" name="islem" value="anket_oy"><input type="hidden" name="anket_id" value="{{ k.a.id }}">
+        {% for x in k.secenekler %}
+        <button type="submit" name="secenek_id" value="{{ x.id }}" class="anket-secenek-btn">{{ x.metin }}</button>
+        {% endfor %}
+      </form>
+      <p class="ea-not anket-not">Oyunu verince sonuçlar da görünür kalır; herkes sonuçları görür.</p>
+      {% endif %}
+      <div class="anket-sonuc">
+        {% for x in k.secenekler %}
+        <div class="anket-satir{% if x.benim %} benim{% endif %}{% if x.lider %} lider{% endif %}">
+          <div class="anket-satir-ust"><span>{{ x.metin }}{% if x.benim %} <i title="Senin oyun">✓</i>{% endif %}</span><b>%{{ x.yuzde }} <small>({{ x.oy }})</small></b></div>
+          <div class="anket-cubuk"><span style="width:{{ x.yuzde }}%"></span></div>
+        </div>
+        {% endfor %}
+      </div>
+      {% if anket_yonetebilir %}
+      <div class="anket-yonet">
+        <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="anket_kapat"><input type="hidden" name="anket_id" value="{{ k.a.id }}"><button class="btn btn-ghost btn-mini">{% if k.a.aktif %}Anketi kapat{% else %}Tekrar aç{% endif %}</button></form>
+        <form method="post" onsubmit="return confirm('Anket ve tüm oylar silinsin mi?');">{% csrf_token %}<input type="hidden" name="islem" value="anket_sil"><input type="hidden" name="anket_id" value="{{ k.a.id }}"><button class="btn btn-danger btn-mini">Sil</button></form>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+
+    {% if anket_yonetebilir %}
+    <details class="card anket-yeni">
+      <summary>+ Yeni anket paylaş</summary>
+      <form method="post" class="anket-form">
+        {% csrf_token %}<input type="hidden" name="islem" value="anket_ekle">
+        <input class="input" name="soru" maxlength="250" placeholder="Anket sorusu" required>
+        <div id="anket-secenekler">
+          <input class="input" name="secenek" maxlength="120" placeholder="Seçenek 1" required>
+          <input class="input" name="secenek" maxlength="120" placeholder="Seçenek 2" required>
+        </div>
+        <div class="anket-form-alt">
+          <button type="button" class="btn btn-ghost btn-mini" id="anket-secenek-ekle">+ Seçenek ekle</button>
+          <button class="btn btn-primary btn-mini">Anketi paylaş</button>
+        </div>
+      </form>
+    </details>
+    <script>
+    (function () {
+      var b = document.getElementById('anket-secenek-ekle'), kap = document.getElementById('anket-secenekler');
+      if (!b) return;
+      b.addEventListener('click', function () {
+        var n = kap.querySelectorAll('input').length;
+        if (n >= 8) { b.disabled = true; return; }
+        var i = document.createElement('input');
+        i.className = 'input'; i.name = 'secenek'; i.maxLength = 120; i.placeholder = 'Seçenek ' + (n + 1);
+        kap.appendChild(i); i.focus();
+        if (n + 1 >= 8) b.disabled = true;
+      });
+    })();
+    </script>
+    {% endif %}
+  </section>
+  {% endif %}
+
   {% if haberler %}
   <div class="gs-led-panel">
     <div class="gs-led-track">

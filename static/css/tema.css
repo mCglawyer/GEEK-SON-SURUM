@@ -791,3 +791,41 @@ html[data-theme="dark"] .tz-kapali-bant { background:var(--surface); }
 .vgrid tbody tr:nth-child(even) th.sticky,
 .vgrid tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--ink) 4%,var(--surface))}
 .stok-kaydet{background:linear-gradient(0deg,var(--surface) 70%,transparent)}
+
+/* [hidden] her zaman gizler: sınıfla verilen display (flex vb.) hidden'ı eziyordu
+   (şube denetimi kamera penceresi hep açık kalıyor, mesai/mola "Durdur" düğmesi hep görünüyordu) */
+[hidden]{display:none !important}
+
+/* Değerlendirmeler: silme */
+.dg-toplu-bar{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin:0 0 .8rem;padding:.6rem .9rem;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.dg-hepsi{display:flex;align-items:center;gap:.4rem;font-size:.88rem}
+.dg-kart-goruntu .esi-ust{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.dg-sil-form{margin:0 0 0 auto}
+.qr-google{display:flex;flex-direction:column;gap:.35rem;margin:.6rem 0;text-align:left}
+.qr-google-et{font-size:.75rem;font-weight:600}
+.qr-google-yok{font-size:.72rem;color:var(--muted)}
+
+/* Geek Crew anketleri */
+.anket-bolum{display:grid;gap:1rem;margin:0 0 1rem}
+.anket{padding:1.1rem 1.1rem 1rem}
+.anket-ust{display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap}
+.anket-et{font-size:.8rem;font-weight:700;color:var(--brand)}
+.anket-soru{margin:.5rem 0 .9rem;font-size:1.05rem;line-height:1.35}
+.anket-oy-form{display:grid;gap:.5rem;margin-bottom:.4rem}
+.anket-secenek-btn{width:100%;text-align:center;padding:.75rem 1rem;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font:600 .92rem inherit;font-family:inherit;cursor:pointer}
+.anket-secenek-btn:hover{border-color:var(--brand);color:var(--brand)}
+.anket-not{text-align:center;margin:.2rem 0 .9rem}
+.anket-sonuc{display:grid;gap:.7rem}
+.anket-satir-ust{display:flex;justify-content:space-between;gap:.6rem;font-size:.9rem;margin-bottom:.25rem}
+.anket-satir-ust small{font-weight:400;color:var(--muted)}
+.anket-satir-ust i{font-style:normal;color:var(--brand)}
+.anket-cubuk{height:10px;border-radius:999px;background:color-mix(in srgb,var(--ink) 8%,var(--surface));overflow:hidden}
+.anket-cubuk span{display:block;height:100%;border-radius:999px;background:color-mix(in srgb,var(--brand) 45%,var(--surface));transition:width .5s}
+.anket-satir.lider .anket-cubuk span,.anket-satir.benim .anket-cubuk span{background:var(--brand)}
+.anket.kapali{opacity:.85}
+.anket-yonet{display:flex;gap:.5rem;justify-content:flex-end;margin-top:.9rem}
+.anket-yonet form{margin:0}
+.anket-yeni summary{cursor:pointer;font-weight:700;color:var(--brand)}
+.anket-form{display:grid;gap:.5rem;margin-top:.8rem}
+#anket-secenekler{display:grid;gap:.5rem}
+.anket-form-alt{display:flex;justify-content:space-between;gap:.6rem}

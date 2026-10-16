@@ -27,7 +27,7 @@ from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Ka
                      SevkiyatTalep, SevkiyatKalem, SevkiyatBirim, SevkiyatDurumu,
                      SevkiyatForm, Urun, SiparisHareket,
                      KahveSoru, GunlukSoru, SoruAyar, Bildirim, Duyuru,
-                     GSosyalGonderi, GSosyalTepki, GSosyalGorsel, IlginHaber,
+                     GSosyalGonderi, GSosyalTepki, GSosyalGorsel, IlginHaber, Anket, AnketSecenek, AnketOy,
                      GeriBildirim, GeriBildirimKategori, GeriBildirimDurum,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap, PushAbonelik, EgitimFavori,
                      MolaQRAyar, SubeMolaToken, MolaOturum,
@@ -4174,6 +4174,44 @@ def g_sosyal(request):
             messages.error(request, "Bir şeyler yazın ya da görsel ekleyin.")
         return redirect('g_sosyal')
 
+    anket_yonetebilir = personel.rol == Rol.OPERATOR
+    if request.method == 'POST' and (request.POST.get('islem') or '').startswith('anket_'):
+        islem = request.POST.get('islem')
+        if islem == 'anket_oy':
+            a = Anket.objects.filter(id=request.POST.get('anket_id'), aktif=True).first()
+            sec = a.secenekler.filter(id=request.POST.get('secenek_id')).first() if a else None
+            if not sec:
+                messages.error(request, "Oy verilemedi (anket kapanmış olabilir).")
+            elif AnketOy.objects.filter(anket=a, personel=personel).exists():
+                messages.error(request, "Bu ankete zaten oy verdin.")
+            else:
+                AnketOy.objects.create(anket=a, secenek=sec, personel=personel)
+                messages.success(request, "Oyun kaydedildi.")
+        elif anket_yonetebilir:
+            if islem == 'anket_ekle':
+                soru = (request.POST.get('soru') or '').strip()[:250]
+                secenekler = [x.strip()[:120] for x in request.POST.getlist('secenek') if x.strip()]
+                secenekler = list(dict.fromkeys(secenekler))[:8]
+                if not soru or len(secenekler) < 2:
+                    messages.error(request, "Anket için bir soru ve en az iki farklı seçenek gerekli.")
+                else:
+                    a = Anket.objects.create(soru=soru, olusturan=personel)
+                    for i, m in enumerate(secenekler):
+                        AnketSecenek.objects.create(anket=a, metin=m, sira=i)
+                    _bildir(list(Personel.objects.exclude(id=personel.id)),
+                            "Geek Crew'de yeni anket: %s" % soru, '/g-sosyal/', 'gsosyal')
+                    messages.success(request, "Anket paylaşıldı.")
+            else:
+                a = Anket.objects.filter(id=request.POST.get('anket_id')).first()
+                if a and islem == 'anket_kapat':
+                    a.aktif = not a.aktif
+                    a.save(update_fields=['aktif'])
+                    messages.success(request, "Anket %s." % ('tekrar açıldı' if a.aktif else 'kapatıldı'))
+                elif a and islem == 'anket_sil':
+                    a.delete()
+                    messages.success(request, "Anket silindi.")
+        return redirect('g_sosyal')
+
     if request.method == 'POST' and request.POST.get('islem') == 'gonderi_sil':
         g = GSosyalGonderi.objects.filter(id=request.POST.get('gonderi_id')).first()
         if g and (g.yazan_id == personel.id or personel.rol in UST_YONETIM):
@@ -4202,6 +4240,21 @@ def g_sosyal(request):
         g.tepki_verenler = verenler
         g.silebilir = (g.yazan_id == personel.id) or (personel.rol in UST_YONETIM)
 
+    anketler = []
+    for a in Anket.objects.prefetch_related('secenekler__oylar', 'oylar')[:10]:
+        toplam = a.oylar.count()
+        benim = next((o.secenek_id for o in a.oylar.all() if o.personel_id == personel.id), None)
+        sec = []
+        for x in a.secenekler.all():
+            n = x.oylar.count()
+            sec.append({'id': x.id, 'metin': x.metin, 'oy': n,
+                        'yuzde': round(n * 100 / toplam) if toplam else 0, 'benim': x.id == benim})
+        en_cok = max((x['oy'] for x in sec), default=0)
+        for x in sec:
+            x['lider'] = bool(toplam) and x['oy'] == en_cok
+        anketler.append({'a': a, 'secenekler': sec, 'toplam': toplam, 'oy_verdi': benim is not None,
+                         'tarih': timezone.localtime(a.olusturma)})
+
     sampiyonlar, sampiyon_sube = _egitim_sampiyon_verisi()
     haberler = list(IlginHaber.objects.filter(onaylandi=True).order_by('-onay_tarihi')[:20])
     return render(request, 'g_sosyal.html', {
@@ -4215,6 +4268,7 @@ def g_sosyal(request):
         'egitim_soru_sayisi': _egitim_ayar_getir().soru_sayisi,
         'haberler': haberler,
         'haber_yonetebilir': personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR),
+        'anketler': anketler, 'anket_yonetebilir': anket_yonetebilir,
     })
 
 
@@ -5402,6 +5456,18 @@ def degerlendirme_qr_yonetim(request):
             _sube_degerlendirme_token(sb)
             messages.success(request, "%s için yeni QR üretildi (eski QR artık çalışmaz)." % sb.ad)
         return redirect('degerlendirme_qr_yonetim')
+    if request.method == 'POST' and request.POST.get('islem') == 'google_kaydet':
+        sb = Sube.objects.filter(id=request.POST.get('sube_id')).first()
+        url = (request.POST.get('google_yorum_url') or '').strip()
+        if not sb:
+            pass
+        elif url and not url.lower().startswith('https://'):
+            messages.error(request, "Google yorum bağlantısı https:// ile başlamalı.")
+        else:
+            sb.google_yorum_url = url[:500]
+            sb.save(update_fields=['google_yorum_url'])
+            messages.success(request, "%s için Google yorum bağlantısı %s." % (sb.ad, 'kaydedildi' if url else 'kaldırıldı'))
+        return redirect('degerlendirme_qr_yonetim')
     veriler = []
     for s in Sube.objects.filter(depo_mu=False).order_by('ad'):
         tok = _sube_degerlendirme_token(s)
@@ -5411,17 +5477,21 @@ def degerlendirme_qr_yonetim(request):
     })
 
 
+GOOGLE_YONLENDIRME_ESIGI = 8      # bu puan ve üstü → Google yorum sayfası
+
+
 def musteri_degerlendirme(request, token):
     """Müşteriye açık, giriş gerektirmeyen değerlendirme formu."""
     tok = SubeDegerlendirmeToken.objects.filter(token=token).select_related('sube').first()
     if tok is None:
         return render(request, 'musteri_degerlendirme.html', {'gecersiz': True})
     if request.method == 'POST':
-        raw_puan = (request.POST.get('puan') or '0').strip()
+        raw_puan = (request.POST.get('puan') or '').strip()
         try:
             puan = max(0, min(10, int(raw_puan)))
         except ValueError:
-            puan = 0
+            return render(request, 'musteri_degerlendirme.html', {
+                'sube': tok.sube, 'puan_hata': True, 'eski': request.POST})
         MusteriDegerlendirme.objects.create(
             sube=tok.sube,
             uc_kelime=(request.POST.get('uc_kelime') or '').strip()[:200],
@@ -5435,7 +5505,10 @@ def musteri_degerlendirme(request, token):
             tekrar=(request.POST.get('tekrar') or '').strip()[:300],
             puan=puan,
         )
-        return render(request, 'musteri_degerlendirme.html', {'sube': tok.sube, 'tesekkur': True})
+        # 8 ve üzeri puan verenler (şubenin Google bağlantısı varsa) Google yorum sayfasına yönlendirilir;
+        # daha düşük puanlar yalnızca uygulamada kalır.
+        google = tok.sube.google_yorum_url if (puan >= GOOGLE_YONLENDIRME_ESIGI and tok.sube.google_yorum_url) else ''
+        return render(request, 'musteri_degerlendirme.html', {'sube': tok.sube, 'tesekkur': True, 'google_url': google})
     return render(request, 'musteri_degerlendirme.html', {'sube': tok.sube})
 
 
@@ -5449,11 +5522,29 @@ def degerlendirmeler(request):
     personel = _aktif_personel(request)
     if personel is None or personel.rol not in DEGERLENDIRME_GORUNTULEME_ROLLER:
         return redirect('ana_sayfa')
+    silebilir = personel.rol in DEGERLENDIRME_QR_YETKI          # Genel Müdür / Operatör
     sel_id = request.GET.get('sube')
     try:
         sel_id = int(sel_id) if sel_id else None
     except (TypeError, ValueError):
         sel_id = None
+    if request.method == 'POST':
+        if not silebilir:
+            messages.error(request, "Değerlendirme silme yetkin yok.")
+        else:
+            islem = request.POST.get('islem')
+            ids = []
+            if islem == 'sil':
+                ids = [request.POST.get('id')]
+            elif islem == 'sil_secili':
+                ids = request.POST.getlist('secili')
+            ids = [int(i) for i in ids if str(i or '').isdigit()]
+            if ids:
+                n, _ = MusteriDegerlendirme.objects.filter(id__in=ids).delete()
+                messages.success(request, "%d değerlendirme silindi." % n)
+            elif islem == 'sil_secili':
+                messages.error(request, "Silmek için en az bir değerlendirme seç.")
+        return redirect(request.get_full_path())
     qs = MusteriDegerlendirme.objects.select_related('sube')
     if sel_id:
         qs = qs.filter(sube_id=sel_id)
@@ -5466,6 +5557,7 @@ def degerlendirmeler(request):
         'degerlendirmeler': degerlendirmeler_listesi,
         'subeler': list(Sube.objects.filter(depo_mu=False).order_by('ad')),
         'sel_id': sel_id, 'ortalama': ortalama, 'toplam': len(degerlendirmeler_listesi),
+        'silebilir': silebilir,
     })
 
 

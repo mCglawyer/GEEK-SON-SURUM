@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import (Bildirim, Kalibrasyon, KalibrasyonKontrol, LavaboDenetim, MesaiKayit, OnayDurumu, OturumKaydi,
+from .models import (Anket, AnketOy, Bildirim, Kalibrasyon, KalibrasyonKontrol, LavaboDenetim, MesaiKayit, OnayDurumu, OturumKaydi,
                      Rol, Sube, Vardiya)
 from .tests_mola_stok import _AYAR, kisi
 
@@ -220,3 +220,117 @@ class RadyoTestleri(TestCase):
         self.assertContains(r, 'js/radyo.js')
         self.assertNotContains(r, 'Geek Playlist')
         self.assertNotContains(r, 'music.youtube.com')
+
+
+@override_settings(**_AYAR)
+class DegerlendirmeVeAnketTestleri(TestCase):
+    def setUp(self):
+        from .models import MusteriDegerlendirme, SubeDegerlendirmeToken
+        self.sube = Sube.objects.create(ad='Merkez')
+        self.tok = SubeDegerlendirmeToken.objects.create(sube=self.sube, token='tok-abc')
+        self.url = reverse('musteri_degerlendirme', args=['tok-abc'])
+        self.gm = kisi(Rol.GENEL_MUDUR, None, 'GM')
+        self.op = kisi(Rol.OPERATOR, None, 'Op')
+        self.yat = kisi(Rol.YATIRIMCI, None, 'Yat')
+        self.pers = kisi(Rol.PERSONEL, self.sube, 'Personel')
+        self.MD = MusteriDegerlendirme
+
+    # --- müşteri formu ve Google yönlendirmesi
+    def test_puan_secilmeden_gonderilmez(self):
+        r = self.client.post(self.url, {'uc_kelime': 'güzel'})
+        self.assertContains(r, 'bir puan seç')
+        self.assertEqual(self.MD.objects.count(), 0)
+
+    def test_8_ve_uzeri_google_baglantisi_varsa_yonlendirilir(self):
+        self.sube.google_yorum_url = 'https://g.page/r/ABC/review'
+        self.sube.save()
+        for puan in (8, 9, 10):
+            r = self.client.post(self.url, {'puan': str(puan)})
+            self.assertContains(r, 'https://g.page/r/ABC/review')
+            self.assertContains(r, 'Google')
+
+    def test_8_alti_uygulamada_kalir(self):
+        self.sube.google_yorum_url = 'https://g.page/r/ABC/review'
+        self.sube.save()
+        for puan in (0, 5, 7):
+            r = self.client.post(self.url, {'puan': str(puan)})
+            self.assertNotContains(r, 'g.page')
+            self.assertContains(r, 'Teşekkür')
+        self.assertEqual(self.MD.objects.count(), 3)          # yine de kaydedilir
+
+    def test_yuksek_puan_ama_baglanti_yoksa_yonlenmez(self):
+        r = self.client.post(self.url, {'puan': '10'})
+        self.assertNotContains(r, 'Google')
+        self.assertEqual(self.MD.objects.count(), 1)
+
+    def test_google_baglantisi_kaydedilir_yalniz_https(self):
+        self.client.force_login(self.gm.user)
+        self.client.post(reverse('degerlendirme_qr_yonetim'), {
+            'islem': 'google_kaydet', 'sube_id': self.sube.id, 'google_yorum_url': 'http://x.com'})
+        self.sube.refresh_from_db(); self.assertEqual(self.sube.google_yorum_url, '')
+        self.client.post(reverse('degerlendirme_qr_yonetim'), {
+            'islem': 'google_kaydet', 'sube_id': self.sube.id, 'google_yorum_url': 'https://g.page/r/ABC/review'})
+        self.sube.refresh_from_db(); self.assertEqual(self.sube.google_yorum_url, 'https://g.page/r/ABC/review')
+
+    # --- değerlendirme silme
+    def test_silme_yetkisi_ve_toplu_silme(self):
+        a = self.MD.objects.create(sube=self.sube, puan=3)
+        b = self.MD.objects.create(sube=self.sube, puan=9)
+        c = self.MD.objects.create(sube=self.sube, puan=7)
+        self.client.force_login(self.yat.user)                       # yatırımcı görür ama silemez
+        self.client.post(reverse('degerlendirmeler'), {'islem': 'sil', 'id': a.id})
+        self.assertEqual(self.MD.objects.count(), 3)
+        self.client.force_login(self.gm.user)
+        r = self.client.post(reverse('degerlendirmeler'), {'islem': 'sil', 'id': a.id}, follow=True)
+        self.assertContains(r, '1 değerlendirme silindi')
+        self.client.post(reverse('degerlendirmeler'), {'islem': 'sil_secili', 'secili': [b.id, c.id]})
+        self.assertEqual(self.MD.objects.count(), 0)
+
+    # --- anket
+    def test_yalniz_operator_anket_paylasir(self):
+        veri = {'islem': 'anket_ekle', 'soru': 'Yeni menü?', 'secenek': ['Evet', 'Hayır']}
+        for k in (self.gm, self.pers, self.yat):
+            self.client.force_login(k.user)
+            self.client.post(reverse('g_sosyal'), veri)
+        self.assertEqual(Anket.objects.count(), 0)
+        self.client.force_login(self.op.user)
+        self.client.post(reverse('g_sosyal'), veri)
+        self.assertEqual(Anket.objects.count(), 1)
+        self.assertEqual(Anket.objects.get().secenekler.count(), 2)
+        self.assertTrue(Bildirim.objects.filter(alici=self.pers, mesaj__contains='anket').exists())
+
+    def test_anket_en_az_iki_secenek(self):
+        self.client.force_login(self.op.user)
+        self.client.post(reverse('g_sosyal'), {'islem': 'anket_ekle', 'soru': 'x', 'secenek': ['Tek', '']})
+        self.assertEqual(Anket.objects.count(), 0)
+
+    def test_oy_bir_kez_sonuclari_herkes_gorur_kapaliyken_oy_yok(self):
+        self.client.force_login(self.op.user)
+        self.client.post(reverse('g_sosyal'), {'islem': 'anket_ekle', 'soru': 'Yeni menü?', 'secenek': ['Evet', 'Hayır']})
+        a = Anket.objects.get()
+        evet, hayir = list(a.secenekler.all())
+        self.client.force_login(self.pers.user)
+        self.client.post(reverse('g_sosyal'), {'islem': 'anket_oy', 'anket_id': a.id, 'secenek_id': evet.id})
+        self.client.post(reverse('g_sosyal'), {'islem': 'anket_oy', 'anket_id': a.id, 'secenek_id': hayir.id})   # ikinci oy
+        self.assertEqual(AnketOy.objects.count(), 1)
+        self.client.force_login(self.gm.user)
+        self.client.post(reverse('g_sosyal'), {'islem': 'anket_oy', 'anket_id': a.id, 'secenek_id': hayir.id})
+        r = self.client.get(reverse('g_sosyal'))
+        k = r.context['anketler'][0]
+        self.assertEqual((k['toplam'], k['secenekler'][0]['yuzde'], k['secenekler'][1]['yuzde']), (2, 50, 50))
+        self.assertContains(r, '%50')
+        # başkası anketi kapatamaz, operatör kapatır; kapalı ankete oy verilemez
+        self.client.post(reverse('g_sosyal'), {'islem': 'anket_kapat', 'anket_id': a.id})
+        a.refresh_from_db(); self.assertTrue(a.aktif)
+        self.client.force_login(self.op.user)
+        self.client.post(reverse('g_sosyal'), {'islem': 'anket_kapat', 'anket_id': a.id})
+        a.refresh_from_db(); self.assertFalse(a.aktif)
+        self.client.post(reverse('g_sosyal'), {'islem': 'anket_oy', 'anket_id': a.id, 'secenek_id': evet.id})
+        self.assertEqual(AnketOy.objects.count(), 2)
+
+    def test_sayfa_gizli_ogeleri_gostermez(self):
+        """[hidden] her zaman gizler (şube denetimi kamera penceresi hata kaydı)."""
+        import os
+        from django.conf import settings
+        css = open(os.path.join(settings.BASE_DIR, 'static/css/tema.css'), encoding='utf-8').read()
+        self.assertIn('[hidden]{display:none !important}', css)

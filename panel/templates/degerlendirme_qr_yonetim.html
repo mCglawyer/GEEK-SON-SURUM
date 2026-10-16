@@ -19,6 +19,13 @@
       <div class="qr-sube">{{ v.sube.ad }}</div>
       <div class="qr-kod" data-url="{{ v.url }}"></div>
       <div class="qr-url no-print">{{ v.url }}</div>
+      <form method="post" class="qr-google no-print">
+        {% csrf_token %}<input type="hidden" name="islem" value="google_kaydet"><input type="hidden" name="sube_id" value="{{ v.sube.id }}">
+        <label class="qr-google-et">Google yorum bağlantısı <span class="ea-not">(8+ puan verenler buraya yönlenir)</span></label>
+        <input type="url" name="google_yorum_url" class="input" value="{{ v.sube.google_yorum_url }}" placeholder="https://g.page/r/…/review" maxlength="500">
+        <button class="btn btn-ghost btn-mini">Kaydet</button>
+        {% if not v.sube.google_yorum_url %}<span class="qr-google-yok">Bağlantı yok: yönlendirme yapılmaz</span>{% endif %}
+      </form>
       <form method="post" class="qr-yenile no-print" onsubmit="return confirm('Bu şubenin QR kodu yenilensin mi? Eski QR geçersiz olur, yeniden yazdırman gerekir.');">
         {% csrf_token %}<input type="hidden" name="islem" value="token_yenile"><input type="hidden" name="sube_id" value="{{ v.sube.id }}">
         <button class="btn btn-ghost btn-mini">QR'ı Yenile</button>

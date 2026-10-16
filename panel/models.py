@@ -46,6 +46,9 @@ class Sube(models.Model):
     mutfak_var = models.BooleanField(
         default=False, verbose_name="Mutfağı var",
         help_text="İşaretliyse bu şubede mutfak zayi kaydı tutulur ve mutfak zayi sayfası bu şube için açılır.")
+    google_yorum_url = models.URLField(
+        max_length=500, blank=True, default='', verbose_name="Google yorum bağlantısı",
+        help_text="Müşteri değerlendirmesinde 8 ve üzeri puan verenler bu adrese yönlendirilir.")
 
     class Meta:
         verbose_name = "Şube"; verbose_name_plural = "Şubeler"; ordering = ['ad']
@@ -1419,3 +1422,41 @@ class OturumKaydi(models.Model):
 
     def __str__(self):
         return f"{self.personel} · {self.an:%d.%m.%Y %H:%M} · {self.tur}"
+
+
+class Anket(models.Model):
+    """Geek Crew sayfasında operatörün paylaştığı anket. Herkes oy verir, sonuçları herkes görür."""
+    soru = models.CharField(max_length=250, verbose_name="Soru")
+    olusturan = models.ForeignKey('Personel', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    olusturma = models.DateTimeField(auto_now_add=True)
+    aktif = models.BooleanField(default=True, verbose_name="Oy verilebilir")
+
+    class Meta:
+        ordering = ['-olusturma']
+        verbose_name = "Anket"
+        verbose_name_plural = "Anketler"
+
+    def __str__(self):
+        return self.soru[:60]
+
+
+class AnketSecenek(models.Model):
+    anket = models.ForeignKey(Anket, on_delete=models.CASCADE, related_name='secenekler')
+    metin = models.CharField(max_length=120)
+    sira = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sira', 'id']
+
+    def __str__(self):
+        return self.metin
+
+
+class AnketOy(models.Model):
+    anket = models.ForeignKey(Anket, on_delete=models.CASCADE, related_name='oylar')
+    secenek = models.ForeignKey(AnketSecenek, on_delete=models.CASCADE, related_name='oylar')
+    personel = models.ForeignKey('Personel', on_delete=models.CASCADE, related_name='+')
+    zaman = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['anket', 'personel'], name='anket_oy_tekil')]
