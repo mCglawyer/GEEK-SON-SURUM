@@ -55,6 +55,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'panel.middleware.EgitimKapiMiddleware',
+    'panel.middleware.RadyoKabukMiddleware',
     'panel.oturum.OturumIzlemeMiddleware',
 ]
 
@@ -180,6 +181,16 @@ else:
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 8 * 1024 * 1024
 
+# Panel sayfaları, kalıcı Geek Radio kabuğunun (aynı alan adındaki iframe) içinde açılabilsin.
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+# Kalıcı radyo kabuğu: 0/false yapılırsa panel eskisi gibi doğrudan (kabuksuz) açılır.
+GEEK_KABUK = env_bool('GEEK_KABUK', default=True)
+GEEK_RADYO = {
+    'api': os.environ.get('GEEK_RADYO_API', 'https://radio.geekpanel.net/api/nowplaying/geekradio'),
+    'yedek': os.environ.get('GEEK_RADYO_YEDEK', 'https://radio.geekpanel.net/listen/geekradio/radio.mp3'),
+    'sayfa': os.environ.get('GEEK_RADYO_SAYFA', 'https://radio.geekpanel.net/public/geekradio'),
+}
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 if not DEBUG:
@@ -187,7 +198,6 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 EMAIL_HOST = os.environ.get('EMAIL_HOST', '')

@@ -893,3 +893,47 @@ html.kosu-acik,html.kosu-acik body{overflow:hidden;overscroll-behavior:none}
 .kosu-bos{color:var(--muted);margin:.6rem 0 0}
 .kosu-kart{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
 .kosu-kart .kosu-liste{flex:1;min-width:240px;margin:0}
+
+/* ---- Geek Koşusu: dolap, radyo, Cold Brew, son işleme ---- */
+#kosu-oyun.post-acik .kosu-vinyet{display:none}
+#kosu-oyun.soguk::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;background:radial-gradient(ellipse at center,rgba(120,190,255,.06) 40%,rgba(70,140,255,.32) 100%);box-shadow:inset 0 0 140px rgba(110,180,255,.45)}
+.kh-radyo-bilgi{position:absolute;left:max(14px,env(safe-area-inset-left));bottom:max(14px,env(safe-area-inset-bottom));max-width:min(70vw,420px);padding:.3rem .7rem;border-radius:99px;background:rgba(11,15,46,.6);backdrop-filter:blur(6px);font-size:.8rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.kh-radyo-bilgi[hidden]{display:none}
+.kh-btn[aria-pressed="true"]{background:rgba(42,59,214,.9);box-shadow:0 0 0 2px #f2b544 inset}
+.kosu-radyo-satir{display:flex;flex-direction:column;gap:.35rem;align-items:stretch}
+.kosu-radyo-bilgi{font-size:.82rem;color:#4a4a52;min-height:1.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kosu-radyo-bilgi[hidden]{display:none}
+.kosu-radyo-satir .btn[aria-pressed="true"]{border-color:#2a3bd6;color:#2a3bd6;font-weight:700}
+
+.kosu-dolap{position:absolute;inset:0;display:flex;align-items:stretch;justify-content:flex-end;pointer-events:none;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) 12px}
+.kosu-dolap[hidden]{display:none}
+.kd-kutu{pointer-events:auto;width:min(390px,100%);max-height:100%;overflow:auto;background:rgba(255,255,255,.96);color:#1d1d1f;border-radius:22px;padding:1.1rem 1.1rem 1.2rem;box-shadow:0 24px 70px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:.9rem;-webkit-overflow-scrolling:touch}
+.kd-baslik{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.kd-baslik h3{margin:0;color:#2a3bd6;font-size:1.5rem}
+.kd-baslik .kosu-buyuk{font-size:1rem;padding:.55rem 1.2rem}
+.kd-ipucu{margin:0;color:#6e6e73;font-size:.84rem}
+.kd-grup{display:flex;flex-direction:column;gap:.45rem}
+.kd-et{font-weight:700;font-size:.85rem;color:#4a4a52}
+.kd-izgara{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem}
+.kd-kart{display:flex;flex-direction:column;gap:.2rem;align-items:flex-start;text-align:left;padding:.6rem .7rem;border-radius:14px;border:2px solid #e3e5f2;background:#fff;cursor:pointer;font:inherit;color:inherit;min-height:74px}
+.kd-kart[aria-pressed="true"]{border-color:#2a3bd6;background:#eef0ff}
+.kd-kart:disabled{opacity:.55;cursor:not-allowed}
+.kd-kart:focus-visible,.kd-nokta:focus-visible,.kd-cip:focus-visible{outline:3px solid #f2b544;outline-offset:2px}
+.kd-ornek{display:flex;gap:3px}
+.kd-ornek i{width:18px;height:18px;border-radius:50%;border:1px solid rgba(0,0,0,.15);display:block}
+.kd-ad{font-weight:700;font-size:.88rem}
+.kd-alt{font-size:.74rem;color:#6e6e73}
+.kd-noktalar{display:flex;gap:.6rem}
+.kd-nokta{width:38px;height:38px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #cfd2e6;cursor:pointer;padding:0}
+.kd-nokta[aria-pressed="true"]{box-shadow:0 0 0 3px #2a3bd6}
+.kd-cipler{display:flex;gap:.5rem;flex-wrap:wrap}
+.kd-cip{padding:.5rem .9rem;border-radius:99px;border:2px solid #e3e5f2;background:#fff;font:inherit;font-weight:600;font-size:.86rem;cursor:pointer;min-height:40px}
+.kd-cip[aria-pressed="true"]{border-color:#2a3bd6;background:#2a3bd6;color:#fff}
+@media (max-width:760px),(max-aspect-ratio:9/10){
+  .kosu-dolap{align-items:flex-end;justify-content:center;padding:12px max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+  .kd-kutu{width:100%;max-height:52%;border-radius:20px}
+}
+
+.kh-guc-iz>div{height:100%}
+.kh-guc-kap{text-shadow:0 1px 4px rgba(0,0,0,.75)}
+@media (max-width:520px){.kh-btn{padding:.4rem .75rem;font-size:.74rem;min-height:36px}.kh-sag{gap:.35rem;max-width:62vw}}

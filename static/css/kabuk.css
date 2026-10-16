@@ -1,0 +1,35 @@
+/* Kalıcı Geek Radio kabuğu: sayfa iframe'i tüm ekranı kaplar, radyo kontrolü küçük bir yüzen düğmedir. */
+:root{--kb-bg:#fff;--kb-yuz:#fff;--kb-yazi:#16183a;--kb-soluk:#6b6f8f;--kb-cizgi:#e3e5f2;--kb-mavi:#2a3bd6;--kb-krema:#f2b544}
+:root[data-theme="dark"]{--kb-bg:#0f1226;--kb-yuz:#1b1f3d;--kb-yazi:#eef0ff;--kb-soluk:#a3a8cf;--kb-cizgi:#2d3260}
+html,body{margin:0;height:100%;background:var(--kb-bg);overflow:hidden}
+#uygulama{position:fixed;inset:0;width:100%;height:100%;border:0;background:var(--kb-bg)}
+
+#radyo-kabuk{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 86px);z-index:2147483000;font-family:Poppins,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--kb-yazi)}
+#radyo-kabuk[hidden]{display:none}
+.rk-dugme{width:46px;height:46px;border-radius:50%;border:2px solid var(--kb-krema);background:var(--kb-mavi);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 18px rgba(10,14,60,.35);padding:0;position:relative}
+.rk-dugme:focus-visible,.rk-btn:focus-visible,.rk-kapat:focus-visible{outline:3px solid var(--kb-krema);outline-offset:2px}
+.rk-eq{display:flex;align-items:flex-end;gap:3px;height:18px}
+.rk-eq i{display:block;width:3.5px;height:6px;background:#fff;border-radius:2px}
+.rk-caliyor .rk-eq i{animation:rk-eq .9s ease-in-out infinite}
+.rk-caliyor .rk-eq i:nth-child(2){animation-delay:.18s}
+.rk-caliyor .rk-eq i:nth-child(3){animation-delay:.36s}
+.rk-caliyor .rk-eq i:nth-child(4){animation-delay:.12s}
+@keyframes rk-eq{0%,100%{height:4px}50%{height:18px}}
+.rk-baglan .rk-dugme{animation:rk-nabiz 1.2s ease-in-out infinite}
+@keyframes rk-nabiz{50%{box-shadow:0 0 0 8px rgba(242,181,68,.35)}}
+.rk-kart{position:absolute;right:0;bottom:56px;width:min(290px,calc(100vw - 24px));background:var(--kb-yuz);border:1px solid var(--kb-cizgi);border-radius:16px;padding:.8rem;box-shadow:0 14px 38px rgba(10,14,60,.32)}
+.rk-kart[hidden]{display:none}
+.rk-ust{display:flex;gap:.7rem;align-items:center}
+.rk-kapak{width:52px;height:52px;flex:0 0 auto;border-radius:10px;background:var(--kb-mavi);overflow:hidden;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+.rk-kapak img{width:100%;height:100%;object-fit:cover;display:block}
+.rk-metin{min-width:0;flex:1}
+.rk-etiket{font-size:.68rem;color:var(--kb-soluk);font-weight:600}
+.rk-sarki{font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-sanatci{font-size:.78rem;color:var(--kb-soluk);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-alt{display:flex;align-items:center;gap:.6rem;margin-top:.7rem}
+.rk-btn{width:40px;height:40px;border-radius:50%;border:0;background:var(--kb-mavi);color:#fff;font-size:1rem;cursor:pointer;flex:0 0 auto}
+.rk-ses{flex:1;min-width:0;accent-color:var(--kb-mavi)}
+.rk-kapat{border:1px solid var(--kb-cizgi);background:transparent;color:var(--kb-yazi);border-radius:10px;padding:.35rem .6rem;font-size:.74rem;cursor:pointer;font-family:inherit}
+.rk-not{margin-top:.55rem;font-size:.74rem;color:var(--kb-soluk)}
+.rk-not[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.rk-caliyor .rk-eq i,.rk-baglan .rk-dugme{animation:none}}

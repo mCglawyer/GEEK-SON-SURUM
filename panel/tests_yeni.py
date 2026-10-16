@@ -360,3 +360,70 @@ class GeekKosuTesti(TestCase):
             self.assertEqual(r.status_code, 400)
             self.assertContains(self.client.get('/geek-kosu/'), 'Koşucu Kişi')
             self.assertContains(self.client.get('/g-sosyal/'), 'Koşucu Kişi')
+
+
+class RadyoKabukTesti(TestCase):
+    """Kalıcı Geek Radio kabuğu: sekme gezintisi kabuğa sarılır, iframe/diğer istekler normal sayfayı alır."""
+
+    DOC = {'HTTP_SEC_FETCH_DEST': 'document', 'HTTP_SEC_FETCH_MODE': 'navigate'}
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        from panel.models import Sube, Personel
+        from django.test import override_settings
+        self.sube = Sube.objects.create(ad='Kabuk Şube')
+        self.u = User.objects.create_user('kabukcu', password='x')
+        self.p = Personel.objects.create(user=self.u, ad_soyad='Kabuk Kişi', rol='Personel', sube=self.sube)
+        self.ov = override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+                                              'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}})
+        self.ov.enable()
+        self.addCleanup(self.ov.disable)
+
+    def test_sekme_gezintisi_kabuk_doner(self):
+        self.client.force_login(self.u)
+        r = self.client.get('/g-sosyal/?a=1', **self.DOC)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'id="uygulama"')
+        self.assertContains(r, 'data-src="/g-sosyal/?a=1"')
+        self.assertContains(r, 'radyo-cfg')
+        self.assertIn('Sec-Fetch-Dest', r['Vary'])
+        self.assertEqual(r['X-Frame-Options'], 'SAMEORIGIN')
+
+    def test_iframe_ve_basliksiz_istek_normal_sayfa(self):
+        self.client.force_login(self.u)
+        r = self.client.get('/g-sosyal/', HTTP_SEC_FETCH_DEST='iframe', HTTP_SEC_FETCH_MODE='navigate')
+        self.assertNotContains(r, 'id="uygulama"')
+        self.assertContains(r, 'Geek Radio')
+        self.assertIn('Sec-Fetch-Dest', r['Vary'])
+        r = self.client.get('/g-sosyal/')
+        self.assertNotContains(r, 'id="uygulama"')
+
+    def test_service_worker_uzerinden_sekme(self):
+        self.client.force_login(self.u)
+        r = self.client.get('/g-sosyal/', HTTP_SEC_FETCH_DEST='empty', HTTP_SEC_FETCH_MODE='same-origin', HTTP_X_GEEK_DEST='document')
+        self.assertContains(r, 'id="uygulama"')
+        r = self.client.get('/g-sosyal/', HTTP_SEC_FETCH_DEST='empty', HTTP_SEC_FETCH_MODE='same-origin', HTTP_X_GEEK_DEST='iframe')
+        self.assertNotContains(r, 'id="uygulama"')
+
+    def test_oturumsuz_ve_istisnalar_kabuk_almaz(self):
+        r = self.client.get('/', **self.DOC)                       # oturumsuz → giriş sayfası
+        self.assertNotContains(r, 'id="uygulama"')
+        self.assertContains(r, 'name="geek-giris"')
+        self.client.force_login(self.u)
+        for yol in ['/sw.js', '/manifest.webmanifest', '/g-sosyal/?kabuksuz=1', '/menu/']:
+            r = self.client.get(yol, **self.DOC)
+            self.assertNotContains(r, 'id="uygulama"', msg_prefix=yol)
+
+    def test_kabuk_kapatilabilir(self):
+        from django.test import override_settings
+        self.client.force_login(self.u)
+        with override_settings(GEEK_KABUK=False):
+            self.assertNotContains(self.client.get('/g-sosyal/', **self.DOC), 'id="uygulama"')
+
+    def test_sw_hedef_basligi_ve_oyun_ogeleri(self):
+        self.assertContains(self.client.get('/sw.js'), 'X-Geek-Dest')
+        self.client.force_login(self.u)
+        r = self.client.get('/geek-kosu/')
+        for parca in ['kosu-dolap', 'data-radyo-api', 'kd-kiyafet', 'data-kosu-radyo']:
+            self.assertContains(r, parca)
+        self.assertContains(self.client.get('/g-sosyal/'), 'geekradyo.js')

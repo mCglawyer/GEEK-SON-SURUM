@@ -21,7 +21,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>try{if(localStorage.getItem('geek_tema')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=77">
-  <link rel="stylesheet" href="{% static 'css/tema.css' %}?v=33">
+  <link rel="stylesheet" href="{% static 'css/tema.css' %}?v=35">
   {% block extra_head %}{% endblock %}
 </head>
 <body{% if personel %} class="app"{% endif %}>
@@ -92,6 +92,16 @@
         if (_sw_ilk_kontrolcu) { window.location.reload(); }
       });
     }
+  </script>
+  <script>
+    // Kalıcı Geek Radio kabuğunda açıldıysak: ilk dokunuşta üst çerçevedeki radyoya haber ver (otomatik oynatma engeli için).
+    (function () {
+      try {
+        if (window.parent === window || !window.parent.GeekRadyo) return;
+        var f = function () { try { window.parent.GeekRadyo.dokunus(); } catch (e) {} };
+        ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) { document.addEventListener(ev, f, { capture: true, once: true, passive: true }); });
+      } catch (e) {}
+    })();
   </script>
   <script>
     // Genel çift-gönderim koruması: siteye herhangi bir form gönderildiğinde,

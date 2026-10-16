@@ -2491,9 +2491,17 @@ self.addEventListener('fetch', function (e) {
   }
   // Sayfa gezinmeleri: önce ağ (her zaman güncel), çevrimdışıysa kabuk.
   if (req.mode === 'navigate') {
-    e.respondWith(
-      fetch(req).catch(function () { return caches.match(KABUK_URL); })
-    );
+    // Sunucu, sayfanın tarayıcı sekmesinde mi (document) yoksa kabuktaki iframe içinde mi açıldığını bilsin:
+    // service worker'dan geçen istekte Sec-Fetch-Dest 'empty' görünür, o yüzden hedefi başlıkla bildiriyoruz.
+    e.respondWith((function () {
+      var istek = req;
+      try {
+        var h = new Headers(req.headers);
+        h.set('X-Geek-Dest', req.destination || 'document');
+        istek = new Request(req, { headers: h });
+      } catch (x) { istek = req; }
+      return fetch(istek).catch(function () { return caches.match(KABUK_URL); });
+    })());
     return;
   }
 });
@@ -4143,7 +4151,7 @@ def geek_kosu(request):
     return render(request, 'geek_kosu.html', {
         'personel': personel, 'aktif': 'geek_kosu',
         'haftalik': _oyun_liste(True, 10), 'tum_zamanlar': _oyun_liste(False, 10),
-        'benim_en': en,
+        'benim_en': en, 'radyo': getattr(settings, 'GEEK_RADYO', {}),
     })
 
 
