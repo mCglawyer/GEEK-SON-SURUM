@@ -5892,4 +5892,7 @@ def mudur_girisleri(request):
         'toplam_giris': sum(s['adet'] for s in satirlar),
         'onceki': (gun - datetime.timedelta(days=1)).isoformat(),
         'sonraki': (gun + datetime.timedelta(days=1)).isoformat() if gun < bugun else '',
+        'izleme_aktif': 'panel.oturum.OturumIzlemeMiddleware' in settings.MIDDLEWARE,
+        'kayit_toplam': OturumKaydi.objects.count(),
+        'mudur_sayisi': len(mudurler),
     })

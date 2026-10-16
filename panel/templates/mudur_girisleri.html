@@ -10,6 +10,9 @@
         <b>{{ gun|date:"d.m.Y" }}</b>
         {% if sonraki %}<a class="btn btn-ghost btn-mini" href="?gun={{ sonraki }}" aria-label="Sonraki gün">›</a>{% else %}<span class="btn btn-ghost btn-mini mg-pasif" aria-hidden="true">›</span>{% endif %}
       </div>
+  {% if not izleme_aktif %}<div class="card" style="border-left:4px solid #c0392b"><b>İzleme kapalı:</b> <code>core/settings.py</code> dosyasındaki MIDDLEWARE listesinde <code>panel.oturum.OturumIzlemeMiddleware</code> yok, bu yüzden hiç kayıt tutulmuyor. Güncel settings.py'yi yükleyin.</div>
+  {% elif not mudur_sayisi %}<div class="card" style="border-left:4px solid #e0a800">Rolü "Bölge Müdürü" olan personel bulunamadı.</div>
+  {% elif not kayit_toplam %}<div class="card" style="border-left:4px solid #e0a800">İzleme açık ama henüz kayıt yok. Müdürler çıkış yapıp tekrar giriş yaptığında veya uygulamayı yeniden açtığında kayıt başlar.</div>{% endif %}
     </div>
   </div>
 

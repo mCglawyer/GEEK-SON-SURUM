@@ -55,6 +55,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'panel.middleware.EgitimKapiMiddleware',
+    'panel.oturum.OturumIzlemeMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -76,6 +77,7 @@ TEMPLATES = [
                 'panel.context_processors.sube_secici_ctx',
                 'panel.context_processors.zayi_ctx',
                 'panel.context_processors.acilis_ctx',
+                'panel.context_processors.temizlik_menu_ctx',
             ],
         },
     },
