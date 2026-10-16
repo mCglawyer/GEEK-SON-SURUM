@@ -10,7 +10,7 @@ from .models import (Sube, Personel, Vardiya, Puantaj, KodKilit, Kalibrasyon, Ir
 
 @admin.register(Sube)
 class SubeAdmin(admin.ModelAdmin):
-    list_display = ('ad', 'depo_mu', 'mutfak_var')
+    list_display = ('ad', 'depo_mu', 'mutfak_var', 'google_yorum_url')
     list_filter = ('depo_mu', 'mutfak_var')
     search_fields = ('ad',)
 

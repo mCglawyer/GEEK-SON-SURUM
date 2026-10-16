@@ -7,6 +7,7 @@
     {% if personel.rol == 'Genel Müdür' or personel.rol == 'Operatör' %}<a href="{% url 'degerlendirme_qr_yonetim' %}" class="btn btn-ghost btn-mini">QR'ları Gör</a>{% endif %}
   </div>
 
+  {% if google_eksik %}<div class="card" style="border-left:4px solid #e0a800"><b>Google yönlendirmesi kapalı:</b> {{ google_eksik|join:", " }} için Google yorum bağlantısı girilmemiş; 8+ puan verenler Google'a yönlenmez. <a href="{% url 'degerlendirme_qr_yonetim' %}">Bağlantıyı gir</a></div>{% endif %}
   <div class="card">
     <form method="get">
       <select name="sube" class="input" onchange="this.form.submit()">

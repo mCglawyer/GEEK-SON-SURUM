@@ -39,7 +39,8 @@
   .dg-ek summary::-webkit-details-marker { display:none; }
   .dg-ek summary::after { content:"+"; font-size:1.3rem; line-height:1; }
   .dg-ek[open] summary::after { content:"–"; }
-  .dg-ek .dg-alan { margin-top:.95rem; }
+  .dg-ek .dg-alan { margin-top:0; margin-bottom:.95rem; }
+  .dg-ek .dg-alan:last-child { margin-bottom:0; }
   .dg-alan label { display:block; font-size:.8rem; font-weight:600; color:#3B4466; margin-bottom:.35rem; }
   .dg-alan input[type="text"] { width:100%; border:1.5px solid #E4E8F4; border-radius:12px; padding:.7rem .85rem; font-family:inherit; font-size:.92rem; color:#14192B; background:#F7F8FD; }
   .dg-alan input[type="text"]:focus { outline:none; border-color:#162AA3; background:#fff; }
@@ -88,7 +89,7 @@
       <img class="dg-logo" src="{% static 'images/geek_logo_blue.png' %}" alt="Geek Coffee & Eatery">
       <span class="dg-sube">{{ sube.ad }}</span>
       <h1>Bugünkü deneyimin nasıldı?</h1>
-      <p>Isim istemiyoruz. Bir puan vermen yeterli.</p>
+      <p>İsim istemiyoruz, bir puan vermen yeterli.</p>
     </header>
 
     <section class="dg-kart puan">
@@ -114,20 +115,16 @@
         <input type="hidden" name="tekrar" value="{{ eski.tekrar }}"></div>
     </section>
 
-    <section class="dg-kart">
-      <details class="dg-ek">
-        <summary>Bize daha fazlasını anlat (isteğe bağlı)</summary>
-        <div class="dg-alan"><label>Üç kelimeyle bugünü anlat</label><input type="text" name="uc_kelime" maxlength="200" placeholder="örn. sıcak, samimi, hızlı" value="{{ eski.uc_kelime }}"></div>
-        <div class="dg-alan"><label>İlk izlenimin neydi?</label><input type="text" name="ilk_izlenim" maxlength="300" value="{{ eski.ilk_izlenim }}"></div>
-        <div class="dg-alan"><label>Favori lezzetin</label><input type="text" name="favori_lezzet" maxlength="300" value="{{ eski.favori_lezzet }}"></div>
-        <div class="dg-alan"><label>Favori köşen</label><input type="text" name="favori_gorsel" maxlength="300" value="{{ eski.favori_gorsel }}"></div>
-        <div class="dg-alan"><label>Bir şey değişse, ne olurdu?</label><input type="text" name="bir_sey_degisse" maxlength="300" value="{{ eski.bir_sey_degisse }}"></div>
-      </details>
+    <section class="dg-kart dg-ek">
+      <div class="dg-alan"><label>Üç kelimeyle bugünü anlat</label><input type="text" name="uc_kelime" maxlength="200" placeholder="örn. sıcak, samimi, hızlı" value="{{ eski.uc_kelime }}"></div>
+      <div class="dg-alan"><label>İlk izlenimin neydi?</label><input type="text" name="ilk_izlenim" maxlength="300" value="{{ eski.ilk_izlenim }}"></div>
+      <div class="dg-alan"><label>Favori lezzetin</label><input type="text" name="favori_lezzet" maxlength="300" value="{{ eski.favori_lezzet }}"></div>
+      <div class="dg-alan"><label>Favori köşen</label><input type="text" name="favori_gorsel" maxlength="300" value="{{ eski.favori_gorsel }}"></div>
+      <div class="dg-alan"><label>Bir şey değişse, ne olurdu?</label><input type="text" name="bir_sey_degisse" maxlength="300" value="{{ eski.bir_sey_degisse }}"></div>
     </section>
 
     <div class="dg-alt-bar">
       <button type="submit" class="dg-gonder">Değerlendirmeyi Gönder</button>
-      <p class="dg-anonim">🔒 Anonim: kim doldurduğu kaydedilmez.</p>
     </div>
   </form>
 {% endif %}

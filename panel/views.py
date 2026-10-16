@@ -5558,6 +5558,7 @@ def degerlendirmeler(request):
         'subeler': list(Sube.objects.filter(depo_mu=False).order_by('ad')),
         'sel_id': sel_id, 'ortalama': ortalama, 'toplam': len(degerlendirmeler_listesi),
         'silebilir': silebilir,
+        'google_eksik': list(Sube.objects.filter(google_yorum_url='').values_list('ad', flat=True)) if silebilir else [],
     })
 
 
