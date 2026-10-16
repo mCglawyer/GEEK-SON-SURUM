@@ -4160,7 +4160,7 @@ def geek_kosu_skor(request):
         sure = int(request.POST.get('sure_sn', 0))
     except (TypeError, ValueError):
         return JsonResponse({'ok': False}, status=400)
-    if skor <= 0 or sure < 3 or skor > sure * 80 + 50 or skor > 200000:
+    if skor <= 0 or sure < 3 or skor > sure * 170 + 120 or skor > 200000:
         return JsonResponse({'ok': False, 'mesaj': 'Geçersiz skor.'}, status=400)
     son = OyunSkor.objects.filter(personel=personel).first()
     if son and (timezone.now() - son.zaman).total_seconds() < max(2, son.sure_sn * 0.5):

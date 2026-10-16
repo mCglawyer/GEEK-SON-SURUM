@@ -4,18 +4,18 @@
 {% block body %}
 <div class="container kosu-wrap">
   <div class="plan-head">
-    <div><h2>Geek Koşusu</h2><span class="plan-aralik">Kahve ve yemeklerin üzerinden zıpla, hızlandıkça zorlaşır</span></div>
+    <div><h2>Geek Koşusu</h2><span class="plan-aralik">3B koşu oyunu: kahve ve yemeklerin üzerinden atla, hızlandıkça zorlaşır</span></div>
     <a href="{% url 'g_sosyal' %}" class="btn btn-ghost btn-mini">Geek Crew'e dön</a>
   </div>
 
-  <div class="card kosu-oyun">
-    <canvas id="kosu-cv" width="800" height="340" data-skor-url="{% url 'geek_kosu_skor' %}" data-en="{{ benim_en }}" aria-label="Geek Koşusu oyun alanı"></canvas>
-    <div class="kosu-alt">
-      <span>Kişisel en iyin: <b id="kosu-en">{{ benim_en }}</b></span>
-      <span class="kosu-ipucu">Boşluk / ↑ / dokunma = zıpla · havada bir kez daha zıplayabilirsin · kahve çekirdekleri +25</span>
+  <div class="card kosu-hero">
+    <div class="kosu-hero-metin">
+      <h3>Tam ekran, 3 şeritli koşu</h3>
+      <p>Sen bir <b>g</b> harfisin. Şerit değiştir, zıpla, kay; kahve çekirdeklerini topla, Espresso ile engelleri kır. Haftanın en iyileri Geek Crew'de yayınlanır.</p>
+      <p class="kosu-ipucu">Klavye: ← → şerit · ↑ / Boşluk zıpla · ↓ kay · P duraklat. Telefonda: kaydır ve dokun.</p>
+      <p>Kişisel en iyin: <b>{{ benim_en }}</b></p>
+      <button type="button" class="btn" data-kosu-ac>Tam ekranda oyna</button>
     </div>
-    <div class="kosu-sonuc" id="kosu-sonuc" role="status" aria-live="polite"></div>
-    <a href="{% url 'geek_kosu' %}" id="kosu-yenile" class="btn btn-ghost btn-mini" hidden>Sıralamayı yenile</a>
   </div>
 
   <div class="kosu-tablolar">
@@ -23,5 +23,60 @@
     {% include '_kosu_tablo.html' with baslik='Tüm zamanların en iyileri' liste=tum_zamanlar %}
   </div>
 </div>
-<script src="{% static 'js/geekkosu.js' %}?v=1" defer></script>
+
+<div id="kosu-oyun" hidden data-skor-url="{% url 'geek_kosu_skor' %}" data-logo="{% static 'images/geek_logo_blue.png' %}" data-en="{{ benim_en }}">
+  <div id="kosu-sahne" class="kosu-sahne"></div>
+
+  <div class="kosu-hud">
+    <div class="kh-sol">
+      <div class="kh-skor" id="kh-skor">0</div>
+      <div class="kh-alt"><span class="kh-cek" aria-hidden="true"></span><b id="kh-cekirdek">0</b><span class="kh-hiz" id="kh-hiz">x1.0</span></div>
+      <div class="kh-guc-kap" hidden><span>Espresso</span><div class="kh-guc-iz"><div id="kh-guc-bar"></div></div></div>
+    </div>
+    <div class="kh-sag">
+      <button type="button" class="kh-btn" id="kosu-duraklat" aria-label="Duraklat">Duraklat</button>
+      <button type="button" class="kh-btn" id="kosu-tam" aria-label="Tam ekranı aç veya kapat">Tam ekran</button>
+      <button type="button" class="kh-btn" id="kosu-ses" aria-pressed="true">Ses açık</button>
+      <button type="button" class="kh-btn kh-kapat" data-kosu-kapat aria-label="Oyundan çık">Çık</button>
+    </div>
+    <div class="kh-mesaj" id="kh-mesaj" role="status" aria-live="polite"></div>
+  </div>
+
+  <div class="kosu-panel" id="kosu-menu" hidden>
+    <div class="kosu-kutu">
+      <h2>Geek Koşusu</h2>
+      <p>Bir <b>g</b> harfi olarak kahveci sokağında koş. Engellerden zıpla, pankartların altından kay, çekirdekleri topla.</p>
+      <ul class="kosu-kontrol">
+        <li><kbd>←</kbd><kbd>→</kbd> şerit değiştir</li>
+        <li><kbd>↑</kbd> / <kbd>Boşluk</kbd> zıpla (havada bir kez daha)</li>
+        <li><kbd>↓</kbd> kay · <kbd>P</kbd> duraklat</li>
+        <li>Telefonda: kaydır, dokunmak zıplatır</li>
+      </ul>
+      <button type="button" class="btn kosu-buyuk" id="kosu-basla">Başla</button>
+      <button type="button" class="btn btn-ghost" data-kosu-kapat>Vazgeç</button>
+    </div>
+  </div>
+
+  <div class="kosu-panel" id="kosu-dur" hidden>
+    <div class="kosu-kutu">
+      <h2>Duraklatıldı</h2>
+      <button type="button" class="btn kosu-buyuk" id="kosu-devam">Devam et</button>
+      <button type="button" class="btn btn-ghost" data-kosu-kapat>Oyundan çık</button>
+    </div>
+  </div>
+
+  <div class="kosu-panel" id="kosu-bitis" hidden>
+    <div class="kosu-kutu">
+      <h2>Oyun bitti</h2>
+      <div class="kb-skor" id="kb-skor">0</div>
+      <div class="kb-detay" id="kb-detay"></div>
+      <div class="kb-rekor" id="kb-rekor" hidden>Yeni kişisel rekor!</div>
+      <div class="kb-sira" id="kb-sira"></div>
+      <button type="button" class="btn kosu-buyuk" id="kosu-tekrar">Tekrar oyna</button>
+      <button type="button" class="btn btn-ghost" data-kosu-kapat>Çık ve sıralamayı gör</button>
+    </div>
+  </div>
+</div>
+<script src="{% static 'js/vendor/three.min.js' %}" defer></script>
+<script src="{% static 'js/geekkosu.js' %}?v=2" defer></script>
 {% endblock %}
