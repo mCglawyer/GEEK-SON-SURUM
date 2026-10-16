@@ -11,6 +11,28 @@
     {% if haber_yonetebilir %}<a href="{% url 'ilginc_haberler' %}" class="btn btn-ghost btn-mini">İlginç Haberler</a>{% endif %}
   </div>
 
+  <section class="radyo" id="radyo" aria-label="Geek Radio" data-api="https://radio.geekpanel.net/api/nowplaying/geekradio" data-yedek="https://radio.geekpanel.net/listen/geekradio/radio.mp3" data-sayfa="https://radio.geekpanel.net/public/geekradio">
+    <div class="radyo-sol">
+      <div class="radyo-kapak" id="radyo-kapak">
+        <svg viewBox="0 0 40 40" class="radyo-plak" aria-hidden="true">
+          <circle cx="20" cy="20" r="19" fill="#141414"/><circle cx="20" cy="20" r="15" fill="none" stroke="#2c2c2c"/>
+          <circle cx="20" cy="20" r="11.5" fill="none" stroke="#2c2c2c"/><circle cx="20" cy="20" r="7" fill="var(--brand)"/><circle cx="20" cy="20" r="1.7" fill="#141414"/>
+        </svg>
+        <img id="radyo-art" alt="" hidden>
+      </div>
+      <div class="radyo-metin">
+        <div class="radyo-ust"><b>Geek Radio</b><span class="radyo-canli" id="radyo-canli">● Canlı</span></div>
+        <div class="radyo-sarki" id="radyo-sarki">Bağlanıyor…</div>
+        <div class="radyo-sanatci" id="radyo-sanatci"></div>
+      </div>
+    </div>
+    <div class="radyo-sag">
+      <button type="button" class="radyo-oynat" id="radyo-oynat" aria-label="Oynat / duraklat">▶</button>
+      <label class="radyo-ses"><span aria-hidden="true">🔈</span><input type="range" id="radyo-ses" min="0" max="100" value="70" aria-label="Ses"></label>
+    </div>
+    <div class="radyo-not" id="radyo-not" hidden></div>
+  </section>
+
   {% if haberler %}
   <div class="gs-led-panel">
     <div class="gs-led-track">
@@ -242,23 +264,6 @@
   </div>
 </div>
 
-<div id="geek-playlist" class="geek-playlist">
-  <div class="gp-kutu">
-    <span class="gp-plak" aria-hidden="true">
-      <svg viewBox="0 0 40 40" class="gp-plak-svg">
-        <circle cx="20" cy="20" r="19" fill="#141414"/>
-        <circle cx="20" cy="20" r="15" fill="none" stroke="#2c2c2c" stroke-width="1"/>
-        <circle cx="20" cy="20" r="11.5" fill="none" stroke="#2c2c2c" stroke-width="1"/>
-        <circle cx="20" cy="20" r="7" fill="var(--brand)"/>
-        <circle cx="20" cy="20" r="1.7" fill="#141414"/>
-      </svg>
-    </span>
-    <a id="gp-btn" class="gp-btn" href="https://music.youtube.com/playlist?list=PLcjE-NS8TqoGBbL_eKKj6CgE-rlhuA1Ho" target="_blank" rel="noopener">
-      <span class="gp-nota">♪</span> Geek Playlist
-    </a>
-  </div>
-</div>
-
 <script>
 (function () {
   function cy(n){var v=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return v?v.pop():'';}
@@ -314,4 +319,5 @@
   });
 })();
 </script>
+<script src="{% static 'js/radyo.js' %}?v=1" defer></script>
 {% endblock %}

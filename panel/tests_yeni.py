@@ -206,3 +206,17 @@ class EgitmenAdayTestleri(TestCase):
         self.client.post(reverse('ekip'), {'islem': 'egitmen_ekle', 'personel_id': m.id})
         m.refresh_from_db()
         self.assertTrue(m.egitmen)
+
+
+@override_settings(**_AYAR)
+class RadyoTestleri(TestCase):
+    def test_geek_crew_radyoyu_gomer_playlisti_kaldirir(self):
+        p = kisi(Rol.GENEL_MUDUR, None, 'GM')
+        self.client.force_login(p.user)
+        r = self.client.get(reverse('g_sosyal'))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'id="radyo"')
+        self.assertContains(r, 'radio.geekpanel.net/api/nowplaying/geekradio')
+        self.assertContains(r, 'js/radyo.js')
+        self.assertNotContains(r, 'Geek Playlist')
+        self.assertNotContains(r, 'music.youtube.com')

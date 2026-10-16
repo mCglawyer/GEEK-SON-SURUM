@@ -762,3 +762,32 @@ html[data-theme="dark"] .tz-kapali-bant { background:var(--surface); }
 .mn-al-ad{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
 .mn-rozet{display:inline-block;padding:.1rem .5rem;border-radius:999px;background:rgba(59,130,246,.15);font-size:.75rem}
 .mn-rozet.pasif{background:rgba(220,38,38,.14)}
+
+/* Geek Radio (Geek Crew sayfasına gömülü) */
+.radyo{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin:0 0 1rem;padding:.8rem 1rem;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius,14px)}
+.radyo-sol{display:flex;align-items:center;gap:.85rem;min-width:0;flex:1 1 240px}
+.radyo-kapak{position:relative;width:56px;height:56px;flex:0 0 auto;border-radius:50%;overflow:hidden}
+.radyo-plak{width:100%;height:100%;display:block}
+.radyo.caliyor .radyo-plak{animation:radyo-don 3.2s linear infinite}
+@keyframes radyo-don{to{transform:rotate(360deg)}}
+.radyo-kapak img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%}
+.radyo-kapak img[hidden]{display:none}
+.radyo.caliyor .radyo-kapak img{animation:radyo-don 12s linear infinite}
+.radyo-metin{min-width:0}
+.radyo-ust{display:flex;align-items:center;gap:.5rem;font-size:.95rem}
+.radyo-canli{font-size:.72rem;color:#dc2626;font-weight:600}
+.radyo-sarki{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.radyo-sanatci{font-size:.85rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.radyo-sag{display:flex;align-items:center;gap:.8rem}
+.radyo-oynat{width:44px;height:44px;border-radius:50%;border:0;background:var(--brand);color:#fff;font-size:1rem;cursor:pointer;display:grid;place-items:center}
+.radyo-oynat:hover{background:var(--brand-700)}
+.radyo-ses{display:flex;align-items:center;gap:.35rem}
+.radyo-ses input{width:96px}
+.radyo-not{flex:1 0 100%;text-align:center;font-size:.85rem;color:var(--muted)}
+@media (max-width:520px){.radyo{flex-direction:column;align-items:stretch;text-align:center}.radyo-sol{flex-direction:column;flex:none}.radyo-ust{justify-content:center}.radyo-sag{justify-content:center}}
+@media (prefers-reduced-motion:reduce){.radyo.caliyor .radyo-plak,.radyo.caliyor .radyo-kapak img{animation:none}}
+
+/* Gece modu: vardiya tablosunda çift satırlar beyaz kalıyordu → temaya uyumlu şerit */
+.vgrid tbody tr:nth-child(even) th.sticky,
+.vgrid tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--ink) 4%,var(--surface))}
+.stok-kaydet{background:linear-gradient(0deg,var(--surface) 70%,transparent)}
