@@ -33,6 +33,19 @@
     <div class="radyo-not" id="radyo-not" hidden></div>
   </section>
 
+  <section class="card kosu-kart" aria-label="Geek Koşusu">
+    <div>
+      <h3>Geek Koşusu</h3>
+      <p class="kosu-bos">Kahve ve yemeklerin üzerinden zıpla, haftanın en iyisi ol.</p>
+      <a href="{% url 'geek_kosu' %}" class="btn btn-mini">Oyna</a>
+    </div>
+    {% if oyun_liste %}
+    <ol class="kosu-liste">
+      {% for r in oyun_liste %}<li{% if r.id == personel.id %} class="ben"{% endif %}><span class="kosu-sira">{{ r.sira }}</span><span class="kosu-ad">{{ r.ad }}{% if r.sube %}<small>{{ r.sube }}</small>{% endif %}</span><b class="kosu-puan">{{ r.skor }}</b></li>{% endfor %}
+    </ol>
+    {% else %}<p class="kosu-bos">Bu hafta henüz skor yok. İlk sen ol.</p>{% endif %}
+  </section>
+
   {% if anketler or anket_yonetebilir %}
   <section class="anket-bolum" id="anketler">
     {% for k in anketler %}

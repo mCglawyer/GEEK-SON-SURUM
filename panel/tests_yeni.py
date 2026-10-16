@@ -334,3 +334,29 @@ class DegerlendirmeVeAnketTestleri(TestCase):
         from django.conf import settings
         css = open(os.path.join(settings.BASE_DIR, 'static/css/tema.css'), encoding='utf-8').read()
         self.assertIn('[hidden]{display:none !important}', css)
+
+
+class GeekKosuTesti(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import User
+        from panel.models import Sube, Personel
+        self.sube = Sube.objects.create(ad='Test Şube')
+        self.u = User.objects.create_user('kosucu', password='x')
+        self.p = Personel.objects.create(user=self.u, ad_soyad='Koşucu Kişi', rol='Personel', sube=self.sube)
+        self.client.force_login(self.u)
+
+    def test_sayfa_ve_skor(self):
+        from django.test import override_settings
+        with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+                                         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}}):
+            r = self.client.get('/geek-kosu/')
+            self.assertEqual(r.status_code, 200)
+            self.assertContains(r, 'Geek Koşusu')
+            r = self.client.post('/geek-kosu/skor/', {'skor': 300, 'sure_sn': 20})
+            self.assertTrue(r.json()['ok'])
+            self.assertEqual(r.json()['hafta_sira'], 1)
+            # hile: süreye göre imkânsız skor
+            r = self.client.post('/geek-kosu/skor/', {'skor': 99999, 'sure_sn': 5})
+            self.assertEqual(r.status_code, 400)
+            self.assertContains(self.client.get('/geek-kosu/'), 'Koşucu Kişi')
+            self.assertContains(self.client.get('/g-sosyal/'), 'Koşucu Kişi')

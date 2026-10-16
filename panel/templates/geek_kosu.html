@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Geek Koşusu · Geek Panel{% endblock %}
+{% block body %}
+<div class="container kosu-wrap">
+  <div class="plan-head">
+    <div><h2>Geek Koşusu</h2><span class="plan-aralik">Kahve ve yemeklerin üzerinden zıpla, hızlandıkça zorlaşır</span></div>
+    <a href="{% url 'g_sosyal' %}" class="btn btn-ghost btn-mini">Geek Crew'e dön</a>
+  </div>
+
+  <div class="card kosu-oyun">
+    <canvas id="kosu-cv" width="800" height="340" data-skor-url="{% url 'geek_kosu_skor' %}" data-en="{{ benim_en }}" aria-label="Geek Koşusu oyun alanı"></canvas>
+    <div class="kosu-alt">
+      <span>Kişisel en iyin: <b id="kosu-en">{{ benim_en }}</b></span>
+      <span class="kosu-ipucu">Boşluk / ↑ / dokunma = zıpla · havada bir kez daha zıplayabilirsin · kahve çekirdekleri +25</span>
+    </div>
+    <div class="kosu-sonuc" id="kosu-sonuc" role="status" aria-live="polite"></div>
+    <a href="{% url 'geek_kosu' %}" id="kosu-yenile" class="btn btn-ghost btn-mini" hidden>Sıralamayı yenile</a>
+  </div>
+
+  <div class="kosu-tablolar">
+    {% include '_kosu_tablo.html' with baslik='Bu haftanın en iyileri' liste=haftalik %}
+    {% include '_kosu_tablo.html' with baslik='Tüm zamanların en iyileri' liste=tum_zamanlar %}
+  </div>
+</div>
+<script src="{% static 'js/geekkosu.js' %}?v=1" defer></script>
+{% endblock %}

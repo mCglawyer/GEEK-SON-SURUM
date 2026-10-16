@@ -1,4 +1,5 @@
 import json
+from django.views.decorators.http import require_POST
 import datetime
 import os
 import random
@@ -30,7 +31,7 @@ from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Ka
                      GSosyalGonderi, GSosyalTepki, GSosyalGorsel, IlginHaber, Anket, AnketSecenek, AnketOy,
                      GeriBildirim, GeriBildirimKategori, GeriBildirimDurum,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap, PushAbonelik, EgitimFavori,
-                     MolaQRAyar, SubeMolaToken, MolaOturum,
+                     MolaQRAyar, SubeMolaToken, MolaOturum, OyunSkor,
                      SubeMesaiToken, MesaiKayit, DogumGunuKutlama,
                      MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi, MaliyetBirim,
                      InsaatProje, InsaatMadde, InsaatMaddeDurum, InsaatKategori, InsaatSablonMadde,
@@ -4110,6 +4111,68 @@ def _gosterim_adi(personel):
     return GEEK_MARKA_ADI if personel.rol == Rol.OPERATOR else personel.ad_soyad
 
 
+def _oyun_liste(haftalik=True, limit=10):
+    """Personel başına en iyi skor; haftalik=True ise bu haftanın (pazartesiden itibaren) en iyileri."""
+    from django.db.models import Max
+    qs = OyunSkor.objects.all()
+    if haftalik:
+        bugun = timezone.localdate()
+        pzt = bugun - datetime.timedelta(days=bugun.weekday())
+        qs = qs.filter(zaman__gte=timezone.make_aware(datetime.datetime.combine(pzt, datetime.time.min)))
+    satirlar = list(qs.values('personel').annotate(en=Max('skor')).order_by('-en')[:limit])
+    pers = {p.id: p for p in Personel.objects.filter(id__in=[r['personel'] for r in satirlar]).select_related('sube')}
+    sonuc = []
+    for i, r in enumerate(satirlar, 1):
+        p = pers.get(r['personel'])
+        if p:
+            sonuc.append({'sira': i, 'ad': p.ad_soyad, 'sube': p.sube.ad if p.sube else '', 'skor': r['en'], 'id': p.id})
+    return sonuc
+
+
+def geek_kosu(request):
+    """Geek Koşusu: kahve/yemek engellerinden atlanan koşu oyunu + liderlik tabloları."""
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    if _cikis_mi(request):
+        return _logout(request)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return redirect('ana_sayfa')
+    from django.db.models import Max
+    en = OyunSkor.objects.filter(personel=personel).aggregate(m=Max('skor'))['m'] or 0
+    return render(request, 'geek_kosu.html', {
+        'personel': personel, 'aktif': 'geek_kosu',
+        'haftalik': _oyun_liste(True, 10), 'tum_zamanlar': _oyun_liste(False, 10),
+        'benim_en': en,
+    })
+
+
+@require_POST
+def geek_kosu_skor(request):
+    """Oyun bitince skoru kaydeder. Süreye göre makul üst sınır kontrolü yapılır."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False}, status=403)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return JsonResponse({'ok': False}, status=403)
+    try:
+        skor = int(request.POST.get('skor', 0))
+        sure = int(request.POST.get('sure_sn', 0))
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False}, status=400)
+    if skor <= 0 or sure < 3 or skor > sure * 80 + 50 or skor > 200000:
+        return JsonResponse({'ok': False, 'mesaj': 'Geçersiz skor.'}, status=400)
+    son = OyunSkor.objects.filter(personel=personel).first()
+    if son and (timezone.now() - son.zaman).total_seconds() < max(2, son.sure_sn * 0.5):
+        return JsonResponse({'ok': False, 'mesaj': 'Çok hızlı.'}, status=429)
+    OyunSkor.objects.create(personel=personel, skor=skor, sure_sn=sure)
+    from django.db.models import Max
+    hafta = _oyun_liste(True, 100)
+    sira = next((r['sira'] for r in hafta if r['id'] == personel.id), None)
+    en = OyunSkor.objects.filter(personel=personel).aggregate(m=Max('skor'))['m'] or 0
+    return JsonResponse({'ok': True, 'hafta_sira': sira, 'en': en})
+
+
 def g_sosyal(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -4269,6 +4332,7 @@ def g_sosyal(request):
         'haberler': haberler,
         'haber_yonetebilir': personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR),
         'anketler': anketler, 'anket_yonetebilir': anket_yonetebilir,
+        'oyun_liste': _oyun_liste(haftalik=True, limit=5),
     })
 
 

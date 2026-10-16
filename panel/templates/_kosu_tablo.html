@@ -1,0 +1,14 @@
+<div class="card kosu-tablo">
+  <h3>{{ baslik }}</h3>
+  {% if liste %}
+  <ol class="kosu-liste">
+    {% for r in liste %}
+    <li{% if r.id == personel.id %} class="ben"{% endif %}>
+      <span class="kosu-sira">{{ r.sira }}</span>
+      <span class="kosu-ad">{{ r.ad }}{% if r.sube %}<small>{{ r.sube }}</small>{% endif %}</span>
+      <b class="kosu-puan">{{ r.skor }}</b>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}<p class="kosu-bos">Henüz skor yok. İlk koşuyu sen yap.</p>{% endif %}
+</div>

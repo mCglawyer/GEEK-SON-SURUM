@@ -1460,3 +1460,20 @@ class AnketOy(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['anket', 'personel'], name='anket_oy_tekil')]
+
+
+class OyunSkor(models.Model):
+    """Geek Koşusu oyununda yapılan koşuların skorları."""
+    personel = models.ForeignKey('Personel', on_delete=models.CASCADE, related_name='oyun_skorlari')
+    skor = models.PositiveIntegerField()
+    sure_sn = models.PositiveIntegerField(default=0)
+    zaman = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-zaman']
+        indexes = [models.Index(fields=['zaman'], name='panel_oyuns_zaman_idx'), models.Index(fields=['personel', '-skor'], name='panel_oyuns_pers_skor_idx')]
+        verbose_name = "Oyun skoru"
+        verbose_name_plural = "Oyun skorları"
+
+    def __str__(self):
+        return f'{self.personel} · {self.skor}'

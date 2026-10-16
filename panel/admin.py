@@ -380,3 +380,12 @@ class TemizlikFiyatAdmin(admin.ModelAdmin):
     list_filter = ('birim',)
     search_fields = ('urun__ad',)
     raw_id_fields = ('urun',)
+
+
+from .models import OyunSkor  # noqa: E402
+
+@admin.register(OyunSkor)
+class OyunSkorAdmin(admin.ModelAdmin):
+    list_display = ('personel', 'skor', 'sure_sn', 'zaman')
+    list_filter = ('zaman',)
+    search_fields = ('personel__ad_soyad',)

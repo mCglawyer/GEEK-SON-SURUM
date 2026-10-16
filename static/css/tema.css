@@ -829,3 +829,24 @@ html[data-theme="dark"] .tz-kapali-bant { background:var(--surface); }
 .anket-form{display:grid;gap:.5rem;margin-top:.8rem}
 #anket-secenekler{display:grid;gap:.5rem}
 .anket-form-alt{display:flex;justify-content:space-between;gap:.6rem}
+
+/* ---- Geek Koşusu ---- */
+.kosu-oyun{padding:.8rem}
+.kosu-oyun canvas{width:100%;height:auto;aspect-ratio:800/340;display:block;border-radius:14px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer;background:#FFF1CF}
+.kosu-alt{display:flex;flex-wrap:wrap;gap:.4rem 1rem;justify-content:space-between;margin-top:.7rem;font-size:.88rem}
+.kosu-ipucu{color:var(--muted)}
+.kosu-sonuc{min-height:1.4rem;margin-top:.4rem;font-weight:600}
+.kosu-sonuc.ok{color:#1c8a4b}
+.kosu-tablolar{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-top:1rem}
+.kosu-liste{list-style:none;margin:.6rem 0 0;padding:0}
+.kosu-liste li{display:flex;align-items:center;gap:.7rem;padding:.5rem .4rem;border-top:1px solid var(--line)}
+.kosu-liste li:first-child{border-top:none}
+.kosu-liste li.ben{background:var(--crema-050);border-radius:10px}
+.kosu-sira{width:1.6rem;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.kosu-liste li:nth-child(1) .kosu-sira{color:#C98A10}
+.kosu-ad{flex:1;min-width:0;font-weight:600}
+.kosu-ad small{display:block;font-weight:400;color:var(--muted);font-size:.78rem}
+.kosu-puan{font-variant-numeric:tabular-nums}
+.kosu-bos{color:var(--muted);margin:.6rem 0 0}
+.kosu-kart{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.kosu-kart .kosu-liste{flex:1;min-width:240px;margin:0}
