@@ -4119,10 +4119,13 @@ def _gosterim_adi(personel):
     return GEEK_MARKA_ADI if personel.rol == Rol.OPERATOR else personel.ad_soyad
 
 
-def _oyun_liste(haftalik=True, limit=10):
+OYUN_MODLARI = ('kosu', 'arena')
+
+
+def _oyun_liste(haftalik=True, limit=10, mod='kosu'):
     """Personel başına en iyi skor; haftalik=True ise bu haftanın (pazartesiden itibaren) en iyileri."""
     from django.db.models import Max
-    qs = OyunSkor.objects.all()
+    qs = OyunSkor.objects.filter(mod=mod if mod in OYUN_MODLARI else 'kosu')
     if haftalik:
         bugun = timezone.localdate()
         pzt = bugun - datetime.timedelta(days=bugun.weekday())
@@ -4147,11 +4150,13 @@ def geek_kosu(request):
     if personel is None:
         return redirect('ana_sayfa')
     from django.db.models import Max
-    en = OyunSkor.objects.filter(personel=personel).aggregate(m=Max('skor'))['m'] or 0
+    en = OyunSkor.objects.filter(personel=personel, mod='kosu').aggregate(m=Max('skor'))['m'] or 0
+    en_arena = OyunSkor.objects.filter(personel=personel, mod='arena').aggregate(m=Max('skor'))['m'] or 0
     return render(request, 'geek_kosu.html', {
         'personel': personel, 'aktif': 'geek_kosu',
         'haftalik': _oyun_liste(True, 10), 'tum_zamanlar': _oyun_liste(False, 10),
-        'benim_en': en, 'radyo': getattr(settings, 'GEEK_RADYO', {}),
+        'haftalik_arena': _oyun_liste(True, 10, 'arena'), 'tum_zamanlar_arena': _oyun_liste(False, 10, 'arena'),
+        'benim_en': en, 'benim_en_arena': en_arena, 'radyo': getattr(settings, 'GEEK_RADYO', {}),
     })
 
 
@@ -4168,17 +4173,22 @@ def geek_kosu_skor(request):
         sure = int(request.POST.get('sure_sn', 0))
     except (TypeError, ValueError):
         return JsonResponse({'ok': False}, status=400)
-    if skor <= 0 or sure < 3 or skor > sure * 170 + 120 or skor > 200000:
+    mod = request.POST.get('mod', 'kosu')
+    if mod not in OYUN_MODLARI:
+        return JsonResponse({'ok': False, 'mesaj': 'Geçersiz mod.'}, status=400)
+    # Koşu: metre + bonuslar; Arena: öldürme/dalga puanları. Süreye göre makul üst sınır.
+    oran = 170 if mod == 'kosu' else 140
+    if skor <= 0 or sure < 3 or skor > sure * oran + 120 or skor > 200000:
         return JsonResponse({'ok': False, 'mesaj': 'Geçersiz skor.'}, status=400)
     son = OyunSkor.objects.filter(personel=personel).first()
     if son and (timezone.now() - son.zaman).total_seconds() < max(2, son.sure_sn * 0.5):
         return JsonResponse({'ok': False, 'mesaj': 'Çok hızlı.'}, status=429)
-    OyunSkor.objects.create(personel=personel, skor=skor, sure_sn=sure)
+    OyunSkor.objects.create(personel=personel, skor=skor, sure_sn=sure, mod=mod)
     from django.db.models import Max
-    hafta = _oyun_liste(True, 100)
+    hafta = _oyun_liste(True, 100, mod)
     sira = next((r['sira'] for r in hafta if r['id'] == personel.id), None)
-    en = OyunSkor.objects.filter(personel=personel).aggregate(m=Max('skor'))['m'] or 0
-    return JsonResponse({'ok': True, 'hafta_sira': sira, 'en': en})
+    en = OyunSkor.objects.filter(personel=personel, mod=mod).aggregate(m=Max('skor'))['m'] or 0
+    return JsonResponse({'ok': True, 'hafta_sira': sira, 'en': en, 'mod': mod})
 
 
 def g_sosyal(request):

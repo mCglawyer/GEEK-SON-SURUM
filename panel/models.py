@@ -1467,6 +1467,8 @@ class OyunSkor(models.Model):
     personel = models.ForeignKey('Personel', on_delete=models.CASCADE, related_name='oyun_skorlari')
     skor = models.PositiveIntegerField()
     sure_sn = models.PositiveIntegerField(default=0)
+    # Oyun modu: 'kosu' (Geek Koşusu) | 'arena' (Geek Arena). Eski kayıtlar koşudur.
+    mod = models.CharField(max_length=10, default='kosu', db_index=True)
     zaman = models.DateTimeField(auto_now_add=True)
 
     class Meta:

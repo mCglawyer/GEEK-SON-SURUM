@@ -1,109 +1,48 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Geek Koşusu · Geek Panel{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/geekoyun.css' %}?v=1">{% endblock %}
 {% block body %}
 <div class="container kosu-wrap">
   <div class="plan-head">
-    <div><h2>Geek Koşusu</h2><span class="plan-aralik">3B koşu oyunu: kahve ve yemeklerin üzerinden atla, hızlandıkça zorlaşır</span></div>
+    <div><h2>Geek Koşusu ve Arena</h2><span class="plan-aralik">Tek barista, iki 3B oyun: sokakta koş ya da arenada dalgalara karşı savaş</span></div>
     <a href="{% url 'g_sosyal' %}" class="btn btn-ghost btn-mini">Geek Crew'e dön</a>
   </div>
 
   <div class="card kosu-hero">
     <div class="kosu-hero-metin">
-      <h3>Tam ekran, 3 boyutlu, 3 şeritli koşu</h3>
-      <p>Geek tişörtlü baristayı koştur. Şerit değiştir, zıpla, kay; kahve çekirdeklerini topla, Espresso ile engelleri kır. Her 1000 metrede hız bir kademe artar; yağmur, gece ve gündüz değişir. Kıyafet dolabından görünümünü seç, Cold Brew ile zamanı yavaşlat, mıknatısla çekirdekleri çek, Geek Radio eşliğinde koş. Haftanın en iyileri Geek Crew'de yayınlanır.</p>
-      <p class="kosu-ipucu">Klavye: ← → şerit · ↑ / Boşluk zıpla · ↓ kay · P duraklat. Telefonda: kaydır ve dokun.</p>
-      <p>Kişisel en iyin: <b>{{ benim_en }}</b></p>
-      <button type="button" class="btn" data-kosu-ac>Tam ekranda oyna</button>
+      <h3>Barista göreve hazır</h3>
+      <p>Geek tişörtlü baristayı kıyafet dolabından özelleştir, sonra iki moddan birini seç. <b>Koşu</b>'da şerit değiştir, zıpla, kay; her 1000 metrede hız artar. <b>Arena</b>'da Süt Jölesi, Kruvasan Goblini ve Kral Jöle dalgalarına karşı savaş. İkisinde de can, ether ve dayanıklılık yönetir; Kavurma Topu, Şimşek, Yağmur Fırtınası, Patlama ve Köpük Kalkan yeteneklerini birleştirip tepkimeler yaratırsın. Skorların Geek Crew sıralamasına yazılır.</p>
+      <p class="kosu-ipucu">Koşu: ← → şerit · ↑ / Boşluk zıpla · ↓ kay · 1 2 3 Q yetenek · Shift atılma. Arena: WASD hareket · fare nişan · 1-4, Q yetenek · Boşluk atılma · E etkileşim. Telefonda: kaydır, sürükle ve düğmelere dokun.</p>
+      <p>Kişisel en iyilerin: Koşu <b>{{ benim_en }}</b> · Arena <b>{{ benim_en_arena }}</b></p>
+      <div class="kosu-hero-butonlar">
+        <button type="button" class="btn" data-kosu-ac="">Oyun salonunu aç</button>
+        <button type="button" class="btn" data-kosu-ac="kosu">Koşuyu başlat</button>
+        <button type="button" class="btn" data-kosu-ac="arena">Arena'ya gir</button>
+      </div>
     </div>
   </div>
 
   <div class="kosu-tablolar">
-    {% include '_kosu_tablo.html' with baslik='Bu haftanın en iyileri' liste=haftalik %}
-    {% include '_kosu_tablo.html' with baslik='Tüm zamanların en iyileri' liste=tum_zamanlar %}
+    {% include '_kosu_tablo.html' with baslik='Koşu · bu haftanın en iyileri' liste=haftalik %}
+    {% include '_kosu_tablo.html' with baslik='Koşu · tüm zamanlar' liste=tum_zamanlar %}
+    {% include '_kosu_tablo.html' with baslik='Arena · bu haftanın en iyileri' liste=haftalik_arena %}
+    {% include '_kosu_tablo.html' with baslik='Arena · tüm zamanlar' liste=tum_zamanlar_arena %}
   </div>
 </div>
 
-<div id="kosu-oyun" hidden data-skor-url="{% url 'geek_kosu_skor' %}" data-logo="{% static 'images/geek_logo_blue.png' %}" data-en="{{ benim_en }}" data-radyo-api="{{ radyo.api }}" data-radyo-yedek="{{ radyo.yedek }}" data-radyo-sayfa="{{ radyo.sayfa }}">
+<div id="kosu-oyun" hidden data-skor-url="{% url 'geek_kosu_skor' %}" data-logo="{% static 'images/geek_logo_blue.png' %}" data-logo-beyaz="{% static 'images/geek_logo_white.png' %}" data-en="{{ benim_en }}" data-en-arena="{{ benim_en_arena }}" data-radyo-api="{{ radyo.api }}" data-radyo-yedek="{{ radyo.yedek }}" data-radyo-sayfa="{{ radyo.sayfa }}">
   <div id="kosu-sahne" class="kosu-sahne"></div>
-
-  <div class="kosu-hud">
-    <div class="kh-sol">
-      <div class="kh-skor" id="kh-skor">0</div>
-      <div class="kh-alt"><span class="kh-cek" aria-hidden="true"></span><b id="kh-cekirdek">0</b><span class="kh-hiz" id="kh-mesafe">0 m</span></div>
-      <div class="kh-sev"><span id="kh-sev">Seviye 1</span><div class="kh-sev-iz"><div id="kh-sev-bar"></div></div></div>
-      <div class="kh-guc-kap" hidden><span>Espresso</span><div class="kh-guc-iz"><div id="kh-guc-bar"></div></div></div>
-    </div>
-    <div class="kh-sag">
-      <button type="button" class="kh-btn" id="kosu-radyo" data-kosu-radyo="hud" aria-pressed="false">♪ Radyo</button>
-      <button type="button" class="kh-btn" id="kosu-duraklat" aria-label="Duraklat">Duraklat</button>
-      <button type="button" class="kh-btn" id="kosu-tam" aria-label="Tam ekranı aç veya kapat">Tam ekran</button>
-      <button type="button" class="kh-btn" id="kosu-ses" aria-pressed="true">Ses açık</button>
-      <button type="button" class="kh-btn kh-kapat" data-kosu-kapat aria-label="Oyundan çık">Çık</button>
-    </div>
-    <div class="kh-radyo-bilgi" data-kosu-radyo-bilgi hidden></div>
-    <div class="kh-mesaj" id="kh-mesaj" role="status" aria-live="polite"></div>
-    <div class="kh-geri" id="kh-geri" aria-live="assertive"></div>
-  </div>
   <div class="kosu-vinyet" aria-hidden="true"></div>
   <div class="kosu-flas" id="kosu-flas" aria-hidden="true"></div>
-
-  <div class="kosu-panel" id="kosu-menu" hidden>
-    <div class="kosu-kutu">
-      <h2>Geek Koşusu</h2>
-      <p>Geek tişörtlü barista olarak kahveci sokağında koş. Engellerden zıpla, pankartların altından kay, çekirdekleri topla. Her 1000 metrede hız artar.</p>
-      <ul class="kosu-kontrol">
-        <li><kbd>←</kbd><kbd>→</kbd> şerit değiştir</li>
-        <li><kbd>↑</kbd> / <kbd>Boşluk</kbd> zıpla (havada bir kez daha)</li>
-        <li><kbd>↓</kbd> kay · <kbd>P</kbd> duraklat</li>
-        <li><kbd>R</kbd> radyo aç/kapat · <kbd>G</kbd> dolap</li>
-        <li>Telefonda: kaydır, dokunmak zıplatır</li>
-      </ul>
-      <div class="kosu-radyo-satir">
-        <button type="button" class="btn btn-ghost" data-kosu-radyo="menu" aria-pressed="false">♪ Geek Radio'yu aç</button>
-        <span class="kosu-radyo-bilgi" data-kosu-radyo-bilgi hidden></span>
-      </div>
-      <button type="button" class="btn kosu-buyuk" id="kosu-basla">Başla</button>
-      <button type="button" class="btn" id="kosu-dolap-ac">Dolap · kıyafet seç</button>
-      <button type="button" class="btn btn-ghost" data-kosu-kapat>Vazgeç</button>
-    </div>
-  </div>
-
-  <div class="kosu-panel" id="kosu-dur" hidden>
-    <div class="kosu-kutu">
-      <h2>Duraklatıldı</h2>
-      <div class="kosu-radyo-satir">
-        <button type="button" class="btn btn-ghost" data-kosu-radyo="menu" aria-pressed="false">♪ Geek Radio'yu aç</button>
-        <span class="kosu-radyo-bilgi" data-kosu-radyo-bilgi hidden></span>
-      </div>
-      <button type="button" class="btn kosu-buyuk" id="kosu-devam">Devam et</button>
-      <button type="button" class="btn btn-ghost" data-kosu-kapat>Oyundan çık</button>
-    </div>
-  </div>
-
-  <div class="kosu-panel" id="kosu-bitis" hidden>
-    <div class="kosu-kutu">
-      <h2>Oyun bitti</h2>
-      <div class="kb-skor" id="kb-skor">0</div>
-      <div class="kb-detay" id="kb-detay"></div>
-      <div class="kb-rekor" id="kb-rekor" hidden>Yeni kişisel rekor!</div>
-      <div class="kb-sira" id="kb-sira"></div>
-      <button type="button" class="btn kosu-buyuk" id="kosu-tekrar">Tekrar oyna</button>
-      <button type="button" class="btn" id="kosu-dolap-bitis">Kıyafet değiştir</button>
-      <button type="button" class="btn btn-ghost" data-kosu-kapat>Çık ve sıralamayı gör</button>
-    </div>
-  </div>
-<div class="kosu-dolap" id="kosu-dolap" hidden>
-    <div class="kd-kutu">
-      <div class="kd-baslik"><h3>Dolap</h3><button type="button" class="btn kosu-buyuk" id="kd-bitti">Hazır</button></div>
-      <p class="kd-ipucu">Barista'nı sürükleyerek döndür. Yeni kıyafetler en iyi skorunla açılır.</p>
-      <div class="kd-grup"><span class="kd-et">Kıyafet</span><div class="kd-izgara" id="kd-kiyafet"></div></div>
-      <div class="kd-grup"><span class="kd-et">Ten rengi</span><div class="kd-noktalar" id="kd-ten"></div></div>
-      <div class="kd-grup"><span class="kd-et">Aksesuar</span><div class="kd-cipler" id="kd-aks"></div></div>
-    </div>
-  </div>
 </div>
 <script src="{% static 'js/geekradyo.js' %}?v=1"></script>
 <script src="{% static 'js/vendor/three.min.js' %}" defer></script>
-<script src="{% static 'js/geekkosu.js' %}?v=4" defer></script>
+<script src="{% static 'js/kosu/ecs.js' %}?v=1" defer></script>
+<script src="{% static 'js/kosu/veri.js' %}?v=1" defer></script>
+<script src="{% static 'js/kosu/sistemler.js' %}?v=1" defer></script>
+<script src="{% static 'js/kosu/ui.js' %}?v=1" defer></script>
+<script src="{% static 'js/kosu/gorsel.js' %}?v=1" defer></script>
+<script src="{% static 'js/kosu/arena.js' %}?v=2" defer></script>
+<script src="{% static 'js/geekkosu.js' %}?v=5" defer></script>
 {% endblock %}

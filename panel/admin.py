@@ -386,6 +386,6 @@ from .models import OyunSkor  # noqa: E402
 
 @admin.register(OyunSkor)
 class OyunSkorAdmin(admin.ModelAdmin):
-    list_display = ('personel', 'skor', 'sure_sn', 'zaman')
-    list_filter = ('zaman',)
+    list_display = ('personel', 'mod', 'skor', 'sure_sn', 'zaman')
+    list_filter = ('mod', 'zaman')
     search_fields = ('personel__ad_soyad',)

@@ -361,6 +361,26 @@ class GeekKosuTesti(TestCase):
             self.assertContains(self.client.get('/geek-kosu/'), 'Koşucu Kişi')
             self.assertContains(self.client.get('/g-sosyal/'), 'Koşucu Kişi')
 
+    def test_arena_modu(self):
+        from django.test import override_settings
+        from panel.models import OyunSkor
+        from django.utils import timezone
+        import datetime
+        with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+                                         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}}):
+            r = self.client.post('/geek-kosu/skor/', {'skor': 200, 'sure_sn': 30, 'mod': 'arena'})
+            self.assertTrue(r.json()['ok'])
+            self.assertEqual(r.json()['mod'], 'arena')
+            self.assertEqual(OyunSkor.objects.get(personel=self.p).mod, 'arena')
+            OyunSkor.objects.update(zaman=timezone.now() - datetime.timedelta(minutes=5))
+            # arena oranı koşudan düşük: 5 sn'de 900 puan reddedilir
+            r = self.client.post('/geek-kosu/skor/', {'skor': 900, 'sure_sn': 5, 'mod': 'arena'})
+            self.assertEqual(r.status_code, 400)
+            # bilinmeyen mod reddedilir
+            r = self.client.post('/geek-kosu/skor/', {'skor': 100, 'sure_sn': 20, 'mod': 'x'})
+            self.assertEqual(r.status_code, 400)
+            self.assertContains(self.client.get('/geek-kosu/'), 'Arena')
+
 
 class RadyoKabukTesti(TestCase):
     """Kalıcı Geek Radio kabuğu: sekme gezintisi kabuğa sarılır, iframe/diğer istekler normal sayfayı alır."""
@@ -424,6 +444,6 @@ class RadyoKabukTesti(TestCase):
         self.assertContains(self.client.get('/sw.js'), 'X-Geek-Dest')
         self.client.force_login(self.u)
         r = self.client.get('/geek-kosu/')
-        for parca in ['kosu-dolap', 'data-radyo-api', 'kd-kiyafet', 'data-kosu-radyo']:
+        for parca in ['data-radyo-api', 'data-kosu-ac', 'kosu-oyun', 'kosu/ecs.js', 'kosu/arena.js']:
             self.assertContains(r, parca)
         self.assertContains(self.client.get('/g-sosyal/'), 'geekradyo.js')
