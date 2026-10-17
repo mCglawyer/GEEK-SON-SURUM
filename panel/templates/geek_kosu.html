@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Geek Koşusu · Geek Panel{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/geekoyun.css' %}?v=1">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/geekoyun.css' %}?v=5">{% endblock %}
 {% block body %}
 <div class="container kosu-wrap">
   <div class="plan-head">
-    <div><h2>Geek Koşusu ve Arena</h2><span class="plan-aralik">Tek barista, iki 3B oyun: sokakta koş ya da arenada dalgalara karşı savaş</span></div>
+    <div><h2>Geek Oyun Salonu</h2><span class="plan-aralik">Üç oyun: sokakta koş, arenada savaş ya da Geek Milyoner'de bilgini sına</span></div>
     <a href="{% url 'g_sosyal' %}" class="btn btn-ghost btn-mini">Geek Crew'e dön</a>
   </div>
 
@@ -14,11 +14,13 @@
       <h3>Barista göreve hazır</h3>
       <p>Geek tişörtlü baristayı kıyafet dolabından özelleştir, sonra iki moddan birini seç. <b>Koşu</b>'da şerit değiştir, zıpla, kay; her 1000 metrede hız artar. <b>Arena</b>'da Süt Jölesi, Kruvasan Goblini ve Kral Jöle dalgalarına karşı savaş. İkisinde de can, ether ve dayanıklılık yönetir; Kavurma Topu, Şimşek, Yağmur Fırtınası, Patlama ve Köpük Kalkan yeteneklerini birleştirip tepkimeler yaratırsın. Skorların Geek Crew sıralamasına yazılır.</p>
       <p class="kosu-ipucu">Koşu: ← → şerit · ↑ / Boşluk zıpla · ↓ kay · 1 2 3 Q yetenek · Shift atılma. Arena: WASD hareket · fare nişan · 1-4, Q yetenek · Boşluk atılma · E etkileşim. Telefonda: kaydır, sürükle ve düğmelere dokun.</p>
-      <p>Kişisel en iyilerin: Koşu <b>{{ benim_en }}</b> · Arena <b>{{ benim_en_arena }}</b></p>
+      <p><b>Geek Milyoner</b>: 15 soruluk bilgi yarışması. Jokerlerini akıllı kullan, güvenli basamaklarda (1.000 ve 32.000) puanını koru, bir milyona ulaş.</p>
+      <p>Kişisel en iyilerin: Koşu <b>{{ benim_en }}</b> · Arena <b>{{ benim_en_arena }}</b> · Milyoner <b>{{ benim_en_mily }}</b></p>
       <div class="kosu-hero-butonlar">
         <button type="button" class="btn" data-kosu-ac="">Oyun salonunu aç</button>
         <button type="button" class="btn" data-kosu-ac="kosu">Koşuyu başlat</button>
         <button type="button" class="btn" data-kosu-ac="arena">Arena'ya gir</button>
+        <button type="button" class="btn" data-kosu-ac="milyoner">Milyoner'i başlat</button>
       </div>
     </div>
   </div>
@@ -28,10 +30,12 @@
     {% include '_kosu_tablo.html' with baslik='Koşu · tüm zamanlar' liste=tum_zamanlar %}
     {% include '_kosu_tablo.html' with baslik='Arena · bu haftanın en iyileri' liste=haftalik_arena %}
     {% include '_kosu_tablo.html' with baslik='Arena · tüm zamanlar' liste=tum_zamanlar_arena %}
+    {% include '_kosu_tablo.html' with baslik='Milyoner · bu haftanın en iyileri' liste=haftalik_mily %}
+    {% include '_kosu_tablo.html' with baslik='Milyoner · tüm zamanlar' liste=tum_zamanlar_mily %}
   </div>
 </div>
 
-<div id="kosu-oyun" hidden data-skor-url="{% url 'geek_kosu_skor' %}" data-logo="{% static 'images/geek_logo_blue.png' %}" data-logo-beyaz="{% static 'images/geek_logo_white.png' %}" data-en="{{ benim_en }}" data-en-arena="{{ benim_en_arena }}" data-radyo-api="{{ radyo.api }}" data-radyo-yedek="{{ radyo.yedek }}" data-radyo-sayfa="{{ radyo.sayfa }}">
+<div id="kosu-oyun" hidden data-skor-url="{% url 'geek_kosu_skor' %}" data-logo="{% static 'images/geek_logo_blue.png' %}" data-logo-beyaz="{% static 'images/geek_logo_white.png' %}" data-en="{{ benim_en }}" data-en-milyoner="{{ benim_en_mily }}" data-en-arena="{{ benim_en_arena }}" data-radyo-api="{{ radyo.api }}" data-radyo-yedek="{{ radyo.yedek }}" data-radyo-sayfa="{{ radyo.sayfa }}">
   <div id="kosu-sahne" class="kosu-sahne"></div>
   <div class="kosu-vinyet" aria-hidden="true"></div>
   <div class="kosu-flas" id="kosu-flas" aria-hidden="true"></div>
@@ -41,8 +45,9 @@
 <script src="{% static 'js/kosu/ecs.js' %}?v=1" defer></script>
 <script src="{% static 'js/kosu/veri.js' %}?v=1" defer></script>
 <script src="{% static 'js/kosu/sistemler.js' %}?v=1" defer></script>
-<script src="{% static 'js/kosu/ui.js' %}?v=1" defer></script>
+<script src="{% static 'js/kosu/ui.js' %}?v=2" defer></script>
 <script src="{% static 'js/kosu/gorsel.js' %}?v=1" defer></script>
 <script src="{% static 'js/kosu/arena.js' %}?v=2" defer></script>
-<script src="{% static 'js/geekkosu.js' %}?v=5" defer></script>
+<script src="{% static 'js/kosu/milyoner.js' %}?v=1" defer></script>
+<script src="{% static 'js/geekkosu.js' %}?v=7" defer></script>
 {% endblock %}

@@ -214,27 +214,33 @@
       var kKosu = el('button', 'go-kart', { type: 'button' }), kArena = el('button', 'go-kart mavi', { type: 'button' });
       kKosu.innerHTML = '<span class="go-bant">3 şeritli</span><h3>Koşu</h3><span class="go-alt-yazi">Sonsuz sokak. Zıpla, kay, hızlan.<br><b data-en="kosu"></b></span>';
       kArena.innerHTML = '<span class="go-bant">Yeni</span><h3>Arena</h3><span class="go-alt-yazi">Dalgalarla savaş, yeteneklerini birleştir.<br><b data-en="arena"></b></span>';
+      var kMily = el('button', 'go-kart mily', { type: 'button' });
+      kMily.innerHTML = '<span class="go-bant">Bilgi yarışması</span><h3>Milyoner</h3><span class="go-alt-yazi">15 soru, 3 joker, bir milyon puan.<br><b data-en="milyoner"></b></span>';
+      kMily.addEventListener('click', function () { olay('basla', 'milyoner'); });
       kKosu.addEventListener('click', function () { olay('basla', 'kosu'); });
       kArena.addEventListener('click', function () { olay('basla', 'arena'); });
       var logo = el('div', 'go-logo', null, [ayar.logo ? el('img', null, { src: ayar.logo, alt: 'Geek', height: 44 }) : null, el('span', null, { metin: 'Oyun Salonu' })]);
+      var geriPanel = buton('‹ Geri dön', 'ikincil go-geri-panel', function () { olay('cik'); });
+      geriPanel.setAttribute('aria-label', 'Panele geri dön');
       var menu = el('div', 'go-menu', null, [
+        geriPanel,
         logo,
         el('h1', null, { html: 'Barista<br><em>göreve hazır</em>' }),
-        el('p', 'go-alt-yazi', { metin: 'Tek karakter, iki oyun: sokakta koş ya da arenada dalgalara karşı savaş. Skorların Geek Crew sıralamasına yazılır.' }),
-        el('div', 'go-modlar', null, [kKosu, kArena]),
-        el('div', 'go-ikinci', null, [buton('Dolap', 'ikincil', function () { olay('dolap'); }), buton('Rehber', 'ikincil', function () { olay('rehber'); }), buton('Ayarlar', 'ikincil', function () { olay('ayar'); }), buton('Çıkış', 'ikincil', function () { olay('cik'); })]),
+        el('p', 'go-alt-yazi', { metin: 'Sokakta koş, arenada dalgalara karşı savaş ya da Milyoner\'de bilgini sına. Skorların Geek Crew sıralamasına yazılır.' }),
+        el('div', 'go-modlar', null, [kKosu, kArena, kMily]),
+        el('div', 'go-ikinci', null, [buton('Dolap', 'ikincil', function () { olay('dolap'); }), buton('Rehber', 'ikincil', function () { olay('rehber'); }), buton('Ayarlar', 'ikincil', function () { olay('ayar'); })]),
         radyoSatiri()
       ]);
       ekran('menu', 'go-baslik-ekran', [menu]);
       ui.menuGuncelle = function (d) {
-        [].forEach.call(menu.querySelectorAll('[data-en]'), function (b) { var v = b.dataset.en === 'kosu' ? d.enKosu : d.enArena; b.textContent = 'En iyi: ' + v; });
+        [].forEach.call(menu.querySelectorAll('[data-en]'), function (b) { var v = b.dataset.en === 'kosu' ? d.enKosu : b.dataset.en === 'arena' ? d.enArena : d.enMily; b.textContent = 'En iyi: ' + v; });
       };
 
       /* duraklat */
       ekran('dur', 'ortala', [el('div', 'go-kutu', null, [
         el('h2', null, { metin: 'Duraklatıldı' }),
         radyoSatiri(),
-        el('div', 'go-aksiyon', null, [buton('Devam et', 'buyuk', function () { olay('devam'); }), buton('Ayarlar', 'ikincil', function () { olay('ayar'); }), buton('Ana menü', 'ikincil', function () { olay('menu'); })])
+        el('div', 'go-aksiyon', null, [buton('Devam et', 'buyuk', function () { olay('devam'); }), buton('Ayarlar', 'ikincil', function () { olay('ayar'); }), buton('Ana menü', 'ikincil', function () { olay('menu'); }), buton('Panele dön', 'ikincil', function () { olay('cik'); })])
       ])]);
 
       /* oyun sonu */

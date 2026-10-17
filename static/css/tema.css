@@ -851,3 +851,11 @@ html[data-theme="dark"] .tz-kapali-bant { background:var(--surface); }
 .kosu-kart{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
 .kosu-kart .kosu-liste{flex:1;min-width:240px;margin:0}
 .kosu-hero-butonlar{display:flex;gap:.5rem;flex-wrap:wrap}
+
+.kosu-sag{flex:1;min-width:240px}
+.kosu-sag .kosu-liste{min-width:0}
+.kosu-sek{display:flex;gap:.4rem;flex-wrap:wrap}
+.kosu-sek-btn{border:1px solid var(--line);background:transparent;color:inherit;border-radius:999px;padding:.3rem .8rem;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer}
+.kosu-sek-btn.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.kosu-sek-btn:focus-visible{outline:3px solid var(--crema-300,#f2b544);outline-offset:2px}
+.kosu-panel[hidden]{display:none}

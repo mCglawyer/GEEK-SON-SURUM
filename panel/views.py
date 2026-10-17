@@ -4119,7 +4119,9 @@ def _gosterim_adi(personel):
     return GEEK_MARKA_ADI if personel.rol == Rol.OPERATOR else personel.ad_soyad
 
 
-OYUN_MODLARI = ('kosu', 'arena')
+OYUN_MODLARI = ('kosu', 'arena', 'milyoner')
+# Geek Milyoner: ödül merdiveni (istemcideki ile aynı olmalı); skor yalnızca bu değerlerden biri olabilir.
+MILYONER_MERDIVEN = (100, 200, 300, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 125000, 250000, 500000, 1000000)
 
 
 def _oyun_liste(haftalik=True, limit=10, mod='kosu'):
@@ -4152,11 +4154,13 @@ def geek_kosu(request):
     from django.db.models import Max
     en = OyunSkor.objects.filter(personel=personel, mod='kosu').aggregate(m=Max('skor'))['m'] or 0
     en_arena = OyunSkor.objects.filter(personel=personel, mod='arena').aggregate(m=Max('skor'))['m'] or 0
+    en_mily = OyunSkor.objects.filter(personel=personel, mod='milyoner').aggregate(m=Max('skor'))['m'] or 0
     return render(request, 'geek_kosu.html', {
         'personel': personel, 'aktif': 'geek_kosu',
         'haftalik': _oyun_liste(True, 10), 'tum_zamanlar': _oyun_liste(False, 10),
         'haftalik_arena': _oyun_liste(True, 10, 'arena'), 'tum_zamanlar_arena': _oyun_liste(False, 10, 'arena'),
-        'benim_en': en, 'benim_en_arena': en_arena, 'radyo': getattr(settings, 'GEEK_RADYO', {}),
+        'haftalik_mily': _oyun_liste(True, 10, 'milyoner'), 'tum_zamanlar_mily': _oyun_liste(False, 10, 'milyoner'),
+        'benim_en': en, 'benim_en_arena': en_arena, 'benim_en_mily': en_mily, 'radyo': getattr(settings, 'GEEK_RADYO', {}),
     })
 
 
@@ -4177,9 +4181,14 @@ def geek_kosu_skor(request):
     if mod not in OYUN_MODLARI:
         return JsonResponse({'ok': False, 'mesaj': 'Geçersiz mod.'}, status=400)
     # Koşu: metre + bonuslar; Arena: öldürme/dalga puanları. Süreye göre makul üst sınır.
-    oran = 170 if mod == 'kosu' else 140
-    if skor <= 0 or sure < 3 or skor > sure * oran + 120 or skor > 200000:
-        return JsonResponse({'ok': False, 'mesaj': 'Geçersiz skor.'}, status=400)
+    if mod == 'milyoner':
+        # skor ödül merdiveninin bir basamağı olmalı ve o basamağa varacak kadar süre geçmiş olmalı (soru başına en az 2 sn)
+        if skor not in MILYONER_MERDIVEN or sure < 2 * (MILYONER_MERDIVEN.index(skor) + 1):
+            return JsonResponse({'ok': False, 'mesaj': 'Geçersiz skor.'}, status=400)
+    else:
+        oran = 170 if mod == 'kosu' else 140
+        if skor <= 0 or sure < 3 or skor > sure * oran + 120 or skor > 200000:
+            return JsonResponse({'ok': False, 'mesaj': 'Geçersiz skor.'}, status=400)
     son = OyunSkor.objects.filter(personel=personel).first()
     if son and (timezone.now() - son.zaman).total_seconds() < max(2, son.sure_sn * 0.5):
         return JsonResponse({'ok': False, 'mesaj': 'Çok hızlı.'}, status=429)
@@ -4350,7 +4359,9 @@ def g_sosyal(request):
         'haberler': haberler,
         'haber_yonetebilir': personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR),
         'anketler': anketler, 'anket_yonetebilir': anket_yonetebilir,
-        'oyun_liste': _oyun_liste(haftalik=True, limit=5),
+        'oyun_listeleri': [('kosu', _oyun_liste(haftalik=True, limit=5)),
+                           ('arena', _oyun_liste(haftalik=True, limit=5, mod='arena')),
+                           ('mily', _oyun_liste(haftalik=True, limit=5, mod='milyoner'))],
     })
 
 

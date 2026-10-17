@@ -42,6 +42,21 @@
   function ayarKaydet() { try { localStorage.setItem('kosu_ayar', JSON.stringify(AYAR)); } catch (e) {} }
   var UI = GK.ui.kur(kok, { sahne: elSahne, logo: kok.getAttribute('data-logo-beyaz') || LOGO_URL, ayarlar: AYAR, olay: function (ad, arg) { olayIsle(ad, arg); } });
   var ENIYI_ARENA = parseInt(kok.getAttribute('data-en-arena') || '0', 10) || 0;
+  var ENIYI_MILY = parseInt(kok.getAttribute('data-en-milyoner') || '0', 10) || 0;
+  function menuVeri() { return { enKosu: ENIYI, enArena: ENIYI_ARENA, enMily: ENIYI_MILY }; }
+  // Üçüncü oyun: Geek Milyoner (3B sahne gerektirmeyen bilgi yarışması)
+  var MIL = GK.milyoner ? GK.milyoner.kur(kok, {
+    logo: kok.getAttribute('data-logo-beyaz') || LOGO_URL,
+    olay: function (ad, arg) { milOlay(ad, arg); },
+    ses: function (a) { try { if (a === 'dogru' || a === 'guc') SES.guc(); else if (a === 'yanlis') SES.carpma(); else SES.serit(); } catch (e) {} }
+  }) : { aktif: function () { return false; }, kapat: function () {}, ac: function () {}, klavye: function () { return false; }, sira: function () {} };
+  function milOlay(ad, arg) {
+    if (ad === 'mil_menu') { menuyeGec(); }
+    else if (ad === 'mil_cik') { kapat(); }
+    else if (ad === 'mil_bitti') { skorGonder('milyoner', arg.skor, arg.sure); }
+  }
+  var histVar = false;
+  function histEkle() { try { history.pushState({ kosuAcik: 1 }, ''); histVar = true; } catch (e) { histVar = false; } }
 
   /* ---------- ses ---------- */
   var ses = { ctx: null, kapali: false };
@@ -1296,18 +1311,19 @@
 
   var gonderildi = false;
   function skorGonder(m, skor, sure) {
-    if (skor <= 0 || sure < 3) return;
+    if (skor <= 0 || (sure < 3 && m !== 'milyoner')) return;
+    var yaz = function (t) { if (m === 'milyoner') MIL.sira(t); else UI.bitis.sira(t); };
     var fd = new FormData(); fd.append('skor', skor); fd.append('sure_sn', sure); fd.append('mod', m); fd.append('csrfmiddlewaretoken', CSRF);
     fetch(URL_SKOR, { method: 'POST', body: fd, credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (j && j.ok) {
           gonderildi = true;
-          if (m === 'kosu') ENIYI = Math.max(ENIYI, j.en || 0); else ENIYI_ARENA = Math.max(ENIYI_ARENA, j.en || 0);
-          UI.bitis.sira(j.hafta_sira ? 'Bu hafta ' + j.hafta_sira + '. sıradasın' : 'Skorun kaydedildi');
-        } else UI.bitis.sira('Skor kaydedilemedi' + ((j && j.mesaj) ? ' (' + j.mesaj + ')' : ''));
+          if (m === 'kosu') ENIYI = Math.max(ENIYI, j.en || 0); else if (m === 'arena') ENIYI_ARENA = Math.max(ENIYI_ARENA, j.en || 0); else ENIYI_MILY = Math.max(ENIYI_MILY, j.en || 0);
+          yaz(j.hafta_sira ? 'Bu hafta ' + j.hafta_sira + '. sıradasın' : 'Skorun kaydedildi');
+        } else yaz('Skor kaydedilemedi' + ((j && j.mesaj) ? ' (' + j.mesaj + ')' : ''));
       })
-      .catch(function () { UI.bitis.sira('Bağlantı hatası: skor kaydedilemedi'); });
+      .catch(function () { yaz('Bağlantı hatası: skor kaydedilemedi'); });
   }
 
   function dunyayiKaydir(d) {
@@ -1517,6 +1533,7 @@
 
   function dongu(t) {
     requestAnimationFrame(dongu);
+    if (MIL.aktif()) { son = t; return; }
     var gdt = Math.min((t - son) / 1000, 0.05); son = t; gdtSon = gdt;
     var dt = gdt;
     if (mod === 'arena') {
@@ -1642,24 +1659,26 @@
   function acilisPuani() { return Math.max(ENIYI, ENIYI_ARENA); }
 
   function menuyeGec() {
+    if (MIL.aktif()) MIL.kapat();
     if (A) A.temizle();
     if (VFX) VFX.temizle();
     W = null;
     sahneSec('kosu');
     durum = 'menu'; sifirla(); kok.classList.add('menude'); UI.hud.goster(false); UI.joyEtkin(false);
     UI.azCan(false); UI.geri('');
-    UI.menuGuncelle({ enKosu: ENIYI, enArena: ENIYI_ARENA });
+    UI.menuGuncelle(menuVeri());
     UI.goster('menu'); dolapKur(); giydir();
     B.grup.rotation.set(0, Math.PI, 0); B.grup.visible = true;
   }
   function ac(baslangicMod) {
     kok.hidden = false; document.documentElement.classList.add('kosu-acik'); radyoKur();
+    if (!histVar) histEkle();
     tamEkran(); sesBaslat();
     if (!motorHazir) { try { motorKur(); } catch (e) { kok.hidden = true; document.documentElement.classList.remove('kosu-acik'); if (window.console) console.error(e); alert('Bu cihazda 3B oyun başlatılamadı.'); return; } }
     else boyutla();
     menuyeGec();
     setTimeout(boyutla, 120);
-    if (baslangicMod === 'kosu' || baslangicMod === 'arena') basla(baslangicMod);
+    if (baslangicMod === 'kosu' || baslangicMod === 'arena' || baslangicMod === 'milyoner') basla(baslangicMod);
   }
   function dolapAc() {
     if (durum === 'bitis') menuyeGec();
@@ -1668,16 +1687,27 @@
   }
   function dolapKapat() {
     if (durum !== 'dolap') return;
-    durum = 'menu'; UI.goster('menu'); UI.menuGuncelle({ enKosu: ENIYI, enArena: ENIYI_ARENA });
+    durum = 'menu'; UI.goster('menu'); UI.menuGuncelle(menuVeri());
   }
   function kapat() {
     if (A) A.temizle();
+    MIL.kapat();
     durum = 'menu'; kok.hidden = true; document.documentElement.classList.remove('kosu-acik'); kok.classList.remove('soguk', 'yarali', 'az-can');
     tamEkrandanCik();
-    if (gonderildi) location.reload();
+    if (histVar) { histVar = false; try { history.back(); } catch (e) {} }
+    if (gonderildi) setTimeout(function () { location.reload(); }, 160);
+  }
+  function baslaMily() {
+    sesBaslat(); for (var kt in tuslar) delete tuslar[kt];
+    if (A) A.temizle();
+    durum = 'milyoner'; UI.goster(null); UI.hud.goster(false); UI.joyEtkin(false);
+    kok.classList.remove('soguk', 'yarali', 'az-can'); UI.azCan(false);
+    MIL.ac();
+    try { localStorage.setItem('kosu_mod', 'milyoner'); } catch (e) {}
   }
   function basla(m) {
-    m = m || mod; sesBaslat(); tuslar = {}; for (var kt in H.tus) delete H.tus[kt];
+    if (m === 'milyoner') { baslaMily(); return; }
+    m = m || mod; sesBaslat(); for (var kt in tuslar) delete tuslar[kt];
     if (A) A.temizle();
     if (m === 'arena') {
       sahneSec('arena'); kok.classList.remove('menude'); durum = 'oyun'; arenaOl = 0;
@@ -1736,7 +1766,7 @@
 
   if (DEBUG) window.__kosu = {
     g: function () { return G; }, ac: ac, basla: basla, post: function () { return post; }, k: function () { return K; }, durum: function () { return durum; },
-    mod: function () { return mod; }, arena: function () { return A; }, w: function () { return mod === 'arena' ? A.dunya() : W; }, ui: UI, ayar: AYAR,
+    mil: function () { return MIL; }, mod: function () { return mod; }, arena: function () { return A; }, w: function () { return mod === 'arena' ? A.dunya() : W; }, ui: UI, ayar: AYAR,
     eniyi: function (n) { ENIYI = n; dolapKur(); giydir(); }, seri: seriteGit, zipla: zipla, kay: kay, giydir: giydir, dolapAc: dolapAc, cast: function (id) { olayIsle('cast', id); },
     adim: function (n, dt) { for (var i = 0; i < n; i++) { if (mod === 'arena') { A.guncelle(dt, dt); } else { if (G.ol) return; guncelle(dt); havaGuncelle(dt, true); } } }
   };
@@ -1745,6 +1775,7 @@
   var TUS_ENGEL = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'Tab'];
   window.addEventListener('keydown', function (e) {
     if (kok.hidden) return;
+    if (MIL.aktif()) { if (MIL.klavye(e)) e.preventDefault(); return; }
     var k = e.code;
     if (TUS_ENGEL.indexOf(k) >= 0 && !(k === 'Tab' && UI.aktif())) e.preventDefault();
     tuslar[k] = true;
@@ -1754,7 +1785,7 @@
     if (ekr === 'ayar' || ekr === 'rehber') { if (k === 'Escape' || k === 'Enter') ayarKapat(); return; }
     if (durum === 'dolap') { if (k === 'Escape' || k === 'Enter' || k === 'Space') dolapKapat(); return; }
     if (durum === 'menu') {
-      if (k === 'Digit1' || k === 'Enter') basla('kosu'); else if (k === 'Digit2') basla('arena'); else if (k === 'KeyG') dolapAc();
+      if (k === 'Digit1' || k === 'Enter') basla('kosu'); else if (k === 'Digit2') basla('arena'); else if (k === 'Digit3') basla('milyoner'); else if (k === 'KeyG') dolapAc(); else if (k === 'Escape') kapat();
       return;
     }
     if (durum === 'bitis') {
@@ -1807,6 +1838,15 @@
   elSahne.addEventListener('pointercancel', function () { dok = null; });
   elSahne.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
 
+  // Telefonun / tarayıcının geri tuşu: oyundan önce ana menüye, menüden panele döner.
+  window.addEventListener('popstate', function () {
+    if (kok.hidden) return;
+    histVar = false;
+    if (MIL.aktif()) { menuyeGec(); histEkle(); }
+    else if (durum === 'oyun') { duraklat(); histEkle(); }
+    else if (durum === 'menu') { kapat(); }
+    else { var ekr = UI.aktif(); if (ekr === 'ayar' || ekr === 'rehber') ayarKapat(); else if (durum === 'dolap') dolapKapat(); else menuyeGec(); histEkle(); }
+  });
   document.addEventListener('visibilitychange', function () { if (document.hidden) duraklat(); });
   function tamEkranDegisti() {
     if (!kok.hidden && !(document.fullscreenElement || document.webkitFullscreenElement)) duraklat();

@@ -381,6 +381,38 @@ class GeekKosuTesti(TestCase):
             self.assertEqual(r.status_code, 400)
             self.assertContains(self.client.get('/geek-kosu/'), 'Arena')
 
+    def test_milyoner_modu(self):
+        from django.test import override_settings
+        from panel.models import OyunSkor
+        import datetime
+        with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+                                         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}}):
+            r = self.client.post('/geek-kosu/skor/', {'skor': 1000, 'sure_sn': 40, 'mod': 'milyoner'})
+            self.assertTrue(r.json()['ok'])
+            self.assertEqual(OyunSkor.objects.get(personel=self.p).mod, 'milyoner')
+            OyunSkor.objects.update(zaman=timezone_now() - datetime.timedelta(minutes=5))
+            # merdivende olmayan skor reddedilir
+            r = self.client.post('/geek-kosu/skor/', {'skor': 1234, 'sure_sn': 90, 'mod': 'milyoner'})
+            self.assertEqual(r.status_code, 400)
+            # 1.000.000 için en az 30 sn gerekir
+            r = self.client.post('/geek-kosu/skor/', {'skor': 1000000, 'sure_sn': 10, 'mod': 'milyoner'})
+            self.assertEqual(r.status_code, 400)
+            r = self.client.post('/geek-kosu/skor/', {'skor': 1000000, 'sure_sn': 45, 'mod': 'milyoner'})
+            self.assertTrue(r.json()['ok'])
+            self.assertEqual(r.json()['en'], 1000000)
+            page = self.client.get('/geek-kosu/')
+            self.assertContains(page, 'Milyoner')
+            self.assertContains(page, 'kosu/milyoner.js')
+            # Geek Crew: oyun sıralaması slider ve hikâye şeridinden SONRA gelir, üç sekme vardır
+            gs = self.client.get('/g-sosyal/').content.decode()
+            self.assertIn('data-kosu-sek="mily"', gs)
+            self.assertIn('data-kosu-sek="arena"', gs)
+
+
+def timezone_now():
+    from django.utils import timezone
+    return timezone.now()
+
 
 class RadyoKabukTesti(TestCase):
     """Kalıcı Geek Radio kabuğu: sekme gezintisi kabuğa sarılır, iframe/diğer istekler normal sayfayı alır."""
