@@ -13,13 +13,13 @@
   <meta name="apple-mobile-web-app-title" content="Geek Panel">
   <meta name="mobile-web-app-capable" content="yes">
   <script>try{if(localStorage.getItem('geek_tema')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
-  <link rel="stylesheet" href="{% static 'css/kabuk.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'css/kabuk.css' %}?v=5">
 </head>
 <body>
   <iframe id="uygulama" title="Geek Panel" data-src="{{ kabuk_url }}" allow="fullscreen; camera; microphone; geolocation; clipboard-write; autoplay"></iframe>
   <div id="radyo-kabuk" hidden></div>
   {{ radyo|json_script:"radyo-cfg" }}
   <script src="{% static 'js/geekradyo.js' %}?v=1"></script>
-  <script src="{% static 'js/geekkabuk.js' %}?v=1"></script>
+  <script src="{% static 'js/geekkabuk.js' %}?v=2"></script>
 </body>
 </html>
