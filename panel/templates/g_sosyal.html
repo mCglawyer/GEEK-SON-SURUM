@@ -139,14 +139,14 @@
   <section class="card kosu-kart" aria-label="Geek Oyun Salonu" id="kosu-kart">
     <div>
       <h3>Geek Oyun Salonu</h3>
-      <p class="kosu-bos">Koş, arenada savaş ya da Geek Milyoner'de bilgini sına. Haftanın en iyisi ol.</p>
+      <p class="kosu-bos">Koş, arenada savaş ya da Geek Bilgi Yarışması'nda bilgini sına. Haftanın en iyisi ol.</p>
       <a href="{% url 'geek_kosu' %}" class="btn btn-mini">Oyna</a>
     </div>
     <div class="kosu-sag">
     <div class="kosu-sek" role="tablist" aria-label="Oyun sıralaması">
       <button type="button" role="tab" class="kosu-sek-btn on" data-kosu-sek="kosu" aria-selected="true">Koşu</button>
       <button type="button" role="tab" class="kosu-sek-btn" data-kosu-sek="arena" aria-selected="false">Arena</button>
-      <button type="button" role="tab" class="kosu-sek-btn" data-kosu-sek="mily" aria-selected="false">Milyoner</button>
+      <button type="button" role="tab" class="kosu-sek-btn" data-kosu-sek="bilgi" aria-selected="false">Bilgi</button>
     </div>
     {% for ad, liste in oyun_listeleri %}
     <div class="kosu-panel" data-kosu-panel="{{ ad }}"{% if not forloop.first %} hidden{% endif %}>

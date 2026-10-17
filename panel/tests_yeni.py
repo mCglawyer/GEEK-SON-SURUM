@@ -381,31 +381,33 @@ class GeekKosuTesti(TestCase):
             self.assertEqual(r.status_code, 400)
             self.assertContains(self.client.get('/geek-kosu/'), 'Arena')
 
-    def test_milyoner_modu(self):
+    def test_bilgi_modu(self):
         from django.test import override_settings
         from panel.models import OyunSkor
         import datetime
         with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
                                          'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}}):
-            r = self.client.post('/geek-kosu/skor/', {'skor': 1000, 'sure_sn': 40, 'mod': 'milyoner'})
+            r = self.client.post('/geek-kosu/skor/', {'skor': 1000, 'sure_sn': 40, 'mod': 'bilgi', 'dogru': 4})
             self.assertTrue(r.json()['ok'])
-            self.assertEqual(OyunSkor.objects.get(personel=self.p).mod, 'milyoner')
+            self.assertEqual(OyunSkor.objects.get(personel=self.p).mod, 'bilgi')
             OyunSkor.objects.update(zaman=timezone_now() - datetime.timedelta(minutes=5))
-            # merdivende olmayan skor reddedilir
-            r = self.client.post('/geek-kosu/skor/', {'skor': 1234, 'sure_sn': 90, 'mod': 'milyoner'})
+            # doğru sayısı yoksa reddedilir
+            r = self.client.post('/geek-kosu/skor/', {'skor': 1000, 'sure_sn': 90, 'mod': 'bilgi'})
             self.assertEqual(r.status_code, 400)
-            # 1.000.000 için en az 30 sn gerekir
-            r = self.client.post('/geek-kosu/skor/', {'skor': 1000000, 'sure_sn': 10, 'mod': 'milyoner'})
+            # doğru başına en fazla 1800 puan
+            r = self.client.post('/geek-kosu/skor/', {'skor': 50000, 'sure_sn': 90, 'mod': 'bilgi', 'dogru': 5})
             self.assertEqual(r.status_code, 400)
-            r = self.client.post('/geek-kosu/skor/', {'skor': 1000000, 'sure_sn': 45, 'mod': 'milyoner'})
+            # doğru başına en az 2 sn gerekir
+            r = self.client.post('/geek-kosu/skor/', {'skor': 5000, 'sure_sn': 5, 'mod': 'bilgi', 'dogru': 10})
+            self.assertEqual(r.status_code, 400)
+            r = self.client.post('/geek-kosu/skor/', {'skor': 5000, 'sure_sn': 60, 'mod': 'bilgi', 'dogru': 10})
             self.assertTrue(r.json()['ok'])
-            self.assertEqual(r.json()['en'], 1000000)
+            self.assertEqual(r.json()['en'], 5000)
             page = self.client.get('/geek-kosu/')
-            self.assertContains(page, 'Milyoner')
-            self.assertContains(page, 'kosu/milyoner.js')
-            # Geek Crew: oyun sıralaması slider ve hikâye şeridinden SONRA gelir, üç sekme vardır
+            self.assertContains(page, 'Bilgi')
+            self.assertContains(page, 'kosu/bilgi.js')
             gs = self.client.get('/g-sosyal/').content.decode()
-            self.assertIn('data-kosu-sek="mily"', gs)
+            self.assertIn('data-kosu-sek="bilgi"', gs)
             self.assertIn('data-kosu-sek="arena"', gs)
 
 
