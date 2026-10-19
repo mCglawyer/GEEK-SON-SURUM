@@ -4367,9 +4367,6 @@ def g_sosyal(request):
         'haberler': haberler,
         'haber_yonetebilir': personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR),
         'anketler': anketler, 'anket_yonetebilir': anket_yonetebilir,
-        'oyun_listeleri': [('kosu', _oyun_liste(haftalik=True, limit=5)),
-                           ('arena', _oyun_liste(haftalik=True, limit=5, mod='arena')),
-                           ('bilgi', _oyun_liste(haftalik=True, limit=5, mod='bilgi'))],
     })
 
 

@@ -351,7 +351,7 @@ class GeekKosuTesti(TestCase):
                                          'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}}):
             r = self.client.get('/geek-kosu/')
             self.assertEqual(r.status_code, 200)
-            self.assertContains(r, 'Geek Koşusu')
+            self.assertContains(r, 'Geek Oyun Salonu')
             r = self.client.post('/geek-kosu/skor/', {'skor': 300, 'sure_sn': 20})
             self.assertTrue(r.json()['ok'])
             self.assertEqual(r.json()['hafta_sira'], 1)
@@ -407,8 +407,10 @@ class GeekKosuTesti(TestCase):
             self.assertContains(page, 'Bilgi')
             self.assertContains(page, 'kosu/bilgi.js')
             gs = self.client.get('/g-sosyal/').content.decode()
-            self.assertIn('data-kosu-sek="bilgi"', gs)
-            self.assertIn('data-kosu-sek="arena"', gs)
+            # Geek Crew sayfasında oyun kartı artık gösterilmez
+            self.assertNotIn('data-kosu-sek', gs)
+            self.assertNotIn('id="kosu-kart"', gs)
+            self.assertIn('data-kosu-sek="bilgi"', page.content.decode())
 
 
 def timezone_now():
@@ -478,6 +480,6 @@ class RadyoKabukTesti(TestCase):
         self.assertContains(self.client.get('/sw.js'), 'X-Geek-Dest')
         self.client.force_login(self.u)
         r = self.client.get('/geek-kosu/')
-        for parca in ['data-radyo-api', 'data-kosu-ac', 'kosu-oyun', 'kosu/ecs.js', 'kosu/arena.js']:
+        for parca in ['data-radyo-api', 'data-kosu-ac', 'kosu-oyun', 'kosu/ecs.js', 'kosu/arena.js', 'kosu/motor/sahne.js', 'kosu/motor/efekt.js']:
             self.assertContains(r, parca)
         self.assertContains(self.client.get('/g-sosyal/'), 'geekradyo.js')

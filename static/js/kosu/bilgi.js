@@ -95,18 +95,44 @@
     var katman = el('div', 'go-bilgi', { id: 'kosu-bilgi', hidden: '', role: 'dialog', 'aria-label': 'Geek Bilgi Yarışması' });
     kok.appendChild(katman);
 
-    var D = null, ekranAd = '', zamanci = null, kat = '', siraMetin = '', siraEl = null, bekle = [];
+    var D = null, ekranAd = '', kat = '', siraMetin = '', siraEl = null;
+    /* Geek Motor: her ekran (giris/soru/bitis) bir sahnedir; gecikmeler ve tween'ler sahneye bağlıdır, sahne değişince temizlenir */
+    var M = GK.motor, yigin = null, rafId = 0, sonT = 0;
+    if (M && M.SahneYigini) {
+      yigin = new M.SahneYigini();
+      yigin.tanimla('giris', {}).tanimla('soru', { onAdim: function (s, dt) { geriSayim(dt); } }).tanimla('bitis', {});
+    }
+    function sahneGec(ad) { if (yigin) yigin.replace(ad, null, true); }
+    function surucu(t) {
+      if (katman.hidden) { rafId = 0; return; }
+      rafId = requestAnimationFrame(surucu);
+      var dt = Math.min((t - (sonT || t)) / 1000, 0.1); sonT = t;
+      if (yigin) yigin.adim(dt);
+    }
+    function surucuBaslat() { if (!yigin || rafId) return; sonT = 0; rafId = requestAnimationFrame(surucu); }
     try { kat = localStorage.getItem('bilgi_kat') || ''; } catch (e) {}
 
-    function tmo(f, ms) { var t = setTimeout(function () { var i = bekle.indexOf(t); if (i >= 0) bekle.splice(i, 1); f(); }, ms); bekle.push(t); return t; }
-    function temizle() { if (katman._sayac) { clearInterval(katman._sayac); katman._sayac = null; } katman.textContent = ''; siraEl = null; if (zamanci) { clearInterval(zamanci); zamanci = null; } bekle.forEach(clearTimeout); bekle = []; }
+    function tmo(f, ms) { var s = yigin && yigin.mevcut(); if (s) return s.gecikme(ms / 1000, f); return setTimeout(f, ms); }
+    function temizle() {
+      katman.textContent = ''; siraEl = null;
+      var s = yigin && yigin.mevcut(); if (s) { s.gecikmeleriTemizle(); s.tween.hepsiniKaldir(); }
+    }
+    function geriSayim(dt) {
+      if (!D || ekranAd !== 'soru' || D.kilit || !D.ui) return;
+      var ui = D.ui; D.gecen += dt; D.kalan = Math.max(0, D.toplam - D.gecen);
+      ui.halkaIleri.style.strokeDashoffset = (ui.C * (1 - D.kalan / D.toplam)).toFixed(2);
+      ui.halkaYazi.textContent = String(Math.ceil(D.kalan));
+      var az = D.kalan <= 8; ui.halka.classList.toggle('az', az);
+      if (az && Math.ceil(D.kalan) !== D.sonTik) { D.sonTik = Math.ceil(D.kalan); ses('tik'); }
+      if (D.kalan <= 0) cevapla(-1);
+    }
     function buton(yazi, tur, f) { var b = el('button', 'go-buton ' + (tur || ''), { type: 'button', metin: yazi }); b.addEventListener('click', f); return b; }
     function katRenk(k) { return KAT_RENK[k] || '#a7b4d4'; }
     function katAd(k) { banka(); return KATLAR[k] ? KATLAR[k].ad : k; }
 
     /* --- giriş --- */
     function girisGoster() {
-      temizle(); ekranAd = 'giris'; D = null;
+      temizle(); ekranAd = 'giris'; sahneGec('giris'); D = null;
       var tum = banka(), toplam = tum.length, gorulen = Object.keys(gorulenOku()).length;
       if (!toplam) {
         katman.appendChild(el('div', 'go-bilgi-kutu go-bilgi-giris', null, [
@@ -131,7 +157,7 @@
       }
       chipEkle('', 'Karışık', toplam);
       kats.forEach(function (c) { chipEkle(c.k, c.ad, c.say); });
-      function notYazi() { return kat ? 'Antrenman: ' + katAd(kat) + ' soruları. Puanın sıralamaya yazılmaz.' : 'Karışık yarışma: puanın Geek Crew sıralamasına yazılır.'; }
+      function notYazi() { return kat ? 'Antrenman: ' + katAd(kat) + ' soruları. Puanın sıralamaya yazılmaz.' : 'Karışık yarışma: puanın Oyun Salonu sıralamasına yazılır.'; }
       var not = el('p', 'go-bilgi-not', { metin: notYazi() });
 
       var kutu = el('div', 'go-bilgi-kutu go-bilgi-giris', null, [
@@ -173,7 +199,7 @@
     }
 
     function soruGoster() {
-      temizle(); ekranAd = 'soru';
+      ekranAd = 'soru'; sahneGec('soru'); temizle();
       var q = D.q;
       D.kilit = false; D.elenen = [false, false, false, false]; D.secili = -1; D.toplam = SURE; D.kalan = SURE; D.sonTik = 99;
 
@@ -223,16 +249,7 @@
       katman.scrollTop = 0;
 
       D.ui = { sBtn: sBtn, jBtn: jBtn, halkaIleri: halkaIleri, halkaYazi: halkaYazi, halka: halka, C: C, aciklama: aciklama, puanEl: puanEl, kart: kart, jokerSatiri: jokerSatiri };
-      D.bas = Date.now();
-      zamanci = setInterval(function () {
-        if (D.kilit) return;
-        var gecen = (Date.now() - D.bas) / 1000; D.kalan = Math.max(0, D.toplam - gecen);
-        halkaIleri.style.strokeDashoffset = (C * (1 - D.kalan / D.toplam)).toFixed(2);
-        halkaYazi.textContent = String(Math.ceil(D.kalan));
-        var az = D.kalan <= 8; halka.classList.toggle('az', az);
-        if (az && Math.ceil(D.kalan) !== D.sonTik) { D.sonTik = Math.ceil(D.kalan); ses('tik'); }
-        if (D.kalan <= 0) cevapla(-1);
-      }, 100);
+      D.gecen = 0;
     }
 
     function biraktaOnay(b) {
@@ -263,7 +280,7 @@
       if (i >= 0 && D.elenen[i]) return;
       D.kilit = true;
       var q = D.q, ui = D.ui, dogruIdx = q.siklar.findIndex(function (s) { return s.d; });
-      var sure = i < 0 ? D.toplam : (Date.now() - D.bas) / 1000;
+      var sure = i < 0 ? D.toplam : D.gecen;
       var kalan = Math.max(0, D.toplam - sure);
       var dogruMu = i >= 0 && q.siklar[i].d;
       ui.sBtn.forEach(function (b) { b.disabled = true; });
@@ -312,7 +329,7 @@
     /* --- bitiş --- */
     function bitir(neden) {
       if (!D || D.bitti) return;
-      D.bitti = true; ekranAd = 'bitis';
+      D.bitti = true; ekranAd = 'bitis'; sahneGec('bitis');
       var sure = Math.max(0, Math.round((Date.now() - D.t0) / 1000));
       var sonuc = { skor: D.puan, sure: sure, dogru: D.dogru, neden: neden, sayilir: D.sayilan };
       var bas = { yanlis: 'Oyun bitti', sure: 'Süre doldu', birak: 'Yarışmayı bıraktın', bitti: 'Bütün soruları bitirdin!' }[neden] || 'Oyun bitti';
@@ -337,9 +354,9 @@
       katman.appendChild(kutu);
       if (siraMetin) siraEl.textContent = siraMetin;
       // puan sayacı
-      var hedef = D.puan, t0 = Date.now(), sure_ms = Math.min(1400, 300 + hedef / 4);
-      var sayac = setInterval(function () { var o = Math.min(1, (Date.now() - t0) / sure_ms); puanEl.textContent = puanYaz(Math.round(hedef * (1 - Math.pow(1 - o, 3)))); if (o >= 1) clearInterval(sayac); }, 30);
-      katman._sayac = sayac;
+      var hedef = D.puan, sure_ms = Math.min(1400, 300 + hedef / 4);
+      if (yigin) yigin.mevcut().tween.ekle('puan', 0, hedef, sure_ms / 1000, 'easeOutCubic', function (v) { puanEl.textContent = puanYaz(Math.round(v)); });
+      else puanEl.textContent = puanYaz(hedef);
       siraMetin = '';
       if (D.sayilan && D.puan > 0 && D.dogru > 0) olay('mil_bitti', sonuc);
     }
@@ -375,10 +392,10 @@
 
     return {
       katman: katman,
-      ac: function () { katman.hidden = false; girisGoster(); },
+      ac: function () { katman.hidden = false; girisGoster(); surucuBaslat(); },
       kapat: function () {
         if (D && !D.bitti && D.sayilan && D.dogru > 0 && D.puan > 0) { D.bitti = true; olay('mil_bitti', { skor: D.puan, sure: Math.max(0, Math.round((Date.now() - D.t0) / 1000)), dogru: D.dogru, neden: 'birak', sayilir: true }); }
-        kapatDahili(); katman.hidden = true; D = null; ekranAd = '';
+        kapatDahili(); katman.hidden = true; D = null; ekranAd = ''; if (yigin) yigin.temizle(); if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
       },
       aktif: function () { return !katman.hidden; },
       klavye: klavye,

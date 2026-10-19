@@ -56,7 +56,7 @@
         var dolgu = new T.DirectionalLight(0xffb27a, 0.45); dolgu.position.set(12, 6, -14); sahne.add(dolgu);
         // zemin
         var zm = new T.Mesh(new T.CircleGeometry(R + 4, 96), new T.MeshStandardMaterial({ map: zeminDokusu(), roughness: 0.82, metalness: 0.02 })); zm.rotation.x = -Math.PI / 2; zm.receiveShadow = true; sahne.add(zm);
-        var logo = new T.Mesh(new T.PlaneGeometry(6.4, 3.2), new T.MeshBasicMaterial({ map: H.logoTexture(null, 512, 256, 0.9, '#1b2a8f'), transparent: true, toneMapped: false, depthWrite: false })); logo.rotation.x = -Math.PI / 2; logo.position.y = 0.02; sahne.add(logo);
+        var logo = new T.Mesh(new T.PlaneGeometry(6.4, 3.2), new T.MeshBasicMaterial({ map: H.logoTexture(null, 512, 256, 0.9, '#2a3bd6'), transparent: true, toneMapped: false, depthWrite: false })); logo.rotation.x = -Math.PI / 2; logo.position.y = 0.02; sahne.add(logo);
         var dis = new T.Mesh(new T.RingGeometry(R + 4, 90, 64), new T.MeshStandardMaterial({ color: 0x1a2142, roughness: 1 })); dis.rotation.x = -Math.PI / 2; dis.position.y = -0.05; sahne.add(dis);
         // sınır duvarı + çalılıklar
         var duvarM = new T.MeshStandardMaterial({ color: 0xf0e4c8, roughness: 0.7 }), duvarT = new T.MeshStandardMaterial({ color: 0x2a3bd6, roughness: 0.6 }), calM = new T.MeshStandardMaterial({ color: 0x3d8a52, roughness: 0.9 });

@@ -226,7 +226,7 @@
         geriPanel,
         logo,
         el('h1', null, { html: 'Barista<br><em>göreve hazır</em>' }),
-        el('p', 'go-alt-yazi', { metin: 'Sokakta koş, arenada dalgalara karşı savaş ya da Bilgi Yarışması\'nda bilgini sına. Skorların Geek Crew sıralamasına yazılır.' }),
+        el('p', 'go-alt-yazi', { metin: 'Sokakta koş, arenada dalgalara karşı savaş ya da Bilgi Yarışması\'nda bilgini sına. Skorların Oyun Salonu sıralamasına yazılır.' }),
         el('div', 'go-modlar', null, [kKosu, kArena, kBilgi]),
         el('div', 'go-ikinci', null, [buton('Dolap', 'ikincil', function () { olay('dolap'); }), buton('Rehber', 'ikincil', function () { olay('rehber'); }), buton('Ayarlar', 'ikincil', function () { olay('ayar'); })]),
         radyoSatiri()

@@ -131,7 +131,18 @@
   /* ---------- durum ---------- */
   var renderer, scene, kamera, hemi, gunes, dolgu, motorHazir = false;
   var B = {}, dunya = {}, fx = {};
-  var durum = 'menu';                    // menu | dolap | oyun | dur | bitis
+  var durum = 'menu';                    // menu | dolap | oyun | dur | bitis | bilgi  (Geek Motor sahne yığınıyla eşlenir)
+  var yigin = null, tSon = 0;
+  /* Sahne geçişi: oyun → duraklat = push (alttaki sahne durur), devam = pop, diğerleri = replace (GDevelop SceneStack anlambilimi) */
+  function gec(x) {
+    var onceki = durum; durum = x;
+    if (!yigin) return;
+    try {
+      if (x === 'dur') yigin.push('dur');
+      else if (onceki === 'dur' && x === 'oyun') yigin.pop();
+      else yigin.replace(x, null, true);
+    } catch (e) { if (window.console) console.warn('Sahne geçişi', e); }
+  }
   var G = null;                          // Koşu durumu
   var W = null;                          // Koşu ECS dünyası
   var mod = 'kosu';                      // kosu | arena
@@ -595,9 +606,6 @@
     c.fillStyle = '#2b2f58'; c.fillRect(0, 0, 256, 256);
     for (var k = 0; k < 400; k++) { c.fillStyle = 'rgba(255,255,255,' + (Math.random() * 0.05) + ')'; c.fillRect(Math.random() * 256, Math.random() * 256, 2, 2); }
     for (var k2 = 0; k2 < 200; k2++) { c.fillStyle = 'rgba(0,0,0,' + (Math.random() * 0.08) + ')'; c.fillRect(Math.random() * 256, Math.random() * 256, 3, 3); }
-    c.fillStyle = '#f2b544';
-    var w = 256 / 3;
-    for (var i = 1; i < 3; i++) { c.fillRect(i * w - 3, 20, 6, 90); c.fillRect(i * w - 3, 148, 6, 90); }
     var t = srgb(new T.CanvasTexture(cv)); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 8;
     t.repeat.set(1, 18);
     return t;
@@ -658,6 +666,16 @@
     dunya.yolDoku = yolDokusu();
     var yol = mesh(new T.PlaneGeometry(SERIT * 3, 420), std(0xffffff, { map: dunya.yolDoku, roughness: 0.82 }), 0, 0, -160);
     yol.rotation.x = -Math.PI / 2; yol.receiveShadow = true; scene.add(yol); dunya.yolMat = yol.material;
+    /* şerit çizgileri: binalar/lambalarla AYNI kayan sistemde gerçek parçalar (dokuyla kaydırmak yönü/hızı kaçırıyordu); karakterin koşusuyla birebir senkron */
+    var cizgiM = std(0xf2b544, { roughness: 0.7, emissive: 0x4a3508 }); cizgiM.polygonOffset = true; cizgiM.polygonOffsetFactor = -1;
+    var CIZGI_ARA = 9, CIZGI_N = 34;
+    for (var ci = 0; ci < CIZGI_N; ci++) {
+      var cg = new T.Group();
+      [-0.5, 0.5].forEach(function (sx) {
+        var c1 = mesh(new T.PlaneGeometry(0.16, 3.4), cizgiM); c1.rotation.x = -Math.PI / 2; c1.position.set(sx * SERIT, 0.012, 0); cg.add(c1);
+      });
+      scene.add(cg); kayanEkle(cg, 14 - ci * CIZGI_ARA, CIZGI_N * CIZGI_ARA);
+    }
     var kaldirimM = std(0xb8ae96, { roughness: 0.9 });
     [-1, 1].forEach(function (y) {
       var k = mesh(new T.BoxGeometry(5.5, 0.25, 420), kaldirimM, y * (SERIT * 1.5 + 2.9), -0.05, -160); k.receiveShadow = true; scene.add(k);
@@ -672,9 +690,14 @@
     [-60, -210].forEach(function (z) {
       var gz = mesh(new T.PlaneGeometry(SERIT * 3, 3.2), gecitM); gz.rotation.x = -Math.PI / 2; gz.position.y = 0.02; scene.add(gz); kayanEkle(gz, z, 300);
     });
-    var logoYol = new T.MeshBasicMaterial({ map: logoTexture(null, 512, 256, 0.92, '#f2b544'), transparent: true, opacity: 0.85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, toneMapped: false });
+    /* yola boyalı Geek logosu: marka mavisi, koyu asfaltta okunsun diye beyaz kenar halkasıyla */
+    var logoYol = new T.MeshBasicMaterial({ map: logoTexture(null, 512, 256, 0.92, '#2a3bd6'), transparent: true, opacity: 1, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, toneMapped: false });
+    var logoHale = new T.MeshBasicMaterial({ map: logoTexture(null, 512, 256, 0.92, '#ffffff'), transparent: true, opacity: 0.92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, toneMapped: false });
     [-135, -285].forEach(function (z) {
-      var lz = mesh(new T.PlaneGeometry(SERIT * 2.4, SERIT * 1.2), logoYol); lz.rotation.x = -Math.PI / 2; lz.position.y = 0.022; scene.add(lz); kayanEkle(lz, z, 300);
+      var gr = new T.Group();
+      var hz = mesh(new T.PlaneGeometry(SERIT * 2.4 * 1.07, SERIT * 1.2 * 1.07), logoHale); hz.rotation.x = -Math.PI / 2; hz.position.y = 0.021; gr.add(hz);
+      var lz = mesh(new T.PlaneGeometry(SERIT * 2.4, SERIT * 1.2), logoYol); lz.rotation.x = -Math.PI / 2; lz.position.y = 0.023; gr.add(lz);
+      scene.add(gr); kayanEkle(gr, z, 300);
     });
 
     // neon tabela dokuları
@@ -860,7 +883,7 @@
     dunya.gece = gece;
     dunya.gokTop.copy(_a); dunya.gokAlt.copy(_b);
     scene.fog.color.copy(_b); renderer.setClearColor(_b);
-    hemi.intensity = (0.95 - gece * 0.6) * (1 - yag * 0.18); gunes.intensity = (1.5 - gece * 1.15) * (1 - yag * 0.55); dolgu.intensity = 0.35 + gece * 0.25;
+    hemi.intensity = (0.78 - gece * 0.5) * (1 - yag * 0.18); gunes.intensity = (1.25 - gece * 1.0) * (1 - yag * 0.55); dolgu.intensity = 0.35 + gece * 0.25;
     hemi.color.copy(_a).lerp(_c.setHex(0xffffff), 0.5);
     dunya.binaMat.forEach(function (m) { m.emissiveIntensity = gece * 0.95; });
     dunya.lambalar.forEach(function (l) {
@@ -1029,117 +1052,48 @@
   }
 
   /* =====================================================================
-     SON İŞLEME: bloom + hız bulanıklığı + renk ayarı + vinyet (başarısız olursa kapanır, oyun normal çizilir)
+     SON İŞLEME: Geek Motor efekt zinciri (kosu/motor/efekt.js). Efektler adlı modüllerdir; zincir tek geçişte birleştirilir.
+     Başarısız olursa kapanır, oyun normal çizilir.
      ===================================================================== */
   var post = null;
-  var PS_VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
-  var PS_PARLAK = 'uniform sampler2D tD; uniform vec2 texel; uniform float esik; varying vec2 vUv; void main(){ vec3 c = texture2D(tD, vUv + texel * vec2(-1.0,-1.0)).rgb + texture2D(tD, vUv + texel * vec2(1.0,-1.0)).rgb + texture2D(tD, vUv + texel * vec2(-1.0,1.0)).rgb + texture2D(tD, vUv + texel * vec2(1.0,1.0)).rgb; c *= 0.25; float l = max(c.r, max(c.g, c.b)); float k = smoothstep(esik, esik + 0.55, l); gl_FragColor = vec4(c * k, 1.0); }';
-  var PS_BULANIK = 'uniform sampler2D tD; uniform vec2 yon; varying vec2 vUv; void main(){ vec3 c = texture2D(tD, vUv).rgb * 0.2270270; c += (texture2D(tD, vUv + yon * 1.3846154).rgb + texture2D(tD, vUv - yon * 1.3846154).rgb) * 0.3162162; c += (texture2D(tD, vUv + yon * 3.2307692).rgb + texture2D(tD, vUv - yon * 3.2307692).rgb) * 0.0702703; gl_FragColor = vec4(c, 1.0); }';
-  var PS_BIRLESTIR = [
-    'uniform sampler2D tS; uniform sampler2D tB1; uniform sampler2D tB2;',
-    'uniform float bloom; uniform float vig; uniform float aber; uniform float hizR; uniform float soguk; uniform float flash; uniform float gece; uniform vec2 merkez;',
-    'uniform vec2 gunesUv; uniform float gunesK; uniform vec3 gunesRenk; uniform float asp; uniform float zaman; uniform vec3 golgeTon; uniform vec3 isikTon; uniform float poz;',
-    'varying vec2 vUv;',
-    'float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }',
-    'void main(){',
-    '  vec2 d = vUv - merkez; float r = length(d);',
-    '  vec3 c = vec3(0.0);',
-    '  float a = hizR * 0.05 * smoothstep(0.08, 0.6, r);',
-    '  for (int i = 0; i < 6; i++) { float t = float(i) / 5.0; c += texture2D(tS, vUv - d * a * t).rgb; }',
-    '  c /= 6.0;',
-    '  float ab = aber * 0.012 * r + soguk * 0.0025 * r;',
-    '  c.r = mix(c.r, texture2D(tS, vUv - d * ab * 3.0).r, min(1.0, (aber + soguk) * 2.0));',
-    '  c.b = mix(c.b, texture2D(tS, vUv + d * ab * 3.0).b, min(1.0, (aber + soguk) * 2.0));',
-    '  c += bloom * (texture2D(tB1, vUv).rgb * 0.7 + texture2D(tB2, vUv).rgb * 0.95);',
-    '  if (gunesK > 0.001) {',
-    '    vec2 ds = (gunesUv - vUv); vec3 ray = vec3(0.0); float w = 1.0;',
-    '    for (int i = 0; i < 14; i++) { float t = float(i) / 14.0; ray += texture2D(tB1, vUv + ds * t * 0.9).rgb * w; w *= 0.93; }',
-    '    ray /= 14.0;',
-    '    vec2 q = (vUv - gunesUv) * vec2(asp, 1.0); float gd = length(q);',
-    '    float halo = exp(-gd * 3.2) * 0.55 + exp(-gd * 14.0) * 0.8;',
-    '    c += (ray * 1.25 + gunesRenk * halo) * gunesK;',
-    '  }',
-    '  c += vec3(flash);',
-    '  c *= poz; c = clamp((c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14), 0.0, 1.0);',
-    '  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));',
-    '  c = mix(vec3(l), c, 1.22 - soguk * 0.45);',
-    '  c = mix(c, c * vec3(0.78, 0.95, 1.22), soguk);',
-    '  c = mix(c * golgeTon, c * isikTon, smoothstep(0.05, 0.85, l));',
-    '  c = pow(c, vec3(0.96));',
-    '  float v = smoothstep(1.0, 0.28, r * 1.25);',
-    '  c *= mix(1.0 - vig, 1.0, v);',
-    '  c += (hash(vUv * 900.0 + zaman) - 0.5) * 0.018;',
-    '  gl_FragColor = vec4(max(c, 0.0), 1.0);',
-    '  gl_FragColor = linearToOutputTexel(gl_FragColor);',
-    '}'
-  ].join('\n');
-
   function postKur() {
     try {
-      if (!renderer.capabilities.isWebGL2) return;
-      var tip = (renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float')) ? T.HalfFloatType : T.UnsignedByteType;
-      function hedef(msaa) {
-        var rt = new T.WebGLRenderTarget(8, 8, { type: tip, format: T.RGBAFormat, minFilter: T.LinearFilter, magFilter: T.LinearFilter, depthBuffer: !!msaa, samples: msaa ? 4 : 0 });
-        rt.texture.generateMipmaps = false; return rt;
-      }
-      post = {
-        aktif: true, bloom: 0.55, vig: 0.34, aber: 0, flash: 0, esik: 0.88,
-        rt: hedef(true), a1: hedef(false), b1: hedef(false), a2: hedef(false), b2: hedef(false),
-        sahne: new T.Scene(), kam: new T.OrthographicCamera(-1, 1, 1, -1, 0, 1)
-      };
-      post.quad = new T.Mesh(new T.PlaneGeometry(2, 2), null); post.quad.frustumCulled = false; post.sahne.add(post.quad);
-      function sm(f, u) { return new T.ShaderMaterial({ vertexShader: PS_VERT, fragmentShader: f, uniforms: u, depthTest: false, depthWrite: false }); }
-      post.mParlak = sm(PS_PARLAK, { tD: { value: null }, texel: { value: new T.Vector2() }, esik: { value: post.esik } });
-      post.mBulanik = sm(PS_BULANIK, { tD: { value: null }, yon: { value: new T.Vector2() } });
-      post.mBirlestir = sm(PS_BIRLESTIR, {
-        tS: { value: null }, tB1: { value: null }, tB2: { value: null }, bloom: { value: post.bloom }, vig: { value: post.vig }, aber: { value: 0 },
-        hizR: { value: 0 }, soguk: { value: 0 }, flash: { value: 0 }, gece: { value: 0 }, merkez: { value: new T.Vector2(0.5, 0.46) },
-        gunesUv: { value: new T.Vector2(0.7, 0.7) }, gunesK: { value: 0 }, gunesRenk: { value: new T.Vector3(1.0, 0.78, 0.45) }, asp: { value: 1.6 }, zaman: { value: 0 },
-        poz: { value: 0.92 }, golgeTon: { value: new T.Vector3(0.94, 0.97, 1.08) }, isikTon: { value: new T.Vector3(1.07, 1.02, 0.93) }
-      });
+      var ZincirS = GK.motor && GK.motor.EfektZinciri;
+      if (!ZincirS) return;
+      var z = new ZincirS(T, renderer);
+      if (!z.kur()) return;
+      z.ekle('Hareket').ekle('Bloom').ekle('GunesIsinlari').ekle('Parlama').ekle('Tonlama').ekle('Renk').ekle('Vinyet').ekle('Gren');
+      post = { aktif: true, zincir: z, bloom: 0.42, vig: 0.34, aber: 0, flash: 0, esik: 0.94, sv: new T.Vector3() };
       kok.classList.add('post-acik');
     } catch (e) { post = null; if (window.console) console.warn('Son işleme kapalı:', e); }
   }
-  function postBoyutla() {
-    if (!post) return;
-    var v = new T.Vector2(); renderer.getDrawingBufferSize(v);
-    var w = Math.max(2, v.x | 0), h = Math.max(2, v.y | 0);
-    post.rt.setSize(w, h);
-    post.a1.setSize(Math.max(2, w >> 2), Math.max(2, h >> 2)); post.b1.setSize(post.a1.width, post.a1.height);
-    post.a2.setSize(Math.max(2, w >> 3), Math.max(2, h >> 3)); post.b2.setSize(post.a2.width, post.a2.height);
-  }
-  function postGec(mat, hedef) { post.quad.material = mat; renderer.setRenderTarget(hedef); renderer.render(post.sahne, post.kam); }
+  function postBoyutla() { if (post) post.zincir.boyutla(); }
   function postCiz(dt) {
+    var z = post.zincir, u = z.u;
     var kg = mod === 'kosu' ? G : null, gece = mod === 'arena' ? (A ? A.gece : 0) : (dunya.gece || 0);
     var sog = kg ? Math.max(0, Math.min(1, (1 - kg.zm) / 0.42)) : 0;
     var hizR = (kg && !kg.ol && durum === 'oyun' && kg.geri <= 0) ? Math.max(0, (kg.hiz - 10) / 8) * 0.9 + (kg.guc > 0 ? 0.35 : 0) + kg.hizPuls * 0.5 : 0;
     post.flash = Math.max(0, post.flash - dt * 1.8); post.aber = Math.max(0, post.aber - dt * 1.6);
-    renderer.setRenderTarget(post.rt); renderer.render(scene, kamera);
-    var m = post.mParlak; m.uniforms.tD.value = post.rt.texture; m.uniforms.texel.value.set(1 / post.rt.width, 1 / post.rt.height); m.uniforms.esik.value = post.esik - gece * 0.12;
-    postGec(m, post.a1);
-    var b = post.mBulanik;
-    b.uniforms.tD.value = post.a1.texture; b.uniforms.yon.value.set(1 / post.a1.width, 0); postGec(b, post.b1);
-    b.uniforms.tD.value = post.b1.texture; b.uniforms.yon.value.set(0, 1 / post.a1.height); postGec(b, post.a1);
-    b.uniforms.tD.value = post.a1.texture; b.uniforms.yon.value.set(2 / post.a2.width, 0); postGec(b, post.b2);
-    b.uniforms.tD.value = post.b2.texture; b.uniforms.yon.value.set(0, 2 / post.a2.height); postGec(b, post.a2);
-    b.uniforms.tD.value = post.a2.texture; b.uniforms.yon.value.set(1 / post.a2.width, 0); postGec(b, post.b2);
-    b.uniforms.tD.value = post.b2.texture; b.uniforms.yon.value.set(0, 1 / post.a2.height); postGec(b, post.a2);
-    var u = post.mBirlestir.uniforms;
-    u.tS.value = post.rt.texture; u.tB1.value = post.a1.texture; u.tB2.value = post.a2.texture;
-    u.bloom.value = post.bloom + gece * 0.25 + (kg ? kg.yagmur * 0.12 : 0); u.vig.value = post.vig; u.aber.value = post.aber; u.hizR.value = hizR; u.soguk.value = sog;
-    u.flash.value = post.flash * 0.35; u.gece.value = gece;
     var gk = 0;
-    if (!post.sv) post.sv = new T.Vector3();
     if (mod === 'kosu') {
-      if (dunya.gunes) dunya.gunes.getWorldPosition(post.sv); else post.sv.copy(kamera.position).add(new T.Vector3(40, 40, -235)); post.sv.project(kamera);
-      if (post.sv.z < 1) { gk = (1 - gece) * 0.5 * (1 - sog) * (1 - (kg ? kg.yagmur : 0) * 0.7); u.gunesUv.value.set(post.sv.x * 0.5 + 0.5, post.sv.y * 0.5 + 0.5); u.gunesRenk.value.set(1.0, 0.78, 0.45); }
+      if (dunya.gunes) dunya.gunes.getWorldPosition(post.sv); else post.sv.copy(kamera.position).add(_gunesYedek.set(40, 40, -235));
+      post.sv.project(kamera);
+      if (post.sv.z < 1) { gk = (1 - gece) * 0.3 * (1 - sog) * (1 - (kg ? kg.yagmur : 0) * 0.7); z.ayarla('GunesIsinlari', { gunesUv: [post.sv.x * 0.5 + 0.5, post.sv.y * 0.5 + 0.5], gunesRenk: [1.0, 0.78, 0.45] }); }
     } else if (mod === 'arena') {
-      post.sv.copy(kamera.position).add(new T.Vector3(60, 120, -260)).project(kamera);
-      if (post.sv.z < 1) { gk = 0.32; u.gunesUv.value.set(post.sv.x * 0.5 + 0.5, post.sv.y * 0.5 + 0.5); u.gunesRenk.value.set(0.55, 0.65, 1.0); }
+      post.sv.copy(kamera.position).add(_gunesYedek.set(60, 120, -260)).project(kamera);
+      if (post.sv.z < 1) { gk = 0.32; z.ayarla('GunesIsinlari', { gunesUv: [post.sv.x * 0.5 + 0.5, post.sv.y * 0.5 + 0.5], gunesRenk: [0.55, 0.65, 1.0] }); }
     }
-    u.poz.value = mod === 'arena' ? 0.74 : 0.92; u.gunesK.value = gk; u.asp.value = post.rt.width / post.rt.height; u.zaman.value = (u.zaman.value + dt * 37.0) % 1000;
-    postGec(post.mBirlestir, null);
+    z.ayarla('Bloom', { bloom: post.bloom + gece * 0.25 + (kg ? kg.yagmur * 0.12 : 0), esik: post.esik, esikKayma: gece * 0.12 });
+    z.ayarla('Hareket', { hizR: hizR, aber: post.aber, soguk: sog });
+    z.ayarla('Renk', { soguk: sog });
+    z.ayarla('Tonlama', { poz: mod === 'arena' ? 0.74 : 0.68 });
+    z.ayarla('GunesIsinlari', { gunesK: gk, asp: z.en() });
+    z.ayarla('Parlama', { flash: post.flash * 0.35 });
+    z.ayarla('Vinyet', { vig: post.vig });
+    u.zaman.value = (u.zaman.value + dt * 37.0) % 1000;
+    z.ciz(scene, kamera, { dt: dt });
   }
+  var _gunesYedek = new T.Vector3();
 
   /* =====================================================================
      KOŞU MODU: kurallar ECS dünyasında (can/ether/dayanıklılık, yetenekler, hasar)
@@ -1319,7 +1273,7 @@
   function bitir() {
     if (G.ol) return;
     if (post) post.aber = 1;
-    G.ol = true; G.olZaman = 0; G.sarsinti = 0.8; G.zamanOlcek = 0.28; durum = 'bitis';
+    G.ol = true; G.olZaman = 0; G.sarsinti = 0.8; G.zamanOlcek = 0.28; gec('bitis');
     SES.carpma(); flas('#ff5a4d'); titre(140); kok.classList.remove('soguk', 'az-can'); UI.azCan(false);
     parcacikPatlat(G.x, G.y + 1, 0, [MAVI, 0xffffff, KREMA, 0x5b3317, 0xe0554b], 46, 9);
     var bitisSkor = Math.floor(G.skor), yeni = bitisSkor > ENIYI;
@@ -1351,7 +1305,6 @@
   }
 
   function dunyayiKaydir(d) {
-    dunya.yolDoku.offset.y -= d / (420 / 18);
     dunya.binalar.forEach(function (b) { b.z += d; if (b.z > 30) b.z -= dunya.binaBoy; b.g.position.z = b.z; });
     dunya.lambalar.forEach(function (l) { l.z += d; if (l.z > 20) l.z -= dunya.lambaBoy; l.g.position.z = l.z; });
     dunya.agaclar.forEach(function (a) { a.z += d; if (a.z > 20) a.z -= dunya.agacBoy; a.g.position.z = a.z; });
@@ -1555,10 +1508,8 @@
     }
   }
 
-  function dongu(t) {
-    requestAnimationFrame(dongu);
-    if (MIL.aktif()) { son = t; return; }
-    var gdt = Math.min((t - son) / 1000, 0.05); son = t; gdtSon = gdt;
+  function kareAdimi() {
+    var gdt = gdtSon, t = tSon;
     var dt = gdt;
     if (mod === 'arena') {
       if (durum === 'oyun' || durum === 'bitis') {
@@ -1583,6 +1534,12 @@
       kameraGuncelle(gdt);
       havaGuncelle(dt, durum === 'oyun' || durum === 'bitis' || durum === 'dur');
     }
+  }
+  function dongu(t) {
+    requestAnimationFrame(dongu);
+    if (MIL.aktif()) { son = t; return; }
+    var gdt = Math.min((t - son) / 1000, 0.05); son = t; gdtSon = gdt; tSon = t;
+    if (yigin && yigin.mevcut()) yigin.adim(gdt); else kareAdimi();
     if (post && post.aktif) {
       try { postCiz(gdt); }
       catch (e) { post.aktif = false; kok.classList.remove('post-acik'); renderer.setRenderTarget(null); if (window.console) console.warn('Son işleme kapatıldı:', e); renderer.render(scene, kamera); }
@@ -1639,6 +1596,11 @@
     };
     VFX = GK.gorsel.kur(H); H.vfx = VFX;
     A = GK.arena.kur(H);
+    if (GK.motor && GK.motor.SahneYigini) {
+      yigin = new GK.motor.SahneYigini();
+      ['menu', 'dolap', 'oyun', 'dur', 'bitis', 'bilgi'].forEach(function (ad) { yigin.tanimla(ad, { onAdim: kareAdimi }); });
+      yigin.replace(durum, null, true);
+    }
     motorHazir = true; kaliteUygula();
     window.addEventListener('resize', boyutla);
     requestAnimationFrame(function (t) { son = t; dongu(t); });
@@ -1649,7 +1611,7 @@
      ===================================================================== */
   function arenaBitti() {
     if (durum === 'bitis') return;
-    var o = A.ozet(); durum = 'bitis'; arenaOl = 0;
+    var o = A.ozet(); gec('bitis'); arenaOl = 0;
     if (post) post.aber = 1;
     SES.carpma(); flas('#ff5a4d'); titre(140); UI.azCan(false);
     var yeni = o.skor > ENIYI_ARENA;
@@ -1689,7 +1651,7 @@
     if (VFX) VFX.temizle();
     W = null;
     sahneSec('kosu');
-    durum = 'menu'; sifirla(); kok.classList.add('menude'); UI.hud.goster(false); UI.joyEtkin(false);
+    gec('menu'); sifirla(); kok.classList.add('menude'); UI.hud.goster(false); UI.joyEtkin(false);
     UI.azCan(false); UI.geri('');
     UI.menuGuncelle(menuVeri());
     UI.goster('menu'); dolapKur(); giydir();
@@ -1716,7 +1678,7 @@
     kutu.querySelector('.go-hata-detay').textContent = motorHata ? 'Ayrıntı: ' + motorHata : '';
     var a = kutu.querySelector('.go-hata-aksiyon');
     var b1 = document.createElement('button'); b1.type = 'button'; b1.className = 'go-buton buyuk'; b1.textContent = 'Bilgi Yarışması\'nı aç';
-    b1.addEventListener('click', function () { p.remove(); durum = 'bilgi'; MIL.ac(); });
+    b1.addEventListener('click', function () { p.remove(); gec('bilgi'); MIL.ac(); });
     var b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'go-buton ikincil'; b2.textContent = '‹ Geri dön';
     b2.addEventListener('click', function () { p.remove(); kapat(); });
     a.appendChild(b1); a.appendChild(b2); p.appendChild(kutu); kok.appendChild(p); b1.focus();
@@ -1728,7 +1690,7 @@
     try { tamEkran(); sesBaslat(); } catch (e) {}
     if (!motorHazir) {
       if (!motorDene()) {
-        if (baslangicMod === 'bilgi') { durum = 'bilgi'; MIL.ac(); } else hataPaneli();
+        if (baslangicMod === 'bilgi') { gec('bilgi'); MIL.ac(); } else hataPaneli();
         return;
       }
     } else boyutla();
@@ -1739,16 +1701,16 @@
   function dolapAc() {
     if (durum === 'bitis') menuyeGec();
     if (durum !== 'menu') return;
-    durum = 'dolap'; UI.goster('dolap'); dolapDon = 0; dolapKur();
+    gec('dolap'); UI.goster('dolap'); dolapDon = 0; dolapKur();
   }
   function dolapKapat() {
     if (durum !== 'dolap') return;
-    durum = 'menu'; UI.goster('menu'); UI.menuGuncelle(menuVeri());
+    gec('menu'); UI.goster('menu'); UI.menuGuncelle(menuVeri());
   }
   function kapat() {
     if (A) A.temizle();
     MIL.kapat();
-    durum = 'menu'; kok.hidden = true; document.documentElement.classList.remove('kosu-acik'); kok.classList.remove('soguk', 'yarali', 'az-can');
+    gec('menu'); kok.hidden = true; document.documentElement.classList.remove('kosu-acik'); kok.classList.remove('soguk', 'yarali', 'az-can');
     tamEkrandanCik();
     if (histVar) { histVar = false; try { history.back(); } catch (e) {} }
     if (gonderildi) setTimeout(function () { location.reload(); }, 160);
@@ -1756,7 +1718,7 @@
   function baslaBilgi() {
     sesBaslat(); for (var kt in tuslar) delete tuslar[kt];
     if (A) A.temizle();
-    durum = 'bilgi'; UI.goster(null); UI.hud.goster(false); UI.joyEtkin(false);
+    gec('bilgi'); UI.goster(null); UI.hud.goster(false); UI.joyEtkin(false);
     kok.classList.remove('soguk', 'yarali', 'az-can'); UI.azCan(false);
     MIL.ac();
     try { localStorage.setItem('kosu_mod', 'bilgi'); } catch (e) {}
@@ -1766,14 +1728,14 @@
     m = m || mod; sesBaslat(); for (var kt in tuslar) delete tuslar[kt];
     if (A) A.temizle();
     if (m === 'arena') {
-      sahneSec('arena'); kok.classList.remove('menude'); durum = 'oyun'; arenaOl = 0;
+      sahneSec('arena'); kok.classList.remove('menude'); gec('oyun'); arenaOl = 0;
       sifirlaKosuGorunum();
       UI.goster(null); UI.hud.goster(true, 'arena'); UI.guclariSifirla();
       A.baslat(); giydir();
       UI.joyEtkin(imlec.dokunmatik || (window.matchMedia && matchMedia('(pointer:coarse)').matches));
       kaliteUygula();
     } else {
-      sahneSec('kosu'); sifirla(); kok.classList.remove('menude'); durum = 'oyun';
+      sahneSec('kosu'); sifirla(); kok.classList.remove('menude'); gec('oyun');
       UI.goster(null); UI.hud.goster(true, 'kosu'); UI.joyEtkin(false);
       kosuDunyasiKur();
       G.geri = 3.0; G.geriSon = 99; UI.geri('');
@@ -1784,11 +1746,11 @@
   function sifirlaKosuGorunum() { B.kalkan.visible = false; B.aura.material.opacity = 0; B.grup.visible = true; B.grup.rotation.x = 0; kok.classList.remove('soguk'); }
   function duraklat() {
     if (durum !== 'oyun') return;
-    durum = 'dur'; for (var kt in tuslar) tuslar[kt] = false; UI.joyEtkin(false); UI.goster('dur');
+    gec('dur'); for (var kt in tuslar) tuslar[kt] = false; UI.joyEtkin(false); UI.goster('dur');
   }
   function surdur() {
     if (durum !== 'dur') return;
-    UI.goster(null); durum = 'oyun'; son = performance.now();
+    UI.goster(null); gec('oyun'); son = performance.now();
     if (mod === 'arena') UI.joyEtkin(imlec.dokunmatik || (window.matchMedia && matchMedia('(pointer:coarse)').matches));
   }
   var oncekiEkran = 'menu';
@@ -1821,7 +1783,7 @@
   }
 
   if (DEBUG) window.__kosu = {
-    g: function () { return G; }, ac: ac, basla: basla, post: function () { return post; }, k: function () { return K; }, durum: function () { return durum; },
+    g: function () { return G; }, ac: ac, basla: basla, post: function () { return post; }, k: function () { return K; }, durum: function () { return durum; }, yigin: function () { return yigin; },
     mil: function () { return MIL; }, mod: function () { return mod; }, arena: function () { return A; }, w: function () { return mod === 'arena' ? A.dunya() : W; }, ui: UI, ayar: AYAR,
     eniyi: function (n) { ENIYI = n; dolapKur(); giydir(); }, seri: seriteGit, zipla: zipla, kay: kay, giydir: giydir, dolapAc: dolapAc, cast: function (id) { olayIsle('cast', id); },
     adim: function (n, dt) { for (var i = 0; i < n; i++) { if (mod === 'arena') { A.guncelle(dt, dt); } else { if (G.ol) return; guncelle(dt); havaGuncelle(dt, true); } } }

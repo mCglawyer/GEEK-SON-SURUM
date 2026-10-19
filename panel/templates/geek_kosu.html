@@ -1,38 +1,90 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Geek Koşusu · Geek Panel{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/geekoyun.css' %}?v=7">{% endblock %}
+{% block title %}Geek Oyun Salonu · Geek Panel{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/geekoyun.css' %}?v=8">{% endblock %}
 {% block body %}
 <div class="container kosu-wrap">
-  <div class="plan-head">
-    <div><h2>Geek Oyun Salonu</h2><span class="plan-aralik">Üç oyun: sokakta koş, arenada savaş ya da Geek Bilgi Yarışması'nda bilgini sına</span></div>
-    <a href="{% url 'g_sosyal' %}" class="btn btn-ghost btn-mini">Geek Crew'e dön</a>
-  </div>
+  <header class="oy-baslik">
+    <a href="{% url 'g_sosyal' %}" class="oy-geri" aria-label="Geek Crew'e dön">&#8249; Geek Crew</a>
+  </header>
 
-  <div class="card kosu-hero">
-    <div class="kosu-hero-metin">
-      <h3>Barista göreve hazır</h3>
-      <p>Geek tişörtlü baristayı kıyafet dolabından özelleştir, sonra iki moddan birini seç. <b>Koşu</b>'da şerit değiştir, zıpla, kay; her 1000 metrede hız artar. <b>Arena</b>'da Süt Jölesi, Kruvasan Goblini ve Kral Jöle dalgalarına karşı savaş. İkisinde de can, ether ve dayanıklılık yönetir; Kavurma Topu, Şimşek, Yağmur Fırtınası, Patlama ve Köpük Kalkan yeteneklerini birleştirip tepkimeler yaratırsın. Skorların Geek Crew sıralamasına yazılır.</p>
-      <p class="kosu-ipucu">Koşu: ← → şerit · ↑ / Boşluk zıpla · ↓ kay · 1 2 3 Q yetenek · Shift atılma. Arena: WASD hareket · fare nişan · 1-4, Q yetenek · Boşluk atılma · E etkileşim. Telefonda: kaydır, sürükle ve düğmelere dokun.</p>
-      <p><b>Geek Bilgi Yarışması</b>: 1000'den fazla soru, 11 kategori. Sorular kolaydan zora doğru gider, ilk yanlış cevapta oyun biter ve doğru cevabın hikâyesini öğrenirsin. Seri yaptıkça puanın katlanır.</p>
-      <p>Kişisel en iyilerin: Koşu <b>{{ benim_en }}</b> · Arena <b>{{ benim_en_arena }}</b> · Bilgi <b>{{ benim_en_bilgi }}</b></p>
-      <div class="kosu-hero-butonlar">
-        <button type="button" class="btn" data-kosu-ac="">Oyun salonunu aç</button>
-        <button type="button" class="btn" data-kosu-ac="kosu">Koşuyu başlat</button>
-        <button type="button" class="btn" data-kosu-ac="arena">Arena'ya gir</button>
-        <button type="button" class="btn" data-kosu-ac="bilgi">Bilgi Yarışması'nı başlat</button>
+  <section class="oy-hero" aria-labelledby="oy-ad">
+    <div class="oy-hero-metin">
+      <img class="oy-logo" src="{% static 'images/geek_logo_white.png' %}" alt="Geek Coffee &amp; Eatery" width="120" height="40">
+      <h2 id="oy-ad">Geek Oyun Salonu</h2>
+      <p>Barista göreve hazır. Mola ver, bir oyun seç, haftanın en iyisi ol. Telefonda, tablette ve bilgisayarda aynı şekilde oynanır.</p>
+      <div class="oy-hero-aksiyon">
+        <button type="button" class="oy-btn oy-btn-ana" data-kosu-ac="">Salonu aç</button>
+        <span class="oy-ipucu-kisa">Kıyafet dolabı salonun içinde</span>
       </div>
     </div>
+    <dl class="oy-rekorlar" aria-label="Kişisel en iyilerin">
+      <div><dt>Koşu</dt><dd>{{ benim_en }}</dd></div>
+      <div><dt>Arena</dt><dd>{{ benim_en_arena }}</dd></div>
+      <div><dt>Bilgi</dt><dd>{{ benim_en_bilgi }}</dd></div>
+    </dl>
+  </section>
+
+  <div class="oy-oyunlar">
+    <article class="oy-oyun oy-kosu">
+      <div class="oy-sanat" aria-hidden="true">
+        <svg viewBox="0 0 120 80"><path d="M0 70h120" stroke="currentColor" stroke-width="2" opacity=".4"/><path d="M40 70l10-50h20l10 50" fill="none" stroke="currentColor" stroke-width="3" opacity=".55"/><circle cx="62" cy="24" r="9" fill="currentColor"/><path d="M62 34v16l-12 14M62 42l14 8M62 50l12 14" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M8 30h22M14 42h18M4 54h20" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".5"/></svg>
+      </div>
+      <h3>Koşu</h3>
+      <p>Şehrin sokaklarında şerit değiştir, zıpla, kay. Her 1000 metrede hız artar; kahve ve yemek engellerinden kaç.</p>
+      <ul class="oy-kontrol"><li>&#8592; &#8594; şerit</li><li>&#8593; zıpla</li><li>&#8595; kay</li><li>Kaydır: telefon</li></ul>
+      <div class="oy-alt"><span class="oy-en">En iyin <b>{{ benim_en }}</b></span><button type="button" class="oy-btn" data-kosu-ac="kosu">Koşuyu başlat</button></div>
+    </article>
+
+    <article class="oy-oyun oy-arena">
+      <div class="oy-sanat" aria-hidden="true">
+        <svg viewBox="0 0 120 80"><ellipse cx="60" cy="52" rx="48" ry="18" fill="none" stroke="currentColor" stroke-width="3" opacity=".5"/><ellipse cx="60" cy="52" rx="26" ry="9" fill="none" stroke="currentColor" stroke-width="3" opacity=".5"/><circle cx="60" cy="30" r="8" fill="currentColor"/><path d="M60 38v14M60 44l-12 6M60 44l12 6" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M92 18l6 6-6 6-6-6zM24 22l5 5-5 5-5-5z" fill="currentColor" opacity=".7"/></svg>
+      </div>
+      <h3>Arena</h3>
+      <p>Süt Jölesi, Kruvasan Goblini ve Kral Jöle dalgalarına karşı savaş. Yetenekleri birleştir, tepkimeler yarat.</p>
+      <ul class="oy-kontrol"><li>WASD hareket</li><li>Fare nişan</li><li>1-4 yetenek</li><li>Joystick: telefon</li></ul>
+      <div class="oy-alt"><span class="oy-en">En iyin <b>{{ benim_en_arena }}</b></span><button type="button" class="oy-btn" data-kosu-ac="arena">Arena'ya gir</button></div>
+    </article>
+
+    <article class="oy-oyun oy-bilgi">
+      <div class="oy-sanat" aria-hidden="true">
+        <svg viewBox="0 0 120 80"><path d="M60 10a22 22 0 0 0-12 40v8h24v-8a22 22 0 0 0-12-40z" fill="none" stroke="currentColor" stroke-width="3.5"/><path d="M52 66h16M54 73h12" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><path d="M56 30c0-8 12-8 12 0 0 6-6 6-6 12" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><circle cx="62" cy="48" r="2" fill="currentColor"/></svg>
+      </div>
+      <h3>Bilgi Yarışması</h3>
+      <p>1000'den fazla soru, 11 kategori. İlk yanlışta oyun biter ve doğru cevabın hikâyesini öğrenirsin. Seri yaptıkça puan katlanır.</p>
+      <ul class="oy-kontrol"><li>A B C D ya da 1-4</li><li>3 joker</li><li>25 sn / soru</li></ul>
+      <div class="oy-alt"><span class="oy-en">En iyin <b>{{ benim_en_bilgi }}</b></span><button type="button" class="oy-btn" data-kosu-ac="bilgi">Yarışmayı başlat</button></div>
+    </article>
   </div>
 
-  <div class="kosu-tablolar">
-    {% include '_kosu_tablo.html' with baslik='Koşu · bu haftanın en iyileri' liste=haftalik %}
-    {% include '_kosu_tablo.html' with baslik='Koşu · tüm zamanlar' liste=tum_zamanlar %}
-    {% include '_kosu_tablo.html' with baslik='Arena · bu haftanın en iyileri' liste=haftalik_arena %}
-    {% include '_kosu_tablo.html' with baslik='Arena · tüm zamanlar' liste=tum_zamanlar_arena %}
-    {% include '_kosu_tablo.html' with baslik='Bilgi Yarışması · bu haftanın en iyileri' liste=haftalik_bilgi %}
-    {% include '_kosu_tablo.html' with baslik='Bilgi Yarışması · tüm zamanlar' liste=tum_zamanlar_bilgi %}
-  </div>
+  <section class="oy-siralama" id="oy-siralama" aria-label="Haftalık ve tüm zamanlar sıralaması">
+    <div class="oy-sira-ust">
+      <h3>Sıralama</h3>
+      <div class="kosu-sek" role="tablist" aria-label="Oyun seç">
+        <button type="button" role="tab" class="kosu-sek-btn on" data-kosu-sek="kosu" aria-selected="true">Koşu</button>
+        <button type="button" role="tab" class="kosu-sek-btn" data-kosu-sek="arena" aria-selected="false">Arena</button>
+        <button type="button" role="tab" class="kosu-sek-btn" data-kosu-sek="bilgi" aria-selected="false">Bilgi</button>
+      </div>
+    </div>
+    <div class="kosu-tablolar" data-kosu-panel="kosu">
+      {% include '_kosu_tablo.html' with baslik='Koşu · bu haftanın en iyileri' liste=haftalik %}
+      {% include '_kosu_tablo.html' with baslik='Koşu · tüm zamanlar' liste=tum_zamanlar %}
+    </div>
+    <div class="kosu-tablolar" data-kosu-panel="arena" hidden>
+      {% include '_kosu_tablo.html' with baslik='Arena · bu haftanın en iyileri' liste=haftalik_arena %}
+      {% include '_kosu_tablo.html' with baslik='Arena · tüm zamanlar' liste=tum_zamanlar_arena %}
+    </div>
+    <div class="kosu-tablolar" data-kosu-panel="bilgi" hidden>
+      {% include '_kosu_tablo.html' with baslik='Bilgi Yarışması · bu haftanın en iyileri' liste=haftalik_bilgi %}
+      {% include '_kosu_tablo.html' with baslik='Bilgi Yarışması · tüm zamanlar' liste=tum_zamanlar_bilgi %}
+    </div>
+  </section>
+  <script>
+  (function(){var k=document.getElementById('oy-siralama');if(!k)return;
+    k.addEventListener('click',function(e){var b=e.target.closest('[data-kosu-sek]');if(!b)return;
+      [].forEach.call(k.querySelectorAll('[data-kosu-sek]'),function(x){var on=x===b;x.classList.toggle('on',on);x.setAttribute('aria-selected',on)});
+      [].forEach.call(k.querySelectorAll('[data-kosu-panel]'),function(p){p.hidden=p.dataset.kosuPanel!==b.dataset.kosuSek});});})();
+  </script>
 </div>
 
 <div id="kosu-oyun" hidden data-skor-url="{% url 'geek_kosu_skor' %}" data-logo="{% static 'images/geek_logo_blue.png' %}" data-logo-beyaz="{% static 'images/geek_logo_white.png' %}" data-en="{{ benim_en }}" data-en-bilgi="{{ benim_en_bilgi }}" data-en-arena="{{ benim_en_arena }}" data-radyo-api="{{ radyo.api }}" data-radyo-yedek="{{ radyo.yedek }}" data-radyo-sayfa="{{ radyo.sayfa }}">
@@ -42,6 +94,12 @@
 </div>
 <script src="{% static 'js/geekradyo.js' %}?v=1"></script>
 <script src="{% static 'js/vendor/three.min.js' %}" defer></script>
+<script src="{% static 'js/kosu/motor/tween.js' %}?v=1" defer></script>
+<script src="{% static 'js/kosu/motor/degisken.js' %}?v=1" defer></script>
+<script src="{% static 'js/kosu/motor/nesne.js' %}?v=1" defer></script>
+<script src="{% static 'js/kosu/motor/olay.js' %}?v=1" defer></script>
+<script src="{% static 'js/kosu/motor/sahne.js' %}?v=1" defer></script>
+<script src="{% static 'js/kosu/motor/efekt.js' %}?v=1" defer></script>
 <script src="{% static 'js/kosu/ecs.js' %}?v=1" defer></script>
 <script src="{% static 'js/kosu/veri.js' %}?v=1" defer></script>
 <script src="{% static 'js/kosu/sistemler.js' %}?v=1" defer></script>
