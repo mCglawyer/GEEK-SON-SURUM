@@ -494,3 +494,89 @@ class AlerjenYonetimiTesti(PanelTesti):
     def test_yetkisiz_rol_giremez(self):
         self.client.force_login(self._kullanici(Rol.SEF, 'sef_x'))
         self.assertEqual(self.client.get(self.url).status_code, 302)
+
+
+@override_settings(**_AYAR)
+class AcilisGorseliTesti(PanelTesti):
+    """QR açılış görseli: yükleme, ayar, sıra, tarih, JSON yayını, yetki."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.gm)
+        self.url = reverse('menu_acilis', args=['geek'])
+        self.yazilan = {}
+        p = mock.patch('panel.menu_acilis.dosyaya_yaz', side_effect=lambda a, i, t=None, **k: self.yazilan.__setitem__(a, i))
+        p.start()
+        self.addCleanup(p.stop)
+
+    def png(self, ad='a.png', boyut=(40, 70)):
+        from PIL import Image
+        b = io.BytesIO()
+        Image.new('RGB', boyut, (200, 30, 30)).save(b, 'PNG')
+        return SimpleUploadedFile(ad, b.getvalue(), content_type='image/png')
+
+    def json(self):
+        import json
+        return json.loads(self.yazilan['menu/geek-acilis.json'].decode('utf-8'))
+
+    def test_sayfa_ve_yetki(self):
+        for kod in ('geek', 'baga'):
+            self.assertEqual(self.client.get(reverse('menu_acilis', args=[kod])).status_code, 200)
+        self.client.force_login(self._kullanici(Rol.SEF, 'sef_a'))
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+        r = self.client.post(self.url, {'islem': 'ayar', 'sure_sn': '3'})
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(self.yazilan)
+
+    def test_yukle_ayar_ve_json(self):
+        r = self.client.post(self.url, {'islem': 'yukle', 'dosya_secildi': '1', 'dosyalar': [self.png('bir.png'), self.png('iki.png')]}, follow=True)
+        self.assertContains(r, '2 görsel eklendi')
+        v = self.json()
+        self.assertEqual(len(v['gorseller']), 2)
+        self.assertEqual(v['sure_sn'], 5)
+        self.assertTrue(v['aktif'])
+        eski = v['surum']
+        self.client.post(self.url, {'islem': 'ayar', 'sure_sn': '8', 'aktif': 'on', 'gunde_bir': 'on'})
+        v = self.json()
+        self.assertEqual((v['sure_sn'], v['gunde_bir'], v['atlanabilir']), (8, True, False))
+        self.assertNotEqual(v['surum'], eski)
+        self.client.post(self.url, {'islem': 'ayar', 'sure_sn': '8'})
+        self.assertFalse(self.json()['aktif'])
+
+    def test_gecersiz_sure_ve_dosya(self):
+        r = self.client.post(self.url, {'islem': 'ayar', 'sure_sn': '60'}, follow=True)
+        self.assertContains(r, 'arasında olmalı')
+        self.assertFalse(self.yazilan)
+        bozuk = SimpleUploadedFile('x.png', b'degil-resim', content_type='image/png')
+        r = self.client.post(self.url, {'islem': 'yukle', 'dosya_secildi': '1', 'dosyalar': [bozuk]}, follow=True)
+        self.assertContains(r, 'geçerli bir görsel değil')
+        r = self.client.post(self.url, {'islem': 'yukle', 'dosya_secildi': '1'}, follow=True)
+        self.assertContains(r, 'sunucuya ulaşmadı')
+
+    def test_sira_tarih_ve_silme(self):
+        self.client.post(self.url, {'islem': 'yukle', 'dosya_secildi': '1', 'dosyalar': [self.png('a.png'), self.png('b.png')]})
+        a, b = list(MenuMarka.objects.get(kod='geek').acilis_gorselleri.order_by('sira'))
+        self.client.post(self.url, {'islem': 'asagi', 'id': a.id})
+        self.assertEqual([g['baslik'] for g in self.json()['gorseller']], ['b', 'a'])
+        self.client.post(self.url, {'islem': 'gorsel', 'id': a.id, 'baslik': 'Yaz', 'aktif': 'on',
+                                    'baslangic': '2026-12-01', 'bitis': '2026-12-31'})
+        g = [x for x in self.json()['gorseller'] if x['baslik'] == 'Yaz'][0]
+        self.assertEqual((g['baslangic'], g['bitis']), ('2026-12-01', '2026-12-31'))
+        r = self.client.post(self.url, {'islem': 'gorsel', 'id': a.id, 'baslik': 'Yaz', 'aktif': 'on',
+                                        'baslangic': '2026-12-31', 'bitis': '2026-12-01'}, follow=True)
+        self.assertContains(r, 'önce olamaz')
+        self.client.post(self.url, {'islem': 'gorsel', 'id': b.id, 'baslik': 'b'})
+        self.assertEqual([x['baslik'] for x in self.json()['gorseller']], ['Yaz'])
+        self.client.post(self.url, {'islem': 'sil', 'id': a.id})
+        self.assertEqual(self.json()['gorseller'], [])
+
+    def test_yukleme_siniri_ve_marka_ayrimi(self):
+        self.client.post(self.url, {'islem': 'yukle', 'dosya_secildi': '1', 'dosyalar': [self.png('%d.png' % i) for i in range(10)]})
+        self.assertEqual(MenuMarka.objects.get(kod='geek').acilis_gorselleri.count(), 8)
+        self.assertEqual(MenuMarka.objects.get(kod='baga').acilis_gorselleri.count(), 0)
+
+    def test_yayin_hatasi_kaydedilir(self):
+        with mock.patch('panel.menu_acilis.dosyaya_yaz', side_effect=OSError('R2 yok')):
+            r = self.client.post(self.url, {'islem': 'yayinla'}, follow=True)
+        self.assertContains(r, 'R2 yok')
+        self.assertIn('R2 yok', MenuMarka.objects.get(kod='geek').acilis_yayin_hata)

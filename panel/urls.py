@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from . import menu_views
+from . import menu_views, menu_acilis
 from . import zayi_views, sevkiyat_analiz_views, temizlik_views
 
 urlpatterns = [
@@ -112,4 +112,5 @@ urlpatterns = [
     path('menu-yonetimi/<slug:marka_kod>/kategoriler/', menu_views.menu_kategoriler, name='menu_kategoriler'),
     path('menu-yonetimi/<slug:marka_kod>/alerjenler/', menu_views.menu_alerjenler, name='menu_alerjenler'),
     path('menu-yonetimi/<slug:marka_kod>/yayinla/', menu_views.menu_yayinla_view, name='menu_yayinla'),
+    path('menu-yonetimi/<slug:marka_kod>/acilis/', menu_acilis.menu_acilis, name='menu_acilis'),
 ]

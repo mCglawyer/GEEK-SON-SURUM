@@ -1072,6 +1072,13 @@ class MenuMarka(models.Model):
     sira = models.PositiveIntegerField(default=0)
     son_yayin = models.DateTimeField(null=True, blank=True, verbose_name="Son Başarılı CSV Yayını")
     son_yayin_hata = models.CharField(max_length=400, blank=True, default='', verbose_name="Son Yayın Hatası")
+    # QR sitesi açılış (kampanya) görseli ayarları — görseller MenuAcilisGorsel'de
+    acilis_aktif = models.BooleanField(default=True, verbose_name="Açılış görseli gösterilsin")
+    acilis_sure_sn = models.PositiveSmallIntegerField(default=5, verbose_name="Her görsel kaç saniye görünsün")
+    acilis_atlanabilir = models.BooleanField(default=True, verbose_name="Dokununca geçilebilsin")
+    acilis_gunde_bir = models.BooleanField(default=False, verbose_name="Aynı müşteriye günde bir kez göster")
+    acilis_son_yayin = models.DateTimeField(null=True, blank=True, verbose_name="Açılış Görseli Son Yayın")
+    acilis_yayin_hata = models.CharField(max_length=400, blank=True, default='', verbose_name="Açılış Yayın Hatası")
 
     class Meta:
         ordering = ['sira', 'id']
@@ -1080,6 +1087,32 @@ class MenuMarka(models.Model):
 
     def __str__(self):
         return self.ad
+
+
+class MenuAcilisGorsel(models.Model):
+    """QR sitesi açılırken gösterilen kampanya/karşılama görselleri (sırayla, her biri marka süresi kadar)."""
+    marka = models.ForeignKey(MenuMarka, on_delete=models.CASCADE, related_name='acilis_gorselleri')
+    gorsel = models.ImageField(upload_to='menu/acilis/', verbose_name="Görsel")
+    baslik = models.CharField(max_length=80, blank=True, default='', verbose_name="Ad (yalnızca panelde görünür)")
+    aktif = models.BooleanField(default=True, verbose_name="Yayında")
+    baslangic = models.DateField(null=True, blank=True, verbose_name="Başlangıç tarihi")
+    bitis = models.DateField(null=True, blank=True, verbose_name="Bitiş tarihi")
+    sira = models.PositiveIntegerField(default=0)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sira', 'id']
+        verbose_name = "QR Açılış Görseli"
+        verbose_name_plural = "QR Açılış Görselleri"
+
+    def __str__(self):
+        return "%s — %s" % (self.marka.ad, self.baslik or self.gorsel.name)
+
+    def url(self):
+        try:
+            return self.gorsel.url
+        except Exception:
+            return ''
 
 
 class MenuKategori(models.Model):

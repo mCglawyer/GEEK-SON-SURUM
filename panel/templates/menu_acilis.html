@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% block title %}{{ marka.ad }} Açılış Görseli · Geek Panel{% endblock %}
+{% block body %}
+{% include '_menu_stil.html' %}
+<style>
+.ac-izgara{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:1rem;align-items:start}
+@media(max-width:900px){.ac-izgara{grid-template-columns:1fr}.ac-onizleme{order:-1}}
+.ac-ozet{display:flex;gap:.6rem;flex-wrap:wrap;margin:.3rem 0 .9rem}
+.ac-ozet span{padding:.3rem .7rem;border-radius:999px;background:#EEF1F8;font-size:.82rem;font-weight:600;color:#2A3350}
+.ac-ozet span.acik{background:#E3F6EA;color:#12663A}
+.ac-ozet span.kapali{background:#FDE7E4;color:#9C241A}
+.ac-ayar{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.8rem 1.2rem;margin:.6rem 0 1rem}
+.ac-sw{display:flex;align-items:flex-start;gap:.6rem;font-size:.9rem;line-height:1.35}
+.ac-sw input{width:22px;height:22px;margin-top:.1rem;flex:none}
+.ac-sw small{display:block;color:var(--muted,#6A7388);font-size:.78rem}
+.ac-sure{display:flex;align-items:center;gap:.6rem}
+.ac-sure input[type=range]{flex:1;min-width:120px}
+.ac-sure output{min-width:3.2rem;font-weight:700;font-variant-numeric:tabular-nums}
+.ac-kart{display:grid;grid-template-columns:96px minmax(0,1fr);gap:.9rem;padding:.9rem 0;border-top:1px solid var(--line,#E7EAF2)}
+.ac-kart:first-of-type{border-top:none}
+.ac-th{width:96px;height:170px;border-radius:14px;background:#EEF1F6 center/cover no-repeat;border:1px solid var(--line,#E1E5EE)}
+.ac-alanlar{display:grid;grid-template-columns:1fr 1fr;gap:.5rem .7rem}
+.ac-alanlar .tam{grid-column:1/-1}
+@media(max-width:560px){.ac-kart{grid-template-columns:72px minmax(0,1fr)}.ac-th{width:72px;height:128px}.ac-alanlar{grid-template-columns:1fr}}
+.ac-rozet{display:inline-block;padding:.12rem .55rem;border-radius:999px;font-size:.72rem;font-weight:700}
+.ac-rozet.canli{background:#E3F6EA;color:#12663A}.ac-rozet.pasif{background:#ECEEF3;color:#566}
+.ac-rozet.bekliyor{background:#FFF1D6;color:#8A5A00}.ac-rozet.bitti{background:#FDE7E4;color:#9C241A}
+.ac-islem{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.6rem}
+.ac-islem form{margin:0}
+.ac-yukle{border:2px dashed var(--line,#CBD2E3);border-radius:16px;padding:1rem;text-align:center;background:var(--surface,#fff)}
+.ac-yukle input[type=file]{max-width:100%}
+.ac-telefon{width:230px;margin:0 auto;border-radius:34px;border:8px solid #11162B;background:#FAECCF;aspect-ratio:9/18.5;position:relative;overflow:hidden;box-shadow:0 20px 40px -24px rgba(11,15,46,.7)}
+.ac-telefon img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .5s}
+.ac-telefon img.on{opacity:1}
+.ac-telefon .bos{position:absolute;inset:0;display:grid;place-items:center;padding:1rem;text-align:center;font-size:.82rem;color:#6B5A3A}
+.ac-bar{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(0,0,0,.12)}
+.ac-bar i{display:block;height:100%;width:0;background:#1B2A9E}
+.ac-not{font-size:.78rem;color:var(--muted,#6A7388);margin:.6rem 0 0;line-height:1.45}
+</style>
+<div class="container">
+  <div class="plan-head">
+    <div><h2>{{ marka.ad }} · Açılış görseli</h2><span class="plan-aralik">Müşteri QR'ı açınca ilk gördüğü kampanya / karşılama görselleri</span></div>
+    <div class="mn-btnler" style="margin:0">
+      <a class="btn btn-ghost btn-mini" href="{% url 'menu_urunler' marka.kod %}">Menü ürünleri</a>
+      <a class="btn btn-ghost btn-mini" href="{% url 'menu_yonetim' %}">Genel bakış</a>
+    </div>
+  </div>
+  <div class="mn-sek">
+    {% for m in markalar %}<a href="{% url 'menu_acilis' m.kod %}" class="{% if m.id == marka.id %}akt{% endif %}">{{ m.ad }}</a>{% endfor %}
+  </div>
+  {% include '_menu_mesajlar.html' %}
+  {% if marka.acilis_yayin_hata %}
+  <div class="mn-hata-kutu"><b>QR sitesine yayınlanamadı:</b> {{ marka.acilis_yayin_hata }}
+    <form method="post" style="margin-top:.6rem">{% csrf_token %}<input type="hidden" name="islem" value="yayinla">
+      <button type="submit" class="btn btn-primary btn-mini">Yeniden yayınla</button></form></div>
+  {% endif %}
+
+  <div class="ac-izgara">
+    <div>
+      <div class="card">
+        <h3 style="margin:0">Durum</h3>
+        <div class="ac-ozet">
+          <span class="{% if marka.acilis_aktif %}acik{% else %}kapali{% endif %}">{% if marka.acilis_aktif %}Açık{% else %}Kapalı{% endif %}</span>
+          <span>{{ canli|length }} görsel yayında</span>
+          <span>Toplam {{ toplam_sn }} sn</span>
+          {% if marka.acilis_son_yayin %}<span>Son yayın {{ marka.acilis_son_yayin|date:"d.m.Y H:i" }}</span>{% endif %}
+        </div>
+        <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="ayar">
+          <div class="ac-ayar">
+            <label class="ac-sw"><input type="checkbox" name="aktif"{% if marka.acilis_aktif %} checked{% endif %}>
+              <span>Açılış görseli gösterilsin<small>Kapalıysa müşteri QR'ı açınca doğrudan menüyü görür.</small></span></label>
+            <label class="ac-sw"><input type="checkbox" name="atlanabilir"{% if marka.acilis_atlanabilir %} checked{% endif %}>
+              <span>Dokununca geçilebilsin<small>Kapalıysa görsel süresi dolana kadar kalır.</small></span></label>
+            <label class="ac-sw"><input type="checkbox" name="gunde_bir"{% if marka.acilis_gunde_bir %} checked{% endif %}>
+              <span>Günde bir kez göster<small>Aynı telefon gün içinde tekrar açınca görmez. Görseller değişince yeniden gösterilir.</small></span></label>
+            <div>
+              <label class="mn-lbl" for="ac-sure">Her görsel kaç saniye görünsün</label>
+              <div class="ac-sure"><input id="ac-sure" type="range" name="sure_sn" min="{{ sure_min }}" max="{{ sure_max }}" value="{{ marka.acilis_sure_sn }}" oninput="this.nextElementSibling.textContent=this.value+' sn'"><output>{{ marka.acilis_sure_sn }} sn</output></div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-mini">Ayarları kaydet ve yayınla</button>
+        </form>
+      </div>
+
+      <div class="card" style="margin-top:1rem">
+        <h3 style="margin:0 0 .2rem">Görseller <small style="font-weight:400;color:var(--muted,#6A7388)">({{ gorseller|length }}/{{ max_gorsel }})</small></h3>
+        <p class="ac-not" style="margin:0 0 .4rem">Görseller sırayla, yukarıdan aşağı gösterilir. Tarih aralığı verirsen kampanya o günlerde kendiliğinden açılıp kapanır, yeniden yayınlamana gerek kalmaz.</p>
+        {% for g in gorseller %}
+        <div class="ac-kart">
+          <div class="ac-th" style="background-image:url('{{ g.url }}')"></div>
+          <div>
+            <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="gorsel"><input type="hidden" name="id" value="{{ g.id }}">
+              <div class="ac-alanlar">
+                <div class="tam"><label class="mn-lbl">Ad (yalnızca panelde görünür)</label><input class="input" name="baslik" maxlength="80" value="{{ g.baslik }}"></div>
+                <div><label class="mn-lbl">Başlangıç</label><input class="input" type="date" name="baslangic" value="{{ g.baslangic|date:'Y-m-d' }}"></div>
+                <div><label class="mn-lbl">Bitiş</label><input class="input" type="date" name="bitis" value="{{ g.bitis|date:'Y-m-d' }}"></div>
+                <label class="ac-sw tam"><input type="checkbox" name="aktif"{% if g.aktif %} checked{% endif %}><span>Yayında <span class="ac-rozet {{ g.durum.0 }}">{{ g.durum.1 }}</span></span></label>
+              </div>
+              <div class="ac-islem"><button type="submit" class="btn btn-primary btn-mini">Kaydet</button></div>
+            </form>
+            <div class="ac-islem">
+              <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="yukari"><input type="hidden" name="id" value="{{ g.id }}"><button class="mn-yon" type="submit" aria-label="Yukarı taşı"{% if forloop.first %} disabled{% endif %} style="border:1px solid var(--line,#D9DEE9);background:var(--surface,#fff);border-radius:8px;width:36px;height:36px;cursor:pointer">&#8593;</button></form>
+              <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="asagi"><input type="hidden" name="id" value="{{ g.id }}"><button class="mn-yon" type="submit" aria-label="Aşağı taşı"{% if forloop.last %} disabled{% endif %} style="border:1px solid var(--line,#D9DEE9);background:var(--surface,#fff);border-radius:8px;width:36px;height:36px;cursor:pointer">&#8595;</button></form>
+              <form method="post" onsubmit="return confirm('Bu görsel silinsin mi?')">{% csrf_token %}<input type="hidden" name="islem" value="sil"><input type="hidden" name="id" value="{{ g.id }}"><button type="submit" class="btn btn-ghost btn-mini" style="color:#B3261E">Sil</button></form>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <p class="mn-alt" style="padding:.8rem 0">Henüz görsel yok. Aşağıdan ekle; görsel olmadığı sürece müşteri açılışta doğrudan menüyü görür.</p>
+        {% endfor %}
+      </div>
+
+      <div class="card" style="margin-top:1rem">
+        <h3 style="margin:0 0 .6rem">Görsel ekle</h3>
+        {% if gorseller|length < max_gorsel %}
+        <form method="post" enctype="multipart/form-data" class="ac-yukle" id="ac-yukle-form">{% csrf_token %}
+          <input type="hidden" name="islem" value="yukle"><input type="hidden" name="dosya_secildi" id="ac-secildi" value="0">
+          <input type="file" name="dosyalar" id="ac-dosya" accept="image/jpeg,image/png,image/webp" multiple>
+          <p class="ac-not">Telefon ekranına göre dikey (ör. 1080×1920) hazırla. JPG, PNG veya WebP · en fazla {{ max_gorsel }} görsel · dosya başına 12 MB. Büyük görseller otomatik küçültülür.</p>
+          <button type="submit" class="btn btn-primary btn-mini" style="margin-top:.5rem">Yükle ve yayınla</button>
+        </form>
+        {% else %}<p class="mn-alt">En fazla {{ max_gorsel }} görsel eklenebilir. Yenisi için birini sil.</p>{% endif %}
+      </div>
+
+      <div class="card" style="margin-top:1rem">
+        <h3 style="margin:0 0 .4rem">QR sitesi bağlantısı</h3>
+        <div class="mn-csv"><span id="ac-json">{{ json_adres }}</span>
+          <button type="button" class="btn btn-ghost btn-mini" onclick="acKopyala(this)">Kopyala</button></div>
+        <p class="ac-not">Bu adres QR sitesindeki <code>ACILIS_JSON_URL</code> satırına yazılır (bir kez). Bundan sonra görseller ve ayarlar yalnızca bu sayfadan yönetilir, siteyi yeniden yüklemen gerekmez.</p>
+        <form method="post" style="margin-top:.6rem">{% csrf_token %}<input type="hidden" name="islem" value="yayinla"><button type="submit" class="btn btn-ghost btn-mini">Yeniden yayınla</button></form>
+      </div>
+    </div>
+
+    <aside class="ac-onizleme card" aria-label="Önizleme">
+      <h3 style="margin:0 0 .6rem">Önizleme</h3>
+      <div class="ac-telefon" id="ac-tel">
+        {% for u in canli_urller %}<img src="{{ u }}" alt=""{% if forloop.first %} class="on"{% endif %}>{% endfor %}
+        {% if not canli_urller %}<div class="bos">Şu an yayında görsel yok. Müşteri doğrudan menüyü görür.</div>{% endif %}
+        <div class="ac-bar"><i id="ac-ilerle"></i></div>
+      </div>
+      <div style="text-align:center;margin-top:.8rem"><button type="button" class="btn btn-ghost btn-mini" id="ac-oynat"{% if not canli_urller %} disabled{% endif %}>Baştan oynat</button></div>
+      <p class="ac-not">Müşteri telefonunda göreceğin gibi: her görsel {{ marka.acilis_sure_sn }} sn kalır, sonra menü açılır.</p>
+    </aside>
+  </div>
+</div>
+<script>
+(function(){
+  var tel=document.getElementById('ac-tel'), ilerle=document.getElementById('ac-ilerle'), btn=document.getElementById('ac-oynat');
+  var imgs=[].slice.call(tel.querySelectorAll('img')), sure={{ marka.acilis_sure_sn }}*1000, zm=null, raf=0;
+  function dur(){ if(zm)clearTimeout(zm); cancelAnimationFrame(raf); }
+  function oyna(){
+    dur(); if(!imgs.length) return;
+    var i=0, t0=performance.now(), toplam=sure*imgs.length;
+    imgs.forEach(function(x,k){ x.classList.toggle('on',k===0); });
+    (function kare(t){ var gecen=t-t0; ilerle.style.width=Math.min(100,gecen/toplam*100)+'%';
+      var k=Math.min(imgs.length-1,Math.floor(gecen/sure));
+      if(k!==i){ i=k; imgs.forEach(function(x,j){ x.classList.toggle('on',j===i); }); }
+      if(gecen<toplam) raf=requestAnimationFrame(kare); })(t0);
+  }
+  if(btn) btn.addEventListener('click',oyna);
+  var f=document.getElementById('ac-dosya'); if(f) f.addEventListener('change',function(){ document.getElementById('ac-secildi').value=f.files.length?'1':'0'; });
+  window.acKopyala=function(b){ var t=document.getElementById('ac-json').textContent.trim();
+    var bitti=function(){ var e=b.textContent; b.textContent='Kopyalandı'; setTimeout(function(){ b.textContent=e; },1500); };
+    if(navigator.clipboard){ navigator.clipboard.writeText(t).then(bitti); } else { var a=document.createElement('textarea'); a.value=t; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); bitti(); } };
+  oyna();
+})();
+</script>
+{% endblock %}

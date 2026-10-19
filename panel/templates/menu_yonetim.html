@@ -28,6 +28,7 @@
         <a class="btn btn-ghost btn-mini" href="{% url 'menu_urun_yeni' k.marka.kod %}">+ Ürün ekle</a>
         <a class="btn btn-ghost btn-mini" href="{% url 'menu_kategoriler' k.marka.kod %}">Kategoriler</a>
         <a class="btn btn-ghost btn-mini" href="{% url 'menu_alerjenler' k.marka.kod %}">Alerjenler</a>
+        <a class="btn btn-ghost btn-mini" href="{% url 'menu_acilis' k.marka.kod %}">Açılış görseli</a>
         <form method="post" action="{% url 'menu_yayinla' k.marka.kod %}" style="margin:0">{% csrf_token %}
           <input type="hidden" name="sonraki" value="{% url 'menu_yonetim' %}">
           <button type="submit" class="btn btn-ghost btn-mini">Yeniden yayınla</button>

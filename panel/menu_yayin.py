@@ -117,12 +117,12 @@ def _r2_istemci():
     )
 
 
-def dosyaya_yaz(anahtar, icerik):
+def dosyaya_yaz(anahtar, icerik, icerik_tipi='text/csv; charset=utf-8'):
     """Dosyayı AYNI adla (üzerine yazarak) yayınlar. R2 yoksa yerel MEDIA_ROOT'a yazar."""
     if r2_acik_mi():
         _r2_istemci().put_object(
             Bucket=settings.R2_BUCKET, Key=anahtar, Body=icerik,
-            ContentType='text/csv; charset=utf-8',
+            ContentType=icerik_tipi,
             CacheControl='public, max-age=%d' % CSV_CACHE_SANIYE,
         )
         return
