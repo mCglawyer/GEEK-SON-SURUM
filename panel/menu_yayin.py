@@ -144,6 +144,15 @@ def yayinla(marka):
         marka.son_yayin_hata = hata
         marka.save(update_fields=['son_yayin_hata'])
         return False, hata
+    # Şube bazlı müsaitlik dosyası (yalnızca şubesi tanımlı markalar için): ürün kodu/silme değişince güncel kalsın.
+    if marka.menu_subeleri.exists():
+        from .menu_subeler import subeler_yayinla
+        ok, hata = subeler_yayinla(marka)
+        if not ok:
+            hata = 'Şube listesi: ' + hata
+            marka.son_yayin_hata = hata
+            marka.save(update_fields=['son_yayin_hata'])
+            return False, hata
     marka.son_yayin = timezone.now()
     marka.son_yayin_hata = ''
     marka.save(update_fields=['son_yayin', 'son_yayin_hata'])

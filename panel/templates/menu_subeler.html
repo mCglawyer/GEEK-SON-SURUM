@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}{{ marka.ad }} Şubeler · Geek Panel{% endblock %}
+{% block body %}
+{% include '_menu_stil.html' %}
+<style>
+.sb-kart{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem .8rem;align-items:center;padding:.7rem 0;border-top:1px solid var(--line,#E7EAF2)}
+.sb-kart:first-of-type{border-top:none}
+.sb-duz{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.sb-duz .input{flex:1;min-width:160px}
+.sb-sw{display:flex;align-items:center;gap:.4rem;font-size:.85rem;white-space:nowrap}
+.sb-sw input{width:20px;height:20px}
+.sb-yon{display:flex;gap:.3rem;align-items:center}
+.sb-yon form{margin:0}
+.sb-yon button.ok{border:1px solid var(--line,#D9DEE9);background:var(--surface,#fff);border-radius:8px;width:36px;height:36px;cursor:pointer}
+.sb-ekle{display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end;margin-top:.6rem}
+.sb-panel-secim{display:flex;gap:.4rem .9rem;flex-wrap:wrap;margin:.4rem 0 .6rem}
+.sb-panel-secim label{display:flex;align-items:center;gap:.4rem;font-size:.9rem}
+.sb-panel-secim input{width:20px;height:20px}
+.sb-matris-sar{overflow:auto;max-height:70vh;border:1px solid var(--line,#E1E5EE);border-radius:14px;background:var(--surface,#fff)}
+.sb-matris{border-collapse:separate;border-spacing:0;min-width:100%}
+.sb-matris th,.sb-matris td{padding:.45rem .6rem;border-bottom:1px solid var(--line,#EDF0F6);text-align:center;font-size:.85rem}
+.sb-matris thead th{position:sticky;top:0;background:var(--surface,#fff);z-index:3;font-weight:700;white-space:nowrap}
+.sb-matris th.urun,.sb-matris td.urun{position:sticky;left:0;text-align:left;background:var(--surface,#fff);z-index:2;min-width:190px;max-width:260px}
+.sb-matris thead th.urun{z-index:4}
+.sb-matris tr.kat td{background:#EEF1F8;font-weight:700;text-align:left;position:sticky;left:0}
+.sb-matris td.urun small{display:block;color:var(--muted,#6A7388);font-size:.74rem}
+.sb-matris td.urun.pasif{opacity:.55}
+.sb-matris input[type=checkbox]{width:22px;height:22px;cursor:pointer}
+.sb-matris td.yok{background:#FDEEEC}
+.sb-hepsi{display:block;font-weight:500;font-size:.72rem;color:var(--muted,#6A7388);margin-top:.15rem;cursor:pointer;background:none;border:none;padding:0;text-decoration:underline}
+.sb-alt{position:sticky;bottom:0;background:var(--surface,#fff);padding:.7rem 0;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.sb-not{font-size:.8rem;color:var(--muted,#6A7388);line-height:1.45;margin:.5rem 0 0}
+</style>
+<div class="container">
+  <div class="plan-head">
+    <div><h2>{{ marka.ad }} · Şubeler &amp; ürünler</h2><span class="plan-aralik">Hangi ürün hangi şubede satılıyor</span></div>
+    <div class="mn-btnler" style="margin:0">
+      <a class="btn btn-ghost btn-mini" href="{% url 'menu_urunler' marka.kod %}">Menü ürünleri</a>
+      <a class="btn btn-ghost btn-mini" href="{% url 'menu_acilis' marka.kod %}">Açılış görseli</a>
+    </div>
+  </div>
+  <div class="mn-sek">
+    {% for m in markalar %}<a href="{% url 'menu_subeler' m.kod %}" class="{% if m.id == marka.id %}akt{% endif %}">{{ m.ad }}</a>{% endfor %}
+    <a href="{% url 'menu_yonetim' %}">Genel bakış</a>
+  </div>
+  {% include '_menu_mesajlar.html' %}
+
+  <div class="card">
+    <h3 style="margin:0 0 .3rem">Şubeler</h3>
+    <p class="sb-not" style="margin:0 0 .5rem">Müşteri QR'ı açınca bu listeden şubesini seçer ve yalnızca o şubede satılan ürünleri görür. Liste boşsa şube sorulmaz, herkes tüm menüyü görür.</p>
+    {% for s in subeler %}
+    <div class="sb-kart">
+      <form method="post" class="sb-duz">{% csrf_token %}<input type="hidden" name="islem" value="duzenle"><input type="hidden" name="id" value="{{ s.id }}">
+        <input class="input" name="ad" value="{{ s.ad }}" maxlength="80" aria-label="Şube adı">
+        <label class="sb-sw"><input type="checkbox" name="aktif"{% if s.aktif %} checked{% endif %}> Seçilebilsin</label>
+        <button type="submit" class="btn btn-primary btn-mini">Kaydet</button>
+      </form>
+      <div class="sb-yon">
+        <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="yukari"><input type="hidden" name="id" value="{{ s.id }}"><button class="ok" type="submit" aria-label="Yukarı taşı"{% if forloop.first %} disabled{% endif %}>&#8593;</button></form>
+        <form method="post">{% csrf_token %}<input type="hidden" name="islem" value="asagi"><input type="hidden" name="id" value="{{ s.id }}"><button class="ok" type="submit" aria-label="Aşağı taşı"{% if forloop.last %} disabled{% endif %}>&#8595;</button></form>
+        <form method="post" onsubmit="return confirm('{{ s.ad|escapejs }} şubesi silinsin mi? Bu şubeye ait ürün seçimleri de silinir.')">{% csrf_token %}<input type="hidden" name="islem" value="sil"><input type="hidden" name="id" value="{{ s.id }}"><button type="submit" class="btn btn-ghost btn-mini" style="color:#B3261E">Sil</button></form>
+      </div>
+      <div class="sb-not" style="grid-column:1/-1;margin:0">QR adresi için kod: <code>{{ s.kod }}</code></div>
+    </div>
+    {% empty %}<p class="mn-alt" style="padding:.6rem 0">Henüz şube eklenmedi.</p>{% endfor %}
+
+    <form method="post" class="sb-ekle">{% csrf_token %}<input type="hidden" name="islem" value="ekle">
+      <div style="flex:1;min-width:100%">
+        {% if eklenebilir %}
+        <label class="mn-lbl">Panelde tanımlı şubelerden ekle</label>
+        <div class="sb-panel-secim">{% for ps in eklenebilir %}<label><input type="checkbox" name="panel_sube" value="{{ ps.id }}"> {{ ps.ad }}</label>{% endfor %}</div>
+        {% endif %}
+      </div>
+      <div style="flex:1;min-width:200px"><label class="mn-lbl" for="sb-yeni">Ya da yeni şube adı yaz</label><input id="sb-yeni" class="input" name="ad" maxlength="80" placeholder="Örn. Gaziantep İncilipınar"></div>
+      <button type="submit" class="btn btn-primary btn-mini">Şube ekle</button>
+    </form>
+  </div>
+
+  {% if subeler %}
+  <form method="post" class="card" style="margin-top:1rem">{% csrf_token %}<input type="hidden" name="islem" value="matris">
+    <h3 style="margin:0 0 .3rem">Ürünler hangi şubede satılıyor?</h3>
+    <p class="sb-not" style="margin:0 0 .6rem">İşaretli = o şubede satılır, müşteri görür. İşaretsiz = o şubenin QR menüsünde görünmez. Yeni eklenen ürünler tüm şubelerde otomatik görünür.
+      {% if toplam_yok %}Şu an <b>{{ toplam_yok }}</b> ürün–şube eşleşmesi gizli.{% endif %}</p>
+    <input type="search" class="input" id="sb-ara" placeholder="Ürün ara" style="max-width:320px;margin-bottom:.6rem">
+    <div class="sb-matris-sar">
+      <table class="sb-matris">
+        <thead><tr><th class="urun">Ürün</th>
+          {% for s in subeler %}<th>{{ s.ad }}{% if not s.aktif %}<small style="display:block;font-weight:400">(kapalı)</small>{% endif %}
+            <button type="button" class="sb-hepsi" data-sutun="{{ forloop.counter0 }}" data-ac="1">tümü</button></th>{% endfor %}
+        </tr></thead>
+        <tbody>
+        {% for g in gruplar %}
+          <tr class="kat"><td colspan="{{ subeler|length|add:1 }}">{{ g.kategori.ad }}</td></tr>
+          {% for r in g.satirlar %}
+          <tr data-ad="{{ r.urun.urun_adi|lower }} {{ r.urun.kod }}">
+            <td class="urun{% if not r.urun.aktif %} pasif{% endif %}">{{ r.urun.urun_adi }}{% if not r.urun.aktif %}<small>menüde kapalı</small>{% endif %}<input type="hidden" name="urun_ids" value="{{ r.urun.id }}"></td>
+            {% for s, var in r.hucreler %}<td class="{% if not var %}yok{% endif %}"><input type="checkbox" name="v_{{ r.urun.id }}_{{ s.id }}"{% if var %} checked{% endif %} aria-label="{{ r.urun.urun_adi }} · {{ s.ad }}"></td>{% endfor %}
+          </tr>
+          {% endfor %}
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="sb-alt"><button type="submit" class="btn btn-primary">Kaydet ve yayınla</button></div>
+  </form>
+  {% endif %}
+
+  <div class="card" style="margin-top:1rem">
+    <h3 style="margin:0 0 .4rem">QR sitesi bağlantısı</h3>
+    <div class="mn-csv"><span id="sb-json">{{ json_adres }}</span><button type="button" class="btn btn-ghost btn-mini" onclick="sbKopyala(this)">Kopyala</button></div>
+    <p class="sb-not">Bu adres QR sitesindeki <code>SUBELER_JSON_URL</code> satırına yazılır (bir kez). Şubeye özel QR basmak istersen adresin sonuna şube kodunu eklersin, örn. <code>geekeateryqr.com/{{ site_adresi_ornek }}</code>; o QR'ı okutan müşteriye şube sorulmaz.</p>
+    <form method="post" style="margin-top:.6rem">{% csrf_token %}<input type="hidden" name="islem" value="yayinla"><button type="submit" class="btn btn-ghost btn-mini">Yeniden yayınla</button></form>
+  </div>
+</div>
+<script>
+(function(){
+  document.querySelectorAll('.sb-hepsi').forEach(function(b){
+    b.addEventListener('click',function(){
+      var i=+b.dataset.sutun+1, durum=b.dataset.ac==='1';
+      document.querySelectorAll('.sb-matris tbody tr:not(.kat):not([hidden])').forEach(function(tr){
+        var c=tr.children[i]&&tr.children[i].querySelector('input'); if(c){c.checked=durum;c.parentNode.classList.toggle('yok',!durum);} });
+      b.dataset.ac=durum?'0':'1'; b.textContent=durum?'hiçbiri':'tümü';
+    });
+  });
+  document.querySelectorAll('.sb-matris input[type=checkbox]').forEach(function(c){
+    c.addEventListener('change',function(){ c.parentNode.classList.toggle('yok',!c.checked); }); });
+  var ara=document.getElementById('sb-ara');
+  if(ara) ara.addEventListener('input',function(){
+    var q=ara.value.trim().toLowerCase();
+    document.querySelectorAll('.sb-matris tbody tr:not(.kat)').forEach(function(tr){ tr.hidden=q&&tr.dataset.ad.indexOf(q)<0; });
+    document.querySelectorAll('.sb-matris tr.kat').forEach(function(k){
+      var n=k.nextElementSibling, goster=false; while(n&&!n.classList.contains('kat')){ if(!n.hidden)goster=true; n=n.nextElementSibling; } k.hidden=!goster; });
+  });
+  window.sbKopyala=function(b){ var t=document.getElementById('sb-json').textContent.trim();
+    var bitti=function(){ var e=b.textContent; b.textContent='Kopyalandı'; setTimeout(function(){ b.textContent=e; },1500); };
+    if(navigator.clipboard){ navigator.clipboard.writeText(t).then(bitti); } else { var a=document.createElement('textarea'); a.value=t; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); bitti(); } };
+})();
+</script>
+{% endblock %}

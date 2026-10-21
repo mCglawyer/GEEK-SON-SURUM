@@ -580,3 +580,105 @@ class AcilisGorseliTesti(PanelTesti):
             r = self.client.post(self.url, {'islem': 'yayinla'}, follow=True)
         self.assertContains(r, 'R2 yok')
         self.assertIn('R2 yok', MenuMarka.objects.get(kod='geek').acilis_yayin_hata)
+
+
+@override_settings(**_AYAR)
+class SubeBazliMenuTesti(PanelTesti):
+    """Şube listesi, ürün×şube müsaitliği ve yayın JSON'u."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.gm)
+        self.geek = MenuMarka.objects.get(kod='geek')
+        self.url = reverse('menu_subeler', args=['geek'])
+        self.yazilan = {}
+        from . import menu_yayin
+        gercek = menu_yayin.dosyaya_yaz        # PanelTesti'nden miras testler dosyayı diskten okur: yazmaya devam et
+
+        def yaz(anahtar, icerik, tip='text/csv; charset=utf-8', **k):
+            self.yazilan[anahtar] = icerik
+            return gercek(anahtar, icerik, tip)
+        p = mock.patch('panel.menu_yayin.dosyaya_yaz', side_effect=yaz)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def json(self):
+        import json
+        return json.loads(self.yazilan['menu/geek-subeler.json'].decode('utf-8'))
+
+    def test_sayfa_yetki_ve_bos_liste(self):
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+        self.assertEqual(self.client.get(reverse('menu_subeler', args=['baga'])).status_code, 200)
+        self.client.force_login(self._kullanici(Rol.SEF, 'sef_s'))
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+        self.assertEqual(self.client.post(self.url, {'islem': 'ekle', 'ad': 'X'}).status_code, 302)
+        self.assertFalse(self.yazilan)
+
+    def test_sube_ekle_sirala_sil(self):
+        r = self.client.post(self.url, {'islem': 'ekle', 'ad': 'İncilipınar Şubesi'}, follow=True)
+        self.assertContains(r, '1 şube eklendi')
+        self.client.post(self.url, {'islem': 'ekle', 'ad': 'Sanko'})
+        self.client.post(self.url, {'islem': 'ekle', 'ad': 'sanko'})            # aynı ad: eklenmez
+        a, b = list(self.geek.menu_subeleri.all())
+        self.assertEqual((a.kod, b.kod), ('incilipinar-subesi', 'sanko'))
+        self.client.post(self.url, {'islem': 'asagi', 'id': a.id})
+        self.assertEqual([s['ad'] for s in self.json()['subeler']], ['Sanko', 'İncilipınar Şubesi'])
+        self.client.post(self.url, {'islem': 'duzenle', 'id': b.id, 'ad': 'Sanko AVM'})   # aktif işaretsiz → kapalı
+        self.assertEqual([s['kod'] for s in self.json()['subeler']], ['incilipinar-subesi'])
+        self.client.post(self.url, {'islem': 'sil', 'id': a.id})
+        self.assertEqual(self.json()['subeler'], [])
+
+    def test_matris_gizler_ve_json_yazar(self):
+        for ad in ('A Şube', 'B Şube'):
+            self.client.post(self.url, {'islem': 'ekle', 'ad': ad})
+        sa, sb = list(self.geek.menu_subeleri.all())
+        urunler = list(MenuUrun.objects.filter(marka=self.geek)[:2])
+        u1, u2 = urunler
+        veri = {'islem': 'matris', 'urun_ids': [u1.id, u2.id]}
+        veri['v_%d_%d' % (u1.id, sa.id)] = 'on'; veri['v_%d_%d' % (u1.id, sb.id)] = 'on'
+        veri['v_%d_%d' % (u2.id, sa.id)] = 'on'            # u2 B şubede işaretsiz → gizli
+        self.client.post(self.url, veri)
+        j = self.json()
+        self.assertEqual(j['yok'], {u2.kod: [sb.kod]})
+        self.assertEqual(sorted(s['kod'] for s in j['subeler']), sorted([sa.kod, sb.kod]))
+        self.assertTrue(j['surum'])
+        # CSV şeması değişmedi, ürün hâlâ CSV'de
+        self.assertIn(u2.kod, [r['kod'] for r in csv.DictReader(io.StringIO(csv_uret(self.geek).decode('utf-8')))])
+        # geri aç
+        veri['v_%d_%d' % (u2.id, sb.id)] = 'on'
+        self.client.post(self.url, veri)
+        self.assertEqual(self.json()['yok'], {})
+
+    def test_gorunmeyen_urun_secimi_korunur_ve_baga_ayri(self):
+        self.client.post(self.url, {'islem': 'ekle', 'ad': 'A Şube'})
+        s = self.geek.menu_subeleri.get()
+        u1, u2 = list(MenuUrun.objects.filter(marka=self.geek)[:2])
+        s.gizli_urunler.add(u2)
+        self.client.post(self.url, {'islem': 'matris', 'urun_ids': [u1.id], 'v_%d_%d' % (u1.id, s.id): 'on'})
+        self.assertEqual(list(s.gizli_urunler.all()), [u2])            # formda olmayan ürüne dokunulmadı
+        baga = MenuMarka.objects.get(kod='baga')
+        self.assertEqual(baga.menu_subeleri.count(), 0)
+
+    def test_urun_yayininda_json_de_yenilenir_ve_hata_gorunur(self):
+        self.client.post(self.url, {'islem': 'ekle', 'ad': 'A Şube'})
+        self.yazilan.clear()
+        from .menu_yayin import yayinla
+        self.assertEqual(yayinla(self.geek), (True, ''))
+        self.assertIn('menu/geek-subeler.json', self.yazilan)
+        self.assertIn('menu/geek.csv', self.yazilan)
+        def bozuk(anahtar, icerik, tip='x', **k):
+            if anahtar.endswith('-subeler.json'):
+                raise OSError('R2 yok')
+        with mock.patch('panel.menu_yayin.dosyaya_yaz', side_effect=bozuk):
+            ok, hata = yayinla(self.geek)
+        self.assertFalse(ok)
+        self.assertIn('Şube listesi', hata)
+
+    def test_panel_subesinden_ekleme(self):
+        from .models import Sube
+        ps = Sube.objects.create(ad='Panel Şubesi')
+        r = self.client.get(self.url)
+        self.assertContains(r, 'Panel Şubesi')
+        self.client.post(self.url, {'islem': 'ekle', 'panel_sube': [ps.id]})
+        self.assertEqual(self.geek.menu_subeleri.get().ad, 'Panel Şubesi')
+        self.assertNotContains(self.client.get(self.url), 'name="panel_sube"')

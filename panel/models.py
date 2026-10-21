@@ -1155,6 +1155,24 @@ class MenuAlerjen(models.Model):
         return "%s / %s" % (self.marka.ad, self.ad)
 
 
+class MenuSube(models.Model):
+    """QR menüde müşterinin seçtiği şube. Operasyonel Sube kaydından bağımsızdır (depo vb. karışmasın)."""
+    marka = models.ForeignKey(MenuMarka, on_delete=models.CASCADE, related_name='menu_subeleri')
+    kod = models.SlugField(max_length=40, verbose_name="Kod")
+    ad = models.CharField(max_length=80, verbose_name="Şube adı")
+    sira = models.PositiveIntegerField(default=0)
+    aktif = models.BooleanField(default=True, verbose_name="QR menüde seçilebilsin")
+
+    class Meta:
+        ordering = ['sira', 'ad', 'id']
+        unique_together = [('marka', 'kod')]
+        verbose_name = "QR Menü Şubesi"
+        verbose_name_plural = "QR Menü Şubeleri"
+
+    def __str__(self):
+        return self.ad
+
+
 class MenuUrun(models.Model):
     marka = models.ForeignKey(MenuMarka, on_delete=models.CASCADE, related_name='urunler')
     kategori = models.ForeignKey(MenuKategori, on_delete=models.PROTECT, related_name='urunler')
@@ -1191,6 +1209,9 @@ class MenuUrun(models.Model):
     gorsel_harici = models.CharField(max_length=600, blank=True, default='', verbose_name="Harici Görsel Linki")
     sira = models.PositiveIntegerField(default=0)
     aktif = models.BooleanField(default=True, verbose_name="Menüde Göster")
+    # Boş = tüm şubelerde satılır. Doluysa ürün bu şubelerin QR menüsünde GÖRÜNMEZ.
+    gizli_subeler = models.ManyToManyField('MenuSube', blank=True, related_name='gizli_urunler',
+                                           verbose_name="Satılmadığı şubeler")
     olusturma = models.DateTimeField(auto_now_add=True)
     guncelleme = models.DateTimeField(auto_now=True)
 
