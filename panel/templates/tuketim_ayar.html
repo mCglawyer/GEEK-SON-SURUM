@@ -18,6 +18,15 @@
     <div style="margin-top:1.2rem"><button class="btn btn-primary">Kaydet</button></div>
     {% if ayar.guncelleyen %}<p class="tz-not">Son değiştiren: {{ ayar.guncelleyen }} · {{ ayar.guncelleme|date:"d.m.Y H:i" }}</p>{% endif %}
   </form>
+  <form method="post" class="card" style="max-width:640px;margin-top:1rem">{% csrf_token %}
+    <input type="hidden" name="islem" value="gruplar">
+    <h3>Şube fiyat grupları</h3>
+    <p class="tz-not" style="margin-top:0">Her şubenin ürün fiyatı grubuna göre seçilir: Merkez şubeler Merkez fiyatını, Franchise şubeler Franchise fiyatını öder.</p>
+    <table class="tz-tablo"><tbody>
+      {% for sb in sube_gruplari %}<tr><td class="tz-ad">{{ sb.ad }}</td><td><select name="g_{{ sb.id }}">{% for k, ad in gruplar %}<option value="{{ k }}"{% if sb.fiyat_grubu == k %} selected{% endif %}>{{ ad }}</option>{% endfor %}</select></td></tr>{% endfor %}
+    </tbody></table>
+    <div style="margin-top:1rem"><button class="btn btn-primary">Grupları kaydet</button></div>
+  </form>
 </div>
 <style>.tk-sw{display:flex;align-items:flex-start;gap:.7rem;cursor:pointer}.tk-sw input{width:22px;height:22px;margin-top:.15rem;flex:none}.tk-sw small{display:block;color:var(--muted);font-size:.8rem;margin-top:.15rem;line-height:1.4}</style>
 {% endblock %}

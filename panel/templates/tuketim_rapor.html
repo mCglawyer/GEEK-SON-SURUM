@@ -28,6 +28,28 @@
     {% endif %}
   </form>
 
+  <div class="card tk-indir">
+    <h3>Rapor indir <span class="tz-sayac">Excel veya PDF</span></h3>
+    <div class="tk-indir-satir">
+      <b>Aylık kullanım ve maliyet</b><span>{{ ay_etiket }}</span>
+      <a class="btn btn-ghost btn-mini" href="{% url 'tuketim_indir' %}?tur=ay&ay={{ ay_deger }}{% if secili %}&sube={{ secili.id }}{% endif %}&bicim=xlsx">Excel</a>
+      <a class="btn btn-ghost btn-mini" href="{% url 'tuketim_indir' %}?tur=ay&ay={{ ay_deger }}{% if secili %}&sube={{ secili.id }}{% endif %}&bicim=pdf">PDF</a>
+    </div>
+    <form method="get" action="{% url 'tuketim_indir' %}" class="tk-indir-form">
+      <b>Gelen mal ve tutar</b>
+      <input type="hidden" name="tur" value="gelen">{% if secili %}<input type="hidden" name="sube" value="{{ secili.id }}">{% endif %}
+      <select name="aralik" onchange="document.getElementById('tk-ozel').hidden = this.value!=='ozel'">
+        <option value="gun">Günlük (seçilen gün)</option><option value="hafta">Haftalık (günün haftası)</option>
+        <option value="ay" selected>Aylık (günün ayı)</option><option value="ozel">Özel aralık</option>
+      </select>
+      <label>Gün <input type="date" name="ref" value="{{ bugun|date:'Y-m-d' }}"></label>
+      <span id="tk-ozel" hidden><label>Başlangıç <input type="date" name="bas"></label> <label>Bitiş <input type="date" name="bit"></label></span>
+      <button class="btn btn-ghost btn-mini" name="bicim" value="xlsx">Excel</button>
+      <button class="btn btn-ghost btn-mini" name="bicim" value="pdf">PDF</button>
+    </form>
+    <p class="tz-not">Kullanım ay sonu sayımlarından hesaplandığı için kullanım ve maliyet aylıktır. Gün / hafta / özel aralık raporu, o günlerde şubeye ulaşan malı ve tutarını gün gün gösterir.</p>
+  </div>
+
   <div class="card tz-durum-kart">
     <h3>Sayım durumu <span class="tz-sayac">{{ veri.tam_sube }} / {{ veri.subeler|length }} şube tamamlandı</span></h3>
     <div class="tz-kaydir">
@@ -156,6 +178,7 @@
 .tk-cubuk{height:10px;background:var(--surface-2,#F2F3F8);border-radius:999px;overflow:hidden}
 .tk-cubuk i{display:block;height:100%;background:var(--brand,#1B2A9E);border-radius:999px}
 .tk-yatay b{font-variant-numeric:tabular-nums;font-weight:650;white-space:nowrap}
+.tk-indir-satir,.tk-indir-form{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.5rem 0}.tk-indir-satir span{color:var(--muted);font-size:.85rem}.tk-indir-form input,.tk-indir-form select{padding:.35rem .5rem;border:1px solid var(--line,#E3E6EF);border-radius:8px}
 .tk-uyari-liste{margin:.4rem 0 0;padding-left:1.1rem;font-size:.86rem}
 @media(max-width:560px){.tk-yatay li{grid-template-columns:1fr auto}.tk-yatay .tk-cubuk{grid-column:1/-1;order:3}.tk-sutun{gap:.3rem}.tk-deger{display:none}}
 </style>

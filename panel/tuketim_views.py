@@ -5,11 +5,13 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Max
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
 from . import tuketim as tk
+from . import tuketim_cikti as tc
 from .models import Rol, StokSayim, StokUrun, Sube, TemizlikUrun, TuketimAyar, TuketimFiyat, Urun
 from .views import _aktif_personel, _cikis_mi, _logout
 
@@ -120,7 +122,7 @@ def tuketim_rapor(request):
 
     ctx = _ortak(personel, ayar, 'rapor')
     ctx.update({'subeler': subeler, 'coklu': len(subeler) > 1, 'secili': secili, 'veri': veri, 'ay_deger': ay_ilk.strftime('%Y-%m'),
-                'ay_etiket': tk.ay_etiketi(ay_ilk), 'yonetim': tk.fiyat_yonetebilir(personel)})
+                'bugun': timezone.localdate(), 'ay_etiket': tk.ay_etiketi(ay_ilk), 'yonetim': tk.fiyat_yonetebilir(personel)})
     q = '&sube=%s' % secili.id if secili else ''
     ctx['onceki_url'] = '?ay=%s%s' % (onceki.strftime('%Y-%m'), q)
     ctx['sonraki_url'] = '?ay=%s%s' % (sonraki.strftime('%Y-%m'), q)
@@ -149,6 +151,36 @@ def tuketim_rapor(request):
                 kir.append((r, hucre))
             ctx['kirilim'] = kir
     return render(request, 'tuketim_rapor.html', ctx)
+
+
+def tuketim_indir(request):
+    """Excel / PDF: tur=ay (aylık kullanım+maliyet) | gelen (gün/hafta/ay/özel aralıkta gelen mal ve tutar)."""
+    personel, ayar, git = _hazir(request)
+    if git:
+        return git
+    subeler = tk.rapor_subeleri(personel)
+    secili = next((s for s in subeler if str(s.id) == (request.GET.get('sube') or '')), None)
+    kapsam = [secili] if secili else subeler
+    tur = 'gelen' if request.GET.get('tur') == 'gelen' else 'ay'
+    pdf = request.GET.get('bicim') == 'pdf'
+    if tur == 'ay':
+        ay_ilk = tk.ay_oku(request.GET.get('ay')) if request.GET.get('ay') else _varsayilan_ay(subeler)
+        veri = tk.hesapla(kapsam, ay_ilk, fiyatli=True, ayar=ayar) if kapsam else None
+        if veri is None:
+            return redirect('tuketim_rapor')
+        etiket, govde, ad = veri['etiket'], (tc.pdf_bytes if pdf else tc.excel_bytes)('ay', veri['etiket'], secili, veri=veri), \
+            'tuketim_%s%s' % (ay_ilk.strftime('%Y_%m'), '_sube%d' % secili.id if secili else '')
+    else:
+        ref = _tarih_oku(request.GET.get('ref'))
+        bas, bit, etiket = tc.aralik_oku(request.GET.get('aralik') or 'ay', ref, _tarih_oku(request.GET.get('bas')),
+                                         _tarih_oku(request.GET.get('bit')))
+        gelen = tc.gelen_hesapla(kapsam, bas, bit)
+        govde = (tc.pdf_bytes if pdf else tc.excel_bytes)('gelen', etiket, secili, gelen=gelen)
+        ad = 'gelen_mal_%s_%s%s' % (bas.strftime('%Y%m%d'), bit.strftime('%Y%m%d'), '_sube%d' % secili.id if secili else '')
+    y = HttpResponse(govde, content_type='application/pdf' if pdf else
+                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    y['Content-Disposition'] = 'attachment; filename="%s.%s"' % (ad, 'pdf' if pdf else 'xlsx')
+    return y
 
 
 # ------------------------------------------------------------------ fiyatlar
@@ -342,6 +374,15 @@ def tuketim_ayar(request):
     if personel.rol not in AYAR_ROLLERI:
         return redirect('ana_sayfa')
     ayar = TuketimAyar.al()
+    if request.method == 'POST' and request.POST.get('islem') == 'gruplar':
+        gecerli = {k for k, _ in Sube.FIYAT_GRUBU}
+        for sb in Sube.objects.filter(depo_mu=False):
+            g = request.POST.get('g_%d' % sb.id)
+            if g in gecerli and g != sb.fiyat_grubu:
+                sb.fiyat_grubu = g
+                sb.save(update_fields=['fiyat_grubu'])
+        messages.success(request, 'Şube fiyat grupları kaydedildi.')
+        return redirect('tuketim_ayar')
     if request.method == 'POST':
         ayar.aktif = request.POST.get('aktif') == 'on'
         ham = (request.POST.get('baslangic') or '').strip()
@@ -357,4 +398,6 @@ def tuketim_ayar(request):
         return redirect('tuketim_ayar')
     ctx = _ortak(personel, ayar, 'ayar')
     ctx['baslangic_deger'] = ayar.baslangic.strftime('%Y-%m') if ayar.baslangic else ''
+    ctx['sube_gruplari'] = list(Sube.objects.filter(depo_mu=False).order_by('ad'))
+    ctx['gruplar'] = Sube.FIYAT_GRUBU
     return render(request, 'tuketim_ayar.html', ctx)

@@ -319,3 +319,47 @@ class TuketimSayfaTesti(TestCase):
         self.assertEqual(r.context['veri']['genel_tutar'], Decimal('2') * Decimal('111.11') + 5 * Decimal('333.33'))
         self.assertTrue(r.context['top_kalemler'])
         self.assertEqual(len(r.context['sube_sutun']), 2)
+
+    # ---- indirme
+    def test_aylik_excel_pdf(self):
+        import io, openpyxl
+        self.gir(Rol.GENEL_MUDUR)
+        r = self.client.get(reverse('tuketim_indir') + '?tur=ay&ay=2026-10&bicim=xlsx')
+        self.assertEqual(r.status_code, 200)
+        wb = openpyxl.load_workbook(io.BytesIO(r.content))
+        self.assertEqual(wb.sheetnames, ['Şube özeti', 'Ürün toplamı', 'Şube × ürün'])
+        r = self.client.get(reverse('tuketim_indir') + '?tur=ay&ay=2026-10&bicim=pdf')
+        self.assertTrue(r.content.startswith(b'%PDF'))
+
+    def test_gelen_mal_gun_hafta_ozel(self):
+        import io, openpyxl
+        t = SevkiyatTalep.objects.create(sube=self.a, durum='Teslim Edildi')
+        SevkiyatTalep.objects.filter(pk=t.pk).update(onay_tarih=_zaman(D(2026, 10, 14)))
+        SevkiyatKalem.objects.create(talep=t, urun=self.urun, urun_ad=self.urun.ad, form='HAMMADDE', koli_icerigi=12,
+                                     istenen_miktar=1, istenen_birim='KOLİ', sevkiyat_miktar=1, sevkiyat_birim='KOLİ')
+        self.gir(Rol.OPERATOR)
+        g = lambda **k: self.client.get(reverse('tuketim_indir'), dict(tur='gelen', bicim='xlsx', **k))
+        for q in (dict(aralik='gun', ref='2026-10-14'), dict(aralik='hafta', ref='2026-10-16'),
+                  dict(aralik='ozel', bas='2026-10-10', bit='2026-10-20'), dict(aralik='ay', ref='2026-10-01')):
+            ws = openpyxl.load_workbook(io.BytesIO(g(**q).content))['Gün gün']
+            self.assertEqual(ws.cell(row=6, column=2).value, 'Alfa Şube', q)
+            self.assertAlmostEqual(ws.cell(row=7, column=7).value, 12 * 111.11, places=1)   # toplam satırı
+        ws = openpyxl.load_workbook(io.BytesIO(g(aralik='gun', ref='2026-10-15').content))['Gün gün']
+        self.assertIsNone(ws.cell(row=6, column=2).value if ws.cell(row=6, column=1).value != 'TOPLAM' else None)
+        self.assertTrue(self.client.get(reverse('tuketim_indir'), dict(tur='gelen', bicim='pdf', aralik='hafta')).content.startswith(b'%PDF'))
+
+    def test_indirmede_kapsam(self):
+        import io, openpyxl
+        self.gir(Rol.SEF, self.a)
+        r = self.client.get(reverse('tuketim_indir') + '?tur=ay&ay=2026-10&bicim=xlsx&sube=%d' % self.b.id)
+        ws = openpyxl.load_workbook(io.BytesIO(r.content))['Şube özeti']
+        adlar = [ws.cell(row=i, column=1).value for i in range(6, 9)]
+        self.assertIn('Alfa Şube', adlar); self.assertNotIn('Beta Şube', adlar)
+
+    def test_fiyat_gruplari_ayardan(self):
+        self.gir(Rol.OPERATOR)
+        r = self.client.post(reverse('tuketim_ayar'), {'islem': 'gruplar', 'g_%d' % self.a.id: 'FRANCHISE', 'g_%d' % self.b.id: 'MERKEZ'})
+        self.assertEqual(r.status_code, 302)
+        self.a.refresh_from_db(); self.b.refresh_from_db()
+        self.assertEqual((self.a.fiyat_grubu, self.b.fiyat_grubu), ('FRANCHISE', 'MERKEZ'))
+        self.assertContains(self.client.get(reverse('tuketim_ayar')), 'Şube fiyat grupları')

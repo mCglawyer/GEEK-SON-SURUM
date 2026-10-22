@@ -91,6 +91,7 @@ urlpatterns = [
     path('irsaliye/', views.irsaliye_sayfa, name='irsaliye'),
     path('tuketim/', tuketim_views.tuketim_ana, name='tuketim'),
     path('tuketim/rapor/', tuketim_views.tuketim_rapor, name='tuketim_rapor'),
+    path('tuketim/indir/', tuketim_views.tuketim_indir, name='tuketim_indir'),
     path('tuketim/fiyatlar/', tuketim_views.tuketim_fiyatlar, name='tuketim_fiyatlar'),
     path('tuketim/fiyatlar/<int:urun_id>/', tuketim_views.tuketim_fiyat_detay, name='tuketim_fiyat_detay'),
     path('tuketim/esleme/', tuketim_views.tuketim_esleme, name='tuketim_esleme'),
