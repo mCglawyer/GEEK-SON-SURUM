@@ -89,6 +89,11 @@ class Personel(models.Model):
         help_text="İşaretliyse (genelde tek bir Bölge Müdürü için kullanılır): Genel Müdür/Operatör "
                   "dışında bu kişi de Geri Bildirim Yönetimi sayfasına erişebilir.")
 
+    menu_yetkilisi = models.BooleanField(
+        default=False, verbose_name="QR Menü Yönetimi Yetkisi",
+        help_text="İşaretliyse (genelde Bölge Müdürü için): Genel Müdür/Operatör/Yatırımcı dışında bu kişi de "
+                  "QR Menü Yönetimi sayfalarına erişebilir. Ekip sayfasından verilir/alınır.")
+
     class Meta:
         verbose_name = "Personel"; verbose_name_plural = "Personeller"; ordering = ['ad_soyad']
 

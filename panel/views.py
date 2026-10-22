@@ -956,6 +956,20 @@ def ekip_sayfa(request):
                 messages.success(request, f"{s.ad_soyad} eğitmen yetkisinden çıkarıldı.")
             return redirect('ekip')
 
+        if islem in ('menu_yetki_ekle', 'menu_yetki_cikar', 'gb_yetki_ekle', 'gb_yetki_cikar') and is_tam:
+            alan = 'menu_yetkilisi' if islem.startswith('menu_') else 'geri_bildirim_yetkilisi'
+            ad = 'QR Menü Yönetimi' if alan == 'menu_yetkilisi' else 'Geri Bildirim Yönetimi'
+            ver = islem.endswith('_ekle')
+            sorgu = Personel.objects.filter(id=request.POST.get('personel_id'))
+            if ver:
+                sorgu = sorgu.filter(rol=Rol.MUDUR)          # yetki yalnızca Bölge Müdürlerine verilir
+            s = sorgu.first()
+            if s:
+                setattr(s, alan, ver)
+                s.save(update_fields=[alan])
+                messages.success(request, f"{s.ad_soyad} için {ad} yetkisi " + ("verildi." if ver else "kaldırıldı."))
+            return redirect('ekip')
+
         if islem == 'manuel_yetki_ekle':
             s = Personel.objects.filter(id=request.POST.get('personel_id'),
                                         rol__in=[Rol.PERSONEL, Rol.SEF, Rol.MAGAZA_MUDURU]).first()
@@ -984,6 +998,7 @@ def ekip_sayfa(request):
     tum_subeler = []
     egitmenler = []
     egitmen_adaylari = []
+    menu_yetkilileri = menu_adaylari = gb_yetkilileri = gb_adaylari = []
     if is_atayabilir:
         tum_subeler = list(Sube.objects.order_by('ad'))
         bolge_mudurleri = list(Personel.objects.filter(rol=Rol.MUDUR)
@@ -994,6 +1009,10 @@ def ekip_sayfa(request):
                           .select_related('sube').order_by('ad_soyad'))
         egitmen_adaylari = list(Personel.objects.filter(rol__in=[Rol.PERSONEL, Rol.SEF, Rol.MUDUR], egitmen=False)
                                 .select_related('sube').order_by('ad_soyad'))
+        menu_yetkilileri = list(Personel.objects.filter(menu_yetkilisi=True).select_related('sube').order_by('ad_soyad'))
+        menu_adaylari = list(Personel.objects.filter(rol=Rol.MUDUR, menu_yetkilisi=False).select_related('sube').order_by('ad_soyad'))
+        gb_yetkilileri = list(Personel.objects.filter(geri_bildirim_yetkilisi=True).select_related('sube').order_by('ad_soyad'))
+        gb_adaylari = list(Personel.objects.filter(rol=Rol.MUDUR, geri_bildirim_yetkilisi=False).select_related('sube').order_by('ad_soyad'))
         manuel_yetkili_liste = list(Personel.objects.filter(manuel_giris_yetkisi=True)
                                    .select_related('sube').order_by('ad_soyad'))
         manuel_yetki_adaylari = list(Personel.objects.filter(
@@ -1012,6 +1031,8 @@ def ekip_sayfa(request):
         'magaza_atayabilir': personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR),
         'mutfak_sorumlulari': list(Personel.objects.filter(rol=Rol.MUTFAK_SORUMLUSU).order_by('ad_soyad')),
         'magaza_mudurleri': magaza_mudurleri_liste if is_atayabilir else list(Personel.objects.filter(rol=Rol.MAGAZA_MUDURU, sube__in=subeler).select_related('sube').order_by('ad_soyad')),
+        'menu_yetkilileri': menu_yetkilileri, 'menu_adaylari': menu_adaylari,
+        'gb_yetkilileri': gb_yetkilileri, 'gb_adaylari': gb_adaylari,
         'is_atayabilir': is_atayabilir, 'bolge_mudurleri': bolge_mudurleri, 'tum_subeler': tum_subeler,
         'egitmenler': egitmenler, 'egitmen_adaylari': egitmen_adaylari,
         'manuel_yetkili_liste': manuel_yetkili_liste, 'manuel_yetki_adaylari': manuel_yetki_adaylari,
@@ -4412,7 +4433,7 @@ def geri_bildirim_yonetim(request):
     if _cikis_mi(request):
         return _logout(request)
     personel = _aktif_personel(request)
-    yetkili = personel is not None and (personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR)
+    yetkili = personel is not None and (personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI)
                                         or personel.geri_bildirim_yetkilisi)
     if not yetkili:
         return redirect('ana_sayfa')

@@ -37,7 +37,7 @@ def _giris(request):
     if _cikis_mi(request):
         return None, _logout(request)
     personel = _aktif_personel(request)
-    if personel is None or personel.rol not in MENU_YETKILI_ROLLER:
+    if personel is None or not (personel.rol in MENU_YETKILI_ROLLER or personel.menu_yetkilisi):
         return None, redirect('ana_sayfa')
     return personel, None
 

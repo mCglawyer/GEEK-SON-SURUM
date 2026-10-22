@@ -682,3 +682,68 @@ class SubeBazliMenuTesti(PanelTesti):
         self.client.post(self.url, {'islem': 'ekle', 'panel_sube': [ps.id]})
         self.assertEqual(self.geek.menu_subeleri.get().ad, 'Panel Şubesi')
         self.assertNotContains(self.client.get(self.url), 'name="panel_sube"')
+
+
+@override_settings(**_AYAR)
+class BolgeMuduruYetkiTesti(PanelTesti):
+    """Ekip sayfasından Bölge Müdürüne QR Menü / Geri Bildirim Yönetimi yetkisi verme-alma."""
+
+    def setUp(self):
+        super().setUp()
+        self.bm = self._kullanici(Rol.MUDUR, 'bm1')
+        self.bm_p = self.bm.personel
+        self.ekip = reverse('ekip')
+
+    def test_varsayilan_erisim_yok(self):
+        self.client.force_login(self.bm)
+        self.assertEqual(self.client.get(reverse('menu_yonetim')).status_code, 302)
+        self.assertEqual(self.client.get(reverse('geri_bildirim_yonetim')).status_code, 302)
+
+    def test_menu_yetkisi_ver_al(self):
+        for rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI):
+            self.client.force_login(self._kullanici(rol, 'v_' + rol))
+            self.assertContains(self.client.get(self.ekip), 'QR Menü Yönetimi Yetkisi')
+            self.client.post(self.ekip, {'islem': 'menu_yetki_ekle', 'personel_id': self.bm_p.id})
+            self.bm_p.refresh_from_db()
+            self.assertTrue(self.bm_p.menu_yetkilisi, rol)
+            self.client.post(self.ekip, {'islem': 'menu_yetki_cikar', 'personel_id': self.bm_p.id})
+            self.bm_p.refresh_from_db()
+            self.assertFalse(self.bm_p.menu_yetkilisi, rol)
+
+    def test_yetkili_bm_menuye_girer_digerleri_giremez(self):
+        self.client.force_login(self.gm)
+        self.client.post(self.ekip, {'islem': 'menu_yetki_ekle', 'personel_id': self.bm_p.id})
+        self.client.force_login(self.bm)
+        for ad, arg in (('menu_yonetim', []), ('menu_urunler', ['geek']), ('menu_acilis', ['geek']), ('menu_subeler', ['baga'])):
+            self.assertEqual(self.client.get(reverse(ad, args=arg)).status_code, 200, ad)
+        r = self.client.get(reverse('ana_sayfa'), follow=True)
+        self.assertContains(r, 'href="%s"' % reverse('menu_yonetim'))
+        self.assertNotContains(r, 'href="%s"' % reverse('geri_bildirim_yonetim'))   # geri bildirim ayrı yetki
+        self.client.force_login(self._kullanici(Rol.MUDUR, 'bm2'))
+        self.assertEqual(self.client.get(reverse('menu_yonetim')).status_code, 302)
+
+    def test_geri_bildirim_yetkisi_ve_yatirimci_gorur(self):
+        self.client.force_login(self.gm)
+        self.client.post(self.ekip, {'islem': 'gb_yetki_ekle', 'personel_id': self.bm_p.id})
+        self.client.force_login(self.bm)
+        self.assertEqual(self.client.get(reverse('geri_bildirim_yonetim')).status_code, 200)
+        r = self.client.get(reverse('ana_sayfa'), follow=True)
+        self.assertContains(r, 'href="%s"' % reverse('geri_bildirim_yonetim'))
+        self.assertNotContains(r, 'href="%s"' % reverse('menu_yonetim'))
+        self.client.force_login(self._kullanici(Rol.YATIRIMCI, 'yat_gb'))
+        self.assertEqual(self.client.get(reverse('geri_bildirim_yonetim')).status_code, 200)
+        self.client.force_login(self.gm)
+        self.client.post(self.ekip, {'islem': 'gb_yetki_cikar', 'personel_id': self.bm_p.id})
+        self.client.force_login(self.bm)
+        self.assertEqual(self.client.get(reverse('geri_bildirim_yonetim')).status_code, 302)
+
+    def test_yetki_sadece_bolge_mudurune_verilir_ve_yetkisiz_veremez(self):
+        sef = self._kullanici(Rol.SEF, 'sef_y').personel
+        self.client.force_login(self.gm)
+        self.client.post(self.ekip, {'islem': 'menu_yetki_ekle', 'personel_id': sef.id})
+        sef.refresh_from_db()
+        self.assertFalse(sef.menu_yetkilisi)
+        self.client.force_login(self.bm)                 # bölge müdürü kendine yetki veremez (ekip sayfası kapalı)
+        self.client.post(self.ekip, {'islem': 'menu_yetki_ekle', 'personel_id': self.bm_p.id})
+        self.bm_p.refresh_from_db()
+        self.assertFalse(self.bm_p.menu_yetkilisi)
