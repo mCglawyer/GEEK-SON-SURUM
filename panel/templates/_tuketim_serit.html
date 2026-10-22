@@ -1,0 +1,7 @@
+{% if tk_menu %}
+<nav class="tz-serit" aria-label="Tüketim bölümleri">
+  {% for ad, url, aktif_mi in tk_menu %}<a href="{{ url }}" class="{% if aktif_mi %}akt{% endif %}">{{ ad }}</a>{% endfor %}
+  {% if ayar_gorur %}<span class="tz-sistem {% if sistem_kapali %}kapali{% else %}acik{% endif %}">Sistem {% if sistem_kapali %}kapalı{% else %}açık{% endif %}{% if ayar.baslangic %} · ilk sayım {{ ayar.baslangic|date:"m.Y" }}{% endif %}</span>{% endif %}
+</nav>
+{% endif %}
+{% if sistem_kapali %}<div class="tz-ileti tz-kapali-bant"><b>Tüketim & maliyet sistemi kapalı.</b> Şefler, müdürler ve yatırımcı bu bölümü göremiyor; yalnızca yönetim (Genel Müdür, Operatör, Satın Alma) görüyor.</div>{% endif %}

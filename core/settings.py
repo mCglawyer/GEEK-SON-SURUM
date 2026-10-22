@@ -79,6 +79,7 @@ TEMPLATES = [
                 'panel.context_processors.zayi_ctx',
                 'panel.context_processors.acilis_ctx',
                 'panel.context_processors.temizlik_menu_ctx',
+                'panel.context_processors.tuketim_menu_ctx',
             ],
         },
     },

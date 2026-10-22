@@ -273,6 +273,15 @@ def veri_hesapla(subeler, ay_ilk, bugun=None, fiyatli=False):
     for sy in TemizlikSayim.objects.filter(sube_id__in=ids, ay=ay_ilk).prefetch_related('kalemler'):
         sayimlar[(sy.sube_id, sy.tur)] = (sy, {k.urun_id: k.miktar for k in sy.kalemler.all() if k.urun_id})
 
+    # Tek sayım düzeni: ay başı sayımı girilmediyse bir önceki ayın SON sayımı bu ayın açılışıdır.
+    otomatik_ilk = set()
+    onceki_ay = (ay_ilk - datetime.timedelta(days=1)).replace(day=1)
+    eksik = [i for i in ids if (i, 'ILK') not in sayimlar]
+    if eksik:
+        for sy in TemizlikSayim.objects.filter(sube_id__in=eksik, ay=onceki_ay, tur='SON').prefetch_related('kalemler'):
+            sayimlar[(sy.sube_id, 'ILK')] = (sy, {k.urun_id: k.miktar for k in sy.kalemler.all() if k.urun_id})
+            otomatik_ilk.add(sy.sube_id)
+
     donemler = {}
     for s in subeler:
         ilk = sayimlar.get((s.id, 'ILK'), (None, {}))[0]
@@ -352,7 +361,7 @@ def veri_hesapla(subeler, ay_ilk, bugun=None, fiyatli=False):
                 gun_tuketim = {g: pay for g in _aralik_gunleri(bas, bit)}
             satirlar.append({'urun': tu, 'ilk': ilk_v, 'ilave': ilave, 'duzeltme': duz, 'son': son_v,
                              'kullanim': kullanim, 'gun_ilave': gun_ilave, 'gun_tuketim': gun_tuketim})
-        cikti.append({'sube': s, 'ilk': ilk_sy, 'son': son_sy, 'bas': bas, 'bit': bit, 'tam': tam,
+        cikti.append({'sube': s, 'ilk': ilk_sy, 'ilk_otomatik': s.id in otomatik_ilk, 'son': son_sy, 'bas': bas, 'bit': bit, 'tam': tam,
                       'satirlar': satirlar})
     fiyat_eksik = {}
     if fiyatli:

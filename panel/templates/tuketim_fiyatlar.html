@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load tz_filtreleri %}
+{% block title %}Tüketim Fiyatları · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="tz-ileti {{ m.tags }}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head"><div><h2>Ürün fiyatları</h2><span class="plan-aralik">1 adet / şişe / paket / kg başına alış fiyatı</span></div></div>
+  {% include '_tuketim_serit.html' %}
+  <div class="card tk-bilgi">
+    <p class="tz-not" style="margin:0">Fiyatlar <b>sevkiyat kataloğundaki taban birim</b> içindir: şurup için 1 şişe, kahve çekirdeği için 1 kg gibi. Merkez ve Franchise şubeler için ayrı fiyat girilir; belirli bir şubeye özel fiyat için ürünün “Geçmiş / şube” bağlantısını kullan. Fiyat geçerlilik tarihinden itibaren geçerlidir; ay ortasında değişirse mal teslim tarihindeki fiyatla değerlenir. Fiyatları yalnızca Genel Müdür, Operatör, Yatırımcı, Satın Alma ve (sorumlu olduğu şubeler için) Bölge Müdürü görür; şef ve mağaza müdürü sadece kendi şubesinin fiyatını görür.</p>
+  </div>
+  <form method="get" class="card tz-filtre">
+    <input type="search" class="input" name="q" value="{{ q }}" placeholder="Ürün ara" style="max-width:260px">
+    <label><input type="checkbox" name="hepsi" value="1"{% if hepsi %} checked{% endif %} onchange="this.form.submit()"> Tüm sevkiyat ürünlerini göster</label>
+    <button class="btn btn-ghost btn-mini">Ara</button>
+  </form>
+  {% if eksik %}<div class="tz-ileti"><b>{{ eksik }} ürünün</b> Merkez ya da Franchise fiyatı eksik. Eksik fiyatlı ürünler maliyet toplamına dahil edilmez.</div>{% endif %}
+  <form method="post" class="card">{% csrf_token %}<input type="hidden" name="islem" value="toplu">
+    <div class="tk-ust">
+      <label class="mn-lbl" for="tk-tarih">Yeni fiyatların geçerlilik tarihi</label>
+      <input id="tk-tarih" class="input" type="date" name="tarih" value="{{ bugun }}" style="max-width:200px">
+      <span class="tz-not" style="margin:0">Yalnızca değiştirdiğin kutular kaydedilir. Geçmiş bir tarih seçersen o günden itibaren geçerli olur.</span>
+    </div>
+    <div class="tz-kaydir">
+      <table class="tz-tablo tz-orta tk-fiyat-tablo">
+        <thead><tr><th class="tz-ad">Ürün</th><th>Birim</th><th>Merkez (TL)</th><th>Franchise (TL)</th><th></th></tr></thead>
+        <tbody>
+        {% for r in satirlar %}
+          <tr>
+            <td class="tz-ad" data-et="Ürün">{{ r.urun.ad }}<small class="tk-alt">{{ r.urun.kategori }}</small></td>
+            <td data-et="Birim">{{ r.urun.birim|lower }}</td>
+            <td data-et="Merkez"><input class="input tk-fiyat" inputmode="decimal" name="m_{{ r.urun.id }}" placeholder="{% if r.merkez is None %}—{% else %}{{ r.merkez|tzpara }}{% endif %}" autocomplete="off">
+              {% if r.merkez_tarih %}<small class="tk-alt">{{ r.merkez_tarih|date:"d.m.Y" }}{% if r.merkez_gelecek %} · henüz geçerli değil{% endif %}</small>{% endif %}</td>
+            <td data-et="Franchise"><input class="input tk-fiyat" inputmode="decimal" name="f_{{ r.urun.id }}" placeholder="{% if r.franchise is None %}—{% else %}{{ r.franchise|tzpara }}{% endif %}" autocomplete="off">
+              {% if r.franchise_tarih %}<small class="tk-alt">{{ r.franchise_tarih|date:"d.m.Y" }}{% if r.franchise_gelecek %} · henüz geçerli değil{% endif %}</small>{% endif %}</td>
+            <td><a class="btn btn-ghost btn-mini" href="{% url 'tuketim_fiyat_detay' r.urun.id %}">Geçmiş / şube{% if r.istisna %} ({{ r.istisna }}){% endif %}</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="tz-not">Listelenecek ürün yok. Önce “Ürün eşleme”den sayım ürünlerini sevkiyat ürünleriyle eşleştir ya da yukarıdan tüm ürünleri göster.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="tz-kaydet-bar"><button class="btn btn-primary">Fiyatları kaydet</button></div>
+  </form>
+</div>
+<style>
+.tk-ust{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;margin-bottom:1rem}
+.tk-alt{display:block;font-size:.72rem;color:var(--muted);margin-top:.15rem}
+.tk-fiyat{min-width:110px;max-width:150px;text-align:right}
+.tk-fiyat-tablo td{vertical-align:top}
+</style>
+{% endblock %}

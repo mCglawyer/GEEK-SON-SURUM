@@ -21,4 +21,4 @@ def tzhacim(kullanim, urun):
 @register.filter
 def tzpara(deger):
     """Decimal -> 1.250,50 ₺ ; None -> —"""
-    return '—' if deger is None else para_yaz(deger) + ' ₺'
+    return '—' if deger is None or deger == '' else para_yaz(deger) + ' ₺'

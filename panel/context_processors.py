@@ -147,3 +147,21 @@ def temizlik_menu_ctx(request):
         except Exception:
             return False
     return {'temizlik_menu': SimpleLazyObject(hesapla)}
+
+
+def tuketim_menu_ctx(request):
+    """Yan menüde 'Tüketim & Maliyet': sistem kapalıyken yalnızca GM / Operatör / Satın Alma görür (tembel)."""
+    from django.utils.functional import SimpleLazyObject
+
+    def hesapla():
+        u = getattr(request, 'user', None)
+        if not u or not getattr(u, 'is_authenticated', False):
+            return False
+        try:
+            from .models import Personel, TuketimAyar
+            from . import tuketim
+            p = Personel.objects.filter(user=u).only('rol').first()
+            return p is not None and p.rol in tuketim.RAPOR_ROLLERI and tuketim.erisebilir(p, TuketimAyar.al())
+        except Exception:
+            return False
+    return {'tuketim_menu': SimpleLazyObject(hesapla)}

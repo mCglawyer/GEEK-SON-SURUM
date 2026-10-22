@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Tüketim Ayarları · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="alert alert-{{ m.tags|default:'success' }}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head"><div><h2>Tüketim & maliyet · Ayarlar</h2></div></div>
+  {% include '_tuketim_serit.html' %}
+  <form method="post" class="card" style="max-width:640px">{% csrf_token %}
+    <label class="tk-sw"><input type="checkbox" name="aktif"{% if ayar.aktif %} checked{% endif %}>
+      <span><b>Sistem açık</b><small>Kapalıyken yalnızca Genel Müdür, Operatör ve Satın Alma görür. Şefler, müdürler ve yatırımcı görmez.</small></span></label>
+    <div style="margin:1rem 0">
+      <label class="mn-lbl" for="tk-bas">İlk sayım ayı</label>
+      <input id="tk-bas" class="input" type="month" name="baslangic" value="{{ baslangic_deger }}" style="max-width:220px">
+      <p class="tz-not">Şeflerin ilk kez girdiği ay sonu sayımının ayı. Bu ayın sayımı “açılış stoğu” olur; kullanım hesabı bir sonraki aydan başlar. Boş bırakırsan mevcut tüm sayımlar kullanılır.</p>
+    </div>
+    <label class="tk-sw"><input type="checkbox" name="son_gun_ayda"{% if ayar.son_gun_ayda %} checked{% endif %}>
+      <span><b>Ayın son günü gelen sevkiyat o ayın sayılır</b><small>Şefler sayımı gün sonunda yapıyorsa açık bırak. Gün başında yapıyorlarsa kapat; o gün gelen mal bir sonraki ayın sayılır.</small></span></label>
+    <div style="margin-top:1.2rem"><button class="btn btn-primary">Kaydet</button></div>
+    {% if ayar.guncelleyen %}<p class="tz-not">Son değiştiren: {{ ayar.guncelleyen }} · {{ ayar.guncelleme|date:"d.m.Y H:i" }}</p>{% endif %}
+  </form>
+</div>
+<style>.tk-sw{display:flex;align-items:flex-start;gap:.7rem;cursor:pointer}.tk-sw input{width:22px;height:22px;margin-top:.15rem;flex:none}.tk-sw small{display:block;color:var(--muted);font-size:.8rem;margin-top:.15rem;line-height:1.4}</style>
+{% endblock %}

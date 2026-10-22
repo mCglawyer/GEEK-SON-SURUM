@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from . import temizlik as tz
 from .models import (Rol, SevkiyatKalem, SevkiyatTalep, Sube, TemizlikAyar, TemizlikDuzeltme, TemizlikFiyat,
-                     TemizlikSayim, TemizlikUrun)
+                     TemizlikSayim, TemizlikSayimKalem, TemizlikUrun)
 from .tests_mola_stok import _AYAR, kisi
 
 AY = datetime.date(2026, 9, 1)
@@ -600,3 +600,37 @@ class TemizlikSistemVeFiyatTestleri(TestCase):
             self.assertEqual(self.get(k, ad).status_code, 200, (k, ad))
         for k in (self.sef, self.sa, self.yat, self.mud, self.mm):
             self.assertEqual(self.get(k, 'temizlik_ayarlar').status_code, 302)
+
+
+@override_settings(**_AYAR)
+class TekSayimDuzeniTesti(TestCase):
+    """Ay sonu sayımı bir sonraki ayın açılışıdır; ay başı sayımı gerekmez."""
+
+    def test_onceki_ay_sonu_acilis_olur(self):
+        sube = Sube.objects.create(ad='Tek')
+        u = TemizlikUrun.objects.create(ad='Sıvı sabun', birim='ADET', koli_icerigi=1)
+        TemizlikAyar.objects.all().delete()
+        TemizlikAyar.objects.create(aktif=True, baslangic=None)
+        eylul = TemizlikSayim.objects.create(sube=sube, ay=datetime.date(2026, 9, 1), tur='SON', tarih=datetime.date(2026, 9, 30))
+        TemizlikSayimKalem.objects.create(sayim=eylul, urun=u, urun_ad=u.ad, miktar=Decimal('10'))
+        ekim = TemizlikSayim.objects.create(sube=sube, ay=datetime.date(2026, 10, 1), tur='SON', tarih=datetime.date(2026, 10, 31))
+        TemizlikSayimKalem.objects.create(sayim=ekim, urun=u, urun_ad=u.ad, miktar=Decimal('4'))
+        c = tz.veri_hesapla([sube], datetime.date(2026, 10, 1))['subeler'][0]
+        r = next(x for x in c['satirlar'] if x['urun'].id == u.id)
+        self.assertTrue(c['ilk_otomatik'] and c['tam'])
+        self.assertEqual((r['ilk'], r['son'], r['kullanim']), (Decimal('10'), Decimal('4'), Decimal('6')))
+
+    def test_elle_girilen_ilk_oncelikli(self):
+        sube = Sube.objects.create(ad='Tek2')
+        u = TemizlikUrun.objects.create(ad='Bez', birim='ADET', koli_icerigi=1)
+        TemizlikAyar.objects.all().delete()
+        TemizlikAyar.objects.create(aktif=True, baslangic=None)
+        for ay, tur, tarih, m in ((datetime.date(2026, 9, 1), 'SON', datetime.date(2026, 9, 30), 99),
+                                  (datetime.date(2026, 10, 1), 'ILK', datetime.date(2026, 10, 1), 7),
+                                  (datetime.date(2026, 10, 1), 'SON', datetime.date(2026, 10, 31), 2)):
+            sy = TemizlikSayim.objects.create(sube=sube, ay=ay, tur=tur, tarih=tarih)
+            TemizlikSayimKalem.objects.create(sayim=sy, urun=u, urun_ad=u.ad, miktar=Decimal(m))
+        c = tz.veri_hesapla([sube], datetime.date(2026, 10, 1))['subeler'][0]
+        r = next(x for x in c['satirlar'] if x['urun'].id == u.id)
+        self.assertFalse(c['ilk_otomatik'])
+        self.assertEqual(r['kullanim'], Decimal('5'))

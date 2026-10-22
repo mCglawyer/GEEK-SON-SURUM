@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Ürün Eşleme · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="tz-ileti {{ m.tags }}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head"><div><h2>Sayım ürünlerini sevkiyatla eşle</h2><span class="plan-aralik">{{ bagli }} / {{ toplam }} ürün eşleşti</span></div></div>
+  {% include '_tuketim_serit.html' %}
+  <div class="card tk-bilgi">
+    <p class="tz-not" style="margin:0">Şef stok sayımında “Caramel şurup”u ml olarak sayar; sevkiyatta aynı ürün “Caramel şurup (750ml)” diye koliyle gelir. Gelen malın sayıma eklenebilmesi için ikisini burada eşleştiriyoruz. <b>Çarpan</b>: sevkiyat kataloğundaki 1 taban birim (1 şişe, 1 kg…) sayımda kaç birim eder. Boş bırakırsan otomatik hesaplanır (şişe için kapalı kutu içeriği, kg/litre için 1000). Eşleşmeyen ürünün gelen malı hesaba girmez.</p>
+  </div>
+  {% if oneri_sayisi %}
+  <form method="post" class="card tz-filtre">{% csrf_token %}<input type="hidden" name="islem" value="oner_uygula">
+    <span><b>{{ oneri_sayisi }}</b> ürün için ad benzerliğine göre öneri var.</span>
+    <button class="btn btn-ghost btn-mini">Önerileri uygula</button>
+  </form>
+  {% endif %}
+  <form method="post" class="card">{% csrf_token %}<input type="hidden" name="islem" value="kaydet">
+    <div class="tz-kaydir"><table class="tz-tablo tz-orta tk-esleme">
+      <thead><tr><th class="tz-ad">Sayım ürünü</th><th>Sevkiyat kataloğundaki ürün</th><th>Çarpan</th></tr></thead>
+      <tbody>
+      {% for r in satirlar %}
+        <tr>
+          <td class="tz-ad" data-et="Sayım ürünü">{{ r.stok.ad }}<small class="tk-alt">{{ r.stok.kategori }} · kapalı kutu {{ r.stok.kapali_icerik }}</small></td>
+          <td data-et="Sevkiyat ürünü">
+            <select name="u_{{ r.stok.id }}" class="sube-sec">
+              <option value="">— eşleşmedi —</option>
+              {% for u in sevk %}<option value="{{ u.id }}"{% if r.stok.sevkiyat_urun_id == u.id %} selected{% endif %}>{{ u.ad }} ({{ u.birim|lower }})</option>{% endfor %}
+            </select>
+            {% if r.oneri and not r.stok.sevkiyat_urun_id %}<small class="tk-alt">Öneri: {{ r.oneri.ad }} (%{{ r.guven }})</small>{% endif %}
+          </td>
+          <td data-et="Çarpan"><input class="input tk-fiyat" name="c_{{ r.stok.id }}" inputmode="decimal" value="{% if r.stok.sevkiyat_carpan %}{{ r.stok.sevkiyat_carpan|floatformat:"-4" }}{% endif %}" placeholder="{{ r.varsayilan|floatformat:"-4" }}" autocomplete="off"></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    <div class="tz-kaydet-bar"><button class="btn btn-primary">Eşlemeleri kaydet</button></div>
+  </form>
+</div>
+<style>
+.tk-alt{display:block;font-size:.72rem;color:var(--muted);margin-top:.15rem}
+.tk-fiyat{min-width:100px;max-width:130px;text-align:right}
+.tk-esleme td{vertical-align:top}
+.tk-esleme select{max-width:360px;width:100%}
+</style>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% load tz_filtreleri %}
+{% block title %}Tüketim & Maliyet · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Tüketim & maliyet</h2><span class="plan-aralik">{{ ay_etiket }} · {% if secili %}{{ secili.ad }}{% elif coklu %}Tüm şubeler{% else %}{{ subeler.0.ad }}{% endif %}</span></div>
+  </div>
+  {% include '_tuketim_serit.html' %}
+
+  {% if not subeler %}
+  <div class="card an-bos">Bu hesap için görüntülenecek şube yok.</div>
+  {% else %}
+  <form method="get" class="card tz-filtre">
+    <div class="an-ay">
+      <a class="btn btn-ghost btn-mini" href="{{ onceki_url }}" aria-label="Önceki ay">‹</a>
+      <b>{{ ay_etiket }}</b>
+      <a class="btn btn-ghost btn-mini" href="{{ sonraki_url }}" aria-label="Sonraki ay">›</a>
+    </div>
+    <input type="hidden" name="ay" value="{{ ay_deger }}">
+    {% if coklu %}
+    <label>Şube
+      <select name="sube" class="sube-sec" onchange="this.form.submit()">
+        <option value="">Tüm şubeler</option>
+        {% for s in subeler %}<option value="{{ s.id }}"{% if secili and s.id == secili.id %} selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+      </select>
+    </label>
+    {% endif %}
+  </form>
+
+  <div class="card tz-durum-kart">
+    <h3>Sayım durumu <span class="tz-sayac">{{ veri.tam_sube }} / {{ veri.subeler|length }} şube tamamlandı</span></h3>
+    <div class="tz-kaydir">
+      <table class="tz-tablo tz-orta">
+        <thead><tr><th class="tz-ad">Şube</th><th>Açılış sayımı</th><th>Kapanış sayımı</th><th>Durum</th></tr></thead>
+        <tbody>
+          {% for c in veri.subeler %}
+          <tr>
+            <td class="tz-ad" data-et="Şube">{{ c.sube.ad }}</td>
+            <td data-et="Açılış sayımı">{% if c.ilk %}✓ önceki ay sonu{% else %}—{% endif %}</td>
+            <td data-et="Kapanış sayımı">{% if c.son %}✓ {{ ay_etiket }} sonu{% else %}—{% endif %}</td>
+            <td data-et="Durum">{% if c.durum == 'tam' %}<span class="badge badge-ok">Hesaplandı</span>{% elif c.durum == 'sayim_bekleniyor' %}<span class="badge badge-wait">Ay sonu sayımı bekleniyor</span>{% elif c.durum == 'baslamadi' %}<span class="badge badge-info">İlk sayım ayı (açılış stoğu)</span>{% else %}<span class="badge badge-info">Önceki ay sayımı yok</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tz-not">Şefler her ayın son günü stok sayımını girer. O sayım hem ayın kapanışı hem sonraki ayın açılışıdır; ayrıca bir giriş gerekmez. Gelen mal sevkiyattan kendiliğinden eklenir.</p>
+  </div>
+
+  {% if veri.tam_sube == 0 %}
+  <div class="card an-bos">{{ ay_etiket }} için hesaplanmış şube yok. Ay sonu sayımı girildiğinde ve bir önceki ayın sayımı varsa kullanım ve maliyet burada görünür.</div>
+  {% else %}
+  <div class="tz-stat-satir">
+    <div class="tz-stat"><span>Toplam maliyet</span><b>{{ veri.genel_tutar|tzpara }}</b><small>{{ veri.tam_sube }} / {{ veri.subeler|length }} şube</small></div>
+    {% if veri.fiyat_eksik %}<div class="tz-stat uyari"><span>Fiyatı girilmemiş ürün</span><b>{{ veri.fiyat_eksik|length }}</b><small>toplama dahil değil</small></div>{% endif %}
+    {% if yonetim and veri.eslesmeyen %}<div class="tz-stat uyari"><span>Eşleşmeyen sevkiyat ürünü</span><b>{{ veri.eslesmeyen|length }}</b><small>maliyete girmiyor</small></div>{% endif %}
+  </div>
+
+  <div class="tk-grafikler">
+    {% if aylik_var %}
+    <div class="card">
+      <h3>Aylık maliyet <span class="tz-sayac">son 6 ay</span></h3>
+      <div class="tk-sutun" role="img" aria-label="Aylık maliyet sütun grafiği">
+        {% for c in aylik_sutun %}
+        <div class="tk-sutun-kol"><span class="tk-deger">{{ c.deger|tzpara }}</span><div class="tk-sutun-alan"><i style="height:{{ c.yuzde }}%"{% if not c.deger %} class="bos"{% endif %}></i></div><span class="tk-et">{{ c.etiket }}</span></div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% if sube_sutun|length > 1 %}
+    <div class="card">
+      <h3>Şubelere göre maliyet <span class="tz-sayac">{{ ay_etiket }}</span></h3>
+      <ul class="tk-yatay">
+        {% for x in sube_sutun %}<li><span class="tk-ad">{{ x.sube.ad }}</span><div class="tk-cubuk"><i style="width:{{ x.yuzde }}%"></i></div><b>{{ x.tutar|tzpara }}</b></li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% if top_kalemler %}
+    <div class="card">
+      <h3>En çok harcama kalemleri <span class="tz-sayac">{{ ay_etiket }}</span></h3>
+      <ul class="tk-yatay">
+        {% for r in top_kalemler %}<li><span class="tk-ad">{{ r.urun.ad }}</span><div class="tk-cubuk"><i style="width:{{ r.yuzde }}%"></i></div><b>{{ r.tutar|tzpara }}</b></li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>Ürün bazında kullanım</h3>
+    <div class="tz-kaydir">
+      <table class="tz-tablo tz-orta">
+        <thead><tr><th class="tz-ad">Ürün</th><th>Açılış</th><th>Gelen</th><th>Kapanış</th><th>Kullanım</th><th>Birim maliyet</th><th>Tutar</th></tr></thead>
+        <tbody>
+          {% for r in veri.toplam %}
+          <tr>
+            <td class="tz-ad" data-et="Ürün">{{ r.urun.ad }}</td>
+            <td data-et="Açılış" class="tz-sayi">{{ r.ilk|tzsayi }}</td>
+            <td data-et="Gelen" class="tz-sayi">{{ r.gelen|tzsayi }}</td>
+            <td data-et="Kapanış" class="tz-sayi">{{ r.son|tzsayi }}</td>
+            <td data-et="Kullanım" class="tz-sayi tz-kul{% if r.kullanim is None %} bos{% elif r.kullanim < 0 %} eksi{% endif %}">{{ r.kullanim|tzsayi }}{% if r.kullanim_taban is not None %}<small class="tz-hacim">≈ {{ r.kullanim_taban|tzsayi }} {% if r.urun.sevkiyat_urun %}{{ r.urun.sevkiyat_urun.birim|lower }}{% else %}adet{% endif %}</small>{% endif %}</td>
+            <td data-et="Birim maliyet" class="tz-sayi bos">{% if r.tutar and r.kullanim_taban %}{{ r.birim_maliyet|tzpara }}{% endif %}</td>
+            <td data-et="Tutar" class="tz-sayi tz-kul{% if r.tutar is None %} bos{% endif %}">{{ r.tutar|tzpara }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot><tr class="tz-toplam"><td class="tz-ad" colspan="6">Toplam maliyet</td><td class="tz-sayi tz-kul">{{ veri.genel_tutar|tzpara }}</td></tr></tfoot>
+      </table>
+    </div>
+    {% if veri.fiyat_eksik %}<p class="tz-not tz-uyari-not">Fiyatı girilmemiş ya da sevkiyatla eşleşmemiş ürünler toplam maliyete dahil değil: {{ veri.fiyat_eksik|join:", " }}.</p>{% endif %}
+    <p class="tz-not">Kullanım = Açılış (önceki ay sonu sayımı) + Gelen (sevkiyat) − Kapanış (bu ay sonu sayımı). Sayım biriminde (ml, gr, adet) gösterilir; “≈” satırı sevkiyat birimine (şişe, kg…) çevrilmiş halidir. <b>Kullanımın içinde fire de vardır;</b> stok sayımı satılanı ve telef olanı ayıramaz. Maliyet, açılış stoğu ve gelen malın fiyatlarından hesaplanan ağırlıklı ortalama fiyatla bulunur.</p>
+  </div>
+
+  {% if kirilim %}
+  <div class="card">
+    <h3>Ürün × şube maliyeti <span class="tz-sayac">en çok harcanan 30 kalem</span></h3>
+    <div class="tz-kaydir">
+      <table class="tz-tablo tz-genis">
+        <thead><tr><th class="tz-ad">Ürün</th>{% for c in veri.subeler %}<th>{{ c.sube.ad }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for r, hucreler in kirilim %}
+          <tr><td class="tz-ad">{{ r.urun.ad }}</td>{% for h in hucreler %}<td class="tz-sayi{% if h is None %} bos{% endif %}">{{ h|tzpara }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+        <tfoot><tr class="tz-toplam"><td class="tz-ad">Toplam</td>{% for c in veri.subeler %}<td class="tz-sayi">{{ c.tutar|tzpara }}</td>{% endfor %}</tr></tfoot>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% for c in veri.subeler %}{% for r in c.satirlar %}{% if r.uyari %}{% if forloop.first and forloop.parentloop.first %}<div class="card tz-uyari"><h3>Kontrol gereken kayıtlar</h3><ul class="tk-uyari-liste">{% endif %}<li><b>{{ c.sube.ad }} · {{ r.urun.ad }}</b> — {{ r.uyari }}</li>{% endif %}{% endfor %}{% endfor %}
+  {% endif %}
+
+  {% if yonetim and veri.eslesmeyen %}
+  <div class="card tz-uyari">
+    <h3>Sayım kataloğunda karşılığı olmayan sevkiyat ürünleri</h3>
+    <p class="tz-not" style="margin-top:0">Bu dönemde gelen ama bar stok sayımındaki hiçbir ürünle eşleşmeyen mal. Bar ürünüyse “Ürün eşleme”den bağla; değilse (ör. mutfak) yok sayabilirsin.</p>
+    <p>{% for e in veri.eslesmeyen %}<span class="mg-etkin-chip">{{ e.ad }} · {{ e.miktar|tzsayi }} {{ e.birim|lower }}</span> {% endfor %}</p>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+<style>
+.tk-grafikler{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem;margin-bottom:1rem}
+.tk-grafikler .card{margin:0}
+.tk-sutun{display:flex;align-items:flex-end;gap:.6rem;height:220px;padding-top:.5rem}
+.tk-sutun-kol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+.tk-sutun-alan{flex:1;width:100%;max-width:56px;display:flex;align-items:flex-end}
+.tk-sutun-alan i{display:block;width:100%;background:var(--brand,#1B2A9E);border-radius:8px 8px 2px 2px;min-height:0;transition:height .3s}
+.tk-sutun-alan i.bos{background:transparent}
+.tk-deger{font-size:.68rem;color:var(--muted);margin-bottom:.25rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tk-et{font-size:.72rem;color:var(--muted);margin-top:.35rem;white-space:nowrap}
+.tk-yatay{list-style:none;margin:.6rem 0 0;padding:0;display:flex;flex-direction:column;gap:.55rem}
+.tk-yatay li{display:grid;grid-template-columns:minmax(90px,38%) 1fr auto;gap:.6rem;align-items:center;font-size:.85rem}
+.tk-yatay .tk-ad{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tk-cubuk{height:10px;background:var(--surface-2,#F2F3F8);border-radius:999px;overflow:hidden}
+.tk-cubuk i{display:block;height:100%;background:var(--brand,#1B2A9E);border-radius:999px}
+.tk-yatay b{font-variant-numeric:tabular-nums;font-weight:650;white-space:nowrap}
+.tk-uyari-liste{margin:.4rem 0 0;padding-left:1.1rem;font-size:.86rem}
+@media(max-width:560px){.tk-yatay li{grid-template-columns:1fr auto}.tk-yatay .tk-cubuk{grid-column:1/-1;order:3}.tk-sutun{gap:.3rem}.tk-deger{display:none}}
+</style>
+{% endblock %}

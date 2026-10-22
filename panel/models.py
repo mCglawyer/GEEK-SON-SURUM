@@ -49,6 +49,10 @@ class Sube(models.Model):
     google_yorum_url = models.URLField(
         max_length=500, blank=True, default='', verbose_name="Google yorum bağlantısı",
         help_text="Müşteri değerlendirmesinde 8 ve üzeri puan verenler bu adrese yönlendirilir.")
+    FIYAT_GRUBU = [('MERKEZ', 'Merkez şube'), ('FRANCHISE', 'Franchise şube')]
+    fiyat_grubu = models.CharField(
+        max_length=10, choices=FIYAT_GRUBU, default='MERKEZ', verbose_name="Fiyat grubu",
+        help_text="Tüketim & maliyet hesabında ürün fiyatı bu gruba göre seçilir.")
 
     class Meta:
         verbose_name = "Şube"; verbose_name_plural = "Şubeler"; ordering = ['ad']
@@ -215,6 +219,12 @@ class StokUrun(models.Model):
                                         verbose_name="Kapalı kutu içeriği (adet/ml/kg)")
     acik_carpan = models.DecimalField(max_digits=12, decimal_places=2, default=1,
                                       verbose_name="Açık kutu çarpanı")
+    # Tüketim & maliyet: bu sayım kaleminin sevkiyat kataloğundaki karşılığı. Gelen mal buradan sayıma çevrilir.
+    sevkiyat_urun = models.ForeignKey('Urun', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                                      verbose_name="Sevkiyat kataloğundaki karşılığı")
+    sevkiyat_carpan = models.DecimalField(
+        max_digits=14, decimal_places=4, null=True, blank=True, verbose_name="Sevkiyat birimi → sayım birimi",
+        help_text="Sevkiyat kataloğundaki 1 taban birim (1 adet/şişe/paket) sayımda kaç birim eder? Boşsa 'kapalı kutu içeriği' kullanılır.")
     sira = models.PositiveIntegerField(default=0, verbose_name="Sıra")
     aktif = models.BooleanField(default=True, verbose_name="Aktif")
 
@@ -1446,6 +1456,53 @@ class TemizlikFiyat(models.Model):
 
     def __str__(self):
         return f"{self.urun} · {self.fiyat} TL/{self.birim.lower()} ({self.gecerli:%d.%m.%Y})"
+
+
+class TuketimFiyat(models.Model):
+    """Sevkiyat kataloğundaki ürünün TABAN BİRİM (1 adet/şişe/paket) başına alış fiyatı — tarihli.
+
+    Öncelik: şubeye özel fiyat > şubenin fiyat grubu (Merkez/Franchise) fiyatı. Fiyat, geçerlilik tarihinden itibaren
+    geçerlidir; ay ortasında değişirse mal teslim tarihindeki fiyatla değerlenir."""
+    urun = models.ForeignKey('Urun', on_delete=models.CASCADE, related_name='tuketim_fiyatlari')
+    grup = models.CharField(max_length=10, choices=Sube.FIYAT_GRUBU, blank=True, default='')
+    sube = models.ForeignKey(Sube, on_delete=models.CASCADE, null=True, blank=True, related_name='tuketim_fiyatlari')
+    fiyat = models.DecimalField(max_digits=14, decimal_places=4, verbose_name="Fiyat (TL / taban birim)")
+    gecerli = models.DateField(verbose_name="Geçerlilik başlangıcı")
+    giren_ad = models.CharField(max_length=100, blank=True)
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Tüketim Ürün Fiyatı"
+        verbose_name_plural = "Tüketim Ürün Fiyatları"
+        ordering = ['urun', 'grup', 'sube', '-gecerli']
+
+    def __str__(self):
+        hedef = self.sube.ad if self.sube_id else self.get_grup_display()
+        return f"{self.urun} · {hedef} · {self.fiyat} TL ({self.gecerli:%d.%m.%Y})"
+
+
+class TuketimAyar(models.Model):
+    """Bar tüketim & maliyet sisteminin tek satırlık ayarı."""
+    aktif = models.BooleanField(default=False, verbose_name="Sistem açık",
+                                help_text="Kapalıyken yalnızca Genel Müdür, Operatör ve Satın Alma görür.")
+    baslangic = models.DateField(null=True, blank=True, verbose_name="İlk sayım ayı",
+                                 help_text="Bu ayın sayımı ilk açılış stoğu olur; kullanım hesabı bir sonraki aydan başlar.")
+    son_gun_ayda = models.BooleanField(default=True, verbose_name="Ayın son günü gelen sevkiyat o ayın sayılır",
+                                       help_text="Sayım gün sonunda yapılıyorsa açık bırakın. Gün başında yapılıyorsa kapatın; "
+                                                 "o gün gelen mal bir sonraki ayın sayılır.")
+    guncelleyen = models.CharField(max_length=100, blank=True)
+    guncelleme = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Tüketim Sistemi Ayarı"
+        verbose_name_plural = "Tüketim Sistemi Ayarı"
+
+    @classmethod
+    def al(cls):
+        obj = cls.objects.order_by('id').first()
+        if obj is None:
+            obj = cls.objects.create(aktif=False)
+        return obj
 
 
 class KalibrasyonKontrol(models.Model):

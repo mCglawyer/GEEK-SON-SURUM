@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load tz_filtreleri %}
+{% block title %}{{ urun.ad }} · Fiyat geçmişi · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  {% if messages %}{% for m in messages %}<div class="tz-ileti {{ m.tags }}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="plan-head"><div><h2>{{ urun.ad }}</h2><span class="plan-aralik">Fiyat geçmişi · {{ urun.birim|lower }} başına</span></div>
+    <a class="btn btn-ghost btn-mini" href="{% url 'tuketim_fiyatlar' %}">← Fiyatlar</a></div>
+  {% include '_tuketim_serit.html' %}
+  <form method="post" class="card tz-filtre">{% csrf_token %}<input type="hidden" name="islem" value="ekle">
+    <label>Kime
+      <select name="hedef" class="sube-sec" required>
+        <option value="MERKEZ">Merkez şubeler (grup)</option>
+        <option value="FRANCHISE">Franchise şubeler (grup)</option>
+        {% for s in subeler %}<option value="s{{ s.id }}">Yalnız {{ s.ad }}</option>{% endfor %}
+      </select></label>
+    <label>Geçerlilik <input class="input" type="date" name="tarih" value="{{ bugun }}" required></label>
+    <label>Fiyat (TL) <input class="input" name="fiyat" inputmode="decimal" required style="max-width:140px"></label>
+    <button class="btn btn-primary">Ekle</button>
+  </form>
+  <div class="card">
+    <h3>Kayıtlar</h3>
+    <div class="tz-kaydir"><table class="tz-tablo tz-orta">
+      <thead><tr><th>Geçerlilik</th><th class="tz-ad">Kime</th><th>Fiyat</th><th>Giren</th><th></th></tr></thead>
+      <tbody>
+      {% for f in gecmis %}
+        <tr><td data-et="Geçerlilik">{{ f.gecerli|date:"d.m.Y" }}</td>
+          <td class="tz-ad" data-et="Kime">{% if f.sube %}<b>{{ f.sube.ad }}</b> (şubeye özel){% else %}{{ f.get_grup_display }}{% endif %}</td>
+          <td data-et="Fiyat" class="tz-sayi">{{ f.fiyat|tzpara }}</td><td data-et="Giren">{{ f.giren_ad|default:"—" }}</td>
+          <td><form method="post" onsubmit="return confirm('Bu fiyat kaydı silinsin mi?')">{% csrf_token %}<input type="hidden" name="islem" value="sil"><input type="hidden" name="id" value="{{ f.id }}"><button class="btn btn-danger btn-mini">Sil</button></form></td></tr>
+      {% empty %}<tr><td colspan="5" class="tz-not">Henüz fiyat girilmemiş.</td></tr>{% endfor %}
+      </tbody></table></div>
+    <p class="tz-not">Şubeye özel fiyat, o şubenin grup fiyatının önüne geçer. Aynı gün için aynı hedefe tekrar fiyat girersen önceki kayıt güncellenir.</p>
+  </div>
+</div>
+{% endblock %}

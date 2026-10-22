@@ -34,12 +34,12 @@
 
   <div class="card tz-adim">
     <ol>
-      <li><b>İlk sayım</b> — ay başında, ilk sevkiyatı almadan 1 gün önce sayım yapıp “İlk sayımı gir” ile kaydet. Sayarken kapalı koli, kapalı adet ve açık kapta kalan miktarı ayrı ayrı yazarsın.</li>
+      <li><b>Ay sonu sayımı</b> — her ayın son günü sayıp “Son sayımı gir” ile kaydet; kapalı koli, kapalı adet ve açık kapta kalan miktarı ayrı ayrı yazarsın. Bu sayım bir sonraki ayın açılışı da olur, ay başında ayrıca sayım gerekmez.</li>
       <li><b>İlave</b> — gelen sevkiyatlar haftalara göre kendiliğinden yazılır. Sevkiyat dışı gelen ya da hatalı bir miktar varsa “Düzeltme” ekle.</li>
-      <li><b>Son sayım</b> — 4 hafta sonunda tekrar sayıp “Son stok”u kaydet. <b>Kullanım</b> otomatik hesaplanır.</li>
+      <li><b>Kullanım</b> — açılış + ilave − kapanış olarak kendiliğinden hesaplanır.</li>
     </ol>
     <p class="tz-durum">
-      İlk sayım: {% if c.ilk %}<b class="ok">{{ c.ilk.tarih|date:"d.m.Y" }}</b>{% else %}<b class="bekle">girilmedi</b>{% endif %}
+      Açılış: {% if c.ilk %}<b class="ok">{{ c.ilk.tarih|date:"d.m.Y" }}{% if c.ilk_otomatik %} (önceki ay sonu){% endif %}</b>{% else %}<b class="bekle">önceki ay sayımı yok</b>{% endif %}
       · Son sayım: {% if c.son %}<b class="ok">{{ c.son.tarih|date:"d.m.Y" }}</b>{% else %}<b class="bekle">girilmedi</b>{% endif %}
       {% if c.ilk and not c.son %}· İlave şu ana kadar: {{ c.bit|date:"d.m.Y" }}{% endif %}
     </p>
@@ -48,8 +48,8 @@
   <div class="card tz-form">
     <div class="tz-sayim-bar">
       <div class="tz-sayim-kutu">
-        <div class="tz-sayim-bilgi"><b>İlk stok</b><span>{% if c.ilk %}{{ c.ilk.tarih|date:"d.m.Y" }} tarihinde sayıldı{% else %}henüz sayılmadı{% endif %}</span></div>
-        <a class="btn btn-primary btn-mini" href="{{ ilk_url }}">{% if c.ilk %}İlk sayımı düzenle{% else %}İlk sayımı gir{% endif %}</a>
+        <div class="tz-sayim-bilgi"><b>Açılış stoğu</b><span>{% if c.ilk_otomatik %}{{ c.ilk.tarih|date:"d.m.Y" }} ay sonu sayımından otomatik{% elif c.ilk %}{{ c.ilk.tarih|date:"d.m.Y" }} tarihinde sayıldı{% else %}önceki ayın sonu sayımı yok{% endif %}</span></div>
+        {% if not c.ilk_otomatik %}<a class="btn btn-ghost btn-mini" href="{{ ilk_url }}">{% if c.ilk %}Açılışı düzenle{% else %}Açılışı elle gir{% endif %}</a>{% endif %}
       </div>
       <div class="tz-sayim-kutu">
         <div class="tz-sayim-bilgi"><b>Son stok</b><span>{% if c.son %}{{ c.son.tarih|date:"d.m.Y" }} tarihinde sayıldı{% else %}henüz sayılmadı{% endif %}</span></div>

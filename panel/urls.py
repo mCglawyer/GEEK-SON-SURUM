@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from . import menu_views, menu_acilis, menu_subeler
-from . import zayi_views, sevkiyat_analiz_views, temizlik_views
+from . import zayi_views, sevkiyat_analiz_views, temizlik_views, tuketim_views
 
 urlpatterns = [
     path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
@@ -89,6 +89,12 @@ urlpatterns = [
     path('lavabo/', views.lavabo_sayfa, name='lavabo'),
     path('lavabo/veri/', views.lavabo_json, name='lavabo_json'),
     path('irsaliye/', views.irsaliye_sayfa, name='irsaliye'),
+    path('tuketim/', tuketim_views.tuketim_ana, name='tuketim'),
+    path('tuketim/rapor/', tuketim_views.tuketim_rapor, name='tuketim_rapor'),
+    path('tuketim/fiyatlar/', tuketim_views.tuketim_fiyatlar, name='tuketim_fiyatlar'),
+    path('tuketim/fiyatlar/<int:urun_id>/', tuketim_views.tuketim_fiyat_detay, name='tuketim_fiyat_detay'),
+    path('tuketim/esleme/', tuketim_views.tuketim_esleme, name='tuketim_esleme'),
+    path('tuketim/ayar/', tuketim_views.tuketim_ayar, name='tuketim_ayar'),
     path('temizlik/', temizlik_views.temizlik_ana, name='temizlik'),
     path('temizlik/giris/', temizlik_views.temizlik_giris, name='temizlik_giris'),
     path('temizlik/sayim/<str:tur>/', temizlik_views.temizlik_sayim, name='temizlik_sayim'),
