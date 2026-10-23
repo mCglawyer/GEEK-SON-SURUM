@@ -5811,9 +5811,9 @@ def denetim_doldur(request, denetim_id):
                 c.save()
 
         if islem == 'bitir':
-            cevaplanan = [c for c in cevaplar if c.puan is not None]
-            if cevaplanan:
-                denetim.toplam_puan = round(sum(c.puan for c in cevaplanan) / (len(cevaplanan) * 5) * 100, 1)
+            # Boş bırakılan madde 0 puan sayılır: puan = toplam / (TÜM madde sayısı × 5)
+            if cevaplar:
+                denetim.toplam_puan = round(sum(c.puan or 0 for c in cevaplar) / (len(cevaplar) * 5) * 100, 1)
             denetim.tamamlandi = True
             denetim.bitis = timezone.now()
             denetim.save()
@@ -5840,7 +5840,7 @@ def denetim_doldur(request, denetim_id):
     return render(request, 'denetim_doldur.html', {
         'personel': personel, 'aktif': 'denetim',
         'denetim': denetim, 'bolum_listesi': bolum_listesi,
-        'toplam_madde': len(cevap_map), 'cevaplanan_sayi': cevaplanan_sayi,
+        'toplam_madde': len(cevap_map), 'cevaplanan_sayi': cevaplanan_sayi, 'bos_sayi': len(cevap_map) - cevaplanan_sayi,
     })
 
 

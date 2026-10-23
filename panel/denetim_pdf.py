@@ -61,8 +61,8 @@ def _puan_renk(puan):
 
 
 def _yuzde(cevaplar):
-    puanlilar = [c.puan for c in cevaplar if c.puan is not None]
-    return (sum(puanlilar) / (len(puanlilar) * 5) * 100) if puanlilar else None
+    # boş bırakılan madde 0 puan sayılır
+    return (sum(c.puan or 0 for c in cevaplar) / (len(cevaplar) * 5) * 100) if cevaplar else None
 
 
 class _Cubuk(Flowable):

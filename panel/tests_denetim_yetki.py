@@ -98,3 +98,20 @@ class DenetimYetkiTesti(TestCase):
         p2 = kisi(Rol.PERSONEL, self.a); self.client.force_login(p2.user)
         r = self.client.post(reverse('geek_kosu_skor'), {'skor': 250000, 'sure_sn': 60, 'mod': 'kosu'})
         self.assertEqual(r.status_code, 400)
+
+
+@override_settings(**_AYAR)
+class DenetimPuanTesti(TestCase):
+    def test_bos_maddeler_sifir_sayilir(self):
+        gm = kisi(Rol.GENEL_MUDUR); s = Sube.objects.create(ad='P')
+        bolum = DenetimBolum.objects.create(ad='A', sira=1)
+        maddeler = [DenetimMadde.objects.create(bolum=bolum, metin='m%d' % i, sira=i) for i in range(10)]
+        d = Denetim.objects.create(sube=s, denetleyen=gm)
+        cev = [DenetimCevap.objects.create(denetim=d, madde=m) for m in maddeler]
+        self.client.force_login(gm.user)
+        veri = {'islem': 'bitir'}
+        for c in cev[:2]:
+            veri['puan_%d' % c.id] = '5'          # 10 maddeden 2'si tam puan
+        self.client.post(reverse('denetim_doldur', args=[d.id]), veri)
+        d.refresh_from_db()
+        self.assertEqual(d.toplam_puan, 20.0)     # eski kuralda 100 çıkardı

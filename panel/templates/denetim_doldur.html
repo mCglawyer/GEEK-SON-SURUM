@@ -21,7 +21,7 @@
     {% csrf_token %}
     <div class="denetim-gonder-ust">
       <button type="submit" name="islem" value="kaydet" class="btn btn-ghost">İlerlemeyi Kaydet</button>
-      <button type="submit" name="islem" value="bitir" class="btn btn-primary" onclick="return confirm('Denetimi bitirmek üzeresin. Bitirdikten sonra düzenleme yapılamaz. Emin misin?');">Denetimi Bitir</button>
+      <button type="submit" name="islem" value="bitir" class="btn btn-primary" onclick="return confirm('{% if toplam_madde != cevaplanan_sayi %}{{ bos_sayi }} madde puanlanmadı; puanlanmayan maddeler 0 puan sayılır ve genel puanı düşürür. {% endif %}Denetimi bitirmek üzeresin. Bitirdikten sonra düzenleme yapılamaz. Emin misin?');">Denetimi Bitir</button>
     </div>
 
     {% for grup in bolum_listesi %}
@@ -52,7 +52,7 @@
 
     <div class="denetim-gonder-ust" style="margin-top:1rem">
       <button type="submit" name="islem" value="kaydet" class="btn btn-ghost">İlerlemeyi Kaydet</button>
-      <button type="submit" name="islem" value="bitir" class="btn btn-primary" onclick="return confirm('Denetimi bitirmek üzeresin. Bitirdikten sonra düzenleme yapılamaz. Emin misin?');">Denetimi Bitir</button>
+      <button type="submit" name="islem" value="bitir" class="btn btn-primary" onclick="return confirm('{% if toplam_madde != cevaplanan_sayi %}{{ bos_sayi }} madde puanlanmadı; puanlanmayan maddeler 0 puan sayılır ve genel puanı düşürür. {% endif %}Denetimi bitirmek üzeresin. Bitirdikten sonra düzenleme yapılamaz. Emin misin?');">Denetimi Bitir</button>
     </div>
   </form>
 
