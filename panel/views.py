@@ -18,7 +18,7 @@ from django.urls import reverse
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse, FileResponse, Http404
 from django.utils import timezone
-from django.db.models import Sum, Q, Max, Prefetch
+from django.db.models import Sum, Q, Max, Prefetch, Count
 from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.models import User
@@ -29,7 +29,7 @@ from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Ka
                      SevkiyatForm, Urun, SiparisHareket,
                      KahveSoru, GunlukSoru, SoruAyar, Bildirim, Duyuru,
                      GSosyalGonderi, GSosyalTepki, GSosyalGorsel, IlginHaber, Anket, AnketSecenek, AnketOy,
-                     GeriBildirim, GeriBildirimKategori, GeriBildirimDurum,
+                     GeriBildirim, GeriBildirimKategori, GeriBildirimDurum, TuketimAyar,
                      EgitimDokuman, EgitimSoru, EgitimDurum, EgitimAyar, EgitimAcikCevap, PushAbonelik, EgitimFavori,
                      MolaQRAyar, SubeMolaToken, MolaOturum, OyunSkor,
                      SubeMesaiToken, MesaiKayit, DogumGunuKutlama,
@@ -417,7 +417,28 @@ def _sef_home(request, personel):
            'vardiya_tipleri': VardiyaTipi.choices, 'secili': secili,
            'haftabasi': start, 'haftasonu': end, 'personeller': personeller}
     ctx.update(tablo)
+    ctx['yapilacaklar'] = _sef_yapilacaklar(sube)
     return render(request, 'sef_panel.html', ctx)
+
+
+def _sef_yapilacaklar(sube):
+    """Şef / mağaza müdürü ana sayfasında 'bugün yapılacaklar': ay sonu stok sayımı hatırlatması."""
+    if sube is None or sube.depo_mu:
+        return []
+    import calendar
+    bugun = timezone.localdate()
+    ay_ilk = bugun.replace(day=1)
+    son_gun = calendar.monthrange(bugun.year, bugun.month)[1]
+    onceki_ay = (ay_ilk - datetime.timedelta(days=1)).replace(day=1)
+    liste = []
+    if not StokSayim.objects.filter(sube=sube, ay=ay_ilk).exists() and bugun.day >= son_gun - 2:
+        kalan = son_gun - bugun.day
+        liste.append({'metin': 'Bu ayın stok sayımı girilmedi. ' + ('Bugün ayın son günü.' if kalan == 0 else 'Ayın bitmesine %d gün var.' % kalan),
+                      'url': reverse('stok'), 'etiket': 'Sayımı gir', 'acil': kalan == 0})
+    if bugun.day <= 5 and not StokSayim.objects.filter(sube=sube, ay=onceki_ay).exists():
+        liste.append({'metin': 'Geçen ayın stok sayımı eksik; tüketim hesabı bu yüzden yapılamıyor.',
+                      'url': reverse('stok'), 'etiket': 'Sayımı gir', 'acil': True})
+    return liste
 
 def _vardiya_kaydet(request, sube, durum=OnayDurumu.TASLAK):
     pid = request.POST.get('target_personel_id')
@@ -3921,7 +3942,9 @@ def gosterge(request):
     ozet_personel = (list(Personel.objects.filter(sube=sel_sube_ozet).order_by('ad_soyad'))
                      if sel_sube_ozet else [])
 
+    karne = _sube_karnesi(personel, subeler, today)
     return render(request, 'gosterge.html', {
+        'karne': karne,
         'personel': personel, 'aktif': 'gosterge',
         'bugun': bugun, 'onay_bekleyen': onay_bekleyen, 'acik_sevkiyat': acik_sevkiyat,
         'sayim_yapan': sayim_yapan, 'sube_sayisi': sube_sayisi,
@@ -3930,6 +3953,47 @@ def gosterge(request):
         'trend': trend, 'stok_oran': stok_oran,
         'sel_sube_ozet': sel_sube_ozet, 'ozet_personel': ozet_personel,
     })
+
+def _sube_karnesi(personel, subeler, today):
+    """Yönetici özet sayfasındaki şube karnesi: son denetim, bu ay sayım, geçen ay maliyet, açık geri bildirim.
+    Her sütun yalnızca görmeye yetkili rol için doldurulur. Hata olursa sayfa bozulmasın diye boş döner."""
+    try:
+        from . import tuketim as tk
+        subeler = [x for x in subeler if not x.depo_mu]
+        if len(subeler) < 1:
+            return None
+        ids = [x.id for x in subeler]
+        ay_ilk = today.replace(day=1)
+        onceki = (ay_ilk - datetime.timedelta(days=1)).replace(day=1)
+        denetim_gorur = personel.rol in DENETIM_GORUNTULEME_ROLLER or (personel.rol == Rol.MUDUR and personel.denetim_goruntuleyici)
+        gb_gorur = personel.rol in TAM_YETKILI or personel.geri_bildirim_yetkilisi
+        son_denetim = {}
+        if denetim_gorur:
+            for d in Denetim.objects.filter(sube_id__in=ids, tamamlandi=True, toplam_puan__isnull=False).order_by('bitis'):
+                son_denetim[d.sube_id] = d
+        sayimli = set(StokSayim.objects.filter(sube_id__in=ids, ay=ay_ilk).values_list('sube_id', flat=True))
+        maliyet = {}
+        ayar = TuketimAyar.al()
+        maliyet_gorur = personel.rol in tk.RAPOR_ROLLERI and tk.erisebilir(personel, ayar)
+        if maliyet_gorur:
+            v = tk.hesapla(subeler, onceki, fiyatli=True, ayar=ayar)
+            maliyet = {c['sube'].id: c['tutar'] for c in v['subeler']}
+        gb = {}
+        if gb_gorur:
+            for sid, adet in (GeriBildirim.objects.filter(sube_id__in=ids, durum=GeriBildirimDurum.YENI)
+                              .values_list('sube_id').annotate(n=Count('id'))):
+                gb[sid] = adet
+        satirlar = []
+        for x in subeler:
+            d = son_denetim.get(x.id)
+            satirlar.append({'sube': x, 'denetim': d, 'sayim': x.id in sayimli, 'maliyet': maliyet.get(x.id),
+                             'gb': gb.get(x.id, 0)})
+        satirlar.sort(key=lambda r: (r['denetim'].toplam_puan if r['denetim'] else 101))
+        return {'satirlar': satirlar, 'denetim': denetim_gorur, 'maliyet': maliyet_gorur,
+                'gb': gb_gorur, 'onceki_ay': tk.ay_etiketi(onceki), 'bu_ay': tk.ay_etiketi(ay_ilk)}
+    except Exception:
+        return None
+
 
 def sevkiyat_kalem_hazirla(request):
     if request.method != 'POST':
@@ -4145,7 +4209,7 @@ def _gosterim_adi(personel):
     return GEEK_MARKA_ADI if personel.rol == Rol.OPERATOR else personel.ad_soyad
 
 
-OYUN_MODLARI = ('kosu', 'arena', 'bilgi')
+OYUN_MODLARI = ('kosu', 'bilgi')
 # Geek Bilgi Yarışması: bir soru en az 100, en çok 1800 puan getirebilir (istemcideki puanlamayla aynı olmalı:
 # taban 100-600 + hız bonusu en çok yarısı, seri çarpanı en çok x2).
 BILGI_SORU_MIN_PUAN = 100
@@ -4181,14 +4245,14 @@ def geek_kosu(request):
         return redirect('ana_sayfa')
     from django.db.models import Max
     en = OyunSkor.objects.filter(personel=personel, mod='kosu').aggregate(m=Max('skor'))['m'] or 0
-    en_arena = OyunSkor.objects.filter(personel=personel, mod='arena').aggregate(m=Max('skor'))['m'] or 0
     en_bilgi = OyunSkor.objects.filter(personel=personel, mod='bilgi').aggregate(m=Max('skor'))['m'] or 0
+    # Kıyafet dolabı kilitleri: Arena kaldırıldı ama onunla kazanılmış kıyafetler açık kalsın.
+    en_eski = OyunSkor.objects.filter(personel=personel, mod='arena').aggregate(m=Max('skor'))['m'] or 0
     return render(request, 'geek_kosu.html', {
         'personel': personel, 'aktif': 'geek_kosu',
         'haftalik': _oyun_liste(True, 10), 'tum_zamanlar': _oyun_liste(False, 10),
-        'haftalik_arena': _oyun_liste(True, 10, 'arena'), 'tum_zamanlar_arena': _oyun_liste(False, 10, 'arena'),
         'haftalik_bilgi': _oyun_liste(True, 10, 'bilgi'), 'tum_zamanlar_bilgi': _oyun_liste(False, 10, 'bilgi'),
-        'benim_en': en, 'benim_en_arena': en_arena, 'benim_en_bilgi': en_bilgi, 'radyo': getattr(settings, 'GEEK_RADYO', {}),
+        'benim_en': en, 'benim_en_bilgi': en_bilgi, 'benim_acilis': max(en, en_eski), 'radyo': getattr(settings, 'GEEK_RADYO', {}),
     })
 
 
@@ -4208,7 +4272,7 @@ def geek_kosu_skor(request):
     mod = request.POST.get('mod', 'kosu')
     if mod not in OYUN_MODLARI:
         return JsonResponse({'ok': False, 'mesaj': 'Geçersiz mod.'}, status=400)
-    # Koşu: metre + bonuslar; Arena: öldürme/dalga puanları. Süreye göre makul üst sınır.
+    # Koşu: metre + bonuslar. Süreye göre makul üst sınır.
     if mod == 'bilgi':
         # Bilgi yarışması: istemci doğru cevap sayısını da gönderir. Her doğru cevap 100-1800 puan arasıdır
         # ve bir soruyu okuyup yanıtlamak en az birkaç saniye sürer.
@@ -4220,8 +4284,7 @@ def geek_kosu_skor(request):
                 or sure < dogru * 2):
             return JsonResponse({'ok': False, 'mesaj': 'Geçersiz skor.'}, status=400)
     else:
-        oran = 170 if mod == 'kosu' else 140
-        if skor <= 0 or sure < 3 or skor > sure * oran + 120 or skor > 5000000:
+        if skor <= 0 or sure < 3 or skor > sure * 170 + 120 or skor > 5000000:
             return JsonResponse({'ok': False, 'mesaj': 'Geçersiz skor.'}, status=400)
     son = OyunSkor.objects.filter(personel=personel).first()
     if son and (timezone.now() - son.zaman).total_seconds() < max(2, son.sure_sn * 0.5):
@@ -6049,3 +6112,35 @@ def mudur_girisleri(request):
         'kayit_toplam': OturumKaydi.objects.count(),
         'mudur_sayisi': len(mudurler),
     })
+
+
+def genel_ara(request):
+    """Üst arama çubuğu için veri araması (şube raporu, ürün fiyatı, denetim sonucu). Yetkiye göre sonuç döner."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'sonuc': []}, status=403)
+    personel = _aktif_personel(request)
+    if personel is None:
+        return JsonResponse({'sonuc': []}, status=403)
+    q = (request.GET.get('q') or '').strip()
+    if len(q) < 2:
+        return JsonResponse({'sonuc': []})
+    from . import tuketim as tk
+    sonuc = []
+    subeler = tk.rapor_subeleri(personel) if personel.rol in tk.RAPOR_ROLLERI else []
+    eslesen = [s for s in subeler if q.lower() in s.ad.lower()]
+    for sb in eslesen[:6]:
+        sonuc.append({'tur': 'Şube', 'etiket': sb.ad + ' · tüketim raporu', 'href': reverse('tuketim_rapor') + '?sube=%d' % sb.id})
+    if tk.fiyat_yonetebilir(personel):
+        for su in StokUrun.objects.filter(ad__icontains=q).exclude(sevkiyat_urun=None).order_by('ad')[:8]:
+            sonuc.append({'tur': 'Ürün', 'etiket': su.ad + ' · fiyat geçmişi',
+                          'href': reverse('tuketim_fiyat_detay', args=[su.sevkiyat_urun_id])})
+    if personel.rol in DENETIM_GORUNTULEME_ROLLER or (personel.rol == Rol.MUDUR and personel.denetim_goruntuleyici):
+        qs = Denetim.objects.filter(tamamlandi=True, sube__ad__icontains=q).select_related('sube')
+        if personel.rol == Rol.MUDUR:
+            qs = qs.filter(sube__in=personel.sorumlu_subeler.all())
+        for d in qs.order_by('-bitis')[:5]:
+            sonuc.append({'tur': 'Denetim', 'etiket': '%s · denetim %s (%s)' % (
+                d.sube.ad, timezone.localtime(d.bitis or d.baslangic).strftime('%d.%m.%Y'),
+                ('%%%.0f' % d.toplam_puan) if d.toplam_puan is not None else '—'),
+                'href': reverse('denetim_detay', args=[d.id])})
+    return JsonResponse({'sonuc': sonuc})

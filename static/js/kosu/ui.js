@@ -119,7 +119,7 @@
             V.TUS[mod].sira.forEach(function (id) { var b = yetenekYuvasi(id, mod, function (i) { olay('cast', i); }); yuvalar[id] = b; eylem.appendChild(b); });
             onb = {};
           }
-          if (yeniMod) { mod = yeniMod; kok.classList.toggle('arena', mod === 'arena'); ustCubuk.hidden = mod === 'arena'; }
+          if (yeniMod) { mod = yeniMod; ustCubuk.hidden = false; }
           if (!acik) { mesaj.classList.remove('goster'); geri.textContent = ''; }
         },
         guncelle: function (d) {
@@ -211,14 +211,12 @@
       }
 
       /* başlık menüsü */
-      var kKosu = el('button', 'go-kart', { type: 'button' }), kArena = el('button', 'go-kart mavi', { type: 'button' });
+      var kKosu = el('button', 'go-kart', { type: 'button' });
       kKosu.innerHTML = '<span class="go-bant">3 şeritli</span><h3>Koşu</h3><span class="go-alt-yazi">Sonsuz sokak. Zıpla, kay, hızlan.<br><b data-en="kosu"></b></span>';
-      kArena.innerHTML = '<span class="go-bant">Yeni</span><h3>Arena</h3><span class="go-alt-yazi">Dalgalarla savaş, yeteneklerini birleştir.<br><b data-en="arena"></b></span>';
       var kBilgi = el('button', 'go-kart bilgi', { type: 'button' });
       kBilgi.innerHTML = '<span class="go-bant">1000+ soru</span><h3>Bilgi Yarışması</h3><span class="go-alt-yazi">İlk yanlışta biter. Doğrusunu öğren.<br><b data-en="bilgi"></b></span>';
       kBilgi.addEventListener('click', function () { olay('basla', 'bilgi'); });
       kKosu.addEventListener('click', function () { olay('basla', 'kosu'); });
-      kArena.addEventListener('click', function () { olay('basla', 'arena'); });
       var logo = el('div', 'go-logo', null, [ayar.logo ? el('img', null, { src: ayar.logo, alt: 'Geek', height: 44 }) : null, el('span', null, { metin: 'Oyun Salonu' })]);
       var geriPanel = buton('‹ Geri dön', 'ikincil go-geri-panel', function () { olay('cik'); });
       geriPanel.setAttribute('aria-label', 'Panele geri dön');
@@ -226,14 +224,14 @@
         geriPanel,
         logo,
         el('h1', null, { html: 'Barista<br><em>göreve hazır</em>' }),
-        el('p', 'go-alt-yazi', { metin: 'Sokakta koş, arenada dalgalara karşı savaş ya da Bilgi Yarışması\'nda bilgini sına. Skorların Oyun Salonu sıralamasına yazılır.' }),
-        el('div', 'go-modlar', null, [kKosu, kArena, kBilgi]),
+        el('p', 'go-alt-yazi', { metin: 'Sokakta koş ya da Bilgi Yarışması\'nda bilgini sına. Skorların Oyun Salonu sıralamasına yazılır.' }),
+        el('div', 'go-modlar', null, [kKosu, kBilgi]),
         el('div', 'go-ikinci', null, [buton('Dolap', 'ikincil', function () { olay('dolap'); }), buton('Rehber', 'ikincil', function () { olay('rehber'); }), buton('Ayarlar', 'ikincil', function () { olay('ayar'); })]),
         radyoSatiri()
       ]);
       ekran('menu', 'go-baslik-ekran', [menu]);
       ui.menuGuncelle = function (d) {
-        [].forEach.call(menu.querySelectorAll('[data-en]'), function (b) { var v = b.dataset.en === 'kosu' ? d.enKosu : b.dataset.en === 'arena' ? d.enArena : d.enBilgi; b.textContent = 'En iyi: ' + v; });
+        [].forEach.call(menu.querySelectorAll('[data-en]'), function (b) { var v = b.dataset.en === 'kosu' ? d.enKosu : d.enBilgi; b.textContent = 'En iyi: ' + v; });
       };
 
       /* duraklat */
@@ -291,36 +289,21 @@
         kontrol: function () {
           return [
             ['Koşu', 'Sol/Sağ ya da A/D şerit değiştirir. Yukarı, W veya Boşluk zıplar (havada bir kez daha). Aşağı veya S kayar. Dokunmatik: kaydır, dokun = zıpla.'],
-            ['Arena', 'WASD veya yön tuşları hareket. Fare ile nişan al, yetenekleri 1-4 ve Q ile kullan. Boşluk veya Shift atılma. E etkileşim. Dokunmatik: sol yarıda sürükle, düğmelere dokun.'],
             ['Genel', 'P duraklat · R radyo aç/kapat · G dolap (menüde) · Esc duraklat.']
           ].map(function (r) { return el('li', null, null, [rozet('', svgCizgi('atis')), el('div', null, { html: '<b>' + r[0] + '</b><small>' + r[1] + '</small>' })]); });
         },
         yetenek: function () {
-          return V.YETENEK_SIRA.map(function (id) {
-            var y = V.YETENEK[id], tag = y.modlar.length === 2 ? 'Koşu + Arena' : 'Yalnız Arena';
+          return V.TUS.kosu.sira.map(function (id) {
+            var y = V.YETENEK[id], tag = V.TUS.kosu.tus[id] ? 'Tuş ' + V.TUS.kosu.tus[id] : '';
             return el('li', null, null, [rozet(y.element || id, svgCizgi(id)), el('div', null, { html: '<b>' + y.ad + '</b><small>' + y.aciklama + ' · ' + (y.maliyet ? y.maliyet + (y.kaynak === 'ether' ? ' ether' : ' dayanıklılık') : 'bedava') + ' · ' + tag + '</small>' })]);
           });
-        },
-        dusman: function () {
-          return Object.keys(V.DUSMAN).map(function (id) {
-            var d = V.DUSMAN[id];
-            return el('li', null, null, [rozet(d.boss ? 'kotu' : 'iyi', '<svg viewBox="0 0 24 24"><path d="M4 17a8 6 0 0 1 16 0zM9 11h.01M15 11h.01"/></svg>'), el('div', null, { html: '<b>' + d.ad + (d.boss ? ' (patron)' : '') + '</b><small>' + d.not + ' · Can ' + d.can + ' · ' + d.puan + ' puan</small>' })]);
-          });
-        },
-        element: function () {
-          var l = Object.keys(V.ELEMENT).map(function (k) { var e = V.ELEMENT[k]; return el('li', null, null, [rozet(k, svgCizgi(k === 'pyro' ? 'top' : (k === 'electro' ? 'simsek' : 'firtina'))), el('div', null, { html: '<b>' + e.ad + '</b><small>Vurulan düşmanın üzerinde birkaç saniye kalır.</small>' })]); });
-          Object.keys(V.TEPKIME).forEach(function (k) {
-            var t = V.TEPKIME[k], ad = k.split('+').map(function (x) { return V.ELEMENT[x].ad; }).join(' + ');
-            l.push(el('li', null, null, [rozet('', svgCizgi('patlama')), el('div', null, { html: '<b>' + t.ad + '</b><small>' + ad + ': ' + (t.id === 'buhar' ? 'hasar x1,6' : (t.id === 'sok' ? 'kısa süre sersemletir' : 'çevreye alan hasarı')) + '</small>' })]));
-          });
-          return l;
         }
       };
       function rehberAc(ad) {
         rehberIc.innerHTML = ''; REHBER[ad]().forEach(function (x) { rehberIc.appendChild(x); });
         for (var k in sekmeler) sekmeler[k].setAttribute('aria-pressed', k === ad ? 'true' : 'false');
       }
-      [['kontrol', 'Kontroller'], ['yetenek', 'Yetenekler'], ['dusman', 'Düşmanlar'], ['element', 'Elementler']].forEach(function (s) {
+      [['kontrol', 'Kontroller'], ['yetenek', 'Yetenekler']].forEach(function (s) {
         var b = buton(s[1], 'ikincil', function () { rehberAc(s[0]); }); b.style.minHeight = '36px'; b.style.padding = '0 12px'; b.style.fontSize = '12px'; sekmeler[s[0]] = b; sekmeBar.appendChild(b);
       });
       ekran('rehber', 'ortala', [el('div', 'go-kutu', null, [el('h2', null, { metin: 'Rehber' }), sekmeBar, rehberIc, buton('Tamam', 'buyuk', function () { olay('rehberKapat'); })])]);

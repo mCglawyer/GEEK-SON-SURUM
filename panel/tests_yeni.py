@@ -366,25 +366,20 @@ class GeekKosuTesti(TestCase):
             self.assertContains(self.client.get('/geek-kosu/'), 'Koşucu Kişi')
             self.assertContains(self.client.get('/g-sosyal/'), 'Koşucu Kişi')
 
-    def test_arena_modu(self):
+    def test_arena_kaldirildi(self):
         from django.test import override_settings
         from panel.models import OyunSkor
-        from django.utils import timezone
-        import datetime
         with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
                                          'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}}):
+            # Arena artık geçerli bir mod değil: skor kabul edilmez, sayfada görünmez
             r = self.client.post('/geek-kosu/skor/', {'skor': 200, 'sure_sn': 30, 'mod': 'arena'})
-            self.assertTrue(r.json()['ok'])
-            self.assertEqual(r.json()['mod'], 'arena')
-            self.assertEqual(OyunSkor.objects.get(personel=self.p).mod, 'arena')
-            OyunSkor.objects.update(zaman=timezone.now() - datetime.timedelta(minutes=5))
-            # arena oranı koşudan düşük: 5 sn'de 900 puan reddedilir
-            r = self.client.post('/geek-kosu/skor/', {'skor': 900, 'sure_sn': 5, 'mod': 'arena'})
             self.assertEqual(r.status_code, 400)
-            # bilinmeyen mod reddedilir
+            self.assertEqual(OyunSkor.objects.filter(personel=self.p).count(), 0)
             r = self.client.post('/geek-kosu/skor/', {'skor': 100, 'sure_sn': 20, 'mod': 'x'})
             self.assertEqual(r.status_code, 400)
-            self.assertContains(self.client.get('/geek-kosu/'), 'Arena')
+            sayfa = self.client.get('/geek-kosu/')
+            self.assertNotContains(sayfa, 'Arena')
+            self.assertNotContains(sayfa, 'kosu/arena.js')
 
     def test_bilgi_modu(self):
         from django.test import override_settings
@@ -485,6 +480,6 @@ class RadyoKabukTesti(TestCase):
         self.assertContains(self.client.get('/sw.js'), 'X-Geek-Dest')
         self.client.force_login(self.u)
         r = self.client.get('/geek-kosu/')
-        for parca in ['data-radyo-api', 'data-kosu-ac', 'kosu-oyun', 'kosu/ecs.js', 'kosu/arena.js', 'kosu/motor/sahne.js', 'kosu/motor/efekt.js']:
+        for parca in ['data-radyo-api', 'data-kosu-ac', 'kosu-oyun', 'kosu/ecs.js', 'kosu/motor/sahne.js', 'kosu/motor/efekt.js']:
             self.assertContains(r, parca)
         self.assertContains(self.client.get('/g-sosyal/'), 'geekradyo.js')

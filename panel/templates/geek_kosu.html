@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Geek Oyun Salonu · Geek Panel{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/geekoyun.css' %}?v=8">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/geekoyun.css' %}?v=9">{% endblock %}
 {% block body %}
 <div class="container kosu-wrap">
   <header class="oy-baslik">
@@ -20,7 +20,6 @@
     </div>
     <dl class="oy-rekorlar" aria-label="Kişisel en iyilerin">
       <div><dt>Koşu</dt><dd>{{ benim_en }}</dd></div>
-      <div><dt>Arena</dt><dd>{{ benim_en_arena }}</dd></div>
       <div><dt>Bilgi</dt><dd>{{ benim_en_bilgi }}</dd></div>
     </dl>
   </section>
@@ -34,16 +33,6 @@
       <p>Şehrin sokaklarında şerit değiştir, zıpla, kay. Her 1000 metrede hız artar; kahve ve yemek engellerinden kaç.</p>
       <ul class="oy-kontrol"><li>&#8592; &#8594; şerit</li><li>&#8593; zıpla</li><li>&#8595; kay</li><li>Kaydır: telefon</li></ul>
       <div class="oy-alt"><span class="oy-en">En iyin <b>{{ benim_en }}</b></span><button type="button" class="oy-btn" data-kosu-ac="kosu">Koşuyu başlat</button></div>
-    </article>
-
-    <article class="oy-oyun oy-arena">
-      <div class="oy-sanat" aria-hidden="true">
-        <svg viewBox="0 0 120 80"><ellipse cx="60" cy="52" rx="48" ry="18" fill="none" stroke="currentColor" stroke-width="3" opacity=".5"/><ellipse cx="60" cy="52" rx="26" ry="9" fill="none" stroke="currentColor" stroke-width="3" opacity=".5"/><circle cx="60" cy="30" r="8" fill="currentColor"/><path d="M60 38v14M60 44l-12 6M60 44l12 6" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M92 18l6 6-6 6-6-6zM24 22l5 5-5 5-5-5z" fill="currentColor" opacity=".7"/></svg>
-      </div>
-      <h3>Arena</h3>
-      <p>Süt Jölesi, Kruvasan Goblini ve Kral Jöle dalgalarına karşı savaş. Yetenekleri birleştir, tepkimeler yarat.</p>
-      <ul class="oy-kontrol"><li>WASD hareket</li><li>Fare nişan</li><li>1-4 yetenek</li><li>Joystick: telefon</li></ul>
-      <div class="oy-alt"><span class="oy-en">En iyin <b>{{ benim_en_arena }}</b></span><button type="button" class="oy-btn" data-kosu-ac="arena">Arena'ya gir</button></div>
     </article>
 
     <article class="oy-oyun oy-bilgi">
@@ -62,17 +51,12 @@
       <h3>Sıralama</h3>
       <div class="kosu-sek" role="tablist" aria-label="Oyun seç">
         <button type="button" role="tab" class="kosu-sek-btn on" data-kosu-sek="kosu" aria-selected="true">Koşu</button>
-        <button type="button" role="tab" class="kosu-sek-btn" data-kosu-sek="arena" aria-selected="false">Arena</button>
         <button type="button" role="tab" class="kosu-sek-btn" data-kosu-sek="bilgi" aria-selected="false">Bilgi</button>
       </div>
     </div>
     <div class="kosu-tablolar" data-kosu-panel="kosu">
       {% include '_kosu_tablo.html' with baslik='Koşu · bu haftanın en iyileri' liste=haftalik %}
       {% include '_kosu_tablo.html' with baslik='Koşu · tüm zamanlar' liste=tum_zamanlar %}
-    </div>
-    <div class="kosu-tablolar" data-kosu-panel="arena" hidden>
-      {% include '_kosu_tablo.html' with baslik='Arena · bu haftanın en iyileri' liste=haftalik_arena %}
-      {% include '_kosu_tablo.html' with baslik='Arena · tüm zamanlar' liste=tum_zamanlar_arena %}
     </div>
     <div class="kosu-tablolar" data-kosu-panel="bilgi" hidden>
       {% include '_kosu_tablo.html' with baslik='Bilgi Yarışması · bu haftanın en iyileri' liste=haftalik_bilgi %}
@@ -87,7 +71,7 @@
   </script>
 </div>
 
-<div id="kosu-oyun" hidden data-skor-url="{% url 'geek_kosu_skor' %}" data-logo="{% static 'images/geek_logo_blue.png' %}" data-logo-beyaz="{% static 'images/geek_logo_white.png' %}" data-en="{{ benim_en }}" data-en-bilgi="{{ benim_en_bilgi }}" data-en-arena="{{ benim_en_arena }}" data-radyo-api="{{ radyo.api }}" data-radyo-yedek="{{ radyo.yedek }}" data-radyo-sayfa="{{ radyo.sayfa }}">
+<div id="kosu-oyun" hidden data-skor-url="{% url 'geek_kosu_skor' %}" data-logo="{% static 'images/geek_logo_blue.png' %}" data-logo-beyaz="{% static 'images/geek_logo_white.png' %}" data-en="{{ benim_en }}" data-en-bilgi="{{ benim_en_bilgi }}" data-acilis="{{ benim_acilis }}" data-radyo-api="{{ radyo.api }}" data-radyo-yedek="{{ radyo.yedek }}" data-radyo-sayfa="{{ radyo.sayfa }}">
   <div id="kosu-sahne" class="kosu-sahne"></div>
   <div class="kosu-vinyet" aria-hidden="true"></div>
   <div class="kosu-flas" id="kosu-flas" aria-hidden="true"></div>
@@ -103,9 +87,8 @@
 <script src="{% static 'js/kosu/ecs.js' %}?v=1" defer></script>
 <script src="{% static 'js/kosu/veri.js' %}?v=1" defer></script>
 <script src="{% static 'js/kosu/sistemler.js' %}?v=1" defer></script>
-<script src="{% static 'js/kosu/ui.js' %}?v=3" defer></script>
+<script src="{% static 'js/kosu/ui.js' %}?v=4" defer></script>
 <script src="{% static 'js/kosu/gorsel.js' %}?v=1" defer></script>
-<script src="{% static 'js/kosu/arena.js' %}?v=2" defer></script>
 <script src="{% static 'js/kosu/sorular_kahve.js' %}?v=1" defer></script>
 <script src="{% static 'js/kosu/sorular_turkiye.js' %}?v=1" defer></script>
 <script src="{% static 'js/kosu/sorular_tarih.js' %}?v=1" defer></script>
@@ -118,7 +101,7 @@
 <script src="{% static 'js/kosu/sorular_doga.js' %}?v=1" defer></script>
 <script src="{% static 'js/kosu/sorular_genel.js' %}?v=1" defer></script>
 <script src="{% static 'js/kosu/bilgi.js' %}?v=1" defer></script>
-<script src="{% static 'js/geekkosu.js' %}?v=9" defer></script>
+<script src="{% static 'js/geekkosu.js' %}?v=10" defer></script>
 <script>
 /* Oyun dosyaları yüklenemezse sessiz kalma: kullanıcıya nedenini göster. */
 (function () {
