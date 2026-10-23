@@ -161,7 +161,23 @@ def _sevk_kalemleri(sube_ids, bas, bit):
             .select_related('talep', 'urun'))
 
 
-def hesapla(subeler, ay_ilk, fiyatli=False, ayar=None, defter=None):
+TEMIZLIK_GRUBU = 'TEMİZLİK MALZEMELERİ'
+
+
+def temizlik_mi(stok_urun):
+    return (stok_urun.kategori or '').upper().startswith('TEMİZLİK') or (stok_urun.kategori or '').upper().startswith('TEMIZLIK')
+
+
+def urun_suz(urunler, grup):
+    """grup: 'bar' | 'temizlik' | '' (hepsi)."""
+    if grup == 'temizlik':
+        return [u for u in urunler if temizlik_mi(u)]
+    if grup == 'bar':
+        return [u for u in urunler if not temizlik_mi(u)]
+    return urunler
+
+
+def hesapla(subeler, ay_ilk, fiyatli=False, ayar=None, defter=None, grup=''):
     """Seçili şubeler için ay verisi.
 
     subeler : [ {sube, durum, satirlar, tutar, ...} ]   durum: tam | sayim_bekleniyor | acilis_yok | baslamadi
@@ -174,8 +190,11 @@ def hesapla(subeler, ay_ilk, fiyatli=False, ayar=None, defter=None):
     bas, bit = donem(ay_ilk, ayar)
     oncesi = onceki_ay(ay_ilk)
     urunler = list(StokUrun.objects.select_related('sevkiyat_urun').order_by('sira', 'ad'))
-    esle_urun = {u.sevkiyat_urun_id: u for u in urunler if u.sevkiyat_urun_id}
-    esle_ad = {sade(u.ad): u for u in urunler}
+    tum_urunler = urunler
+    urunler = urun_suz(urunler, grup)
+    urunler_kume = set(urunler)
+    esle_urun = {u.sevkiyat_urun_id: u for u in tum_urunler if u.sevkiyat_urun_id}
+    esle_ad = {sade(u.ad): u for u in tum_urunler}
     defter = defter or (FiyatDefteri() if fiyatli else None)
 
     sayimlar = {}
@@ -193,10 +212,15 @@ def hesapla(subeler, ay_ilk, fiyatli=False, ayar=None, defter=None):
             m, b = _gelen_miktar(k)
             taban = taban_miktar(k, m, b)
             if su is None:
-                if (k.form or '') != 'TEMIZLIK':
-                    ad = (k.urun_ad or '—').strip()
-                    e = eslesmeyen.setdefault(sade(ad), {'ad': ad, 'miktar': _SIFIR, 'birim': k.urun.birim if k.urun_id else ''})
-                    e['miktar'] += taban
+                if grup == 'temizlik' and (k.form or '') != 'TEMIZLIK':
+                    continue
+                if grup == 'bar' and (k.form or '') == 'TEMIZLIK':
+                    continue
+                ad = (k.urun_ad or '—').strip()
+                e = eslesmeyen.setdefault(sade(ad), {'ad': ad, 'miktar': _SIFIR, 'birim': k.urun.birim if k.urun_id else ''})
+                e['miktar'] += taban
+                continue
+            if su not in urunler_kume:
                 continue
             gelenler.setdefault((k.talep.sube_id, su.id), []).append((gun, taban))
 
@@ -310,7 +334,7 @@ def _toplam_satirlari(cikti, urunler, fiyatli):
 
 
 # ----------------------------------------------------------------------------- grafik serisi
-def aylik_seri(subeler, bitis_ay, adet=6, ayar=None):
+def aylik_seri(subeler, bitis_ay, adet=6, ayar=None, grup=''):
     """Son `adet` ayın şube bazlı maliyet toplamı (sütun grafik için). Hesaplanamayan ay None."""
     ayar = ayar or TuketimAyar.al()
     defter = FiyatDefteri()
@@ -323,7 +347,7 @@ def aylik_seri(subeler, bitis_ay, adet=6, ayar=None):
     seri = {s.id: [] for s in subeler}
     toplam = []
     for ay in aylar:
-        v = hesapla(subeler, ay, fiyatli=True, ayar=ayar, defter=defter)
+        v = hesapla(subeler, ay, fiyatli=True, ayar=ayar, defter=defter, grup=grup)
         t = _SIFIR
         var = False
         for c in v['subeler']:

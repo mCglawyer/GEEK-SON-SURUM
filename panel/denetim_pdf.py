@@ -8,29 +8,30 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, Image, Flowable, KeepTogether
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 from .pdf_letterhead import build_pdf
 
 
-def _fotograf_flowable(cevap, max_genislik_mm=70):
-    """Bir DenetimCevap.foto alanını (yerel disk ya da R2 fark etmez) PDF'e
-    gömülebilecek bir Image flowable'a çevirir. Herhangi bir sorun olursa None döner
-    (PDF üretimi asla bu yüzden bozulmaz)."""
-    if not cevap.foto:
+def _fotograf_flowable(foto, max_w_mm=56, max_h_mm=48):
+    """ImageFieldFile -> kutuya sığdırılmış (oran korunur), küçültülmüş Image. Sorun olursa None (PDF bozulmaz)."""
+    if not foto:
         return None
     try:
-        from PIL import Image as PILImage
-        cevap.foto.open('rb')
-        veri = cevap.foto.read()
-        cevap.foto.close()
-        pil_img = PILImage.open(io.BytesIO(veri))
-        genislik_px, yukseklik_px = pil_img.size
-        genislik_mm = max_genislik_mm
-        yukseklik_mm = genislik_mm * (yukseklik_px / genislik_px)
-        return Image(io.BytesIO(veri), width=genislik_mm * mm, height=yukseklik_mm * mm)
+        from PIL import Image as PILImage, ImageOps
+        foto.open('rb')
+        veri = foto.read()
+        foto.close()
+        pil = ImageOps.exif_transpose(PILImage.open(io.BytesIO(veri))).convert('RGB')
+        pil.thumbnail((900, 900))
+        cikti = io.BytesIO()
+        pil.save(cikti, 'JPEG', quality=72)
+        cikti.seek(0)
+        w, h = pil.size
+        oran = min(max_w_mm / w, max_h_mm / h)
+        return Image(cikti, width=w * oran * mm, height=h * oran * mm)
     except Exception:
         return None
 
@@ -59,77 +60,148 @@ def _puan_renk(puan):
     return '#b00020'
 
 
+def _yuzde(cevaplar):
+    puanlilar = [c.puan for c in cevaplar if c.puan is not None]
+    return (sum(puanlilar) / (len(puanlilar) * 5) * 100) if puanlilar else None
+
+
+class _Cubuk(Flowable):
+    """Yüzdeyi gösteren ince yatay çubuk."""
+    def __init__(self, yuzde, genislik, renk):
+        super().__init__()
+        self.yuzde, self.genislik, self.renk, self.height, self.width = yuzde, genislik, renk, 4 * mm, genislik
+
+    def draw(self):
+        c = self.canv
+        c.setFillColor(colors.HexColor('#E8EAF2'))
+        c.roundRect(0, 0.8 * mm, self.genislik, 2.4 * mm, 1.2 * mm, stroke=0, fill=1)
+        if self.yuzde:
+            c.setFillColor(colors.HexColor(self.renk))
+            c.roundRect(0, 0.8 * mm, max(self.genislik * min(self.yuzde, 100) / 100, 2.4 * mm), 2.4 * mm, 1.2 * mm, stroke=0, fill=1)
+
+
+def _yuzde_renk(y):
+    if y is None:
+        return '#999999'
+    return '#137333' if y >= 80 else ('#b26a00' if y >= 60 else '#b00020')
+
+
 def denetim_pdf_uret(denetim, cevaplar):
-    """cevaplar: select_related('madde', 'madde__bolum') ile çekilmiş DenetimCevap listesi."""
+    """cevaplar: select_related('madde', 'madde__bolum') (+ prefetch 'fotolar') ile çekilmiş DenetimCevap listesi."""
     font, fontb = _fontlar()
     buf = io.BytesIO()
     styles = getSampleStyleSheet()
-    h = ParagraphStyle('h', parent=styles['Normal'], fontName=fontb, fontSize=14, textColor=colors.HexColor('#162AA3'))
-    normal = ParagraphStyle('n', parent=styles['Normal'], fontName=font, fontSize=8, leading=9.5)
-    small = ParagraphStyle('s', parent=styles['Normal'], fontName=font, fontSize=7, leading=8.5, textColor=colors.HexColor('#555555'))
+    BRAND, GRI, CIZGI = colors.HexColor('#162AA3'), colors.HexColor('#6B7280'), colors.HexColor('#E3E6EF')
+    h = ParagraphStyle('h', parent=styles['Normal'], fontName=fontb, fontSize=17, leading=21, textColor=BRAND)
+    alt = ParagraphStyle('alt', parent=styles['Normal'], fontName=font, fontSize=9, leading=12, textColor=GRI)
+    normal = ParagraphStyle('n', parent=styles['Normal'], fontName=font, fontSize=8.4, leading=10.8)
+    kalin = ParagraphStyle('k', parent=normal, fontName=fontb)
+    small = ParagraphStyle('s', parent=normal, fontSize=7.6, leading=9.6, textColor=colors.HexColor('#444444'))
     cellb = ParagraphStyle('cb', parent=normal, fontName=fontb, textColor=colors.white)
-    kat_h = ParagraphStyle('kh', parent=normal, fontName=fontb, fontSize=10, textColor=colors.HexColor('#162AA3'))
+    kat_h = ParagraphStyle('kh', parent=normal, fontName=fontb, fontSize=11, leading=14, textColor=BRAND)
+    bolum_baslik = ParagraphStyle('bb', parent=kat_h, spaceBefore=10, spaceAfter=3)
+    LEFT = 14 * mm
+    W = A4[0] - 2 * LEFT
 
-    el = []
-    el.append(Paragraph('Şube Denetim Raporu', h))
-    el.append(Spacer(1, 4))
-
+    yuzde = denetim.toplam_puan if denetim.toplam_puan is not None else _yuzde(cevaplar)
     tarih = timezone.localtime(denetim.baslangic).strftime('%d.%m.%Y %H:%M')
+    bitis = timezone.localtime(denetim.bitis).strftime('%d.%m.%Y %H:%M') if denetim.bitis else '—'
     denetleyen = denetim.denetleyen.ad_soyad if denetim.denetleyen else '—'
-    puan_metni = ('%.0f / 100' % denetim.toplam_puan) if denetim.toplam_puan is not None else 'Hesaplanmadı'
+    cevaplanan = sum(1 for c in cevaplar if c.puan is not None)
 
-    el.append(Paragraph('Şube: <b>%s</b>' % _esc(denetim.sube.ad), normal))
-    el.append(Paragraph('Denetleyen: %s' % _esc(denetleyen), normal))
-    el.append(Paragraph('Tarih: %s' % tarih, normal))
-    el.append(Paragraph('Genel Puan: <b>%s</b>' % puan_metni, normal))
-    el.append(Spacer(1, 5))
+    el = [Paragraph('Şube Denetim Raporu', h), Paragraph(_esc(denetim.sube.ad), alt), Spacer(1, 6)]
 
-    # Bölüme göre grupla (cevaplar zaten madde.bolum.sira, madde.sira sırasıyla gelir)
-    gruplar = {}
-    sira_listesi = []
+    # özet kartı: sol bilgi, sağ genel puan
+    bilgi = Table([[Paragraph('Denetleyen', small), Paragraph(_esc(denetleyen), kalin)],
+                   [Paragraph('Başlangıç', small), Paragraph(tarih, normal)],
+                   [Paragraph('Bitiş', small), Paragraph(bitis, normal)],
+                   [Paragraph('Puanlanan madde', small), Paragraph('%d / %d' % (cevaplanan, len(cevaplar)), normal)]],
+                  colWidths=[30 * mm, 70 * mm])
+    bilgi.setStyle(TableStyle([('TOPPADDING', (0, 0), (-1, -1), 1.5), ('BOTTOMPADDING', (0, 0), (-1, -1), 1.5),
+                               ('LEFTPADDING', (0, 0), (-1, -1), 0)]))
+    renk = _yuzde_renk(yuzde)
+    puan_h = ParagraphStyle('ph', parent=normal, fontName=fontb, fontSize=26, leading=30, alignment=1, textColor=colors.HexColor(renk))
+    puan_a = ParagraphStyle('pa', parent=small, alignment=1)
+    puan_kutu = Table([[Paragraph('%s' % ('%.0f' % yuzde if yuzde is not None else '—'), puan_h)],
+                       [Paragraph('Genel puan (100 üzerinden)', puan_a)]], colWidths=[W - 108 * mm])
+    puan_kutu.setStyle(TableStyle([('BOX', (0, 0), (-1, -1), .8, colors.HexColor(renk)),
+                                   ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F8F9FC')),
+                                   ('TOPPADDING', (0, 0), (-1, -1), 5), ('BOTTOMPADDING', (0, 0), (-1, -1), 5)]))
+    ozet = Table([[bilgi, puan_kutu]], colWidths=[104 * mm, W - 104 * mm])
+    ozet.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('LEFTPADDING', (0, 0), (-1, -1), 0)]))
+    el += [ozet, Spacer(1, 8)]
+
+    # bölümlere göre grupla
+    gruplar, sira_listesi = {}, []
     for c in cevaplar:
-        bolum = c.madde.bolum
-        if bolum.id not in gruplar:
-            gruplar[bolum.id] = {'ad': bolum.ad, 'cevaplar': []}
-            sira_listesi.append(bolum.id)
-        gruplar[bolum.id]['cevaplar'].append(c)
+        b = c.madde.bolum
+        if b.id not in gruplar:
+            gruplar[b.id] = {'ad': b.ad, 'cevaplar': []}
+            sira_listesi.append(b.id)
+        gruplar[b.id]['cevaplar'].append(c)
 
-    for bolum_id in sira_listesi:
-        grup = gruplar[bolum_id]
-        el.append(Spacer(1, 5))
-        el.append(Paragraph(_esc(grup['ad']), kat_h))
-        el.append(Spacer(1, 2))
+    # bölüm puanları
+    el.append(Paragraph('Bölüm puanları', kat_h))
+    el.append(Spacer(1, 3))
+    satirlar = []
+    for bid in sira_listesi:
+        y = _yuzde(gruplar[bid]['cevaplar'])
+        satirlar.append([Paragraph(_esc(gruplar[bid]['ad']), normal), _Cubuk(y, 62 * mm, _yuzde_renk(y)),
+                         Paragraph('<font color="%s"><b>%s</b></font>' % (_yuzde_renk(y), '%.0f' % y if y is not None else '—'), normal)])
+    t = Table(satirlar, colWidths=[W - 82 * mm, 66 * mm, 16 * mm])
+    t.setStyle(TableStyle([('LINEBELOW', (0, 0), (-1, -1), .4, CIZGI), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                           ('TOPPADDING', (0, 0), (-1, -1), 3), ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                           ('ALIGN', (2, 0), (2, -1), 'RIGHT')]))
+    el += [t, Spacer(1, 6)]
+
+    # dikkat gerektirenler (puan 0-2)
+    zayif = [c for c in cevaplar if c.puan is not None and c.puan <= 2]
+    if zayif:
+        el.append(Paragraph('Dikkat gerektiren maddeler (%d)' % len(zayif), kat_h))
+        el.append(Spacer(1, 3))
+        rows = [[Paragraph('Bölüm', cellb), Paragraph('Madde', cellb), Paragraph('Puan', cellb), Paragraph('Not', cellb)]]
+        for c in sorted(zayif, key=lambda x: (x.puan, x.madde.bolum.sira)):
+            rows.append([Paragraph(_esc(c.madde.bolum.ad), small), Paragraph(_esc(c.madde.metin), normal),
+                         Paragraph('<font color="#b00020"><b>%d</b></font>' % c.puan, normal), Paragraph(_esc(c.not_metni or ''), small)])
+        t = Table(rows, colWidths=[34 * mm, W - 34 * mm - 14 * mm - 52 * mm, 14 * mm, 52 * mm], repeatRows=1)
+        t.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#b00020')),
+                               ('LINEBELOW', (0, 0), (-1, -1), .4, CIZGI), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                               ('TOPPADDING', (0, 0), (-1, -1), 3), ('BOTTOMPADDING', (0, 0), (-1, -1), 3)]))
+        el += [t, Spacer(1, 6)]
+
+    # ayrıntılı bölümler
+    for bid in sira_listesi:
+        grup = gruplar[bid]
+        y = _yuzde(grup['cevaplar'])
+        el.append(Paragraph('%s <font size="9" color="%s">· %s</font>' % (
+            _esc(grup['ad']), _yuzde_renk(y), ('%%%.0f' % y) if y is not None else '—'), bolum_baslik))
         data = [[Paragraph('Madde', cellb), Paragraph('Puan', cellb), Paragraph('Not', cellb)]]
         for c in grup['cevaplar']:
-            puan_str = str(c.puan) if c.puan is not None else '—'
             data.append([Paragraph(_esc(c.madde.metin), normal),
-                         Paragraph(puan_str, normal),
+                         Paragraph('<font color="%s"><b>%s</b></font>' % (_puan_renk(c.puan), c.puan if c.puan is not None else '—'), normal),
                          Paragraph(_esc(c.not_metni or ''), small)])
-        tbl = Table(data, colWidths=[110 * mm, 18 * mm, 46 * mm], repeatRows=1)
-        ts = [
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#162AA3')),
-            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#cccccc')),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('TOPPADDING', (0, 0), (-1, -1), 2), ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-            ('LEFTPADDING', (0, 0), (-1, -1), 4), ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-        ]
-        for r, c in enumerate(grup['cevaplar'], 1):
-            ts.append(('TEXTCOLOR', (1, r), (1, r), colors.HexColor(_puan_renk(c.puan))))
+        tbl = Table(data, colWidths=[W - 14 * mm - 52 * mm, 14 * mm, 52 * mm], repeatRows=1)
+        ts = [('BACKGROUND', (0, 0), (-1, 0), BRAND), ('LINEBELOW', (0, 0), (-1, -1), .4, CIZGI),
+              ('VALIGN', (0, 0), (-1, -1), 'TOP'), ('TOPPADDING', (0, 0), (-1, -1), 3), ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+              ('ALIGN', (1, 0), (1, -1), 'CENTER')]
+        for r in range(2, len(data), 2):
+            ts.append(('BACKGROUND', (0, r), (-1, r), colors.HexColor('#F8F9FC')))
         tbl.setStyle(TableStyle(ts))
         el.append(tbl)
 
-        fotolu_cevaplar = [c for c in grup['cevaplar'] if c.foto]
-        if fotolu_cevaplar:
-            el.append(Spacer(1, 4))
-            for c in fotolu_cevaplar:
-                foto_el = _fotograf_flowable(c)
-                if foto_el is None:
-                    continue
-                el.append(Paragraph(_esc(c.madde.metin), small))
-                el.append(Spacer(1, 2))
-                el.append(foto_el)
-                el.append(Spacer(1, 6))
-
-    build_pdf(buf, el, pagesize=A4, left_margin=14 * mm, right_margin=14 * mm,
-             font=font, title="Sube Denetim Raporu")
+        # fotoğraflar: madde başlığı + satır başına 3 fotoğraf
+        for c in grup['cevaplar']:
+            imgs = [x for x in (_fotograf_flowable(f) for f in c.tum_fotolar()) if x is not None]
+            if not imgs:
+                continue
+            el.append(Spacer(1, 5))
+            kutu_w = W / 3
+            for k in range(0, len(imgs), 3):
+                satir = imgs[k:k + 3] + [''] * (3 - len(imgs[k:k + 3]))
+                ft = Table([satir], colWidths=[kutu_w] * 3)
+                ft.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                                        ('BOTTOMPADDING', (0, 0), (-1, -1), 3)]))
+                parca = [ft] if k else [Paragraph('📷 ' .replace('📷 ', '') + _esc(c.madde.metin) + ' — fotoğraflar (%d)' % len(imgs), small), Spacer(1, 2), ft]
+                el.append(KeepTogether(parca))
+    build_pdf(buf, el, pagesize=A4, left_margin=LEFT, right_margin=LEFT, font=font, title="Şube Denetim Raporu")
     return buf.getvalue()

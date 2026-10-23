@@ -18,6 +18,9 @@
       <a class="btn btn-ghost btn-mini" href="{{ sonraki_url }}" aria-label="Sonraki ay">›</a>
     </div>
     <input type="hidden" name="ay" value="{{ ay_deger }}">
+    <label>Ürün grubu
+      <select name="grup" onchange="this.form.submit()">{% for k, ad in gruplar %}<option value="{{ k }}"{% if k == grup %} selected{% endif %}>{{ ad }}</option>{% endfor %}</select>
+    </label>
     {% if coklu %}
     <label>Şube
       <select name="sube" class="sube-sec" onchange="this.form.submit()">
@@ -32,8 +35,8 @@
     <h3>Rapor indir <span class="tz-sayac">Excel veya PDF</span></h3>
     <div class="tk-indir-satir">
       <b>Aylık kullanım ve maliyet</b><span>{{ ay_etiket }}</span>
-      <a class="btn btn-ghost btn-mini" href="{% url 'tuketim_indir' %}?tur=ay&ay={{ ay_deger }}{% if secili %}&sube={{ secili.id }}{% endif %}&bicim=xlsx">Excel</a>
-      <a class="btn btn-ghost btn-mini" href="{% url 'tuketim_indir' %}?tur=ay&ay={{ ay_deger }}{% if secili %}&sube={{ secili.id }}{% endif %}&bicim=pdf">PDF</a>
+      <a class="btn btn-ghost btn-mini" href="{% url 'tuketim_indir' %}?tur=ay&ay={{ ay_deger }}{% if secili %}&sube={{ secili.id }}{% endif %}{% if grup %}&grup={{ grup }}{% endif %}&bicim=xlsx">Excel</a>
+      <a class="btn btn-ghost btn-mini" href="{% url 'tuketim_indir' %}?tur=ay&ay={{ ay_deger }}{% if secili %}&sube={{ secili.id }}{% endif %}{% if grup %}&grup={{ grup }}{% endif %}&bicim=pdf">PDF</a>
     </div>
     <form method="get" action="{% url 'tuketim_indir' %}" class="tk-indir-form">
       <b>Gelen mal ve tutar</b>

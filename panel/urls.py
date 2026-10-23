@@ -1,7 +1,9 @@
+from django.shortcuts import redirect
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 from . import menu_views, menu_acilis, menu_subeler
-from . import zayi_views, sevkiyat_analiz_views, temizlik_views, tuketim_views
+from . import zayi_views, sevkiyat_analiz_views, tuketim_views
 
 urlpatterns = [
     path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
@@ -89,6 +91,8 @@ urlpatterns = [
     path('lavabo/', views.lavabo_sayfa, name='lavabo'),
     path('lavabo/veri/', views.lavabo_json, name='lavabo_json'),
     path('irsaliye/', views.irsaliye_sayfa, name='irsaliye'),
+    path('temizlik/', RedirectView.as_view(pattern_name='tuketim_rapor', query_string=False), name='temizlik'),
+    path('temizlik/<path:eski>', lambda request, eski: redirect('tuketim_rapor')),
     path('tuketim/', tuketim_views.tuketim_ana, name='tuketim'),
     path('tuketim/rapor/', tuketim_views.tuketim_rapor, name='tuketim_rapor'),
     path('tuketim/indir/', tuketim_views.tuketim_indir, name='tuketim_indir'),
@@ -96,14 +100,6 @@ urlpatterns = [
     path('tuketim/fiyatlar/<int:urun_id>/', tuketim_views.tuketim_fiyat_detay, name='tuketim_fiyat_detay'),
     path('tuketim/esleme/', tuketim_views.tuketim_esleme, name='tuketim_esleme'),
     path('tuketim/ayar/', tuketim_views.tuketim_ayar, name='tuketim_ayar'),
-    path('temizlik/', temizlik_views.temizlik_ana, name='temizlik'),
-    path('temizlik/giris/', temizlik_views.temizlik_giris, name='temizlik_giris'),
-    path('temizlik/sayim/<str:tur>/', temizlik_views.temizlik_sayim, name='temizlik_sayim'),
-    path('temizlik/urunler/', temizlik_views.temizlik_urunler, name='temizlik_urunler'),
-    path('temizlik/fiyatlar/', temizlik_views.temizlik_fiyatlar, name='temizlik_fiyatlar'),
-    path('temizlik/ayarlar/', temizlik_views.temizlik_ayarlar, name='temizlik_ayarlar'),
-    path('temizlik/rapor/', temizlik_views.temizlik_rapor, name='temizlik_rapor'),
-    path('temizlik/rapor/indir/', temizlik_views.temizlik_rapor_indir, name='temizlik_rapor_indir'),
     path('stok/', views.stok_sayimi, name='stok'),
     path('stok/excel/', views.stok_excel, name='stok_excel'),
     path('stok-duzenle/', views.stok_duzenle, name='stok_duzenle'),

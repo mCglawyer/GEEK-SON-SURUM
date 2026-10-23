@@ -128,27 +128,6 @@ def zayi_ctx(request):
         return {'zayi_gorunur': False}
 
 
-def temizlik_menu_ctx(request):
-    """Yan menüde 'Temizlik' bağlantısı: sistem kapalıyken yalnızca GM / Operatör (ve Satın Alma ayrı blokta) görür.
-    Tembel değerlendirilir: yalnızca menü şablonu kullanırsa sorgu çalışır."""
-    from django.utils.functional import SimpleLazyObject
-
-    def hesapla():
-        u = getattr(request, 'user', None)
-        if not u or not getattr(u, 'is_authenticated', False):
-            return False
-        try:
-            from .models import Personel, Rol, TemizlikAyar
-            p = Personel.objects.filter(user=u).only('rol').first()
-            if p is None or p.rol not in (Rol.SEF, Rol.MAGAZA_MUDURU, Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR,
-                                          Rol.YATIRIMCI):
-                return False
-            return p.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR) or TemizlikAyar.al().aktif
-        except Exception:
-            return False
-    return {'temizlik_menu': SimpleLazyObject(hesapla)}
-
-
 def tuketim_menu_ctx(request):
     """Yan menüde 'Tüketim & Maliyet': sistem kapalıyken yalnızca GM / Operatör / Satın Alma görür (tembel)."""
     from django.utils.functional import SimpleLazyObject

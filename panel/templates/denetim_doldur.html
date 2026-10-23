@@ -1,5 +1,12 @@
 {% extends 'base.html' %}
-{% block title %}{{ denetim.sube.ad }} Denetimi · Geek Panel{% endblock %}
+{% block title %}{{ denetim.sube.ad }} Denetimi · Geek Panel<style>
+.denetim-foto-alan{display:flex;flex-direction:column;gap:.4rem;align-items:flex-start}
+.denetim-foto-liste{display:flex;flex-wrap:wrap;gap:.4rem}
+.denetim-foto-kayitli{position:relative;display:inline-flex;flex-direction:column;align-items:center;font-size:.7rem;gap:.15rem}
+.denetim-foto-kayitli img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line,#E3E6EF)}
+.denetim-foto-kaldir{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;background:#b00020;color:#fff;font-size:.7rem;line-height:1;cursor:pointer}
+</style>
+{% endblock %}
 {% block body %}
 <div class="container">
   {% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
@@ -30,10 +37,13 @@
             {% endfor %}
           </div>
           <input type="text" class="input denetim-not" name="not_{{ satir.cevap.id }}" placeholder="Not (isteğe bağlı)" value="{{ satir.cevap.not_metni }}">
-          <input type="hidden" name="foto_b64_{{ satir.cevap.id }}" id="fotoveri-{{ satir.cevap.id }}">
-          <button type="button" class="btn btn-ghost btn-mini denetim-foto-btn" data-cevap="{{ satir.cevap.id }}">
-            📷<span class="foto-durum">{% if satir.cevap.foto %} ✓{% endif %}</span>
-          </button>
+          <div class="denetim-foto-alan" data-cevap="{{ satir.cevap.id }}">
+            <div class="denetim-foto-liste">
+              {% if satir.cevap.foto %}<label class="denetim-foto-kayitli"><img src="{{ satir.cevap.foto.url }}" alt=""><span><input type="checkbox" name="foto_sil_{{ satir.cevap.id }}" value="eski"> sil</span></label>{% endif %}
+              {% for f in satir.cevap.fotolar.all %}<label class="denetim-foto-kayitli"><img src="{{ f.foto.url }}" alt=""><span><input type="checkbox" name="foto_sil_{{ satir.cevap.id }}" value="{{ f.id }}"> sil</span></label>{% endfor %}
+            </div>
+            <button type="button" class="btn btn-ghost btn-mini denetim-foto-btn" data-cevap="{{ satir.cevap.id }}">📷 Fotoğraf ekle<span class="foto-durum"></span></button>
+          </div>
         </div>
         {% endfor %}
       </div>
@@ -115,11 +125,18 @@
     cv.width = cw; cv.height = ch;
     cv.getContext('2d').drawImage(video, 0, 0, cw, ch);
     var veri = cv.toDataURL('image/jpeg', 0.75);
-    document.getElementById('fotoveri-' + aktifCevapId).value = veri;
-    var btnEl = document.querySelector('.denetim-foto-btn[data-cevap="' + aktifCevapId + '"]');
-    if (btnEl) {
-      var durum = btnEl.querySelector('.foto-durum');
-      if (durum) durum.textContent = ' ✓';
+    var alan = document.querySelector('.denetim-foto-alan[data-cevap="' + aktifCevapId + '"]');
+    if (alan) {
+      var gizli = document.createElement('input');
+      gizli.type = 'hidden'; gizli.name = 'foto_b64_' + aktifCevapId; gizli.value = veri;
+      var kutu = document.createElement('span');
+      kutu.className = 'denetim-foto-kayitli yeni';
+      var img = document.createElement('img'); img.src = veri; img.alt = '';
+      var kaldir = document.createElement('button');
+      kaldir.type = 'button'; kaldir.textContent = '✕'; kaldir.className = 'denetim-foto-kaldir';
+      kaldir.addEventListener('click', function () { kutu.remove(); });
+      kutu.appendChild(img); kutu.appendChild(kaldir); kutu.appendChild(gizli);
+      alan.querySelector('.denetim-foto-liste').appendChild(kutu);
     }
     kamerayiKapat();
   });
@@ -129,4 +146,11 @@
   });
 })();
 </script>
+<style>
+.denetim-foto-alan{display:flex;flex-direction:column;gap:.4rem;align-items:flex-start}
+.denetim-foto-liste{display:flex;flex-wrap:wrap;gap:.4rem}
+.denetim-foto-kayitli{position:relative;display:inline-flex;flex-direction:column;align-items:center;font-size:.7rem;gap:.15rem}
+.denetim-foto-kayitli img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line,#E3E6EF)}
+.denetim-foto-kaldir{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;background:#b00020;color:#fff;font-size:.7rem;line-height:1;cursor:pointer}
+</style>
 {% endblock %}

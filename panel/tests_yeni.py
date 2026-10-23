@@ -287,12 +287,16 @@ class DegerlendirmeVeAnketTestleri(TestCase):
         self.assertEqual(self.MD.objects.count(), 0)
 
     # --- anket
-    def test_yalniz_operator_anket_paylasir(self):
+    def test_yalniz_operator_ve_gm_anket_paylasir(self):
         veri = {'islem': 'anket_ekle', 'soru': 'Yeni menü?', 'secenek': ['Evet', 'Hayır']}
-        for k in (self.gm, self.pers, self.yat):
+        for k in (self.pers, self.yat):
             self.client.force_login(k.user)
             self.client.post(reverse('g_sosyal'), veri)
         self.assertEqual(Anket.objects.count(), 0)
+        self.client.force_login(self.gm.user)
+        self.client.post(reverse('g_sosyal'), veri)
+        self.assertEqual(Anket.objects.count(), 1)
+        Anket.objects.all().delete()
         self.client.force_login(self.op.user)
         self.client.post(reverse('g_sosyal'), veri)
         self.assertEqual(Anket.objects.count(), 1)
@@ -319,7 +323,8 @@ class DegerlendirmeVeAnketTestleri(TestCase):
         k = r.context['anketler'][0]
         self.assertEqual((k['toplam'], k['secenekler'][0]['yuzde'], k['secenekler'][1]['yuzde']), (2, 50, 50))
         self.assertContains(r, '%50')
-        # başkası anketi kapatamaz, operatör kapatır; kapalı ankete oy verilemez
+        # yetkisiz kişi anketi kapatamaz, operatör kapatır; kapalı ankete oy verilemez
+        self.client.force_login(self.yat.user)
         self.client.post(reverse('g_sosyal'), {'islem': 'anket_kapat', 'anket_id': a.id})
         a.refresh_from_db(); self.assertTrue(a.aktif)
         self.client.force_login(self.op.user)

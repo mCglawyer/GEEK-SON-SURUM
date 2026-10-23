@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from . import tuketim as tk
 from . import tuketim_cikti as tc
-from .models import Rol, StokSayim, StokUrun, Sube, TemizlikUrun, TuketimAyar, TuketimFiyat, Urun
+from .models import Rol, StokSayim, StokUrun, Sube, TuketimAyar, TuketimFiyat, Urun
 from .views import _aktif_personel, _cikis_mi, _logout
 
 AYAR_ROLLERI = (Rol.GENEL_MUDUR, Rol.OPERATOR)
@@ -108,6 +108,11 @@ def _varsayilan_ay(subeler):
     return son or timezone.localdate().replace(day=1)
 
 
+def _grup(request):
+    g = request.GET.get('grup') or ''
+    return g if g in ('bar', 'temizlik') else ''
+
+
 def tuketim_rapor(request):
     personel, ayar, git = _hazir(request)
     if git:
@@ -117,17 +122,18 @@ def tuketim_rapor(request):
     sid = request.GET.get('sube') or ''
     secili = next((s for s in subeler if str(s.id) == sid), None)
     kapsam = [secili] if secili else subeler
-    veri = tk.hesapla(kapsam, ay_ilk, fiyatli=True, ayar=ayar) if kapsam else None
+    grup = _grup(request)
+    veri = tk.hesapla(kapsam, ay_ilk, fiyatli=True, ayar=ayar, grup=grup) if kapsam else None
     onceki, sonraki = tk.ay_komsulari(ay_ilk)
 
     ctx = _ortak(personel, ayar, 'rapor')
     ctx.update({'subeler': subeler, 'coklu': len(subeler) > 1, 'secili': secili, 'veri': veri, 'ay_deger': ay_ilk.strftime('%Y-%m'),
-                'bugun': timezone.localdate(), 'ay_etiket': tk.ay_etiketi(ay_ilk), 'yonetim': tk.fiyat_yonetebilir(personel)})
-    q = '&sube=%s' % secili.id if secili else ''
+                'bugun': timezone.localdate(), 'grup': grup, 'gruplar': [('', 'Tümü'), ('bar', 'Bar'), ('temizlik', 'Temizlik')], 'ay_etiket': tk.ay_etiketi(ay_ilk), 'yonetim': tk.fiyat_yonetebilir(personel)})
+    q = ('&sube=%s' % secili.id if secili else '') + ('&grup=%s' % grup if grup else '')
     ctx['onceki_url'] = '?ay=%s%s' % (onceki.strftime('%Y-%m'), q)
     ctx['sonraki_url'] = '?ay=%s%s' % (sonraki.strftime('%Y-%m'), q)
     if veri:
-        seri = tk.aylik_seri(kapsam, ay_ilk, adet=6, ayar=ayar)
+        seri = tk.aylik_seri(kapsam, ay_ilk, adet=6, ayar=ayar, grup=grup)
         degerler = seri['seri'][secili.id] if secili else seri['toplam']
         ctx['aylik_sutun'] = _sutunlar(degerler, seri['etiketler'])
         ctx['aylik_var'] = any(d is not None for d in degerler)
@@ -165,7 +171,7 @@ def tuketim_indir(request):
     pdf = request.GET.get('bicim') == 'pdf'
     if tur == 'ay':
         ay_ilk = tk.ay_oku(request.GET.get('ay')) if request.GET.get('ay') else _varsayilan_ay(subeler)
-        veri = tk.hesapla(kapsam, ay_ilk, fiyatli=True, ayar=ayar) if kapsam else None
+        veri = tk.hesapla(kapsam, ay_ilk, fiyatli=True, ayar=ayar, grup=_grup(request)) if kapsam else None
         if veri is None:
             return redirect('tuketim_rapor')
         etiket, govde, ad = veri['etiket'], (tc.pdf_bytes if pdf else tc.excel_bytes)('ay', veri['etiket'], secili, veri=veri), \
@@ -190,7 +196,6 @@ def _fiyat_urunleri(hepsi=False, q=''):
         qs = Urun.objects.filter(aktif=True)
     else:
         bagli = set(StokUrun.objects.exclude(sevkiyat_urun=None).values_list('sevkiyat_urun_id', flat=True))
-        bagli |= set(TemizlikUrun.objects.exclude(urun=None).values_list('urun_id', flat=True))
         qs = Urun.objects.filter(id__in=bagli)
     if q:
         qs = qs.filter(ad__icontains=q)
@@ -353,6 +358,19 @@ def tuketim_esleme(request):
                     su.sevkiyat_urun = oneri[su.id][0]
                     su.save(update_fields=['sevkiyat_urun'])
             messages.success(request, '%d ürün için öneri uygulandı. Çarpanları kontrol edip gerekirse düzeltin.' % len(oneri))
+        elif islem == 'temizlik_ekle':
+            mevcut = {st.sevkiyat_urun_id for st in stoklar if st.sevkiyat_urun_id}
+            sira = (StokUrun.objects.aggregate(m=Max('sira'))['m'] or 0)
+            eklenen = 0
+            for u in Urun.objects.filter(aktif=True, form='TEMIZLIK').order_by('kategori', 'ad'):
+                if u.id in mevcut:
+                    continue
+                sira += 1
+                StokUrun.objects.create(kategori=tk.TEMIZLIK_GRUBU, ad=u.ad[:200], kapali_icerik=1, acik_carpan=1,
+                                        sevkiyat_urun=u, sevkiyat_carpan=1, sira=sira)
+                eklenen += 1
+            messages.success(request, '%d temizlik ürünü stok sayımına eklendi. Şefler bir sonraki sayımda bunları da sayacak.' % eklenen
+                             if eklenen else 'Eklenecek yeni temizlik ürünü yok; hepsi zaten sayımda.')
         return redirect('tuketim_esleme')
     oneri = tk.esleme_oner([s for s in stoklar if not s.sevkiyat_urun_id], sevk)
     satirlar = []

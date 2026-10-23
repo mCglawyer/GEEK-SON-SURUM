@@ -36,7 +36,7 @@ from .models import (Personel, KodKilit, Vardiya, Sube, Puantaj, Kalibrasyon, Ka
                      MutfakZayi, MutfakMaliyetKalemi, MutfakTarif, MutfakTarifKalemi, MaliyetBirim,
                      InsaatProje, InsaatMadde, InsaatMaddeDurum, InsaatKategori, InsaatSablonMadde,
                      LavaboDenetim,
-                     DenetimBolum, DenetimMadde, Denetim, DenetimCevap,
+                     DenetimBolum, DenetimMadde, Denetim, DenetimCevap, DenetimFoto,
                      SubeDegerlendirmeToken, MusteriDegerlendirme,
                      Rol, OnayDurumu, VardiyaTipi)
 from .hukuki_icerik import HUKUKI_SAYFALAR
@@ -956,9 +956,11 @@ def ekip_sayfa(request):
                 messages.success(request, f"{s.ad_soyad} eğitmen yetkisinden çıkarıldı.")
             return redirect('ekip')
 
-        if islem in ('menu_yetki_ekle', 'menu_yetki_cikar', 'gb_yetki_ekle', 'gb_yetki_cikar') and is_tam:
-            alan = 'menu_yetkilisi' if islem.startswith('menu_') else 'geri_bildirim_yetkilisi'
-            ad = 'QR Menü Yönetimi' if alan == 'menu_yetkilisi' else 'Geri Bildirim Yönetimi'
+        if islem in ('menu_yetki_ekle', 'menu_yetki_cikar', 'gb_yetki_ekle', 'gb_yetki_cikar',
+                     'dn_yetki_ekle', 'dn_yetki_cikar') and is_tam:
+            alan = {'menu': 'menu_yetkilisi', 'gb': 'geri_bildirim_yetkilisi', 'dn': 'denetim_goruntuleyici'}[islem.split('_')[0]]
+            ad = {'menu_yetkilisi': 'QR Menü Yönetimi', 'geri_bildirim_yetkilisi': 'Geri Bildirim Yönetimi',
+                  'denetim_goruntuleyici': 'Denetim Sonuçları'}[alan]
             ver = islem.endswith('_ekle')
             sorgu = Personel.objects.filter(id=request.POST.get('personel_id'))
             if ver:
@@ -1013,6 +1015,8 @@ def ekip_sayfa(request):
         menu_adaylari = list(Personel.objects.filter(rol=Rol.MUDUR, menu_yetkilisi=False).select_related('sube').order_by('ad_soyad'))
         gb_yetkilileri = list(Personel.objects.filter(geri_bildirim_yetkilisi=True).select_related('sube').order_by('ad_soyad'))
         gb_adaylari = list(Personel.objects.filter(rol=Rol.MUDUR, geri_bildirim_yetkilisi=False).select_related('sube').order_by('ad_soyad'))
+        dn_yetkilileri = list(Personel.objects.filter(denetim_goruntuleyici=True).select_related('sube').order_by('ad_soyad'))
+        dn_adaylari = list(Personel.objects.filter(rol=Rol.MUDUR, denetim_goruntuleyici=False).select_related('sube').order_by('ad_soyad'))
         manuel_yetkili_liste = list(Personel.objects.filter(manuel_giris_yetkisi=True)
                                    .select_related('sube').order_by('ad_soyad'))
         manuel_yetki_adaylari = list(Personel.objects.filter(
@@ -1033,6 +1037,7 @@ def ekip_sayfa(request):
         'magaza_mudurleri': magaza_mudurleri_liste if is_atayabilir else list(Personel.objects.filter(rol=Rol.MAGAZA_MUDURU, sube__in=subeler).select_related('sube').order_by('ad_soyad')),
         'menu_yetkilileri': menu_yetkilileri, 'menu_adaylari': menu_adaylari,
         'gb_yetkilileri': gb_yetkilileri, 'gb_adaylari': gb_adaylari,
+        'dn_yetkilileri': dn_yetkilileri, 'dn_adaylari': dn_adaylari,
         'is_atayabilir': is_atayabilir, 'bolge_mudurleri': bolge_mudurleri, 'tum_subeler': tum_subeler,
         'egitmenler': egitmenler, 'egitmen_adaylari': egitmen_adaylari,
         'manuel_yetkili_liste': manuel_yetkili_liste, 'manuel_yetki_adaylari': manuel_yetki_adaylari,
@@ -4216,7 +4221,7 @@ def geek_kosu_skor(request):
             return JsonResponse({'ok': False, 'mesaj': 'Geçersiz skor.'}, status=400)
     else:
         oran = 170 if mod == 'kosu' else 140
-        if skor <= 0 or sure < 3 or skor > sure * oran + 120 or skor > 200000:
+        if skor <= 0 or sure < 3 or skor > sure * oran + 120 or skor > 5000000:
             return JsonResponse({'ok': False, 'mesaj': 'Geçersiz skor.'}, status=400)
     son = OyunSkor.objects.filter(personel=personel).first()
     if son and (timezone.now() - son.zaman).total_seconds() < max(2, son.sure_sn * 0.5):
@@ -4293,7 +4298,7 @@ def g_sosyal(request):
             messages.error(request, "Bir şeyler yazın ya da görsel ekleyin.")
         return redirect('g_sosyal')
 
-    anket_yonetebilir = personel.rol == Rol.OPERATOR
+    anket_yonetebilir = personel.rol in (Rol.OPERATOR, Rol.GENEL_MUDUR)
     if request.method == 'POST' and (request.POST.get('islem') or '').startswith('anket_'):
         islem = request.POST.get('islem')
         if islem == 'anket_oy':
@@ -4567,12 +4572,12 @@ EGITIM_GECME_VARSAYILAN = 6
 EGITIM_SURE_VARSAYILAN = 20
 EGITIM_HEDEF_ROLLER = [Rol.PERSONEL, Rol.SEF]
 EGITIM_GORUNTULE_ROLLER = [Rol.GENEL_MUDUR, Rol.MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.EGITMEN]
-EGITIM_DUZENLE_ROLLER = [Rol.EGITMEN, Rol.MUDUR, Rol.OPERATOR]
+EGITIM_DUZENLE_ROLLER = [Rol.EGITMEN, Rol.MUDUR, Rol.OPERATOR, Rol.GENEL_MUDUR]
 EGITIM_ACMA_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.MUDUR]
 # Soru sayısı/süre/geçme puanını ayarlayabilecek roller (Eğitmen + Operatör).
-EGITIM_AYAR_ROLLER = [Rol.EGITMEN, Rol.OPERATOR, Rol.MUDUR]
+EGITIM_AYAR_ROLLER = [Rol.EGITMEN, Rol.OPERATOR, Rol.MUDUR, Rol.GENEL_MUDUR]
 # Açık uçlu (yazılı) cevapları görüp puanlayabilecek roller.
-EGITIM_ACIK_PUANLA_ROLLER = [Rol.EGITMEN, Rol.OPERATOR, Rol.MUDUR]
+EGITIM_ACIK_PUANLA_ROLLER = [Rol.EGITMEN, Rol.OPERATOR, Rol.MUDUR, Rol.GENEL_MUDUR]
 EGITIM_TAMAMLADI_BILDIRIM_ROLLER = [Rol.EGITMEN, Rol.MUDUR]
 
 
@@ -5692,9 +5697,21 @@ def geek_menu(request):
 # Şube Denetim Sistemi
 # ------------------------------------------------------------------
 
+DENETIM_MAX_FOTO = 6          # bir maddeye en fazla fotoğraf
 DENETIM_YAPABILEN_ROLLER = [Rol.MUDUR, Rol.GENEL_MUDUR, Rol.OPERATOR]
 DENETIM_GORUNTULEME_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI]
 DENETIM_YONETIM_ROLLER = [Rol.GENEL_MUDUR, Rol.OPERATOR]
+
+
+def _denetim_gorebilir(personel, denetim):
+    """Tamamlanmış denetimi kim görür: yönetim/yatırımcı hepsini, başlatan kendi denetimini, yetkili Bölge Müdürü
+    yalnız sorumlu olduğu şubelerinkini."""
+    if personel is None:
+        return False
+    if personel.rol in DENETIM_GORUNTULEME_ROLLER or denetim.denetleyen_id == personel.id:
+        return True
+    return bool(personel.rol == Rol.MUDUR and personel.denetim_goruntuleyici
+                and personel.sorumlu_subeler.filter(id=denetim.sube_id).exists())
 
 
 def denetim_baslat(request):
@@ -5754,7 +5771,7 @@ def denetim_doldur(request, denetim_id):
 
     if request.method == 'POST':
         islem = request.POST.get('islem')
-        cevaplar = list(denetim.cevaplar.select_related('madde'))
+        cevaplar = list(denetim.cevaplar.select_related('madde').prefetch_related('fotolar'))
         for c in cevaplar:
             degisti = False
             puan_raw = request.POST.get('puan_%d' % c.id, '')
@@ -5765,17 +5782,31 @@ def denetim_doldur(request, denetim_id):
             if not_raw != c.not_metni:
                 c.not_metni = not_raw
                 degisti = True
-            foto_b64 = request.POST.get('foto_b64_%d' % c.id, '')
-            if foto_b64.startswith('data:image'):
-                raw = None
+            # çoklu fotoğraf: aynı alan adıyla birden çok gizli girdi gelir
+            for fid in request.POST.getlist('foto_sil_%d' % c.id):
+                if str(fid) == 'eski' and c.foto:
+                    c.foto.delete(save=False)
+                    c.foto = None
+                    degisti = True
+                elif str(fid).isdigit():
+                    f = c.fotolar.filter(id=int(fid)).first()
+                    if f:
+                        f.foto.delete(save=False)
+                        f.delete()
+            mevcut = len(c.tum_fotolar())
+            for foto_b64 in request.POST.getlist('foto_b64_%d' % c.id):
+                if mevcut >= DENETIM_MAX_FOTO:
+                    break
+                if not foto_b64.startswith('data:image'):
+                    continue
                 try:
                     raw = base64.b64decode(foto_b64.split(',', 1)[1])
                 except (ValueError, IndexError):
                     raw = None
                 if raw and 100 < len(raw) <= 8 * 1024 * 1024:
-                    fname = "denetim_%d_%s.jpg" % (c.id, timezone.now().strftime('%Y%m%d_%H%M%S'))
-                    c.foto.save(fname, ContentFile(raw), save=False)
-                    degisti = True
+                    fname = "denetim_%d_%s_%d.jpg" % (c.id, timezone.now().strftime('%Y%m%d_%H%M%S'), mevcut)
+                    DenetimFoto(cevap=c, foto=ContentFile(raw, name=fname)).save()
+                    mevcut += 1
             if degisti:
                 c.save()
 
@@ -5794,7 +5825,7 @@ def denetim_doldur(request, denetim_id):
 
     bolumler = DenetimBolum.objects.filter(aktif=True).prefetch_related(
         Prefetch('maddeler', queryset=DenetimMadde.objects.filter(aktif=True)))
-    cevap_map = {c.madde_id: c for c in denetim.cevaplar.select_related('madde')}
+    cevap_map = {c.madde_id: c for c in denetim.cevaplar.select_related('madde').prefetch_related('fotolar')}
     bolum_listesi = []
     for b in bolumler:
         satirlar = []
@@ -5819,10 +5850,13 @@ def denetim_sonuclar(request):
     if _cikis_mi(request):
         return _logout(request)
     personel = _aktif_personel(request)
-    if personel is None or personel.rol not in DENETIM_GORUNTULEME_ROLLER:
+    bolge_yetkili = bool(personel and personel.rol == Rol.MUDUR and personel.denetim_goruntuleyici)
+    if personel is None or not (personel.rol in DENETIM_GORUNTULEME_ROLLER or bolge_yetkili):
         return redirect('ana_sayfa')
-    denetimler = list(Denetim.objects.filter(tamamlandi=True)
-                      .select_related('sube', 'denetleyen').order_by('-bitis')[:200])
+    qs = Denetim.objects.filter(tamamlandi=True)
+    if bolge_yetkili:
+        qs = qs.filter(Q(sube__in=personel.sorumlu_subeler.all()) | Q(denetleyen=personel))
+    denetimler = list(qs.select_related('sube', 'denetleyen').order_by('-bitis')[:200])
     return render(request, 'denetim_sonuclar.html', {
         'personel': personel, 'aktif': 'denetim_sonuclar',
         'denetimler': denetimler,
@@ -5840,10 +5874,10 @@ def denetim_detay(request, denetim_id):
     denetim = Denetim.objects.filter(id=denetim_id).select_related('sube', 'denetleyen').first()
     if denetim is None:
         return redirect('ana_sayfa')
-    yetkili = personel.rol in DENETIM_GORUNTULEME_ROLLER or denetim.denetleyen_id == personel.id
+    yetkili = _denetim_gorebilir(personel, denetim)
     if not yetkili:
         return redirect('ana_sayfa')
-    cevaplar = list(denetim.cevaplar.select_related('madde', 'madde__bolum')
+    cevaplar = list(denetim.cevaplar.select_related('madde', 'madde__bolum').prefetch_related('fotolar')
                     .order_by('madde__bolum__sira', 'madde__sira'))
     gruplar, gruplar_map = [], {}
     for c in cevaplar:
@@ -5886,10 +5920,10 @@ def denetim_pdf_indir(request, denetim_id):
     denetim = Denetim.objects.filter(id=denetim_id).select_related('sube', 'denetleyen').first()
     if denetim is None:
         return redirect('ana_sayfa')
-    yetkili = personel.rol in DENETIM_GORUNTULEME_ROLLER or denetim.denetleyen_id == personel.id
+    yetkili = _denetim_gorebilir(personel, denetim)
     if not yetkili:
         return redirect('ana_sayfa')
-    cevaplar = list(denetim.cevaplar.select_related('madde', 'madde__bolum')
+    cevaplar = list(denetim.cevaplar.select_related('madde', 'madde__bolum').prefetch_related('fotolar')
                     .order_by('madde__bolum__sira', 'madde__sira'))
     from .denetim_pdf import denetim_pdf_uret
     icerik = denetim_pdf_uret(denetim, cevaplar)

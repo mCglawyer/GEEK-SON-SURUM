@@ -8,6 +8,10 @@
   <div class="card tk-bilgi">
     <p class="tz-not" style="margin:0">Şef stok sayımında “Caramel şurup”u ml olarak sayar; sevkiyatta aynı ürün “Caramel şurup (750ml)” diye koliyle gelir. Gelen malın sayıma eklenebilmesi için ikisini burada eşleştiriyoruz. <b>Çarpan</b>: sevkiyat kataloğundaki 1 taban birim (1 şişe, 1 kg…) sayımda kaç birim eder. Boş bırakırsan otomatik hesaplanır (şişe için kapalı kutu içeriği, kg/litre için 1000). Eşleşmeyen ürünün gelen malı hesaba girmez.</p>
   </div>
+  <form method="post" class="card tz-filtre">{% csrf_token %}<input type="hidden" name="islem" value="temizlik_ekle">
+    <span>Temizlik malzemelerini de şeflerin stok sayımına ekle: sevkiyat kataloğundaki temizlik ürünlerinden sayımda olmayanlar “Temizlik malzemeleri” grubuyla eklenir.</span>
+    <button class="btn btn-ghost btn-mini">Temizlik ürünlerini sayıma ekle</button>
+  </form>
   {% if oneri_sayisi %}
   <form method="post" class="card tz-filtre">{% csrf_token %}<input type="hidden" name="islem" value="oner_uygula">
     <span><b>{{ oneri_sayisi }}</b> ürün için ad benzerliğine göre öneri var.</span>

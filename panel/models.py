@@ -98,6 +98,11 @@ class Personel(models.Model):
         help_text="İşaretliyse (genelde Bölge Müdürü için): Genel Müdür/Operatör/Yatırımcı dışında bu kişi de "
                   "QR Menü Yönetimi sayfalarına erişebilir. Ekip sayfasından verilir/alınır.")
 
+    denetim_goruntuleyici = models.BooleanField(
+        default=False, verbose_name="Denetim Sonuçlarını Görüntüleme Yetkisi",
+        help_text="İşaretliyse (Bölge Müdürü için): sorumlu olduğu şubelerin tamamlanmış denetim sonuçlarını ve PDF "
+                  "raporlarını görür. Ekip sayfasından verilir/alınır.")
+
     class Meta:
         verbose_name = "Personel"; verbose_name_plural = "Personeller"; ordering = ['ad_soyad']
 
@@ -979,6 +984,24 @@ class DenetimCevap(models.Model):
 
     def __str__(self):
         return f"Denetim #{self.denetim_id} — {self.madde_id}"
+
+    def tum_fotolar(self):
+        """Eski tek fotoğraf alanı + sonradan eklenen çoklu fotoğraflar (ImageFieldFile listesi)."""
+        liste = [self.foto] if self.foto else []
+        liste += [f.foto for f in self.fotolar.all() if f.foto]
+        return liste
+
+
+class DenetimFoto(models.Model):
+    """Bir denetim maddesine eklenen ek fotoğraf (madde başına birden çok)."""
+    cevap = models.ForeignKey(DenetimCevap, on_delete=models.CASCADE, related_name='fotolar')
+    foto = models.ImageField(upload_to='denetim/fotolar/')
+    olusturma = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = "Denetim Fotoğrafı"
+        verbose_name_plural = "Denetim Fotoğrafları"
 
 
 class IlginHaber(models.Model):
