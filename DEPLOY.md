@@ -84,6 +84,15 @@ DJANGO_ALLOWED_HOSTS=KULLANICI.pythonanywhere.com
 DJANGO_CSRF_TRUSTED_ORIGINS=https://KULLANICI.pythonanywhere.com
 DJANGO_SSL_REDIRECT=0
 ```
+Menulux satış raporları için `.env` dosyasına şunları da ekle (şifre yalnızca sunucuda kalır, GitHub'a gitmez):
+```
+MENULUX_USER=menulux-kullanici-adin
+MENULUX_PASS=menulux-sifren
+MENULUX_CUSTOMER_ID=14596
+```
+Not: PythonAnywhere ücretsiz hesapları yalnızca izin listesindeki sitelere çıkabilir; `portal.menulux.com` ve
+`menuluxportalapi.azurewebsites.net` adreslerine erişim için ücretli plan gerekir. Menulux şifresini değiştirirsen `.env`'i güncelle.
+
 Kaydet: `Ctrl+O`, `Enter`, sonra çık: `Ctrl+X`.
 
 Sonra veritabanı, statik ve medya:

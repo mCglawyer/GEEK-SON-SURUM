@@ -859,3 +859,56 @@ html[data-theme="dark"] .tz-kapali-bant { background:var(--surface); }
 .kosu-sek-btn.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .kosu-sek-btn:focus-visible{outline:3px solid var(--crema-300,#f2b544);outline-offset:2px}
 .kosu-panel[hidden]{display:none}
+
+/* ---- Arama çubuğu: sonuç türü etiketi ---------------------------------------------------------- */
+.kp-tur { display:inline-block; margin-right:.6rem; padding:.1rem .5rem; border-radius:999px; background:var(--brand-050,#EEF0FB); color:var(--brand,#162AA3); font-size:.68rem; font-weight:600; vertical-align:middle; }
+
+/* ---- Alt mobil çubuk: 6 kısayol sığsın ----------------------------------------------------------- */
+@media (max-width:900px) {
+  .mb-link { min-width:0; }
+  .mb-link span { white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+}
+@media (max-width:360px) { .mb-link { font-size:.58rem; } .mb-link svg { width:19px; height:19px; } }
+
+/* ---- Yapılacaklar kartı (şef ana sayfası) ----------------------------------------------------------- */
+.yapilacak-kart { border-left:4px solid var(--crema); margin-bottom:1rem; }
+.yapilacak-kart h3 { margin:0 0 .5rem; }
+.yapilacak-kart ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.55rem; }
+.yapilacak-kart li { display:flex; align-items:center; justify-content:space-between; gap:.8rem; flex-wrap:wrap; }
+.yapilacak-kart li.acil span { font-weight:650; color:#B3261E; }
+html[data-theme="dark"] .yapilacak-kart li.acil span { color:#ff8a80; }
+
+/* ---- Şube karnesi ---------------------------------------------------------------------------------- */
+.karne-yok { color:var(--muted); font-size:.85rem; }
+.karne-tarih { color:var(--muted); font-size:.75rem; margin-left:.25rem; }
+.karne-tablo td, .karne-tablo th { white-space:nowrap; }
+
+/* ---- Kayıt onayı: bildirim kutuları yumuşak girer ------------------------------------------------------ */
+@keyframes geek-ileti-gir { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+.alert { animation:geek-ileti-gir .28s ease-out; }
+@media (prefers-reduced-motion:reduce) { .alert { animation:none; } }
+.sr-filtre{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:14px 16px}
+.sr-filtre label{display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted,#5b6472)}
+.sr-filtre select,.sr-filtre input{min-width:150px}
+.sr-hizli{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0}
+.sr-hizli a{padding:6px 12px;border-radius:999px;border:1px solid #d7dceb;font-size:.82rem;text-decoration:none;color:inherit;background:#fff}
+.sr-hizli a.akt{background:#162AA3;border-color:#162AA3;color:#fff}
+.sr-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+.sr-kpi div{background:#fff;border:1px solid #d7dceb;border-radius:12px;padding:12px 14px}
+.sr-kpi b{display:block;font-size:1.25rem;line-height:1.3}
+.sr-kpi span{font-size:.78rem;color:#5b6472}
+.sr-kpi .ana{background:#162AA3;border-color:#162AA3;color:#fff}.sr-kpi .ana span{color:#dfe5ff}
+.sr-bolum{margin-top:16px}
+.sr-bolum h3{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sr-tablo{width:100%;border-collapse:collapse;font-size:.88rem}
+.sr-tablo th{background:#162AA3;color:#fff;text-align:left;padding:8px 10px;font-weight:600;position:sticky;top:0}
+.sr-tablo td{padding:7px 10px;border-bottom:1px solid #e8ebf5}
+.sr-tablo tr:nth-child(even) td{background:#f7f8fd}
+.sr-tablo .s{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sr-kaydir{overflow:auto;max-height:520px;border:1px solid #d7dceb;border-radius:12px}
+.sr-bar{height:6px;border-radius:3px;background:#e1e6f8;overflow:hidden;min-width:70px}.sr-bar i{display:block;height:100%;background:#162AA3}
+.sr-uyari{background:#fff4e5;border:1px solid #f2c27a;border-radius:12px;padding:12px 14px;margin:12px 0}
+.sr-hata{background:#fdecec;border:1px solid #f0a8a8;border-radius:12px;padding:12px 14px;margin:12px 0}
+.sr-ara{width:100%;max-width:320px;margin:0 0 8px}
+.sr-indir{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+@media (max-width:640px){.sr-filtre select,.sr-filtre input{min-width:0;width:100%}.sr-filtre label{flex:1 1 140px}}

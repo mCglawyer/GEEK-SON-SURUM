@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load satis_filtreleri %}
+{% block title %}Satış Raporları · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Satış raporları</h2>{% if not kapali %}<span class="plan-aralik">{% if secili %}{{ secili.1 }} · {% endif %}{{ etiket }}</span>{% endif %}</div>
+    {% if eslestirme_gorur %}<a class="btn btn-ghost btn-mini" href="{% url 'satis_eslestirme' %}">Şube eşleştirme</a>{% endif %}
+  </div>
+
+  {% if kapali %}
+  <div class="card sr-uyari">Menulux bağlantısı henüz kurulmadı. Sunucuda <b>MENULUX_USER</b> ve <b>MENULUX_PASS</b> ortam değişkenlerini tanımlayın (isteğe bağlı: <b>MENULUX_CUSTOMER_ID</b>).</div>
+  {% else %}
+
+  {% if eslesme_yok %}
+  <div class="card sr-uyari">Hesabınıza bağlı şubeler için Menulux eşleştirmesi yapılmamış. Genel Müdür veya Operatör "Şube eşleştirme" ekranından yapabilir.</div>
+  {% else %}
+  <form method="get" class="card sr-filtre">
+    <label>Şube
+      <select name="sube">{% for s in secenekler %}<option value="{{ s.0 }}"{% if secili and s.0 == secili.0 %} selected{% endif %}>{{ s.1 }}</option>{% endfor %}</select>
+    </label>
+    <label>Dönem
+      <select name="donem" id="sr-donem">{% for k, ad in donemler %}<option value="{{ k }}"{% if k == donem %} selected{% endif %}>{{ ad }}</option>{% endfor %}</select>
+    </label>
+    <span id="sr-ozel" class="sr-filtre" style="padding:0"{% if donem != 'ozel' %} hidden{% endif %}>
+      <label>Başlangıç <input type="date" name="bas" value="{{ bas|date:'Y-m-d' }}"></label>
+      <label>Bitiş <input type="date" name="bit" value="{{ bit|date:'Y-m-d' }}"></label>
+    </span>
+    <button class="btn" type="submit">Raporu getir</button>
+  </form>
+  <script>document.getElementById('sr-donem').addEventListener('change',function(){var o=document.getElementById('sr-ozel');o.hidden=this.value!=='ozel';if(this.value!=='ozel')this.form.submit();});</script>
+  {% endif %}
+
+  {% if hata %}<div class="sr-hata"><b>Rapor alınamadı.</b> {{ hata }}</div>{% endif %}
+
+  {% if veri %}
+  {% with o=veri.ozet %}
+  <div class="sr-kpi">
+    <div class="ana"><b>{{ o.ciro|tlf }}</b><span>Ciro</span></div>
+    <div><b>{{ o.adisyon|adetf }}</b><span>Adisyon</span></div>
+    <div><b>{{ o.kisi|adetf }}</b><span>Kişi</span></div>
+    <div><b>{{ o.ort|tlf }}</b><span>Ort. adisyon</span></div>
+    <div><b>{{ o.indirim|tlf }}</b><span>İndirim</span></div>
+    <div><b>{{ o.ikram|tlf }}</b><span>İkram</span></div>
+    <div><b>{{ o.iptal|tlf }}</b><span>İptal</span></div>
+    <div><b>{{ o.iade|tlf }}</b><span>İade</span></div>
+  </div>
+  {% endwith %}
+
+  <div class="card sr-indir"><b>Raporu indir</b>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_indir' %}?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&bicim=xlsx">Excel</a>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_indir' %}?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&bicim=pdf">PDF</a>
+  </div>
+
+  {% if veri.ozet.odeme %}
+  <div class="card sr-bolum"><h3>Ödeme dağılımı</h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Yöntem</th><th class="s">Tutar</th></tr></thead><tbody>
+      {% for ad, v in veri.ozet.odeme %}<tr><td>{{ ad }}</td><td class="s">{{ v|tlf }}</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  {% endif %}
+
+  {% if veri.subeler %}
+  <div class="card sr-bolum"><h3>Şube bazlı satış <span class="tz-sayac">{{ veri.subeler|length }} şube</span></h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Şube</th><th class="s">Ciro</th><th class="s">Adisyon</th><th class="s">Ort. adisyon</th><th class="s">İndirim</th><th class="s">İptal</th></tr></thead><tbody>
+      {% for s in veri.subeler %}<tr><td>{{ s.ad }}</td><td class="s">{{ s.ciro|tlf }}</td><td class="s">{{ s.adisyon|adetf }}</td><td class="s">{{ s.ort|tlf }}</td><td class="s">{{ s.indirim|tlf }}</td><td class="s">{{ s.iptal|tlf }}</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  {% endif %}
+
+  {% if veri.gunluk %}
+  <div class="card sr-bolum"><h3>Günlük satış</h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Tarih</th><th class="s">Ciro</th><th class="s">Adisyon</th><th class="s">Kişi</th></tr></thead><tbody>
+      {% for g, x in veri.gunluk %}<tr><td>{{ g|date:'d.m.Y D' }}</td><td class="s">{{ x.ciro|tlf }}</td><td class="s">{{ x.adisyon|adetf }}</td><td class="s">{{ x.kisi|adetf }}</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  {% endif %}
+
+  {% if veri.kategoriler %}
+  <div class="card sr-bolum"><h3>Kategori satışları</h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Kategori</th><th class="s">Adet</th><th class="s">Toplam</th></tr></thead><tbody>
+      {% for k in veri.kategoriler %}<tr><td>{{ k.ad }}</td><td class="s">{{ k.adet|adetf }}</td><td class="s">{{ k.tutar|tlf }}</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  {% endif %}
+
+  <div class="card sr-bolum"><h3>Satan ürünler <span class="tz-sayac">{{ veri.urunler|length }} ürün</span></h3>
+    <input type="search" class="sr-ara" id="sr-ara" placeholder="Ürün ara…">
+    <div class="sr-kaydir"><table class="sr-tablo" id="sr-urun"><thead><tr><th>Ürün</th><th>Grup</th><th class="s">Adet</th><th class="s">Tutar</th></tr></thead><tbody>
+      {% for u in veri.urunler %}<tr><td>{{ u.ad }}</td><td>{{ u.grup }}</td><td class="s">{{ u.adet|adetf }}</td><td class="s">{{ u.tutar|tlf }}</td></tr>{% empty %}<tr><td colspan="4">Bu aralıkta satış yok.</td></tr>{% endfor %}
+    </tbody></table></div></div>
+
+  <div class="card sr-bolum"><h3>Satılmayan ürünler <span class="tz-sayac">{{ veri.satilmayan|length }} ürün</span></h3>
+    {% if veri.satilmayan_hata %}<div class="sr-uyari">{{ veri.satilmayan_hata }}</div>
+    {% else %}<div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Ürün</th><th>Grup</th><th class="s">Liste fiyatı</th></tr></thead><tbody>
+      {% for u in veri.satilmayan %}<tr><td>{{ u.ad }}</td><td>{{ u.grup }}</td><td class="s">{{ u.fiyat|tlf }}</td></tr>{% empty %}<tr><td colspan="3">Bu aralıkta satılmayan ürün yok.</td></tr>{% endfor %}
+    </tbody></table></div>{% endif %}
+  </div>
+  <script>document.getElementById('sr-ara').addEventListener('input',function(){var q=this.value.toLocaleLowerCase('tr');document.querySelectorAll('#sr-urun tbody tr').forEach(function(r){r.hidden=q&&r.textContent.toLocaleLowerCase('tr').indexOf(q)<0;});});</script>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

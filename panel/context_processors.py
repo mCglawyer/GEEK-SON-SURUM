@@ -144,3 +144,20 @@ def tuketim_menu_ctx(request):
         except Exception:
             return False
     return {'tuketim_menu': SimpleLazyObject(hesapla)}
+
+
+def satis_menu_ctx(request):
+    """Yan menüde 'Satış Raporları' (Menulux): yönetim rolleri + bölge müdürü / şef (tembel)."""
+    from django.utils.functional import SimpleLazyObject
+
+    def hesapla():
+        u = getattr(request, 'user', None)
+        if not u or not getattr(u, 'is_authenticated', False):
+            return False
+        try:
+            from .models import Personel
+            from .satis_views import satis_gorunur
+            return satis_gorunur(Personel.objects.filter(user=u).only('rol').first())
+        except Exception:
+            return False
+    return {'satis_menu': SimpleLazyObject(hesapla)}

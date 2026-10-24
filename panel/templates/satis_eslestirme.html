@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Menulux şube eşleştirme · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head"><div><h2>Menulux şube eşleştirme</h2><span class="plan-aralik">Bölge müdürü ve şef, yalnızca eşleştirilmiş şubelerin satışını görür</span></div>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_rapor' %}">Rapora dön</a></div>
+  <form method="post" class="card">
+    {% csrf_token %}
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Panel şubesi</th><th>Menulux şubesi</th></tr></thead><tbody>
+      {% for r in satirlar %}<tr><td>{{ r.sube.ad }}{% if r.sube.fiyat_grubu == 'FRANCHISE' %} <small>(franchise)</small>{% endif %}</td>
+        <td><select name="s{{ r.sube.id }}"><option value="">— eşleştirilmedi —</option>
+          {% for b in mx_subeler %}<option value="{{ b.id }}"{% if r.secili == b.id or not r.secili and r.oneri == b.id %} selected{% endif %}>{{ b.ad }}{% if not r.secili and r.oneri == b.id %} (öneri){% endif %}</option>{% endfor %}
+        </select></td></tr>{% endfor %}
+    </tbody></table></div>
+    <p><button class="btn" type="submit">Eşleştirmeyi kaydet</button></p>
+  </form>
+  {% if eslesmeyen %}<div class="card sr-bolum"><h3>Panelde karşılığı olmayan Menulux şubeleri <span class="tz-sayac">{{ eslesmeyen|length }}</span></h3>
+    <p>Bunlar Genel Müdür / Operatör / Yatırımcı raporlarında görünür; panelde şube olarak eşleşmediği için bölge müdürü ve şeflere açılmaz.</p>
+    <ul>{% for b in eslesmeyen %}<li>{{ b.ad }}</li>{% endfor %}</ul></div>{% endif %}
+</div>
+{% endblock %}

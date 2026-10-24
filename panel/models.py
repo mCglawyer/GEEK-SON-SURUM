@@ -54,6 +54,10 @@ class Sube(models.Model):
         max_length=10, choices=FIYAT_GRUBU, default='MERKEZ', verbose_name="Fiyat grubu",
         help_text="Tüketim & maliyet hesabında ürün fiyatı bu gruba göre seçilir.")
 
+    menulux_id = models.PositiveIntegerField(
+        null=True, blank=True, unique=True, verbose_name="Menulux şube no",
+        help_text="Menulux portalındaki şube (CustomerID) numarası. Satış raporlarında yetki kapsamı için kullanılır.")
+
     class Meta:
         verbose_name = "Şube"; verbose_name_plural = "Şubeler"; ordering = ['ad']
 
@@ -1618,3 +1622,13 @@ class OyunSkor(models.Model):
 
     def __str__(self):
         return f'{self.personel} · {self.skor}'
+
+
+class MenuluxOnbellek(models.Model):
+    """Menulux API yanıtlarının kısa süreli önbelleği (her ekran açılışında portala gitmemek için)."""
+    anahtar = models.CharField(max_length=200, unique=True)
+    veri = models.JSONField()
+    olusturma = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Menulux önbelleği"; verbose_name_plural = "Menulux önbelleği"

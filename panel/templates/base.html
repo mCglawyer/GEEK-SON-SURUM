@@ -20,8 +20,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>try{if(localStorage.getItem('geek_tema')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=77">
-  <link rel="stylesheet" href="{% static 'css/tema.css' %}?v=37">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=78">
+  <link rel="stylesheet" href="{% static 'css/tema.css' %}?v=39">
   {% block extra_head %}{% endblock %}
 </head>
 <body{% if personel %} class="app"{% endif %}>
@@ -270,7 +270,9 @@
     var input = document.getElementById('kp-input');
     var sonuclarEl = document.getElementById('kp-sonuclar');
     var komutlar = [];
+    var ekstra = [];
     var secili = 0;
+    var araZaman = null, araSeq = 0;
 
     function komutlariTopla() {
       komutlar = [];
@@ -293,7 +295,8 @@
         var d = document.createElement('a');
         d.href = k.href;
         d.className = 'kp-satir' + (i === secili ? ' kp-secili' : '');
-        d.textContent = k.etiket;
+        if (k.tur) { var t = document.createElement('small'); t.className = 'kp-tur'; t.textContent = k.tur; d.appendChild(t); }
+        d.appendChild(document.createTextNode(k.etiket));
         sonuclarEl.appendChild(d);
       });
     }
@@ -301,8 +304,21 @@
     function filtrele() {
       var q = input.value.trim().toLocaleLowerCase('tr-TR');
       secili = 0;
-      if (!q) { ciz(komutlar); return; }
-      ciz(komutlar.filter(function (k) { return k.etiket.toLocaleLowerCase('tr-TR').indexOf(q) !== -1; }));
+      if (!q) { ekstra = []; ciz(komutlar); return; }
+      ciz(birlesik(q));
+      clearTimeout(araZaman);
+      if (q.length >= 2) {
+        var sira = ++araSeq;
+        araZaman = setTimeout(function () {
+          fetch('{% url "genel_ara" %}?q=' + encodeURIComponent(input.value.trim()), { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : { sonuc: [] }; })
+            .then(function (j) { if (sira !== araSeq) return; ekstra = j.sonuc || []; ciz(birlesik(input.value.trim().toLocaleLowerCase('tr-TR'))); })
+            .catch(function () {});
+        }, 220);
+      } else { ekstra = []; }
+    }
+    function birlesik(q) {
+      return komutlar.filter(function (k) { return k.etiket.toLocaleLowerCase('tr-TR').indexOf(q) !== -1; }).concat(ekstra);
     }
 
     function ac() {
@@ -327,8 +343,7 @@
     });
     function filtrele_yeniden_ciz() {
       var q = input.value.trim().toLocaleLowerCase('tr-TR');
-      var liste = q ? komutlar.filter(function (k) { return k.etiket.toLocaleLowerCase('tr-TR').indexOf(q) !== -1; }) : komutlar;
-      ciz(liste);
+      ciz(q ? birlesik(q) : komutlar);
     }
     input.addEventListener('input', filtrele);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) kapat(); });

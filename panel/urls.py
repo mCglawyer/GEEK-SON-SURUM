@@ -3,7 +3,7 @@ from django.urls import path
 from django.views.generic import RedirectView
 from . import views
 from . import menu_views, menu_acilis, menu_subeler
-from . import zayi_views, sevkiyat_analiz_views, tuketim_views
+from . import zayi_views, sevkiyat_analiz_views, tuketim_views, satis_views
 
 urlpatterns = [
     path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
@@ -65,6 +65,7 @@ urlpatterns = [
     path('egitim/yonetim/kisi/<int:pid>/excel/', views.egitim_kisi_excel_export, name='egitim_kisi_excel_export'),
     path('egitim/acik-cevaplar/', views.egitim_acik_degerlendir, name='egitim_acik_degerlendir'),
 
+    path('ara/', views.genel_ara, name='genel_ara'),
     path('denetim/', views.denetim_baslat, name='denetim_baslat'),
     path('denetim/<int:denetim_id>/doldur/', views.denetim_doldur, name='denetim_doldur'),
     path('denetim/sonuclar/', views.denetim_sonuclar, name='denetim_sonuclar'),
@@ -93,6 +94,9 @@ urlpatterns = [
     path('irsaliye/', views.irsaliye_sayfa, name='irsaliye'),
     path('temizlik/', RedirectView.as_view(pattern_name='tuketim_rapor', query_string=False), name='temizlik'),
     path('temizlik/<path:eski>', lambda request, eski: redirect('tuketim_rapor')),
+    path('satis/', satis_views.satis_rapor, name='satis_rapor'),
+    path('satis/indir/', satis_views.satis_indir, name='satis_indir'),
+    path('satis/eslestirme/', satis_views.satis_eslestirme, name='satis_eslestirme'),
     path('tuketim/', tuketim_views.tuketim_ana, name='tuketim'),
     path('tuketim/rapor/', tuketim_views.tuketim_rapor, name='tuketim_rapor'),
     path('tuketim/indir/', tuketim_views.tuketim_indir, name='tuketim_indir'),
