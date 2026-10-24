@@ -912,3 +912,14 @@ html[data-theme="dark"] .yapilacak-kart li.acil span { color:#ff8a80; }
 .sr-ara{width:100%;max-width:320px;margin:0 0 8px}
 .sr-indir{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 @media (max-width:640px){.sr-filtre select,.sr-filtre input{min-width:0;width:100%}.sr-filtre label{flex:1 1 140px}}
+.sr-sekme{display:flex;gap:6px;margin-bottom:12px}
+.sr-sekme a{padding:7px 16px;border-radius:999px;border:1px solid #d7dceb;font-size:.85rem;text-decoration:none;color:inherit;background:#fff}
+.sr-sekme a.akt{background:#162AA3;border-color:#162AA3;color:#fff}
+.sr-donemler{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.sr-donemler a{padding:5px 11px;border-radius:8px;border:1px solid #d7dceb;font-size:.78rem;text-decoration:none;color:inherit;background:#fff;text-align:center;line-height:1.3}
+.sr-donemler a small{display:block;color:#5b6472;font-size:.7rem}
+.sr-donemler a.akt{background:#162AA3;border-color:#162AA3;color:#fff}.sr-donemler a.akt small{color:#dfe5ff}
+.sr-nav{display:flex;align-items:center;gap:8px;font-size:.85rem}
+.sr-tablo td.toplam,.sr-tablo th.toplam{font-weight:700;background:#eef1fb}
+.sr-tablo tr.secili td{background:#eef1fb}
+.sr-matris{font-size:.8rem}.sr-matris th,.sr-matris td{white-space:nowrap}

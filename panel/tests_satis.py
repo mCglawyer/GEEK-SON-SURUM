@@ -240,6 +240,41 @@ class SatisEkranTest(_Taban):
         r = self.client.post('/satis/eslestirme/', {'s%d' % self.s1.id: '999'})
         self.s1.refresh_from_db(); self.assertEqual(self.s1.menulux_id, 2)          # geçersiz numara reddedilir
 
+    def test_tablo_haftalik_gorunum(self):
+        self.giris(Rol.GENEL_MUDUR)
+        r = self.client.get('/satis/tablo/?gorunum=hafta&sube=tum&ref=2026-10-14&hafta=4')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.context['donem_satirlari']), 4)
+        self.assertEqual(r.context['donem_satirlari'][3]['ozet']['ciro'], 1000)      # 4. hafta: 2026-10-12 – 10-18, mock sabit 1000
+        self.assertEqual(r.context['toplam']['ciro'], 4000)                           # 4 hafta × 1000
+        self.assertContains(r, '4. Hafta'); self.assertContains(r, 'GEEK-2 (OSMANGAZİ)')
+
+    def test_tablo_aylik_gorunum_ve_matris(self):
+        self.giris(Rol.GENEL_MUDUR)
+        r = self.client.get('/satis/tablo/?gorunum=ay&sube=tum&yil=2026&ay=3')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.context['donem_satirlari']), 12)
+        self.assertEqual(r.context['toplam']['ciro'], 12000)                          # 12 ay × 1000
+        matris = {r2['ad']: r2 for r2 in r.context['kategori_matris_tutar']}
+        self.assertEqual(matris['KAHVE']['toplam'], 500 * 12)                         # her ay sabit 500
+        self.assertEqual(len(matris['KAHVE']['degerler']), 12)
+        self.assertContains(r, 'Mar'); self.assertContains(r, 'kategori × ay')
+
+    def test_tablo_sef_tek_sube(self):
+        self.giris(Rol.SEF, self.s1)
+        r = self.client.get('/satis/tablo/?gorunum=hafta&ref=2026-10-14')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.context['subeler'], [])                                    # tek şube: karşılaştırma yok
+        self.assertNotContains(r, 'Şube karşılaştırması')
+
+    def test_tablo_yetkisiz(self):
+        self.giris(Rol.PERSONEL, self.s1)
+        self.assertEqual(self.client.get('/satis/tablo/').status_code, 302)
+
+    def test_rapor_sayfasinda_tablo_linki_var(self):
+        self.giris(Rol.GENEL_MUDUR)
+        self.assertContains(self.client.get('/satis/'), 'Tablo görünümü')
+
     def test_menude_gorunur(self):
         self.giris(Rol.YATIRIMCI)
         self.assertContains(self.client.get('/satis/'), 'Satış Raporları')

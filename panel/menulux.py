@@ -404,6 +404,40 @@ def rapor(kapsam, bas, bit, urunler=True):
     return veri
 
 
+def coklu_ozet(idler, araliklar):
+    """araliklar: [(bas,bit),...]. Her aralık için idler kapsamının toplam özeti (ort dahil)."""
+    isler = [ozet_is(c, b, e) for (b, e) in araliklar for c in idler]
+    sonuc = coklu(isler)
+    n = len(idler)
+    cikti = []
+    for i in range(len(araliklar)):
+        parca = [ozet_sadelestir(o) for o in sonuc[i * n:(i + 1) * n]]
+        t = ozetleri_topla(parca)
+        t['ort'] = ortalama(t)
+        cikti.append(t)
+    return cikti
+
+
+def coklu_kategori(idler, araliklar, ana_no):
+    """araliklar: [(bas,bit),...]. Her aralık için idler kapsamının kategori kırılımı."""
+    isler = [kategori_is(c, b, e, ana_no) for (b, e) in araliklar for c in idler]
+    sonuc = coklu(isler)
+    n = len(idler)
+    return [kategorileri_birlestir(sonuc[i * n:(i + 1) * n]) for i in range(len(araliklar))]
+
+
+def sube_kirilimi(sube_ids, bas, bit, adlar):
+    """Seçili tek bir aralıkta şube bazlı kırılım (ciroya göre sıralı)."""
+    if not sube_ids:
+        return []
+    sonuc = coklu([ozet_is(c, bas, bit) for c in sube_ids])
+    liste = []
+    for c, o in zip(sube_ids, sonuc):
+        oz = ozet_sadelestir(o); oz['ort'] = ortalama(oz)
+        liste.append({'id': c, 'ad': adlar.get(c, str(c)), **oz})
+    return sorted(liste, key=lambda x: -x['ciro'])
+
+
 def eslestirme_onerisi(panel_subeleri, mx_subeleri):
     """Panel şubesi adına en yakın Menulux şubesi (yalnızca öneri)."""
     oneri = {}

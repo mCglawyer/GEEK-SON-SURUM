@@ -22,6 +22,38 @@ ESLESTIRME_ROLLERI = (Rol.GENEL_MUDUR, Rol.OPERATOR)
 DONEMLER = [('bugun', 'Bugün'), ('dun', 'Dün'), ('hafta', 'Bu hafta'), ('gecen_hafta', 'Geçen hafta'),
             ('ay', 'Bu ay'), ('gecen_ay', 'Geçen ay'), ('ozel', 'Özel aralık')]
 
+AY_ADLARI = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+AY_KISA = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
+
+
+def hafta_araliklari(ref):
+    """4 haftalık tablo: en eski haftadan (1) içinde ref olan haftaya (4) kadar, Pazartesi–Pazar."""
+    bu_hafta = ref - datetime.timedelta(days=ref.weekday())
+    return [(bu_hafta - datetime.timedelta(weeks=3 - i), bu_hafta - datetime.timedelta(weeks=3 - i) + datetime.timedelta(days=6)) for i in range(4)]
+
+
+def ay_araliklari(yil):
+    """Ocak–Aralık (yil) için (ayın ilk günü, son günü) listesi."""
+    cikti = []
+    for ay in range(1, 13):
+        b = datetime.date(yil, ay, 1)
+        e = (b.replace(day=28) + datetime.timedelta(days=4)).replace(day=1) - datetime.timedelta(days=1)
+        cikti.append((b, e))
+    return cikti
+
+
+def _kategori_matrisi(kategori_liste, anahtar):
+    """kategori_liste: her dönem için kategorileri_birlestir() çıktısı. Kategori adına göre dönem dönem değer satırları, toplama göre sıralı."""
+    toplamlar = {}
+    for donem in kategori_liste:
+        for k in donem:
+            toplamlar[k['ad']] = toplamlar.get(k['ad'], 0) + k[anahtar]
+    satirlar = []
+    for ad in sorted(toplamlar, key=lambda a: -toplamlar[a]):
+        degerler = [next((k[anahtar] for k in donem if k['ad'] == ad), 0) for donem in kategori_liste]
+        satirlar.append({'ad': ad, 'degerler': degerler, 'toplam': sum(degerler)})
+    return satirlar
+
 
 def satis_gorunur(personel):
     return personel is not None and personel.rol in RAPOR_ROLLERI
@@ -129,6 +161,66 @@ def satis_indir(request):
                      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     y['Content-Disposition'] = 'attachment; filename="%s.%s"' % (ad, 'pdf' if pdf else 'xlsx')
     return y
+
+
+def satis_tablo(request):
+    """Haftalık / aylık tablo görünümü (Google Sheets şablonlarındaki düzen: seç + dönem tablosu + şube + kategori)."""
+    personel, git = _hazir(request)
+    if git:
+        return git
+    if not mx.ayarli_mi():
+        return render(request, 'satis_tablo.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
+    secenekler, hata = kapsam_secenekleri(personel)
+    secili = next((s for s in secenekler if s[0] == (request.GET.get('sube') or '')), secenekler[0] if secenekler else None)
+    gorunum = 'ay' if request.GET.get('gorunum') == 'ay' else 'hafta'
+    ctx = {'personel': personel, 'aktif': 'satis', 'secenekler': secenekler, 'secili': secili, 'hata': hata,
+           'gorunum': gorunum, 'eslesme_yok': personel.rol in OLCEKLI_ROLLER and not secenekler}
+    if secili and not hata:
+        try:
+            ana = secili[0] == 'tum'
+            ana_no = mx.ana_id()
+            idler = [ana_no] if ana else secili[2]
+            adlar = {b['id']: b['ad'] for b in mx.subeler()}
+            sube_ids = list(adlar) if ana else idler
+            kirilim_ids = sube_ids if (ana or len(idler) > 1) else []
+            if gorunum == 'ay':
+                bugun = timezone.localdate()
+                yil = int(request.GET.get('yil') or bugun.year)
+                aylar = ay_araliklari(yil)
+                varsayilan = bugun.month if yil == bugun.year else 12
+                secili_no = min(max(int(request.GET.get('ay') or varsayilan), 1), 12)
+                ozetler = mx.coklu_ozet(idler, aylar)
+                kategori_liste = mx.coklu_kategori(idler, aylar, ana_no)
+                kategori_secili = kategori_liste[secili_no - 1]
+                ctx['kategori_matris_tutar'] = _kategori_matrisi(kategori_liste, 'tutar')
+                ctx['kategori_matris_adet'] = _kategori_matrisi(kategori_liste, 'adet')
+                ctx['ay_kisa'] = AY_KISA
+                donem_satirlari = [{'etiket': AY_ADLARI[i], 'no': i + 1, 'ozet': ozetler[i], 'secili': i + 1 == secili_no} for i in range(12)]
+                secili_bas, secili_bit = aylar[secili_no - 1]
+                ctx.update(yil=yil, donem_etiket='%s %s' % (AY_ADLARI[secili_no - 1], yil))
+            else:
+                ref = _tarih(request.GET.get('ref')) or timezone.localdate()
+                haftalar = hafta_araliklari(ref)
+                secili_no = min(max(int(request.GET.get('hafta') or 4), 1), 4)
+                ozetler = mx.coklu_ozet(idler, haftalar)
+                secili_bas, secili_bit = haftalar[secili_no - 1]
+                kategori_secili = mx.coklu_kategori(idler, [(secili_bas, secili_bit)], ana_no)[0]
+                donem_satirlari = [{'etiket': '%d. Hafta' % (i + 1), 'aralik': '%s – %s' % (b.strftime('%d.%m'), e.strftime('%d.%m')),
+                                    'no': i + 1, 'ozet': ozetler[i], 'secili': i + 1 == secili_no} for i, (b, e) in enumerate(haftalar)]
+                ctx.update(ref=ref, ref_onceki=ref - datetime.timedelta(weeks=4), ref_sonraki=ref + datetime.timedelta(weeks=4),
+                          donem_etiket='%s – %s' % (secili_bas.strftime('%d.%m.%Y'), secili_bit.strftime('%d.%m.%Y')))
+            toplam_kat = sum(k['tutar'] for k in kategori_secili) or 1
+            for k in kategori_secili:
+                k['pay'] = k['tutar'] / toplam_kat * 100
+            toplam = mx.ozetleri_topla([d['ozet'] for d in donem_satirlari]); toplam['ort'] = mx.ortalama(toplam)
+            ctx.update(donem_satirlari=donem_satirlari, toplam=toplam, secili_ozet=ozetler[secili_no - 1], secili_no=secili_no,
+                       kategori=kategori_secili, subeler=mx.sube_kirilimi(kirilim_ids, secili_bas, secili_bit, adlar))
+        except mx.MenuluxHata as e:
+            ctx['hata'] = str(e)
+        except Exception:
+            log.exception('Satış tablosu')
+            ctx['hata'] = 'Tablo hazırlanırken beklenmeyen bir hata oluştu.'
+    return render(request, 'satis_tablo.html', ctx)
 
 
 def satis_eslestirme(request):

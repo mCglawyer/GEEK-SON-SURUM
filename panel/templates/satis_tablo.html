@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load satis_filtreleri %}
+{% block title %}Satış Tablosu · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Satış tablosu</h2><span class="plan-aralik">{% if secili %}{{ secili.1 }} · {% endif %}{{ donem_etiket }}</span></div>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_rapor' %}">Normal görünüme dön</a>
+  </div>
+
+  {% if kapali %}
+  <div class="card sr-uyari">Menulux bağlantısı henüz kurulmadı. Sunucuda <b>MENULUX_USER</b> ve <b>MENULUX_PASS</b> ortam değişkenlerini tanımlayın.</div>
+  {% else %}
+
+  {% if eslesme_yok %}
+  <div class="card sr-uyari">Hesabınıza bağlı şubeler için Menulux eşleştirmesi yapılmamış. Genel Müdür veya Operatör "Şube eşleştirme" ekranından yapabilir.</div>
+  {% else %}
+
+  <form method="get" class="card sr-filtre">
+    <input type="hidden" name="gorunum" value="{{ gorunum }}">
+    <label>Şube
+      <select name="sube">{% for s in secenekler %}<option value="{{ s.0 }}"{% if secili and s.0 == secili.0 %} selected{% endif %}>{{ s.1 }}</option>{% endfor %}</select>
+    </label>
+    <button class="btn" type="submit">Göster</button>
+  </form>
+
+  <div class="sr-sekme">
+    <a class="{% if gorunum == 'hafta' %}akt{% endif %}" href="?gorunum=hafta&sube={{ secili.0 }}">Haftalık</a>
+    <a class="{% if gorunum == 'ay' %}akt{% endif %}" href="?gorunum=ay&sube={{ secili.0 }}">Aylık</a>
+  </div>
+  {% endif %}
+
+  {% if hata %}<div class="sr-hata"><b>Tablo alınamadı.</b> {{ hata }}</div>{% endif %}
+
+  {% if donem_satirlari %}
+  <div class="sr-nav">
+    {% if gorunum == 'ay' %}
+      <a class="btn btn-ghost btn-mini" href="?gorunum=ay&sube={{ secili.0 }}&yil={{ yil|add:'-1' }}&ay={{ secili_no }}">‹ {{ yil|add:'-1' }}</a>
+      <b>{{ yil }}</b>
+      <a class="btn btn-ghost btn-mini" href="?gorunum=ay&sube={{ secili.0 }}&yil={{ yil|add:'1' }}&ay={{ secili_no }}">{{ yil|add:'1' }} ›</a>
+    {% else %}
+      <a class="btn btn-ghost btn-mini" href="?gorunum=hafta&sube={{ secili.0 }}&ref={{ ref_onceki|date:'Y-m-d' }}&hafta=4">‹ Önceki 4 hafta</a>
+      <span>4 haftalık tablo, en güncel hafta sağda</span>
+      <a class="btn btn-ghost btn-mini" href="?gorunum=hafta&sube={{ secili.0 }}&ref={{ ref_sonraki|date:'Y-m-d' }}&hafta=4">Sonraki 4 hafta ›</a>
+    {% endif %}
+  </div>
+
+  <div class="sr-donemler">
+    {% for d in donem_satirlari %}
+    <a class="{% if d.secili %}akt{% endif %}" href="?gorunum={{ gorunum }}&sube={{ secili.0 }}{% if gorunum == 'ay' %}&yil={{ yil }}&ay={{ d.no }}{% else %}&ref={{ ref|date:'Y-m-d' }}&hafta={{ d.no }}{% endif %}">
+      {{ d.etiket }}{% if d.aralik %}<small>{{ d.aralik }}</small>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+
+  {% with o=secili_ozet %}
+  <div class="sr-kpi">
+    <div class="ana"><b>{{ o.ciro|tlf }}</b><span>Ciro · {{ donem_etiket }}</span></div>
+    <div><b>{{ o.adisyon|adetf }}</b><span>Fiş sayısı</span></div>
+    <div><b>{{ o.ort|tlf }}</b><span>Ort. sepet</span></div>
+    <div><b>{{ o.indirim|tlf }}</b><span>İndirim</span></div>
+  </div>
+  {% endwith %}
+
+  <div class="card sr-bolum"><h3>{% if gorunum == 'ay' %}Aylık performans — {{ yil }}{% else %}4 haftalık performans{% endif %}</h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>{% if gorunum == 'ay' %}Ay{% else %}Hafta{% endif %}</th><th class="s">Net ciro</th><th class="s">İndirim</th><th class="s">Fiş sayısı</th><th class="s">Ort. sepet</th></tr></thead><tbody>
+      {% for d in donem_satirlari %}<tr{% if d.secili %} class="secili"{% endif %}><td>{{ d.etiket }}{% if d.aralik %} <small>({{ d.aralik }})</small>{% endif %}</td><td class="s">{{ d.ozet.ciro|tlf }}</td><td class="s">{{ d.ozet.indirim|tlf }}</td><td class="s">{{ d.ozet.adisyon|adetf }}</td><td class="s">{{ d.ozet.ort|tlf }}</td></tr>{% endfor %}
+      <tr class="secili"><td class="toplam">{% if gorunum == 'ay' %}Yıl toplamı{% else %}4 hafta toplamı{% endif %}</td><td class="s toplam">{{ toplam.ciro|tlf }}</td><td class="s toplam">{{ toplam.indirim|tlf }}</td><td class="s toplam">{{ toplam.adisyon|adetf }}</td><td class="s toplam">{{ toplam.ort|tlf }}</td></tr>
+    </tbody></table></div></div>
+
+  {% if subeler %}
+  <div class="card sr-bolum"><h3>Şube karşılaştırması <span class="tz-sayac">{{ donem_etiket }}</span></h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Şube</th><th class="s">Net ciro</th><th class="s">Fiş sayısı</th><th class="s">Ort. sepet</th><th class="s">İndirim</th></tr></thead><tbody>
+      {% for s in subeler %}<tr><td>{{ s.ad }}</td><td class="s">{{ s.ciro|tlf }}</td><td class="s">{{ s.adisyon|adetf }}</td><td class="s">{{ s.ort|tlf }}</td><td class="s">{{ s.indirim|tlf }}</td></tr>{% endfor %}
+      <tr class="secili"><td class="toplam">Tüm şubeler</td><td class="s toplam">{{ secili_ozet.ciro|tlf }}</td><td class="s toplam">{{ secili_ozet.adisyon|adetf }}</td><td class="s toplam">{{ secili_ozet.ort|tlf }}</td><td class="s toplam">{{ secili_ozet.indirim|tlf }}</td></tr>
+    </tbody></table></div></div>
+  {% endif %}
+
+  {% if kategori %}
+  <div class="card sr-bolum"><h3>Kategori satışları <span class="tz-sayac">{{ donem_etiket }}</span></h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Kategori</th><th class="s">Adet</th><th class="s">Ciro</th><th class="s">Pay</th></tr></thead><tbody>
+      {% for k in kategori %}<tr><td>{{ k.ad }}</td><td class="s">{{ k.adet|adetf }}</td><td class="s">{{ k.tutar|tlf }}</td><td class="s">%{{ k.pay|floatformat:1 }}</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  {% endif %}
+
+  {% if secili_ozet.odeme %}
+  <div class="card sr-bolum"><h3>Ödeme dağılımı <span class="tz-sayac">{{ donem_etiket }}</span></h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Yöntem</th><th class="s">Tutar</th></tr></thead><tbody>
+      {% for ad, v in secili_ozet.odeme %}<tr><td>{{ ad }}</td><td class="s">{{ v|tlf }}</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  {% endif %}
+
+  {% if gorunum == 'ay' and kategori_matris_tutar %}
+  <div class="card sr-bolum"><h3>Kategori ciro matrisi — {{ yil }} <span class="tz-sayac">kategori × ay</span></h3>
+    <div class="sr-kaydir"><table class="sr-tablo sr-matris"><thead><tr><th>Kategori</th>{% for a in ay_kisa %}<th class="s">{{ a }}</th>{% endfor %}<th class="s toplam">Yıl</th></tr></thead><tbody>
+      {% for r in kategori_matris_tutar %}<tr><td>{{ r.ad }}</td>{% for v in r.degerler %}<td class="s">{{ v|tlf }}</td>{% endfor %}<td class="s toplam">{{ r.toplam|tlf }}</td></tr>{% endfor %}
+    </tbody></table></div></div>
+
+  <div class="card sr-bolum"><h3>Kategori adet matrisi — {{ yil }} <span class="tz-sayac">kategori × ay</span></h3>
+    <div class="sr-kaydir"><table class="sr-tablo sr-matris"><thead><tr><th>Kategori</th>{% for a in ay_kisa %}<th class="s">{{ a }}</th>{% endfor %}<th class="s toplam">Yıl</th></tr></thead><tbody>
+      {% for r in kategori_matris_adet %}<tr><td>{{ r.ad }}</td>{% for v in r.degerler %}<td class="s">{{ v|adetf }}</td>{% endfor %}<td class="s toplam">{{ r.toplam|adetf }}</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  {% endif %}
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
