@@ -90,7 +90,7 @@ MENULUX_USER=menulux-kullanici-adin
 MENULUX_PASS=menulux-sifren
 MENULUX_CUSTOMER_ID=14596
 ```
-Not: PythonAnywhere ücretsiz hesapları yalnızca izin listesindeki sitelere çıkabilir; `portal.menulux.com` ve
+Not: Render'da (render.yaml) bu üç değişken Environment sekmesinden girilir. PythonAnywhere ücretsiz hesapları yalnızca izin listesindeki sitelere çıkabilir; `portal.menulux.com` ve
 `menuluxportalapi.azurewebsites.net` adreslerine erişim için ücretli plan gerekir. Menulux şifresini değiştirirsen `.env`'i güncelle.
 
 Kaydet: `Ctrl+O`, `Enter`, sonra çık: `Ctrl+X`.

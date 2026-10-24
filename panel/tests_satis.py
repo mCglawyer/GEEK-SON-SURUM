@@ -1,6 +1,8 @@
 import datetime
 from unittest import mock
 
+import requests
+
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import TestCase, override_settings
@@ -47,12 +49,13 @@ class _Taban(TestCase):
         cache.clear(); mx.oturumu_sifirla()
         self.env = mock.patch.dict('os.environ', ENV); self.env.start()
         self.get = mock.patch.object(mx, '_get', side_effect=sahte_get); self.get.start()
+        self.ak = mock.patch.object(mx, '_authkey', return_value='K'); self.ak.start()
         self.s1 = Sube.objects.create(ad='Geek-1 (Naci Topçuoğlu)', menulux_id=1)
         self.s2 = Sube.objects.create(ad='Geek-2 Osmangazi', menulux_id=2)
         self.s3 = Sube.objects.create(ad='Eşleşmemiş')
 
     def tearDown(self):
-        self.env.stop(); self.get.stop()
+        self.env.stop(); self.get.stop(); self.ak.stop()
 
     def giris(self, rol, sube=None, sorumlu=()):
         u = User.objects.create(username='k_%s_%d' % (rol, User.objects.count()))
@@ -114,6 +117,35 @@ class MenuluxGirisTest(TestCase):
         self.assertEqual(G.call_args_list[0].kwargs['headers']['AuthKey'], 'K1')
         self.assertEqual(G.call_args_list[1].kwargs['headers']['AuthKey'], 'K2')      # 401 sonrası yeniden giriş
         self.assertEqual(G.call_args_list[0].kwargs['headers']['CustomerID'], '100')
+
+    def test_authkey_veritabanindan_paylasilir(self):
+        with mock.patch('requests.Session') as S, mock.patch('requests.get') as G:
+            S.return_value.get.return_value = self._yanit(json={'PublicKey': 'PK'})
+            S.return_value.post.return_value = self._yanit(headers={'AuthKey': 'PAYLASILAN'})
+            G.return_value = self._yanit(json=[])
+            mx._get('A')                                   # ilk işçi girer ve anahtarı veritabanına yazar
+            mx._oturum['authkey'] = None                   # ikinci işçi: bellek boş
+            mx._get('B')
+        self.assertEqual(S.return_value.post.call_count, 1)   # ikinci işçi yeniden giriş yapmadı
+        self.assertEqual(G.call_args_list[1].kwargs['headers']['AuthKey'], 'PAYLASILAN')
+
+    def test_json_olmayan_yanit_teshis_verir(self):
+        with mock.patch('requests.Session') as S:
+            r = self._yanit(status=403); r.json.side_effect = requests.exceptions.JSONDecodeError('x', 'doc', 0); r.text = '<html>Access denied</html>'
+            S.return_value.get.return_value = r
+            with self.assertRaises(mx.MenuluxHata) as c:
+                mx._get('x')
+        self.assertIn('HTTP 403', str(c.exception)); self.assertIn('Access denied', str(c.exception)); self.assertNotIn('gizli', str(c.exception))
+
+    def test_giris_once_login_sayfasini_acar(self):
+        with mock.patch('requests.Session') as S, mock.patch('requests.get') as G:
+            S.return_value.get.return_value = self._yanit(json={'PublicKey': 'PK'})
+            S.return_value.post.return_value = self._yanit(headers={'AuthKey': 'K'})
+            G.return_value = self._yanit(json=[])
+            mx._get('x')
+        urller = [c.args[0] for c in S.return_value.get.call_args_list]
+        self.assertTrue(urller[0].endswith('/Account/Login') and urller[1].endswith('/GeneratePublicKey'))
+        self.assertIn('Mozilla', S.return_value.headers.update.call_args.args[0]['User-Agent'])
 
     def test_sms_istenirse_anlasilir_hata(self):
         with mock.patch('requests.Session') as S:

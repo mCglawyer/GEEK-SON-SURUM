@@ -24,6 +24,7 @@ PORTAL = 'https://portal.menulux.com'
 API = 'https://menuluxportalapi.azurewebsites.net'
 ZAMAN_ASIMI = 25
 _kilit = threading.Lock()
+_yerel = threading.local()   # thread havuzundaki işçiler veritabanına dokunmasın diye işaret
 _oturum = {'authkey': None, 'zaman': 0.0}
 OTURUM_OMRU = 25 * 60   # sn; süre dolmadan yenilenir, 401/403'te de yeniden girilir
 
@@ -50,25 +51,44 @@ def _ana():
     return a
 
 
+TARAYICI = ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/130.0.0.0 Safari/537.36')
+
+
+def _parca(r, n=70):
+    """Şifre/anahtar içermeyen, yanıtın başından kısa bir teşhis parçası."""
+    try:
+        t = ' '.join((r.text or '')[:n].split())
+    except Exception:
+        t = ''
+    return 'HTTP %s%s' % (r.status_code, (': ' + t) if t else '')
+
+
 def _giris(a):
     s = requests.Session()
+    s.headers.update({'User-Agent': TARAYICI, 'Accept-Language': 'tr-TR,tr;q=0.9'})
     try:
+        s.get(PORTAL + '/Account/Login', timeout=ZAMAN_ASIMI)      # tarayıcı gibi: önce giriş sayfası (oturum çerezi)
         r = s.get(PORTAL + '/Configuration/GeneratePublicKey', timeout=ZAMAN_ASIMI,
-                  headers={'X-Requested-With': 'XMLHttpRequest', 'Referer': PORTAL + '/Account/Login'})
+                  headers={'X-Requested-With': 'XMLHttpRequest', 'Referer': PORTAL + '/Account/Login', 'Accept': 'application/json, text/javascript, */*'})
+    except requests.RequestException as e:
+        raise MenuluxHata('Menulux\'a ulaşılamadı (%s).' % e.__class__.__name__)
+    try:
         pk = r.json().get('PublicKey')
-        if not pk:
-            raise MenuluxHata('Menulux giriş anahtarı alınamadı.')
+    except ValueError:
+        raise MenuluxHata('Menulux giriş anahtarı okunamadı (%s).' % _parca(r))
+    if not pk:
+        raise MenuluxHata('Menulux giriş anahtarı boş geldi (%s).' % _parca(r))
+    try:
         r = s.post(API + '/api/UserAPI/LoginUser', timeout=ZAMAN_ASIMI,
                    json={'UserName': a['kullanici'], 'Password': a['sifre'], 'UserLog': True, 'OTPCode': None, 'UserID': None},
                    headers={'Publickey': pk, 'Origin': PORTAL, 'Referer': PORTAL + '/'})
     except requests.RequestException as e:
         raise MenuluxHata('Menulux\'a ulaşılamadı (%s).' % e.__class__.__name__)
-    except ValueError:
-        raise MenuluxHata('Menulux giriş yanıtı okunamadı.')
     if r.status_code == 202:
         raise MenuluxHata('Menulux hesabı SMS doğrulaması istiyor; otomatik giriş yapılamaz.')
     if r.status_code != 200:
-        raise MenuluxHata('Menulux girişi reddedildi (HTTP %s). Kullanıcı adı/şifreyi kontrol edin.' % r.status_code)
+        raise MenuluxHata('Menulux girişi reddedildi (%s). Kullanıcı adı/şifreyi kontrol edin.' % _parca(r, 50))
     ak = r.headers.get('AuthKey')
     if not ak:
         raise MenuluxHata('Menulux giriş yanıtında oturum anahtarı yok.')
@@ -76,17 +96,28 @@ def _giris(a):
 
 
 def _authkey(yenile=False):
+    """Oturum anahtarı: önce bellekte, sonra (diğer gunicorn işçileriyle paylaşılan) veritabanında, yoksa yeni giriş."""
+    havuz = getattr(_yerel, 'havuz', False)
     with _kilit:
         simdi = timezone.now().timestamp()
-        if yenile or not _oturum['authkey'] or simdi - _oturum['zaman'] > OTURUM_OMRU:
-            _oturum['authkey'] = _giris(_ana())
-            _oturum['zaman'] = simdi
+        if not yenile and _oturum['authkey'] and simdi - _oturum['zaman'] <= OTURUM_OMRU:
+            return _oturum['authkey']
+        if not yenile and not havuz:
+            var, veri = _oku('authkey', datetime.timedelta(seconds=OTURUM_OMRU))
+            if var and veri.get('k'):
+                _oturum['authkey'], _oturum['zaman'] = veri['k'], simdi
+                return veri['k']
+        _oturum['authkey'] = _giris(_ana())
+        _oturum['zaman'] = simdi
+        if not havuz:
+            _yaz('authkey', {'k': _oturum['authkey']})
         return _oturum['authkey']
 
 
 def oturumu_sifirla():
     with _kilit:
         _oturum['authkey'] = None
+        _oturum['zaman'] = 0.0
 
 
 def _get(yol, **params):
@@ -95,18 +126,18 @@ def _get(yol, **params):
         ak = _authkey(yenile=bool(deneme))
         try:
             r = requests.get(API + '/api/' + yol, params=params, timeout=ZAMAN_ASIMI,
-                             headers={'AuthKey': ak, 'CustomerID': str(a['ana']), 'Origin': PORTAL, 'Referer': PORTAL + '/',
+                             headers={'AuthKey': ak, 'CustomerID': str(a['ana']), 'Origin': PORTAL, 'Referer': PORTAL + '/', 'User-Agent': TARAYICI,
                                       'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'})
         except requests.RequestException as e:
             raise MenuluxHata('Menulux\'a ulaşılamadı (%s).' % e.__class__.__name__)
         if r.status_code in (401, 403) and deneme == 0:
             continue
         if r.status_code != 200:
-            raise MenuluxHata('Menulux isteği başarısız (HTTP %s: %s).' % (r.status_code, yol.split('?')[0]))
+            raise MenuluxHata('Menulux isteği başarısız (%s, %s).' % (_parca(r, 50), yol.split('?')[0]))
         try:
             return r.json()
         except ValueError:
-            raise MenuluxHata('Menulux yanıtı okunamadı (%s).' % yol)
+            raise MenuluxHata('Menulux yanıtı okunamadı (%s, %s).' % (_parca(r, 50), yol))
     raise MenuluxHata('Menulux oturumu açılamadı.')
 
 
@@ -156,11 +187,18 @@ def coklu(isler):
         else:
             eksik.append(i)
     if eksik:
+        _authkey()          # oturumu ana thread'de aç/yükle; işçiler bellekteki anahtarı kullanır
         if len(eksik) == 1:
             cekilen = [isler[eksik[0]][2]()]
         else:
+            def calis(i):
+                _yerel.havuz = True
+                try:
+                    return isler[i][2]()
+                finally:
+                    _yerel.havuz = False
             with ThreadPoolExecutor(max_workers=min(6, len(eksik))) as ex:
-                cekilen = list(ex.map(lambda i: isler[i][2](), eksik))
+                cekilen = list(ex.map(calis, eksik))
         for i, veri in zip(eksik, cekilen):
             sonuc[i] = veri
             _yaz(isler[i][0], veri)
