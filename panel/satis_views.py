@@ -14,7 +14,7 @@ from .models import Rol, Sube
 from .views import _aktif_personel, _cikis_mi, _logout
 
 log = logging.getLogger(__name__)
-TUM_ROLLER = (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI)        # tüm Menulux şubelerini görür
+TUM_ROLLER = (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.SATIN_ALMA)  # tüm Menulux şubelerini görür
 OLCEKLI_ROLLER = (Rol.MUDUR, Rol.MAGAZA_MUDURU, Rol.SEF)           # yalnızca eşleşmiş kendi şubeleri
 RAPOR_ROLLERI = TUM_ROLLER + OLCEKLI_ROLLER
 ESLESTIRME_ROLLERI = (Rol.GENEL_MUDUR, Rol.OPERATOR)
@@ -189,22 +189,25 @@ def satis_tablo(request):
                 aylar = ay_araliklari(yil)
                 varsayilan = bugun.month if yil == bugun.year else 12
                 secili_no = min(max(int(request.GET.get('ay') or varsayilan), 1), 12)
-                ozetler = mx.coklu_ozet(idler, aylar)
-                kategori_liste = mx.coklu_kategori(idler, aylar, ana_no)
+                secili_bas, secili_bit = aylar[secili_no - 1]
+                # Özet (12 ay) + kategori (12 ay, matris için) + şube kırılımı (seçili ay) — TEK coklu() dalgasında.
+                ozetler, kategori_liste, sube_kirilim = mx.tablo_verisi(
+                    idler, aylar, aylar, ana_no, kirilim_ids, (secili_bas, secili_bit), adlar)
                 kategori_secili = kategori_liste[secili_no - 1]
                 ctx['kategori_matris_tutar'] = _kategori_matrisi(kategori_liste, 'tutar')
                 ctx['kategori_matris_adet'] = _kategori_matrisi(kategori_liste, 'adet')
                 ctx['ay_kisa'] = AY_KISA
                 donem_satirlari = [{'etiket': AY_ADLARI[i], 'no': i + 1, 'ozet': ozetler[i], 'secili': i + 1 == secili_no} for i in range(12)]
-                secili_bas, secili_bit = aylar[secili_no - 1]
                 ctx.update(yil=yil, donem_etiket='%s %s' % (AY_ADLARI[secili_no - 1], yil))
             else:
                 ref = _tarih(request.GET.get('ref')) or timezone.localdate()
                 haftalar = hafta_araliklari(ref)
                 secili_no = min(max(int(request.GET.get('hafta') or 4), 1), 4)
-                ozetler = mx.coklu_ozet(idler, haftalar)
                 secili_bas, secili_bit = haftalar[secili_no - 1]
-                kategori_secili = mx.coklu_kategori(idler, [(secili_bas, secili_bit)], ana_no)[0]
+                # Özet (4 hafta) + kategori (yalnız seçili hafta) + şube kırılımı (seçili hafta) — TEK coklu() dalgasında.
+                ozetler, kategori_liste, sube_kirilim = mx.tablo_verisi(
+                    idler, haftalar, [(secili_bas, secili_bit)], ana_no, kirilim_ids, (secili_bas, secili_bit), adlar)
+                kategori_secili = kategori_liste[0]
                 donem_satirlari = [{'etiket': '%d. Hafta' % (i + 1), 'aralik': '%s – %s' % (b.strftime('%d.%m'), e.strftime('%d.%m')),
                                     'no': i + 1, 'ozet': ozetler[i], 'secili': i + 1 == secili_no} for i, (b, e) in enumerate(haftalar)]
                 ctx.update(ref=ref, ref_onceki=ref - datetime.timedelta(weeks=4), ref_sonraki=ref + datetime.timedelta(weeks=4),
@@ -214,7 +217,7 @@ def satis_tablo(request):
                 k['pay'] = k['tutar'] / toplam_kat * 100
             toplam = mx.ozetleri_topla([d['ozet'] for d in donem_satirlari]); toplam['ort'] = mx.ortalama(toplam)
             ctx.update(donem_satirlari=donem_satirlari, toplam=toplam, secili_ozet=ozetler[secili_no - 1], secili_no=secili_no,
-                       kategori=kategori_secili, subeler=mx.sube_kirilimi(kirilim_ids, secili_bas, secili_bit, adlar))
+                       kategori=kategori_secili, subeler=sube_kirilim)
         except mx.MenuluxHata as e:
             ctx['hata'] = str(e)
         except Exception:

@@ -197,7 +197,7 @@ def coklu(isler):
                     return isler[i][2]()
                 finally:
                     _yerel.havuz = False
-            with ThreadPoolExecutor(max_workers=min(6, len(eksik))) as ex:
+            with ThreadPoolExecutor(max_workers=min(12, len(eksik))) as ex:
                 cekilen = list(ex.map(calis, eksik))
         for i, veri in zip(eksik, cekilen):
             sonuc[i] = veri
@@ -206,15 +206,20 @@ def coklu(isler):
 
 
 # ------------------------------------------------------------------ ham veri
-def subeler():
-    """Menulux şubeleri: [{'id', 'ad'}] (merkez hariç, silinmişler hariç)."""
+def subeler_is():
+    """subeler() ile aynı işi yapan (anahtar, ttl, fonksiyon) üçlüsü — coklu() içine karıştırılabilsin diye."""
     a = _ana()
 
     def al():
         veri = _get('CustomerAPI/GetSortedBranches', customerID=a['ana'], sortByRevenue='false')
         return [{'id': int(b['CustomerID']), 'ad': (b.get('Name') or '').strip()} for b in veri
                 if b.get('CustomerID') and int(b['CustomerID']) != a['ana'] and not b.get('Deleted')]
-    return sorted(onbellekli('subeler', datetime.timedelta(hours=1), al), key=lambda b: b['ad'])
+    return ('subeler', datetime.timedelta(hours=1), al)
+
+
+def subeler():
+    """Menulux şubeleri: [{'id', 'ad'}] (merkez hariç, silinmişler hariç)."""
+    return sorted(onbellekli(*subeler_is()), key=lambda b: b['ad'])
 
 
 def ana_id():
@@ -252,15 +257,20 @@ def kategori_is(cid, bas, bit, ana):
 
 
 def menu_is(cid):
-    """Şubenin varsayılan menüsündeki ürünler (satılmayan ürün raporu için)."""
+    """Şubenin varsayılan menüsündeki ürünler (satılmayan ürün raporu için). rapor() bu işi ana coklu() dalgasına
+    kattığından, burada oluşan bir hata tüm raporu düşürmesin diye yutulur (satılmayan listesi o şube için boş kalır)."""
     def al():
-        menuler = _get('MenuAPI/GetMenusSummary', customerID=cid)
-        menuler = menuler if isinstance(menuler, list) else []
-        secili = next((m for m in menuler if m.get('Dafault')), menuler[0] if menuler else None)
-        if not secili:
+        try:
+            menuler = _get('MenuAPI/GetMenusSummary', customerID=cid)
+            menuler = menuler if isinstance(menuler, list) else []
+            secili = next((m for m in menuler if m.get('Dafault')), menuler[0] if menuler else None)
+            if not secili:
+                return []
+            veri = _get('OfferAPI/GetProducts', customerID=cid, menuID=secili['MenuID'])
+            return veri if isinstance(veri, list) else []
+        except MenuluxHata:
+            log.warning('Menu çekilemedi (cid=%s)', cid)
             return []
-        veri = _get('OfferAPI/GetProducts', customerID=cid, menuID=secili['MenuID'])
-        return veri if isinstance(veri, list) else []
     return ('menu:%s' % cid, datetime.timedelta(hours=6), al)
 
 
@@ -337,12 +347,12 @@ def kategorileri_birlestir(satir_listeleri):
     return sorted(toplam.values(), key=lambda k: -k['tutar'])
 
 
-def satilmayanlar(idler, satilan_urunler):
-    """Menüde olup aralıkta hiç satılmayan ürünler. Eşleşme: ürün kodu, olmazsa ad."""
+def _satilmayanlar_isle(menu_listeleri, satilan_urunler):
+    """satilmayanlar()'ın HTTP'siz kısmı: zaten çekilmiş menü listelerinden hesaplar (rapor() tek dalgada besler)."""
     kodlar = {u['kod'] for u in satilan_urunler if u['kod']}
     adlar = {_ad_anahtar(u['ad']) for u in satilan_urunler}
     gorulen, sonuc = set(), []
-    for menu in coklu([menu_is(c) for c in idler]):
+    for menu in menu_listeleri:
         for p in menu:
             ad = (p.get('Name') or p.get('ProductName') or '').strip()
             kod = str(p.get('Code') or '')
@@ -355,6 +365,12 @@ def satilmayanlar(idler, satilan_urunler):
             sonuc.append({'ad': ad, 'kod': kod, 'grup': (p.get('GroupName') or p.get('MenuGroupName') or '').strip(),
                           'fiyat': _f(p.get('Price'))})
     return sorted(sonuc, key=lambda x: (x['grup'], x['ad']))
+
+
+def satilmayanlar(idler, satilan_urunler):
+    """Menüde olup aralıkta hiç satılmayan ürünler. Eşleşme: ürün kodu, olmazsa ad. (rapor() dışından tek başına
+    kullanım için; rapor() kendi menü işlerini ana coklu() dalgasına katıp _satilmayanlar_isle()'ı doğrudan çağırır.)"""
+    return _satilmayanlar_isle(coklu([menu_is(c) for c in idler]), satilan_urunler)
 
 
 def gunluk(idler, bas, bit, ana):
@@ -370,31 +386,57 @@ def gunluk(idler, bas, bit, ana):
 
 
 def rapor(kapsam, bas, bit, urunler=True):
-    """kapsam: 'tum' (merkez toplamı) ya da şube numaraları listesi. Tek sözlükte tüm rapor verisi."""
+    """kapsam: 'tum' (merkez toplamı) ya da şube numaraları listesi. Tek sözlükte tüm rapor verisi.
+
+    Performans: önceden özet/kırılım/kategori/ürün + günlük döküm + menü (satılmayan ürün) ayrı ayrı
+    coklu() dalgaları olarak sıralı çekiliyordu (sayfa açılışı ~10 sn sürüyordu). Artık tüm Menulux
+    istekleri TEK coklu() çağrısında (tek thread havuzu dalgasında, paralel) toplanıyor."""
     ana = kapsam == 'tum'
     ana_no = ana_id()
     idler = [ana_no] if ana else list(kapsam)
     adlar = {b['id']: b['ad'] for b in subeler()}
     sube_ids = list(adlar) if ana else idler
     kirilim_ids = sube_ids if (ana or len(idler) > 1) else []
+    gun_ids = [ana_no] if ana else idler
+    gunler = ([bas + datetime.timedelta(days=i) for i in range((min(bit, bas + datetime.timedelta(days=61)) - bas).days + 1)]
+              if (bit - bas).days <= 61 and bas != bit else [])
+    menu_ids = (sube_ids if ana else idler) if urunler else []
+
     isler = [ozet_is(c, bas, bit) for c in idler] + [ozet_is(c, bas, bit) for c in kirilim_ids]
     isler += [kategori_is(c, bas, bit, ana_no) for c in idler]
     if urunler:
         isler += [urun_is(c, bas, bit, ana_no) for c in idler]
+        isler += [menu_is(c) for c in menu_ids]
+    isler += [ozet_is(c, g, g) for g in gunler for c in gun_ids]
+
     sonuc = coklu(isler)
     n, k = len(idler), len(kirilim_ids)
-    ozetler, kirilim, kategoriler = sonuc[:n], sonuc[n:n + k], sonuc[n + k:n + k + n]
+    pos = 0
+    ozetler, pos = sonuc[pos:pos + n], pos + n
+    kirilim, pos = sonuc[pos:pos + k], pos + k
+    kategoriler, pos = sonuc[pos:pos + n], pos + n
+    urun_ham = menu_ham = []
+    if urunler:
+        urun_ham, pos = sonuc[pos:pos + n], pos + n
+        menu_ham, pos = sonuc[pos:pos + len(menu_ids)], pos + len(menu_ids)
+    gunluk_ham = sonuc[pos:pos + len(gunler) * len(gun_ids)]
+
     veri = {'ana': ana, 'idler': idler}
     veri['ozet'] = ozetleri_topla([ozet_sadelestir(o) for o in ozetler])
     veri['ozet']['ort'] = ortalama(veri['ozet'])
     veri['subeler'] = sorted(({'id': c, 'ad': adlar.get(c, str(c)), **o, 'ort': ortalama(o)}
                               for c, o in ((c, ozet_sadelestir(x)) for c, x in zip(kirilim_ids, kirilim))), key=lambda x: -x['ciro'])
-    veri['gunluk'] = gunluk(idler, bas, bit, ana) if (bit - bas).days <= 61 and bas != bit else []
+    gsonuc = []
+    m = len(gun_ids) or 1
+    for i, g in enumerate(gunler):
+        parca = [ozet_sadelestir(o) for o in gunluk_ham[i * m:(i + 1) * m]]
+        gsonuc.append((g, ozetleri_topla(parca)))
+    veri['gunluk'] = gsonuc
     veri['kategoriler'] = kategorileri_birlestir(kategoriler)
     if urunler:
-        veri['urunler'] = urunleri_birlestir(sonuc[n + k + n:])
+        veri['urunler'] = urunleri_birlestir(urun_ham)
         try:
-            veri['satilmayan'] = satilmayanlar(sube_ids if ana else idler, veri['urunler'])
+            veri['satilmayan'] = _satilmayanlar_isle(menu_ham, veri['urunler'])
             veri['satilmayan_hata'] = ''
         except MenuluxHata as e:
             veri['satilmayan'], veri['satilmayan_hata'] = [], str(e)
@@ -426,16 +468,43 @@ def coklu_kategori(idler, araliklar, ana_no):
     return [kategorileri_birlestir(sonuc[i * n:(i + 1) * n]) for i in range(len(araliklar))]
 
 
-def sube_kirilimi(sube_ids, bas, bit, adlar):
-    """Seçili tek bir aralıkta şube bazlı kırılım (ciroya göre sıralı)."""
-    if not sube_ids:
-        return []
-    sonuc = coklu([ozet_is(c, bas, bit) for c in sube_ids])
+def _kirilimi_adlandir(sube_ids, sonuc, adlar):
     liste = []
     for c, o in zip(sube_ids, sonuc):
         oz = ozet_sadelestir(o); oz['ort'] = ortalama(oz)
         liste.append({'id': c, 'ad': adlar.get(c, str(c)), **oz})
     return sorted(liste, key=lambda x: -x['ciro'])
+
+
+def sube_kirilimi(sube_ids, bas, bit, adlar):
+    """Seçili tek bir aralıkta şube bazlı kırılım (ciroya göre sıralı)."""
+    if not sube_ids:
+        return []
+    sonuc = coklu([ozet_is(c, bas, bit) for c in sube_ids])
+    return _kirilimi_adlandir(sube_ids, sonuc, adlar)
+
+
+def tablo_verisi(idler, ozet_araliklari, kategori_araliklari, ana_no, kirilim_ids, kirilim_araligi, adlar):
+    """Satış tablosu ekranı için özet + kategori + şube kırılımı işlerinin tek bir toplu (coklu) çağrıda,
+    aynı thread havuzu dalgasında çekilmesi — önceden üç ayrı sıralı coklu() çağrısı (3 ayrı dalga) olduğundan
+    sayfa yavaş açılıyordu; artık hepsi birlikte paralel çekiliyor. Döner: (ozetler, kategori_liste, subeler)."""
+    n = len(idler)
+    isler = [ozet_is(c, b, e) for (b, e) in ozet_araliklari for c in idler]
+    isler += [kategori_is(c, b, e, ana_no) for (b, e) in kategori_araliklari for c in idler]
+    kb, ke = kirilim_araligi
+    isler += [ozet_is(c, kb, ke) for c in kirilim_ids]
+    sonuc = coklu(isler)
+    m, nk = len(ozet_araliklari), len(kategori_araliklari)
+    ozet_ham = sonuc[:n * m]
+    kategori_ham = sonuc[n * m:n * m + n * nk]
+    kirilim_ham = sonuc[n * m + n * nk:]
+    ozetler = []
+    for i in range(m):
+        parca = [ozet_sadelestir(o) for o in ozet_ham[i * n:(i + 1) * n]]
+        t = ozetleri_topla(parca); t['ort'] = ortalama(t)
+        ozetler.append(t)
+    kategori_liste = [kategorileri_birlestir(kategori_ham[i * n:(i + 1) * n]) for i in range(nk)]
+    return ozetler, kategori_liste, _kirilimi_adlandir(kirilim_ids, kirilim_ham, adlar)
 
 
 def eslestirme_onerisi(panel_subeleri, mx_subeleri):

@@ -174,7 +174,7 @@ class SatisEkranTest(_Taban):
         self.assertEqual(self.client.get('/satis/indir/').status_code, 302)
 
     def test_yonetim_tum_subeleri_gorur(self):
-        for rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI):
+        for rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI, Rol.SATIN_ALMA):
             self.client.logout(); self.giris(rol)
             r = self.client.get('/satis/?donem=ay')
             self.assertEqual(r.status_code, 200)
@@ -278,3 +278,9 @@ class SatisEkranTest(_Taban):
     def test_menude_gorunur(self):
         self.giris(Rol.YATIRIMCI)
         self.assertContains(self.client.get('/satis/'), 'Satış Raporları')
+
+    def test_satin_alma_tum_subeleri_gorur(self):
+        self.giris(Rol.SATIN_ALMA)
+        r = self.client.get('/satis/?donem=ay')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'GEEK-2 (OSMANGAZİ)'); self.assertContains(r, 'Tüm şubeler')
