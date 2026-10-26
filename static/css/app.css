@@ -743,10 +743,10 @@ body.app .card { border-radius:14px; box-shadow:0 1px 2px rgba(20,30,80,.05); }
   .yan-backdrop { display:block; position:fixed; inset:0; background:rgba(11,16,32,.45); z-index:45;
     opacity:0; pointer-events:none; transition:opacity .25s; }
   body.yan-acik .yan-backdrop { opacity:1; pointer-events:auto; }
-  body.app .app-main { margin-left:0; padding-top:56px; padding-bottom:70px; }
+  body.app .app-main { margin-left:0; padding-top:56px; padding-bottom:calc(70px + var(--sab,0px)); }
   body.app .container { padding:1.1rem 1rem; }
-  .mobil-bar { display:flex; position:fixed; bottom:0; left:0; right:0; height:60px; background:var(--surface);
-    border-top:1px solid var(--line); z-index:30; padding:6px 4px; }
+  .mobil-bar { display:flex; position:fixed; bottom:0; left:0; right:0; height:calc(60px + var(--sab,0px)); background:var(--surface);
+    border-top:1px solid var(--line); z-index:30; padding:6px 4px calc(6px + var(--sab,0px)); }
   .mb-link { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
     color:var(--muted); font-size:.64rem; text-decoration:none; background:none; border:none; cursor:pointer; }
   .mb-link svg { width:21px; height:21px; }
@@ -1361,7 +1361,10 @@ html.lb-acik, html.lb-acik body { overflow:hidden; }
 .gb-kategori-opsiyon { display:flex; align-items:center; gap:.4rem; border:1.5px solid var(--line); border-radius:999px;
   padding:.5rem 1rem; cursor:pointer; font-size:.88rem; font-weight:500; }
 .gb-kategori-opsiyon:has(input:checked) { border-color:var(--brand); background:var(--brand-050); color:var(--brand); }
-.gb-filtre-form { display:flex; gap:.6rem; flex-wrap:wrap; }
+.gb-filtre-form { display:flex; gap:.6rem; flex-wrap:wrap; align-items:flex-end; }
+.gb-filtre-form label { display:flex; flex-direction:column; gap:4px; font-size:.82rem; color:var(--muted); }
+.gb-filtre-form select, .gb-filtre-form input[type="date"] { min-width:140px; }
+.gb-ozel { display:flex; gap:.6rem; flex-wrap:wrap; }
 .gb-kart { margin-bottom:.8rem; }
 .gb-metin { font-size:.92rem; line-height:1.5; margin:.6rem 0; white-space:pre-wrap; }
 .gb-yonet-form { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }

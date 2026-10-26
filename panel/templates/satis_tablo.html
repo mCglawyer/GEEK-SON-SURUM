@@ -33,6 +33,10 @@
   {% if hata %}<div class="sr-hata"><b>Tablo alınamadı.</b> {{ hata }}</div>{% endif %}
 
   {% if donem_satirlari %}
+  <div class="card sr-indir"><b>Tabloyu indir</b>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_tablo_indir' %}?gorunum={{ gorunum }}&sube={{ secili.0 }}{% if gorunum == 'ay' %}&yil={{ yil }}&ay={{ secili_no }}{% else %}&ref={{ ref|date:'Y-m-d' }}&hafta={{ secili_no }}{% endif %}&bicim=xlsx">Excel</a>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_tablo_indir' %}?gorunum={{ gorunum }}&sube={{ secili.0 }}{% if gorunum == 'ay' %}&yil={{ yil }}&ay={{ secili_no }}{% else %}&ref={{ ref|date:'Y-m-d' }}&hafta={{ secili_no }}{% endif %}&bicim=pdf">PDF</a>
+  </div>
   <div class="sr-nav">
     {% if gorunum == 'ay' %}
       <a class="btn btn-ghost btn-mini" href="?gorunum=ay&sube={{ secili.0 }}&yil={{ yil|add:'-1' }}&ay={{ secili_no }}">‹ {{ yil|add:'-1' }}</a>

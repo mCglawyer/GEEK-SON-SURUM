@@ -35,6 +35,10 @@
   {% if hata %}<div class="sr-hata"><b>Detay alınamadı.</b> {{ hata }}</div>{% endif %}
 
   {% if veri %}
+  <div class="card sr-indir"><b>Detayı indir</b>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_ikram_iptal_indir' %}?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&bicim=xlsx">Excel</a>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_ikram_iptal_indir' %}?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&bicim=pdf">PDF</a>
+  </div>
   <div class="sr-sekme">
     <a class="{% if sekme == 'ikram' %}akt{% endif %}" href="?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&sekme=ikram">İkramlar <span class="tz-sayac">{{ veri.ikram|length }}</span></a>
     <a class="{% if sekme == 'iptal' %}akt{% endif %}" href="?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&sekme=iptal">İptaller <span class="tz-sayac">{{ veri.iptal|length }}</span></a>

@@ -4,11 +4,20 @@
 <div class="container">
   {% if messages %}{% for m in messages %}<div class="alert {% if 'error' in m.tags %}alert-error{% else %}alert-success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
   <div class="plan-head">
-    <div><h2>Geri Bildirim Yönetimi</h2><span class="plan-aralik">{% if yeni_sayisi %}{{ yeni_sayisi }} yeni geri bildirim{% else %}Bekleyen yeni geri bildirim yok{% endif %}</span></div>
+    <div><h2>Geri Bildirim Yönetimi</h2><span class="plan-aralik">{% if yeni_sayisi %}{{ yeni_sayisi }} yeni geri bildirim{% else %}Bekleyen yeni geri bildirim yok{% endif %} · {{ etiket }} · {{ bildirimler|length }} kayıt</span></div>
   </div>
 
   <div class="card gb-filtre">
     <form method="get" class="gb-filtre-form">
+      <label>Dönem
+        <select name="donem" id="gb-donem" onchange="document.getElementById('gb-ozel').hidden=this.value!=='ozel'; if(this.value!=='ozel') this.form.submit();">
+          {% for k, ad in donemler %}<option value="{{ k }}" {% if donem == k %}selected{% endif %}>{{ ad }}</option>{% endfor %}
+        </select>
+      </label>
+      <span id="gb-ozel" class="gb-ozel"{% if donem != 'ozel' %} hidden{% endif %}>
+        <label>Başlangıç <input type="date" name="bas" value="{{ bas|date:'Y-m-d' }}"></label>
+        <label>Bitiş <input type="date" name="bit" value="{{ bit|date:'Y-m-d' }}"></label>
+      </span>
       <select name="kategori" class="input" onchange="this.form.submit()">
         <option value="">Tüm kategoriler</option>
         {% for k, ad in kategoriler %}<option value="{{ k }}" {% if kategori_filtre == k %}selected{% endif %}>{{ ad }}</option>{% endfor %}
@@ -17,13 +26,23 @@
         <option value="">Tüm durumlar</option>
         {% for d, ad in durumlar %}<option value="{{ d }}" {% if durum_filtre == d %}selected{% endif %}>{{ ad }}</option>{% endfor %}
       </select>
+      <select name="sirala" class="input" onchange="this.form.submit()">
+        <option value="yeni" {% if sirala == 'yeni' %}selected{% endif %}>En yeni önce</option>
+        <option value="eski" {% if sirala == 'eski' %}selected{% endif %}>En eski önce</option>
+      </select>
+      <button class="btn btn-mini" type="submit">Uygula</button>
     </form>
+  </div>
+
+  <div class="card sr-indir"><b>Listeyi indir</b>
+    <a class="btn btn-ghost btn-mini" href="{% url 'geri_bildirim_indir' %}?{{ request.GET.urlencode }}&bicim=xlsx">Excel</a>
+    <a class="btn btn-ghost btn-mini" href="{% url 'geri_bildirim_indir' %}?{{ request.GET.urlencode }}&bicim=pdf">PDF</a>
   </div>
 
   {% for b in bildirimler %}
   <div class="card gb-kart">
     <div class="esi-ust">
-      <span class="ea-not">{{ b.olusturma|date:"d.m.Y H:i" }}{% if b.sube %} · {{ b.sube.ad }}{% endif %}</span>
+      <span class="ea-not">{{ b.olusturma|date:"d.m.Y H:i" }} · {{ b.kategori }}{% if b.sube %} · {{ b.sube.ad }}{% endif %}</span>
     </div>
     <p class="gb-metin">{{ b.metin|linebreaksbr }}</p>
     <form method="post" class="gb-yonet-form">
@@ -36,7 +55,7 @@
     </form>
   </div>
   {% empty %}
-  <p class="egitim-bos">Kayıt yok.</p>
+  <p class="egitim-bos">Bu filtrelerle kayıt yok.</p>
   {% endfor %}
 </div>
 {% endblock %}

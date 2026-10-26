@@ -50,6 +50,11 @@
   </div>
   {% endwith %}
 
+  <div class="card sr-indir"><b>Raporu indir</b>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_ozet_indir' %}?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&bicim=xlsx">Excel</a>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_ozet_indir' %}?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&bicim=pdf">PDF</a>
+  </div>
+
   <div class="so-grid">
     {% if veri.grafik %}
     <div class="card sr-bolum so-grafik"><h3>Günlük ciro</h3><canvas id="so-gunluk" height="90"></canvas></div>
@@ -68,6 +73,10 @@
     {% endif %}
   </div>
 
+  {% if veri.subeler|length > 1 %}
+  <div class="card sr-bolum so-grafik"><h3>Şube karşılaştırması</h3><canvas id="so-sube" height="100"></canvas></div>
+  {% endif %}
+
   {% if veri.noktalar %}
   <div class="card sr-bolum"><h3>Satış noktaları</h3>
     <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Nokta</th><th class="s">Tutar</th><th class="s">Pay</th></tr></thead><tbody>
@@ -76,6 +85,10 @@
   {% endif %}
 
   <div class="card sr-bolum"><h3>En çok satan ürünler</h3>
+    <div class="sr-siralama">Sırala:
+      <a href="?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&siralama=adet"{% if siralama == 'adet' %} class="akt"{% endif %}>Adete göre</a>
+      <a href="?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&siralama=kategori"{% if siralama == 'kategori' %} class="akt"{% endif %}>Kategoriye göre</a>
+    </div>
     <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Ürün</th><th>Grup</th><th class="s">Adet</th><th class="s">Tutar</th></tr></thead><tbody>
       {% for u in veri.urunler|slice:":10" %}<tr><td>{{ u.ad }}</td><td>{{ u.grup }}</td><td class="s">{{ u.adet|adetf }}</td><td class="s">{{ u.tutar|tlf }}</td></tr>
       {% empty %}<tr><td colspan="4">Bu aralıkta satış yok.</td></tr>{% endfor %}
@@ -109,17 +122,25 @@
           {label: 'Paket', data: saat.map(function(s){return s.paket;}), borderColor: '#D97757', backgroundColor: 'rgba(217,119,87,.15)', tension: .3, fill: true}
         ]}, options: {scales: {y: {beginAtZero: true}}}});
     }
+    function subeBoya(sube) {
+      var el = document.getElementById('so-sube'); if (!el || !window.Chart) return;
+      new Chart(el, {type: 'bar', data: {labels: sube.map(function(s){return s.ad;}),
+        datasets: [{label: 'Ciro', data: sube.map(function(s){return s.ciro;}), backgroundColor: '#162AA3'}]},
+        options: {indexAxis: 'y', plugins: {legend: {display: false}}, scales: {x: {beginAtZero: true}}}});
+    }
     function veri(id) { var el = document.getElementById(id); return el ? JSON.parse(el.textContent) : null; }
     var gun = veri('so-veri-gunluk'); if (gun) cizgiBoya(gun);
     var odeme = veri('so-veri-odeme'); if (odeme) odemeBoya(odeme);
     var kat = veri('so-veri-kategori'); if (kat) kategoriBoya(kat);
     var saat = veri('so-veri-kanal'); if (saat) kanalBoya(saat);
+    var sube = veri('so-veri-sube'); if (sube) subeBoya(sube);
   });
   </script>
   {% if veri.grafik %}{{ veri.grafik|json_script:"so-veri-gunluk" }}{% endif %}
   {% if veri.ozet.odeme %}{{ veri.ozet.odeme|json_script:"so-veri-odeme" }}{% endif %}
   {% if veri.kategoriler %}{{ veri.kategoriler|json_script:"so-veri-kategori" }}{% endif %}
   {% if veri.saatlik %}{{ veri.saatlik|json_script:"so-veri-kanal" }}{% endif %}
+  {% if veri.subeler|length > 1 %}{{ veri.subeler|json_script:"so-veri-sube" }}{% endif %}
   {% endif %}
   {% endif %}
 </div>

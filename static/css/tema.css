@@ -927,3 +927,16 @@ html[data-theme="dark"] .yapilacak-kart li.acil span { color:#ff8a80; }
 .so-grafik{min-width:0}
 .so-grafik canvas{max-width:100%}
 @media (max-width:860px){.so-grid{grid-template-columns:1fr}}
+.kg-form{display:flex;flex-direction:column;gap:10px;max-width:520px;margin-top:8px}
+.kg-form label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted)}
+.kg-form input,.kg-form textarea{border:1px solid var(--line,#d7dceb);border-radius:8px;padding:8px 10px;font:inherit;background:var(--surface,#fff);color:inherit}
+.kg-ipucu{margin-top:10px;font-size:.8rem;color:var(--muted)}
+.kg-aksiyon{display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap}
+.kg-duzenle{margin-top:8px;min-width:260px}
+.kg-sil-form{display:inline}
+.sr-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 16px}
+.sr-toolbar .btn-mini{white-space:nowrap}
+.sr-toplist{display:flex;flex-wrap:wrap;gap:8px}
+.sr-siralama{display:flex;gap:6px;align-items:center;font-size:.82rem;color:var(--muted);margin:0 0 10px}
+.sr-siralama a{padding:4px 10px;border-radius:999px;border:1px solid var(--line,#d7dceb);color:inherit;text-decoration:none}
+.sr-siralama a.akt{background:#162AA3;border-color:#162AA3;color:#fff}

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Kategori grupları · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head"><div><h2>Kategori grupları</h2><span class="plan-aralik">Birden çok Menulux kategorisini tek başlık altında göster (ör. "Sıcak Kahve" + "Soğuk Kahve" → "Kahve")</span></div>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_rapor' %}">Rapora dön</a></div>
+
+  <div class="card sr-bolum">
+    <h3>Yeni grup ekle</h3>
+    <form method="post" class="kg-form">
+      {% csrf_token %}
+      <label>Grup adı (raporda görünecek başlık)
+        <input type="text" name="ad" maxlength="100" required placeholder="Örn. Kahve">
+      </label>
+      <label>Bu gruba dahil edilecek ham Menulux kategori adları (her satıra bir tane)
+        <textarea name="uyeler" rows="4" required placeholder="SICAK KAHVE&#10;SOĞUK KAHVE&#10;FILTRE KAHVE"></textarea>
+      </label>
+      <button class="btn" type="submit">Kaydet</button>
+    </form>
+    {% if ham_kategoriler %}
+    <p class="kg-ipucu">Son 30 günde görülen ham kategori adları (kopyalayıp yapıştırabilirsin): {{ ham_kategoriler|join:", " }}</p>
+    {% endif %}
+  </div>
+
+  {% if gruplar %}
+  <div class="card sr-bolum"><h3>Tanımlı gruplar <span class="tz-sayac">{{ gruplar|length }}</span></h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Grup adı</th><th>İçerdiği kategoriler</th><th></th></tr></thead><tbody>
+      {% for g in gruplar %}<tr>
+        <td><b>{{ g.ad }}</b></td>
+        <td>{{ g.uyeler|join:", " }}</td>
+        <td class="kg-aksiyon">
+          <details><summary class="btn btn-ghost btn-mini">Düzenle</summary>
+            <form method="post" class="kg-form kg-duzenle">
+              {% csrf_token %}
+              <input type="hidden" name="id" value="{{ g.id }}">
+              <label>Grup adı <input type="text" name="ad" maxlength="100" value="{{ g.ad }}" required></label>
+              <label>Kategoriler<textarea name="uyeler" rows="3" required>{{ g.uyeler|join:"
+" }}</textarea></label>
+              <button class="btn btn-mini" type="submit">Güncelle</button>
+            </form>
+          </details>
+          <form method="post" class="kg-sil-form" onsubmit="return confirm('Bu grup silinsin mi? Kategoriler yine tek tek görünmeye devam eder.');">
+            {% csrf_token %}
+            <input type="hidden" name="islem" value="sil">
+            <input type="hidden" name="id" value="{{ g.id }}">
+            <button class="btn btn-ghost btn-mini" type="submit">Sil</button>
+          </form>
+        </td>
+      </tr>{% endfor %}
+    </tbody></table></div>
+  </div>
+  {% else %}
+  <div class="card sr-uyari">Henüz tanımlı kategori grubu yok — tüm kategoriler Menulux'taki ham adlarıyla görünüyor.</div>
+  {% endif %}
+</div>
+{% endblock %}

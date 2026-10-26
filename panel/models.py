@@ -1632,3 +1632,19 @@ class MenuluxOnbellek(models.Model):
 
     class Meta:
         verbose_name = "Menulux önbelleği"; verbose_name_plural = "Menulux önbelleği"
+
+
+class KategoriGrubu(models.Model):
+    """Satış raporlarında birden çok Menulux kategorisini tek bir başlık altında göstermek için
+    kalıcı eşleştirme (ör. 'SICAK KAHVE' + 'SOĞUK KAHVE' → 'KAHVE'). Genel Müdür/Operatör tanımlar,
+    tüm satış raporu ekranlarında (özet, tablo, rapor özeti) otomatik uygulanır."""
+    ad = models.CharField(max_length=100)
+    uyeler = models.JSONField(default=list, help_text="Bu grupla eşlenecek ham Menulux kategori adları")
+    sira = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sira', 'ad']
+        verbose_name = "Kategori grubu"; verbose_name_plural = "Kategori grupları"
+
+    def __str__(self):
+        return self.ad

@@ -5,10 +5,13 @@
 <div class="container">
   <div class="plan-head">
     <div><h2>Satış raporları</h2>{% if not kapali %}<span class="plan-aralik">{% if secili %}{{ secili.1 }} · {% endif %}{{ etiket }}</span>{% endif %}</div>
-<a class="btn btn-ghost btn-mini" href="{% url 'satis_ozet' %}">Rapor Özeti</a>
-<a class="btn btn-ghost btn-mini" href="{% url 'satis_ikram_iptal' %}">İkram &amp; İptal detayı</a>
-<a class="btn btn-ghost btn-mini" href="{% url 'satis_tablo' %}">Tablo görünümü</a>
-    {% if eslestirme_gorur %}<a class="btn btn-ghost btn-mini" href="{% url 'satis_eslestirme' %}">Şube eşleştirme</a>{% endif %}
+  </div>
+  <div class="sr-toolbar">
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_ozet' %}">Rapor Özeti</a>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_ikram_iptal' %}">İkram &amp; İptal detayı</a>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_tablo' %}">Tablo görünümü</a>
+    {% if eslestirme_gorur %}<a class="btn btn-ghost btn-mini" href="{% url 'satis_eslestirme' %}">Şube eşleştirme</a>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_kategori_gruplari' %}">Kategori grupları</a>{% endif %}
   </div>
 
   {% if kapali %}
@@ -84,6 +87,10 @@
   {% endif %}
 
   <div class="card sr-bolum"><h3>Satan ürünler <span class="tz-sayac">{{ veri.urunler|length }} ürün</span></h3>
+    <div class="sr-siralama">Sırala:
+      <a href="?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&siralama=adet"{% if siralama == 'adet' %} class="akt"{% endif %}>Adete göre</a>
+      <a href="?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&siralama=kategori"{% if siralama == 'kategori' %} class="akt"{% endif %}>Kategoriye göre</a>
+    </div>
     <input type="search" class="sr-ara" id="sr-ara" placeholder="Ürün ara…">
     <div class="sr-kaydir"><table class="sr-tablo" id="sr-urun"><thead><tr><th>Ürün</th><th>Grup</th><th class="s">Adet</th><th class="s">Tutar</th></tr></thead><tbody>
       {% for u in veri.urunler %}<tr><td>{{ u.ad }}</td><td>{{ u.grup }}</td><td class="s">{{ u.adet|adetf }}</td><td class="s">{{ u.tutar|tlf }}</td></tr>{% empty %}<tr><td colspan="4">Bu aralıkta satış yok.</td></tr>{% endfor %}

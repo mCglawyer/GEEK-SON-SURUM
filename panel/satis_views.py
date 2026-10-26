@@ -10,7 +10,7 @@ from django.utils import timezone
 from . import menulux as mx
 from . import satis_cikti as sc
 from . import tuketim as tk
-from .models import Rol, Sube
+from .models import KategoriGrubu, Rol, Sube
 from .views import _aktif_personel, _cikis_mi, _logout
 
 log = logging.getLogger(__name__)
@@ -53,6 +53,46 @@ def _kategori_matrisi(kategori_liste, anahtar):
         degerler = [next((k[anahtar] for k in donem if k['ad'] == ad), 0) for donem in kategori_liste]
         satirlar.append({'ad': ad, 'degerler': degerler, 'toplam': sum(degerler)})
     return satirlar
+
+
+def _norm(s):
+    return (s or '').strip().casefold()
+
+
+def _kategori_haritasi():
+    """{ham_kategori_adi (normalize edilmiş): grup_adi} — Genel Müdür/Operatör'ün tanımladığı
+    kalıcı kategori birleştirmelerinin (KategoriGrubu) düz haritası."""
+    harita = {}
+    for g in KategoriGrubu.objects.all():
+        for uye in (g.uyeler or []):
+            harita[_norm(uye)] = g.ad
+    return harita
+
+
+def _kategorileri_grupla(liste, harita=None):
+    """kategorileri_birlestir() çıktısı gibi [{'ad','adet','net','kdv','tutar'}] listesini, tanımlı
+    KategoriGrubu eşleştirmelerine göre birleştirir. Eşleşmeyen kategoriler olduğu gibi kalır."""
+    if harita is None:
+        harita = _kategori_haritasi()
+    if not harita or not liste:
+        return liste
+    toplam = {}
+    for k in liste:
+        grup = harita.get(_norm(k.get('ad')), k.get('ad'))
+        if grup not in toplam:
+            toplam[grup] = dict(k); toplam[grup]['ad'] = grup
+        else:
+            t = toplam[grup]
+            for alan in ('adet', 'net', 'kdv', 'tutar'):
+                if alan in k:
+                    t[alan] = t.get(alan, 0) + (k.get(alan) or 0)
+    return sorted(toplam.values(), key=lambda x: -x.get('tutar', 0))
+
+
+def _urunleri_sirala(urunler, siralama):
+    if siralama == 'kategori':
+        return sorted(urunler, key=lambda u: (u.get('grup') or '', -(u.get('tutar') or 0)))
+    return urunler
 
 
 def satis_gorunur(personel):
@@ -119,9 +159,16 @@ def _rapor_verisi(request, personel, urunler=True):
     ctx = {'donemler': DONEMLER, 'donem': donem, 'bas': bas, 'bit': bit, 'secenekler': secenekler, 'secili': secili,
            'hata': hata, 'veri': None, 'personel': personel, 'aktif': 'satis',
            'etiket': bas.strftime('%d.%m.%Y') if bas == bit else '%s – %s' % (bas.strftime('%d.%m.%Y'), bit.strftime('%d.%m.%Y'))}
+    siralama = request.GET.get('siralama') if request.GET.get('siralama') in ('adet', 'kategori') else 'adet'
+    ctx['siralama'] = siralama
     if secili and not hata:
         try:
-            ctx['veri'] = mx.rapor(secili[2], bas, bit, urunler=urunler)
+            veri = mx.rapor(secili[2], bas, bit, urunler=urunler)
+            if veri.get('kategoriler'):
+                veri['kategoriler'] = _kategorileri_grupla(veri['kategoriler'])
+            if veri.get('urunler'):
+                veri['urunler'] = _urunleri_sirala(veri['urunler'], siralama)
+            ctx['veri'] = veri
         except mx.MenuluxHata as e:
             ctx['hata'] = str(e)
         except Exception:
@@ -163,13 +210,8 @@ def satis_indir(request):
     return y
 
 
-def satis_tablo(request):
-    """Haftalık / aylık tablo görünümü (Google Sheets şablonlarındaki düzen: seç + dönem tablosu + şube + kategori)."""
-    personel, git = _hazir(request)
-    if git:
-        return git
-    if not mx.ayarli_mi():
-        return render(request, 'satis_tablo.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
+def _tablo_ctx(request, personel):
+    """satis_tablo ve satis_tablo_indir'in paylaştığı veri hazırlama (Haftalık / aylık tablo görünümü)."""
     secenekler, hata = kapsam_secenekleri(personel)
     secili = next((s for s in secenekler if s[0] == (request.GET.get('sube') or '')), secenekler[0] if secenekler else None)
     gorunum = 'ay' if request.GET.get('gorunum') == 'ay' else 'hafta'
@@ -193,6 +235,8 @@ def satis_tablo(request):
                 # Özet (12 ay) + kategori (12 ay, matris için) + şube kırılımı (seçili ay) — TEK coklu() dalgasında.
                 ozetler, kategori_liste, sube_kirilim = mx.tablo_verisi(
                     idler, aylar, aylar, ana_no, kirilim_ids, (secili_bas, secili_bit), adlar)
+                harita = _kategori_haritasi()
+                kategori_liste = [_kategorileri_grupla(k, harita) for k in kategori_liste]
                 kategori_secili = kategori_liste[secili_no - 1]
                 ctx['kategori_matris_tutar'] = _kategori_matrisi(kategori_liste, 'tutar')
                 ctx['kategori_matris_adet'] = _kategori_matrisi(kategori_liste, 'adet')
@@ -207,7 +251,7 @@ def satis_tablo(request):
                 # Özet (4 hafta) + kategori (yalnız seçili hafta) + şube kırılımı (seçili hafta) — TEK coklu() dalgasında.
                 ozetler, kategori_liste, sube_kirilim = mx.tablo_verisi(
                     idler, haftalar, [(secili_bas, secili_bit)], ana_no, kirilim_ids, (secili_bas, secili_bit), adlar)
-                kategori_secili = kategori_liste[0]
+                kategori_secili = _kategorileri_grupla(kategori_liste[0])
                 donem_satirlari = [{'etiket': '%d. Hafta' % (i + 1), 'aralik': '%s – %s' % (b.strftime('%d.%m'), e.strftime('%d.%m')),
                                     'no': i + 1, 'ozet': ozetler[i], 'secili': i + 1 == secili_no} for i, (b, e) in enumerate(haftalar)]
                 ctx.update(ref=ref, ref_onceki=ref - datetime.timedelta(weeks=4), ref_sonraki=ref + datetime.timedelta(weeks=4),
@@ -223,7 +267,37 @@ def satis_tablo(request):
         except Exception:
             log.exception('Satış tablosu')
             ctx['hata'] = 'Tablo hazırlanırken beklenmeyen bir hata oluştu.'
-    return render(request, 'satis_tablo.html', ctx)
+    return ctx
+
+
+def satis_tablo(request):
+    """Haftalık / aylık tablo görünümü (Google Sheets şablonlarındaki düzen: seç + dönem tablosu + şube + kategori)."""
+    personel, git = _hazir(request)
+    if git:
+        return git
+    if not mx.ayarli_mi():
+        return render(request, 'satis_tablo.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
+    return render(request, 'satis_tablo.html', _tablo_ctx(request, personel))
+
+
+def satis_tablo_indir(request):
+    personel, git = _hazir(request)
+    if git:
+        return git
+    if not mx.ayarli_mi():
+        return redirect('satis_tablo')
+    ctx = _tablo_ctx(request, personel)
+    if not ctx.get('donem_satirlari'):
+        messages.error(request, ctx.get('hata') or 'Tablo oluşturulamadı.')
+        return redirect('satis_tablo')
+    pdf = request.GET.get('bicim') == 'pdf'
+    sube_adi = ctx['secili'][1]
+    govde = (sc.tablo_pdf_bytes if pdf else sc.tablo_excel_bytes)(ctx, ctx['donem_etiket'], sube_adi)
+    ad = 'satis_tablo_%s_%s' % (ctx['secili'][0], ctx['donem_etiket'].replace(' ', '_').replace('.', '').replace('–', '-'))
+    y = HttpResponse(govde, content_type='application/pdf' if pdf else
+                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    y['Content-Disposition'] = 'attachment; filename="%s.%s"' % (ad, 'pdf' if pdf else 'xlsx')
+    return y
 
 
 def satis_eslestirme(request):
@@ -269,13 +343,7 @@ def satis_eslestirme(request):
                                                      'mx_subeler': mx_subeler, 'eslesmeyen': eslesmeyen})
 
 
-def satis_ikram_iptal(request):
-    """İkram / iptal / iade detayı: hangi üründe, kime/ne sebeple, hangi personel tarafından."""
-    personel, git = _hazir(request)
-    if git:
-        return git
-    if not mx.ayarli_mi():
-        return render(request, 'satis_ikram_iptal.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
+def _ikram_iptal_ctx(request, personel):
     donem = request.GET.get('donem') or 'bugun'
     bas, bit = donem_oku(donem, _tarih(request.GET.get('bas')), _tarih(request.GET.get('bit')))
     secenekler, hata = kapsam_secenekleri(personel)
@@ -296,31 +364,129 @@ def satis_ikram_iptal(request):
         except Exception:
             log.exception('İkram/iptal/iade detayı')
             ctx['hata'] = 'Detay hazırlanırken beklenmeyen bir hata oluştu.'
-    return render(request, 'satis_ikram_iptal.html', ctx)
+    return ctx
 
 
-def satis_ozet(request):
-    """Menulux'un kendi 'Rapor Özeti' (Customer/ReportSummary) sayfasının panele taşınmış hâli:
-    KPI kartları, ödeme/kategori/kanal grafikleri, haftalık ciro grafiği, en çok satan ürünler."""
+def satis_ikram_iptal(request):
+    """İkram / iptal / iade detayı: hangi üründe, kime/ne sebeple, hangi personel tarafından."""
     personel, git = _hazir(request)
     if git:
         return git
     if not mx.ayarli_mi():
-        return render(request, 'satis_ozet.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
+        return render(request, 'satis_ikram_iptal.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
+    return render(request, 'satis_ikram_iptal.html', _ikram_iptal_ctx(request, personel))
+
+
+def satis_ikram_iptal_indir(request):
+    personel, git = _hazir(request)
+    if git:
+        return git
+    if not mx.ayarli_mi():
+        return redirect('satis_ikram_iptal')
+    ctx = _ikram_iptal_ctx(request, personel)
+    if ctx.get('veri') is None:
+        messages.error(request, ctx.get('hata') or 'Detay oluşturulamadı.')
+        return redirect('satis_ikram_iptal')
+    pdf = request.GET.get('bicim') == 'pdf'
+    sube_adi = ctx['secili'][1]
+    govde = (sc.ikram_iptal_pdf_bytes if pdf else sc.ikram_iptal_excel_bytes)(ctx['veri'], ctx['etiket'], sube_adi)
+    ad = 'ikram_iptal_iade_%s_%s_%s' % (ctx['secili'][0], ctx['bas'].strftime('%Y%m%d'), ctx['bit'].strftime('%Y%m%d'))
+    y = HttpResponse(govde, content_type='application/pdf' if pdf else
+                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    y['Content-Disposition'] = 'attachment; filename="%s.%s"' % (ad, 'pdf' if pdf else 'xlsx')
+    return y
+
+
+def _ozet_ctx(request, personel):
     donem = request.GET.get('donem') or 'hafta'
     bas, bit = donem_oku(donem, _tarih(request.GET.get('bas')), _tarih(request.GET.get('bit')))
     secenekler, hata = kapsam_secenekleri(personel)
     secili = next((s for s in secenekler if s[0] == (request.GET.get('sube') or '')), secenekler[0] if secenekler else None)
+    siralama = request.GET.get('siralama') if request.GET.get('siralama') in ('adet', 'kategori') else 'adet'
     ctx = {'donemler': DONEMLER, 'donem': donem, 'bas': bas, 'bit': bit, 'secenekler': secenekler, 'secili': secili,
-           'hata': hata, 'personel': personel, 'aktif': 'satis', 'veri': None,
+           'hata': hata, 'personel': personel, 'aktif': 'satis', 'veri': None, 'siralama': siralama,
            'eslesme_yok': personel.rol in OLCEKLI_ROLLER and not secenekler,
            'etiket': bas.strftime('%d.%m.%Y') if bas == bit else '%s – %s' % (bas.strftime('%d.%m.%Y'), bit.strftime('%d.%m.%Y'))}
     if secili and not hata:
         try:
-            ctx['veri'] = mx.ozet_verisi(secili[2], bas, bit)
+            veri = mx.ozet_verisi(secili[2], bas, bit)
+            if veri.get('kategoriler'):
+                veri['kategoriler'] = _kategorileri_grupla(veri['kategoriler'])
+            if veri.get('urunler'):
+                veri['urunler'] = _urunleri_sirala(veri['urunler'], siralama)
+            ctx['veri'] = veri
         except mx.MenuluxHata as e:
             ctx['hata'] = str(e)
         except Exception:
             log.exception('Satış özeti')
             ctx['hata'] = 'Özet hazırlanırken beklenmeyen bir hata oluştu.'
-    return render(request, 'satis_ozet.html', ctx)
+    return ctx
+
+
+def satis_ozet(request):
+    """Menulux'un kendi 'Rapor Özeti' (Customer/ReportSummary) sayfasının panele taşınmış hâli:
+    KPI kartları, ödeme/kategori/kanal/şube grafikleri, günlük ciro grafiği, en çok satan ürünler."""
+    personel, git = _hazir(request)
+    if git:
+        return git
+    if not mx.ayarli_mi():
+        return render(request, 'satis_ozet.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
+    return render(request, 'satis_ozet.html', _ozet_ctx(request, personel))
+
+
+def satis_ozet_indir(request):
+    personel, git = _hazir(request)
+    if git:
+        return git
+    if not mx.ayarli_mi():
+        return redirect('satis_ozet')
+    ctx = _ozet_ctx(request, personel)
+    if ctx.get('veri') is None:
+        messages.error(request, ctx.get('hata') or 'Özet oluşturulamadı.')
+        return redirect('satis_ozet')
+    pdf = request.GET.get('bicim') == 'pdf'
+    sube_adi = ctx['secili'][1]
+    govde = (sc.ozet_pdf_bytes if pdf else sc.ozet_excel_bytes)(ctx['veri'], ctx['etiket'], sube_adi)
+    ad = 'rapor_ozeti_%s_%s_%s' % (ctx['secili'][0], ctx['bas'].strftime('%Y%m%d'), ctx['bit'].strftime('%Y%m%d'))
+    y = HttpResponse(govde, content_type='application/pdf' if pdf else
+                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    y['Content-Disposition'] = 'attachment; filename="%s.%s"' % (ad, 'pdf' if pdf else 'xlsx')
+    return y
+
+
+def satis_kategori_gruplari(request):
+    """Genel Müdür/Operatör: hangi ham Menulux kategorilerinin tek bir başlık altında gösterileceğini tanımlar."""
+    personel, git = _hazir(request, ESLESTIRME_ROLLERI)
+    if git:
+        return git
+    if request.method == 'POST':
+        islem = request.POST.get('islem')
+        if islem == 'sil':
+            KategoriGrubu.objects.filter(id=request.POST.get('id')).delete()
+            messages.success(request, 'Grup silindi.')
+        else:
+            ad = (request.POST.get('ad') or '').strip()
+            uyeler = [u.strip() for u in (request.POST.get('uyeler') or '').split('\n') if u.strip()]
+            if not ad or not uyeler:
+                messages.error(request, 'Grup adı ve en az bir kategori adı girmelisiniz.')
+            else:
+                gid = request.POST.get('id')
+                if gid:
+                    KategoriGrubu.objects.filter(id=gid).update(ad=ad, uyeler=uyeler)
+                else:
+                    KategoriGrubu.objects.create(ad=ad, uyeler=uyeler, sira=KategoriGrubu.objects.count())
+                messages.success(request, 'Kategori grubu kaydedildi.')
+        return redirect('satis_kategori_gruplari')
+    gruplar = list(KategoriGrubu.objects.all())
+    ham_kategoriler = []
+    if mx.ayarli_mi():
+        try:
+            ana = mx.ana_id()
+            bugun = timezone.localdate()
+            ham = mx.coklu([mx.kategori_is(ana, bugun - datetime.timedelta(days=30), bugun, ana)])[0]
+            ham_kategoriler = sorted({(r.get('Name') or '').strip() for r in ham if r.get('Name')})
+        except Exception:
+            ham_kategoriler = []
+    return render(request, 'satis_kategori_gruplari.html', {
+        'personel': personel, 'aktif': 'satis', 'gruplar': gruplar, 'ham_kategoriler': ham_kategoriler,
+    })

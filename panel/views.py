@@ -4495,6 +4495,38 @@ def geri_bildirim(request):
     })
 
 
+GB_DONEMLER = [('tum', 'Tüm zamanlar'), ('bugun', 'Bugün'), ('dun', 'Dün'), ('hafta', 'Bu hafta'),
+               ('gecen_hafta', 'Geçen hafta'), ('ay', 'Bu ay'), ('gecen_ay', 'Geçen ay'), ('ozel', 'Özel aralık')]
+
+
+def _gb_ctx(request):
+    """geri_bildirim_yonetim ve geri_bildirim_indir'in paylaştığı filtreleme/sıralama."""
+    from .satis_views import _tarih, donem_oku
+    donem = request.GET.get('donem') or 'tum'
+    bas = bit = None
+    if donem != 'tum':
+        bas, bit = donem_oku(donem, _tarih(request.GET.get('bas')), _tarih(request.GET.get('bit')))
+    sirala = request.GET.get('sirala') if request.GET.get('sirala') in ('yeni', 'eski') else 'yeni'
+    kategori_filtre = request.GET.get('kategori') or ''
+    durum_filtre = request.GET.get('durum') or ''
+    qs = GeriBildirim.objects.select_related('sube')
+    if kategori_filtre:
+        qs = qs.filter(kategori=kategori_filtre)
+    if durum_filtre:
+        qs = qs.filter(durum=durum_filtre)
+    if bas and bit:
+        qs = qs.filter(olusturma__date__gte=bas, olusturma__date__lte=bit)
+    qs = qs.order_by('olusturma' if sirala == 'eski' else '-olusturma')
+    etiket = 'Tüm zamanlar' if donem == 'tum' else (bas.strftime('%d.%m.%Y') if bas == bit else
+             '%s – %s' % (bas.strftime('%d.%m.%Y'), bit.strftime('%d.%m.%Y')))
+    return {
+        'bildirimler': list(qs[:1000]), 'kategoriler': GeriBildirimKategori.choices, 'durumlar': GeriBildirimDurum.choices,
+        'kategori_filtre': kategori_filtre, 'durum_filtre': durum_filtre, 'donemler': GB_DONEMLER, 'donem': donem,
+        'bas': bas, 'bit': bit, 'sirala': sirala, 'etiket': etiket,
+        'yeni_sayisi': GeriBildirim.objects.filter(durum=GeriBildirimDurum.YENI).count(),
+    }
+
+
 def geri_bildirim_yonetim(request):
     if not request.user.is_authenticated:
         return redirect('ana_sayfa')
@@ -4515,23 +4547,29 @@ def geri_bildirim_yonetim(request):
             b.yonetim_notu = (request.POST.get('yonetim_notu') or '').strip()[:1000]
             b.save()
             messages.success(request, "Güncellendi.")
-        return redirect('geri_bildirim_yonetim')
+        return redirect(reverse('geri_bildirim_yonetim') + '?' + request.GET.urlencode())
 
-    kategori_filtre = request.GET.get('kategori') or ''
-    durum_filtre = request.GET.get('durum') or ''
-    qs = GeriBildirim.objects.select_related('sube')
-    if kategori_filtre:
-        qs = qs.filter(kategori=kategori_filtre)
-    if durum_filtre:
-        qs = qs.filter(durum=durum_filtre)
-    bildirimler = list(qs[:300])
-    return render(request, 'geri_bildirim_yonetim.html', {
-        'personel': personel, 'aktif': 'geri_bildirim_yonetim',
-        'bildirimler': bildirimler, 'kategoriler': GeriBildirimKategori.choices,
-        'durumlar': GeriBildirimDurum.choices,
-        'kategori_filtre': kategori_filtre, 'durum_filtre': durum_filtre,
-        'yeni_sayisi': GeriBildirim.objects.filter(durum=GeriBildirimDurum.YENI).count(),
-    })
+    ctx = _gb_ctx(request)
+    ctx.update(personel=personel, aktif='geri_bildirim_yonetim')
+    return render(request, 'geri_bildirim_yonetim.html', ctx)
+
+
+def geri_bildirim_indir(request):
+    if not request.user.is_authenticated:
+        return redirect('ana_sayfa')
+    personel = _aktif_personel(request)
+    yetkili = personel is not None and (personel.rol in (Rol.GENEL_MUDUR, Rol.OPERATOR, Rol.YATIRIMCI)
+                                        or personel.geri_bildirim_yetkilisi)
+    if not yetkili:
+        return redirect('ana_sayfa')
+    from . import geri_bildirim_cikti as gc
+    ctx = _gb_ctx(request)
+    pdf = request.GET.get('bicim') == 'pdf'
+    govde = (gc.pdf_bytes if pdf else gc.excel_bytes)(ctx['bildirimler'], ctx['etiket'])
+    y = HttpResponse(govde, content_type='application/pdf' if pdf else
+                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    y['Content-Disposition'] = 'attachment; filename="geri_bildirimler.%s"' % ('pdf' if pdf else 'xlsx')
+    return y
 
 
 def ilginc_haberler(request):

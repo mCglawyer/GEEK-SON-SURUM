@@ -9,7 +9,7 @@ from django.test import TestCase, override_settings
 
 from . import menulux as mx
 from . import satis_views as sv
-from .models import MenuluxOnbellek, Personel, Rol, Sube
+from .models import KategoriGrubu, MenuluxOnbellek, Personel, Rol, Sube
 
 ENV = {'MENULUX_USER': 'u@x.com', 'MENULUX_PASS': 'gizli', 'MENULUX_CUSTOMER_ID': '100'}
 BRANCHES = [{'CustomerID': 100, 'Name': 'MERKEZ', 'Deleted': False}, {'CustomerID': 1, 'Name': 'GEEK-1 (NACİ TOPÇUOĞLU)', 'Deleted': False},
@@ -350,3 +350,78 @@ class SatisEkranTest(_Taban):
         self.giris(Rol.GENEL_MUDUR)
         r = self.client.get('/satis/')
         self.assertContains(r, 'Rapor Özeti'); self.assertContains(r, 'İkram')
+
+    def test_tablo_indir_excel_ve_pdf(self):
+        self.giris(Rol.GENEL_MUDUR)
+        r = self.client.get('/satis/tablo/indir/?gorunum=hafta&sube=tum&ref=2026-10-14&hafta=4&bicim=xlsx')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        r = self.client.get('/satis/tablo/indir/?gorunum=hafta&sube=tum&ref=2026-10-14&hafta=4&bicim=pdf')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+
+    def test_ikram_iptal_indir_excel_ve_pdf(self):
+        self.giris(Rol.GENEL_MUDUR)
+        r = self.client.get('/satis/ikram-iptal/indir/?sube=tum&donem=ozel&bas=2026-10-14&bit=2026-10-14&bicim=xlsx')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        r = self.client.get('/satis/ikram-iptal/indir/?sube=tum&donem=ozel&bas=2026-10-14&bit=2026-10-14&bicim=pdf')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+
+    def test_ozet_indir_excel_ve_pdf(self):
+        self.giris(Rol.GENEL_MUDUR)
+        r = self.client.get('/satis/ozet/indir/?sube=tum&donem=ozel&bas=2026-10-14&bit=2026-10-14&bicim=xlsx')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        r = self.client.get('/satis/ozet/indir/?sube=tum&donem=ozel&bas=2026-10-14&bit=2026-10-14&bicim=pdf')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+
+
+class KategoriGruplamaTest(_Taban):
+    def test_kategorileri_grupla_eslesmeyen_oldugu_gibi_kalir(self):
+        liste = [{'ad': 'KAHVE', 'adet': 3, 'net': 270, 'kdv': 30, 'tutar': 300},
+                 {'ad': 'ÇAY', 'adet': 2, 'net': 90, 'kdv': 10, 'tutar': 100}]
+        self.assertEqual(sv._kategorileri_grupla(liste), sorted(liste, key=lambda x: -x['tutar']))
+
+    def test_kategorileri_grupla_birlestirir(self):
+        KategoriGrubu.objects.create(ad='Sıcak İçecek', uyeler=['KAHVE', 'çay'])
+        liste = [{'ad': 'KAHVE', 'adet': 3, 'net': 270, 'kdv': 30, 'tutar': 300},
+                 {'ad': 'ÇAY', 'adet': 2, 'net': 90, 'kdv': 10, 'tutar': 100},
+                 {'ad': 'TATLI', 'adet': 1, 'net': 180, 'kdv': 20, 'tutar': 200}]
+        sonuc = sv._kategorileri_grupla(liste)
+        self.assertEqual([k['ad'] for k in sonuc], ['Sıcak İçecek', 'TATLI'])
+        birlesik = next(k for k in sonuc if k['ad'] == 'Sıcak İçecek')
+        self.assertEqual(birlesik['adet'], 5); self.assertEqual(birlesik['tutar'], 400)
+
+    def test_urunleri_sirala_kategoriye_gore(self):
+        urunler = [{'ad': 'Latte', 'grup': 'KAHVE', 'adet': 5, 'tutar': 500},
+                   {'ad': 'Çay', 'grup': 'ÇAY', 'adet': 10, 'tutar': 200},
+                   {'ad': 'Mocha', 'grup': 'KAHVE', 'adet': 2, 'tutar': 400}]
+        sonuc = sv._urunleri_sirala(urunler, 'kategori')
+        self.assertEqual([u['ad'] for u in sonuc], ['Latte', 'Mocha', 'Çay'])  # KAHVE önce (tutara göre), sonra ÇAY
+        self.assertEqual(sv._urunleri_sirala(urunler, 'adet'), urunler)  # değişmeden kalır
+
+    def test_kategori_grubu_rapor_sayfasina_yansir(self):
+        KategoriGrubu.objects.create(ad='Sıcak İçecek', uyeler=['KAHVE'])
+        self.giris(Rol.GENEL_MUDUR)
+        r = self.client.get('/satis/?donem=bugun&sube=tum')
+        self.assertContains(r, 'Sıcak İçecek')
+        self.assertEqual([k['ad'] for k in r.context['veri']['kategoriler']], ['Sıcak İçecek'])
+
+    def test_kategori_gruplari_sayfasi_yetkisiz(self):
+        self.giris(Rol.SEF, self.s1)
+        self.assertEqual(self.client.get('/satis/kategori-gruplari/').status_code, 302)
+
+    def test_kategori_gruplari_ekle_duzenle_sil(self):
+        self.giris(Rol.GENEL_MUDUR)
+        r = self.client.get('/satis/kategori-gruplari/')
+        self.assertEqual(r.status_code, 200)
+        self.client.post('/satis/kategori-gruplari/', {'ad': 'Sıcak İçecek', 'uyeler': 'KAHVE\nÇAY'})
+        g = KategoriGrubu.objects.get(ad='Sıcak İçecek')
+        self.assertEqual(g.uyeler, ['KAHVE', 'ÇAY'])
+        self.client.post('/satis/kategori-gruplari/', {'id': g.id, 'ad': 'Sıcak İçecekler', 'uyeler': 'KAHVE'})
+        g.refresh_from_db(); self.assertEqual(g.ad, 'Sıcak İçecekler'); self.assertEqual(g.uyeler, ['KAHVE'])
+        self.client.post('/satis/kategori-gruplari/', {'islem': 'sil', 'id': g.id})
+        self.assertFalse(KategoriGrubu.objects.filter(id=g.id).exists())
