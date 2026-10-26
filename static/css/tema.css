@@ -979,3 +979,18 @@ body.sr-menu-acik .sr-menu{transform:translateX(0)}
 .sr-rozet{display:inline-block;font-size:.68rem;font-weight:600;padding:1px 6px;border-radius:999px;margin-left:4px;vertical-align:middle}
 .sr-rozet-yeni{background:#e3f6ec;color:#1E8E5A}
 .sr-rozet-kayboldu{background:#fbeaea;color:#C23A3A}
+
+/* Yükselen/düşen ürün tabloları: sabit iki sütun yerine mevcut genişliğe göre esner — dar ekranda alt alta
+   düşer, geniş ekranda yan yana sığar; bu sayede kart içinde yatay kaydırma çubuğuna gerek kalmaz. */
+.sr-trend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:12px 28px;margin-top:12px}
+
+/* === Satış Raporları: kartsız, sayfaya gömülü görünüm ===
+   Rapor/Özet/Tablo/İkram-İptal/Eşleştirme/Kategori Grupları sayfalarının tamamında bölümler artık beyaz kutu
+   içinde değil, doğrudan sayfa üstünde akıyor; aralarını ince bir çizgi ayırıyor. Uyarı kutuları (.sr-uyari)
+   anlamlı şekilde renkli kaldığından bu kuralın dışında tutulur. Konteyner de genişletilip tablolara (ör.
+   yükselen/düşen ürünler) daha fazla yer açılır. */
+body.app.sr-panel .container{max-width:1360px}
+body.app.sr-panel .card:not(.sr-uyari){background:transparent;border:none;box-shadow:none;border-radius:0;padding:0}
+body.app.sr-panel .container > .card:not(.sr-uyari){padding-bottom:22px;margin-bottom:22px;border-bottom:1px solid var(--line,#e4e8f3)}
+body.app.sr-panel .container > .card:not(.sr-uyari):last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+@media (max-width:640px){body.app.sr-panel .container > .card:not(.sr-uyari){padding-bottom:18px;margin-bottom:18px}}
