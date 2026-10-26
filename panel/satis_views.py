@@ -429,6 +429,9 @@ def _ozet_ctx(request, personel):
                 veri['kategoriler'] = _kategorileri_grupla(veri['kategoriler'])
             if veri.get('urunler'):
                 veri['urunler'] = _urunleri_sirala(veri['urunler'], siralama)
+            trend = veri.get('urun_trend') or []
+            veri['yukselenler'] = [t for t in trend if t['fark'] > 0][:8]
+            veri['dusenler'] = sorted([t for t in trend if t['fark'] < 0], key=lambda t: t['fark'])[:8]
             ctx['veri'] = veri
         except mx.MenuluxHata as e:
             ctx['hata'] = str(e)

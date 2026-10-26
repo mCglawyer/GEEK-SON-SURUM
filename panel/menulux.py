@@ -638,6 +638,46 @@ def saatlik_kanal_is(cid, bas, bit):
     return ('saatlik:%s:%s:%s' % (cid, bas, bit), _ttl(bit), al)
 
 
+def onceki_donem(bas, bit):
+    """Aynı uzunlukta, seçili dönemden hemen önceki dönem (ürün trendi karşılaştırması için)."""
+    uzunluk = (bit - bas).days + 1
+    onceki_bit = bas - datetime.timedelta(days=1)
+    onceki_bas = onceki_bit - datetime.timedelta(days=uzunluk - 1)
+    return onceki_bas, onceki_bit
+
+
+def urun_trendi(simdiki_urunler, onceki_urunler):
+    """İki dönemin urunleri_birlestir() çıktısını ürün bazında karşılaştırır: fark/yüzde/yeni/kayboldu eklenmiş,
+    farka göre (büyükten küçüğe) sıralı tek liste döner."""
+    onceki = {(u.get('kod') or _ad_anahtar(u['ad'])): u for u in onceki_urunler}
+    gorulen, sonuc = set(), []
+    for u in simdiki_urunler:
+        anahtar = u.get('kod') or _ad_anahtar(u['ad'])
+        gorulen.add(anahtar)
+        o = onceki.get(anahtar)
+        onceki_tutar = o['tutar'] if o else 0.0
+        fark = u['tutar'] - onceki_tutar
+        sonuc.append(dict(u, onceki_tutar=onceki_tutar, fark=fark,
+                          yuzde=(fark / onceki_tutar * 100) if onceki_tutar else None, yeni=not o))
+    for anahtar, o in onceki.items():
+        if anahtar in gorulen or not o['tutar']:
+            continue
+        sonuc.append({'ad': o['ad'], 'kod': o.get('kod', ''), 'grup': o.get('grup', ''), 'adet': 0.0, 'tutar': 0.0,
+                      'onceki_tutar': o['tutar'], 'fark': -o['tutar'], 'yuzde': -100.0, 'yeni': False, 'kayboldu': True})
+    return sorted(sonuc, key=lambda x: -x['fark'])
+
+
+GUN_ADLARI = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
+
+
+def yogunluk_is(cid, gun):
+    """Yoğunluk haritasının tek bir hücre grubu: bir şube + bir gün için saatlik seans verisi."""
+    def al():
+        veri = _get('ReportAPI/GetSessionPriceTimePoint', customerID=cid, startDate=_t(gun), endDate=_t(gun, True), type=0)
+        return veri if isinstance(veri, list) else []
+    return ('yogunluk:%s:%s' % (cid, gun), _ttl(gun), al)
+
+
 def ozet_verisi(kapsam, bas, bit):
     """'Rapor Özeti' sayfası: rapor()'daki her şey + haftalık grafik + saatlik kanal/nokta kırılımı,
     TEK coklu() dalgasında (ayrı ayrı çekilseydi sayfa yine yavaşlardı)."""
@@ -648,13 +688,24 @@ def ozet_verisi(kapsam, bas, bit):
     sube_ids = list(adlar) if ana else idler
     kirilim_ids = sube_ids if (ana or len(idler) > 1) else []
     menu_ids = sube_ids if ana else idler
+    onceki_bas, onceki_bit = onceki_donem(bas, bit)
+
+    # Yoğunluk haritası: dönemden bağımsız, sabit (son ~4 hafta) bir pencere — her açılışta aynı aralık
+    # sorgulanınca DB önbelleği sayesinde ikinci ziyarette neredeyse anında gelir. Şube sayısı arttıkça
+    # (bölge müdürünün birden çok sorumlu şubesi varsa) istek sayısını makul tutmak için pencere daraltılır.
+    yogunluk_ids = [ana_no] if ana else idler
+    yogunluk_gun_sayisi = max(7, min(28, 56 // max(1, len(yogunluk_ids))))
+    bugun = timezone.localdate()
+    yogunluk_gunler = [bugun - datetime.timedelta(days=i) for i in range(yogunluk_gun_sayisi)]
 
     isler = [ozet_is(c, bas, bit) for c in idler] + [ozet_is(c, bas, bit) for c in kirilim_ids]
     isler += [kategori_is(c, bas, bit, ana_no) for c in idler]
     isler += [urun_is(c, bas, bit, ana_no) for c in idler]
+    isler += [urun_is(c, onceki_bas, onceki_bit, ana_no) for c in idler]
     isler += [menu_is(c) for c in menu_ids]
     isler += [gunluk_grafik_is(c) for c in idler]
     isler += [saatlik_kanal_is(c, bas, bit) for c in idler]
+    isler += [yogunluk_is(c, g) for g in yogunluk_gunler for c in yogunluk_ids]
 
     sonuc = coklu(isler)
     n, k, mn = len(idler), len(kirilim_ids), len(menu_ids)
@@ -663,9 +714,12 @@ def ozet_verisi(kapsam, bas, bit):
     kirilim, pos = sonuc[pos:pos + k], pos + k
     kategoriler, pos = sonuc[pos:pos + n], pos + n
     urun_ham, pos = sonuc[pos:pos + n], pos + n
+    onceki_urun_ham, pos = sonuc[pos:pos + n], pos + n
     menu_ham, pos = sonuc[pos:pos + mn], pos + mn
     grafik_ham, pos = sonuc[pos:pos + n], pos + n
     kanal_ham, pos = sonuc[pos:pos + n], pos + n
+    yn = len(yogunluk_gunler) * len(yogunluk_ids)
+    yogunluk_ham, pos = sonuc[pos:pos + yn], pos + yn
 
     veri = {'ana': ana, 'idler': idler}
     veri['ozet'] = ozetleri_topla([ozet_sadelestir(o) for o in ozetler])
@@ -673,6 +727,9 @@ def ozet_verisi(kapsam, bas, bit):
     veri['subeler'] = _kirilimi_adlandir(kirilim_ids, kirilim, adlar)
     veri['kategoriler'] = kategorileri_birlestir(kategoriler)
     veri['urunler'] = urunleri_birlestir(urun_ham)
+    veri['urun_trend'] = urun_trendi(veri['urunler'], urunleri_birlestir(onceki_urun_ham))
+    veri['onceki_etiket'] = (onceki_bas.strftime('%d.%m.%Y') if onceki_bas == onceki_bit else
+                             '%s – %s' % (onceki_bas.strftime('%d.%m.%Y'), onceki_bit.strftime('%d.%m.%Y')))
     try:
         veri['satilmayan'] = _satilmayanlar_isle(menu_ham, veri['urunler'])
     except Exception:
@@ -702,4 +759,26 @@ def ozet_verisi(kapsam, bas, bit):
     veri['saatlik'] = [{'saat': h, 'kasa': v['kasa'], 'paket': v['paket']} for h, v in sorted(saat.items()) if v['kasa'] or v['paket']]
     toplam_nokta = sum(nokta.values()) or 1
     veri['noktalar'] = sorted(({'ad': ad, 'tutar': t, 'pay': t / toplam_nokta * 100} for ad, t in nokta.items()), key=lambda x: -x['tutar'])
+
+    matris = {g: [0.0] * 24 for g in range(7)}
+    for i, g in enumerate(yogunluk_gunler):
+        parca = yogunluk_ham[i * len(yogunluk_ids):(i + 1) * len(yogunluk_ids)]
+        hafta_gunu = g.weekday()
+        for liste in parca:
+            for r in liste:
+                try:
+                    h = int(r.get('SessionTime') or 0) % 24
+                except (TypeError, ValueError):
+                    h = 0
+                matris[hafta_gunu][h] += _f(r.get('SessionTotalPrice'))
+    saatler = [h for h in range(24) if any(matris[g][h] for g in range(7))] or list(range(8, 23))
+    tepe = max((matris[g][h] for g in range(7) for h in saatler), default=0) or 1
+    veri['yogunluk'] = {
+        # 'alpha': CSS rgba() için hazır, noktalı (locale'den bağımsız) metin — tr locale'inde floatformat virgül
+        # ürettiğinden rgba(...,0,25) gibi geçersiz bir değere yol açar ve hücreler renksiz kalır.
+        'satirlar': [{'gun': GUN_ADLARI[g], 'hucreler': [{'saat': h, 'tutar': matris[g][h], 'oran': round(matris[g][h] / tepe, 3),
+                     'alpha': '%.2f' % (matris[g][h] / tepe)} for h in saatler]} for g in range(7)],
+        'saatler': saatler, 'gun_sayisi': yogunluk_gun_sayisi,
+        'bas': yogunluk_gunler[-1], 'bit': yogunluk_gunler[0],
+    }
     return veri

@@ -10,6 +10,11 @@ def tl(v):
     return s
 
 
+# Gün adlarının PDF'de dar sütun başlığı olarak kullanılan kısaltmaları. mx.GUN_ADLARI'ndeki tam adların ilk 3
+# harfi ("Cuma"/"Cumartesi", "Pazartesi"/"Pazar") çakıştığından basit bir slice yerine sabit eşleme kullanılır.
+GUN_KISA = {'Pazartesi': 'Pzt', 'Salı': 'Sal', 'Çarşamba': 'Çar', 'Perşembe': 'Per', 'Cuma': 'Cum', 'Cumartesi': 'Cmt', 'Pazar': 'Paz'}
+
+
 def adet(v):
     v = float(v or 0)
     if v == int(v):
@@ -193,6 +198,19 @@ def ozet_excel_bytes(veri, etiket, sube_etiket):
         sayfa(wb.create_sheet('Satan ürünler'), 'En çok satan ürünler', ['Ürün', 'Kod', 'Grup', 'Adet', 'Tutar', 'KDV'],
               [(u['ad'], u['kod'], u['grup'], u['adet'], u['tutar'], u['kdv']) for u in veri['urunler'][:50]],
               [None, None, None, adet_bicim, sayi_bicim, sayi_bicim], [38, 12, 26, 12, 16, 14])
+    if veri.get('urun_trend'):
+        sayfa(wb.create_sheet('Ürün trendi'), 'Ürün trendi (önceki dönem: %s)' % veri.get('onceki_etiket', ''),
+              ['Ürün', 'Grup', 'Önceki tutar', 'Şimdiki tutar', 'Fark', 'Değişim %', 'Durum'],
+              [(t['ad'], t['grup'], t['onceki_tutar'], t['tutar'], t['fark'], t['yuzde'],
+                'Yeni' if t.get('yeni') else ('Kayboldu' if t.get('kayboldu') else ''))
+               for t in veri['urun_trend']],
+              [None, None, sayi_bicim, sayi_bicim, sayi_bicim, '#,##0.0', None], [38, 26, 16, 16, 16, 12, 12])
+    if veri.get('yogunluk', {}).get('satirlar'):
+        yog = veri['yogunluk']
+        sayfa(wb.create_sheet('Yoğunluk'), 'Yoğunluk haritası (son %s gün)' % yog['gun_sayisi'],
+              ['Gün'] + ['%02d:00' % s for s in yog['saatler']],
+              [(satir['gun'],) + tuple(h['tutar'] for h in satir['hucreler']) for satir in yog['satirlar']],
+              [None] + [sayi_bicim] * len(yog['saatler']), [14] + [13] * len(yog['saatler']))
     buf = io.BytesIO(); wb.save(buf)
     return buf.getvalue()
 
@@ -245,6 +263,25 @@ def ozet_pdf_bytes(veri, etiket, sube_etiket):
     if veri.get('urunler'):
         el += [P('En çok satan ürünler', st_s), tablo(['Ürün', 'Grup', 'Adet', 'Tutar'],
               [(u['ad'], u['grup'], adet(u['adet']), tl(u['tutar'])) for u in veri['urunler'][:25]], [66, 50, 22, 34], sag=(2, 3))]
+    if veri.get('yukselenler') or veri.get('dusenler'):
+        el.append(P('Yükselen / düşen ürünler (önceki dönem: %s)' % veri.get('onceki_etiket', ''), st_s))
+        if veri.get('yukselenler'):
+            el += [P('Yükselenler', ParagraphStyle('yu', fontName=FONTB, fontSize=9, textColor=colors.HexColor('#1E8E5A'), leading=12, spaceBefore=2)),
+                   tablo(['Ürün', 'Grup', 'Önceki', 'Şimdi', 'Fark'],
+                         [(t['ad'] + (' (Yeni)' if t.get('yeni') else ''), t['grup'], tl(t['onceki_tutar']), tl(t['tutar']), '+' + tl(t['fark'])) for t in veri['yukselenler']],
+                         [56, 36, 26, 26, 28], sag=(2, 3, 4))]
+        if veri.get('dusenler'):
+            el += [P('Düşenler', ParagraphStyle('du', fontName=FONTB, fontSize=9, textColor=colors.HexColor('#C23A3A'), leading=12, spaceBefore=6)),
+                   tablo(['Ürün', 'Grup', 'Önceki', 'Şimdi', 'Fark'],
+                         [(t['ad'] + (' (Kayboldu)' if t.get('kayboldu') else ''), t['grup'], tl(t['onceki_tutar']), tl(t['tutar']), tl(t['fark'])) for t in veri['dusenler']],
+                         [56, 36, 26, 26, 28], sag=(2, 3, 4))]
+    if veri.get('yogunluk', {}).get('satirlar'):
+        yog = veri['yogunluk']
+        el += [P('Yoğunluk haritası (son %s gün, saat × gün)' % yog['gun_sayisi'], st_s),
+               tablo(['Saat'] + [GUN_KISA.get(g['gun'], g['gun'][:3]) for g in yog['satirlar']],
+                     [('%02d:00' % s,) + tuple(tl(satir['hucreler'][i]['tutar']) for satir in yog['satirlar'])
+                      for i, s in enumerate(yog['saatler'])],
+                     [16] + [22] * len(yog['satirlar']), sag=tuple(range(1, len(yog['satirlar']) + 1)))]
     buf = io.BytesIO()
     build_pdf(buf, el, pagesize=A4, left_margin=14 * mm, right_margin=14 * mm, font=FONT, title='Rapor özeti')
     return buf.getvalue()

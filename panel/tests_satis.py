@@ -364,11 +364,55 @@ class SatisEkranTest(_Taban):
         self.assertTrue(veri['noktalar'])
         self.assertEqual(veri['noktalar'][0]['ad'], 'Salon')
 
+    def test_ozet_verisi_urun_trendi_ve_yogunluk_icerir(self):
+        veri = mx.ozet_verisi('tum', datetime.date(2026, 10, 14), datetime.date(2026, 10, 14))
+        self.assertIn('urun_trend', veri); self.assertIn('onceki_etiket', veri)
+        # Sahte veri her dönemde aynı ürünleri döndürüyor: fark sıfır, yeni/kayboldu yok.
+        self.assertTrue(veri['urun_trend'])
+        self.assertTrue(all(t['fark'] == 0 for t in veri['urun_trend']))
+        self.assertTrue(all(not t.get('yeni') and not t.get('kayboldu') for t in veri['urun_trend']))
+        self.assertIn('yogunluk', veri)
+        self.assertTrue(veri['yogunluk']['satirlar'])
+        self.assertEqual(len(veri['yogunluk']['satirlar']), 7)   # 7 gün
+        self.assertTrue(veri['yogunluk']['saatler'])
+        # Sahte GetSessionPriceTimePoint hep saat 12'de veri döndürüyor; en yoğun saat de o olmalı.
+        self.assertIn(12, veri['yogunluk']['saatler'])
+
+    def test_onceki_donem(self):
+        self.assertEqual(mx.onceki_donem(datetime.date(2026, 10, 12), datetime.date(2026, 10, 14)),
+                         (datetime.date(2026, 10, 9), datetime.date(2026, 10, 11)))
+        self.assertEqual(mx.onceki_donem(datetime.date(2026, 10, 14), datetime.date(2026, 10, 14)),
+                         (datetime.date(2026, 10, 13), datetime.date(2026, 10, 13)))
+
+    def test_urun_trendi_yeni_ve_kayboldu(self):
+        simdi = [{'ad': 'Latte', 'kod': 'A1', 'grup': 'KAHVE', 'adet': 10, 'tutar': 500},
+                 {'ad': 'Mocha', 'kod': 'A2', 'grup': 'KAHVE', 'adet': 2, 'tutar': 100}]
+        onceki = [{'ad': 'Latte', 'kod': 'A1', 'grup': 'KAHVE', 'adet': 6, 'tutar': 300},
+                  {'ad': 'Churros', 'kod': 'A3', 'grup': 'TATLI', 'adet': 4, 'tutar': 200}]
+        trend = mx.urun_trendi(simdi, onceki)
+        by_kod = {t['kod']: t for t in trend}
+        self.assertEqual(by_kod['A1']['fark'], 200); self.assertFalse(by_kod['A1']['yeni'])
+        self.assertEqual(by_kod['A2']['onceki_tutar'], 0); self.assertTrue(by_kod['A2']['yeni']); self.assertIsNone(by_kod['A2']['yuzde'])
+        self.assertTrue(by_kod['A3']['kayboldu']); self.assertEqual(by_kod['A3']['fark'], -200); self.assertEqual(by_kod['A3']['tutar'], 0)
+        self.assertEqual(trend[0]['kod'], 'A1')   # farka göre büyükten küçüğe sıralı
+
     def test_ozet_sayfasi(self):
         self.giris(Rol.GENEL_MUDUR)
         r = self.client.get('/satis/ozet/?sube=tum&donem=ozel&bas=2026-10-14&bit=2026-10-14')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Rapor özeti'); self.assertContains(r, 'Salon')
+        self.assertContains(r, 'Yoğunluk haritası')
+
+    def test_ozet_sayfasi_urun_trendi_karti(self):
+        """Sahte verilerde her iki dönemde de aynı ürünler satılıyor (fark=0), bu yüzden yükselen/düşen ürün
+        olmaz; kart yine de gösterilmemeli (veri boşsa koşullu olarak gizlenir)."""
+        self.giris(Rol.GENEL_MUDUR)
+        with mock.patch.object(mx, 'urun_trendi', return_value=[
+                {'ad': 'Latte', 'kod': 'A1', 'grup': 'KAHVE', 'adet': 5, 'tutar': 500, 'onceki_tutar': 100, 'fark': 400, 'yuzde': 400.0, 'yeni': False},
+                {'ad': 'Churros', 'kod': 'A3', 'grup': 'TATLI', 'adet': 0, 'tutar': 0, 'onceki_tutar': 50, 'fark': -50, 'yuzde': -100.0, 'yeni': False, 'kayboldu': True}]):
+            r = self.client.get('/satis/ozet/?sube=tum&donem=ozel&bas=2026-10-14&bit=2026-10-14')
+        self.assertContains(r, 'Yükselen / düşen ürünler')
+        self.assertContains(r, 'Latte'); self.assertContains(r, 'Churros'); self.assertContains(r, 'Kayboldu')
 
     def test_ozet_yetkisiz(self):
         self.giris(Rol.PERSONEL, self.s1)

@@ -77,6 +77,28 @@
   <div class="card sr-bolum so-grafik"><h3>Şube karşılaştırması</h3><canvas id="so-sube" height="100"></canvas></div>
   {% endif %}
 
+  {% if veri.yogunluk.satirlar %}
+  <div class="card sr-bolum">
+    <h3>Yoğunluk haritası</h3>
+    <p class="sr-alt-not">Son {{ veri.yogunluk.gun_sayisi }} günün gün/saat kırılımında ciro yoğunluğu ({{ veri.yogunluk.bas|date:'d.m.Y' }} – {{ veri.yogunluk.bit|date:'d.m.Y' }}). Vardiya planlaması için en koyu hücrelere bakın.</p>
+    <div class="sr-kaydir">
+      <table class="sr-heat">
+        <thead><tr><th></th>{% for s in veri.yogunluk.saatler %}<th>{{ s }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for satir in veri.yogunluk.satirlar %}
+          <tr>
+            <th>{{ satir.gun }}</th>
+            {% for h in satir.hucreler %}
+            <td class="sr-heat-hucre" style="background:rgba(22,42,163,{{ h.alpha }})" title="{{ satir.gun }} {{ h.saat }}:00 · {{ h.tutar|tlf }}"></td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
   {% if veri.noktalar %}
   <div class="card sr-bolum"><h3>Satış noktaları</h3>
     <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Nokta</th><th class="s">Tutar</th><th class="s">Pay</th></tr></thead><tbody>
@@ -93,6 +115,29 @@
       {% for u in veri.urunler|slice:":10" %}<tr><td>{{ u.ad }}</td><td>{{ u.grup }}</td><td class="s">{{ u.adet|adetf }}</td><td class="s">{{ u.tutar|tlf }}</td></tr>
       {% empty %}<tr><td colspan="4">Bu aralıkta satış yok.</td></tr>{% endfor %}
     </tbody></table></div></div>
+
+  {% if veri.yukselenler or veri.dusenler %}
+  <div class="card sr-bolum">
+    <h3>Yükselen / düşen ürünler</h3>
+    <p class="sr-alt-not">Bu dönem, bir önceki eşit uzunluktaki döneme ({{ veri.onceki_etiket }}) göre karşılaştırılmıştır.</p>
+    <div class="so-grid">
+      <div>
+        <h4 class="sr-trend-baslik sr-trend-yukselen">Yükselenler</h4>
+        <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Ürün</th><th>Grup</th><th class="s">Önceki</th><th class="s">Şimdi</th><th class="s">Fark</th></tr></thead><tbody>
+          {% for t in veri.yukselenler %}<tr><td>{{ t.ad }}{% if t.yeni %} <span class="sr-rozet sr-rozet-yeni">Yeni</span>{% endif %}</td><td>{{ t.grup }}</td><td class="s">{{ t.onceki_tutar|tlf }}</td><td class="s">{{ t.tutar|tlf }}</td><td class="s sr-trend-yukselen">+{{ t.fark|tlf }}{% if t.yuzde %} (%{{ t.yuzde|floatformat:0 }}){% endif %}</td></tr>
+          {% empty %}<tr><td colspan="5">Yükselen ürün yok.</td></tr>{% endfor %}
+        </tbody></table></div>
+      </div>
+      <div>
+        <h4 class="sr-trend-baslik sr-trend-dusen">Düşenler</h4>
+        <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Ürün</th><th>Grup</th><th class="s">Önceki</th><th class="s">Şimdi</th><th class="s">Fark</th></tr></thead><tbody>
+          {% for t in veri.dusenler %}<tr><td>{{ t.ad }}{% if t.kayboldu %} <span class="sr-rozet sr-rozet-kayboldu">Kayboldu</span>{% endif %}</td><td>{{ t.grup }}</td><td class="s">{{ t.onceki_tutar|tlf }}</td><td class="s">{{ t.tutar|tlf }}</td><td class="s sr-trend-dusen">{{ t.fark|tlf }}{% if t.yuzde %} (%{{ t.yuzde|floatformat:0 }}){% endif %}</td></tr>
+          {% empty %}<tr><td colspan="5">Düşen ürün yok.</td></tr>{% endfor %}
+        </tbody></table></div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <script>
   document.addEventListener('DOMContentLoaded', function () {
