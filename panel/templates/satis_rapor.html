@@ -5,6 +5,8 @@
 <div class="container">
   <div class="plan-head">
     <div><h2>Satış raporları</h2>{% if not kapali %}<span class="plan-aralik">{% if secili %}{{ secili.1 }} · {% endif %}{{ etiket }}</span>{% endif %}</div>
+<a class="btn btn-ghost btn-mini" href="{% url 'satis_ozet' %}">Rapor Özeti</a>
+<a class="btn btn-ghost btn-mini" href="{% url 'satis_ikram_iptal' %}">İkram &amp; İptal detayı</a>
 <a class="btn btn-ghost btn-mini" href="{% url 'satis_tablo' %}">Tablo görünümü</a>
     {% if eslestirme_gorur %}<a class="btn btn-ghost btn-mini" href="{% url 'satis_eslestirme' %}">Şube eşleştirme</a>{% endif %}
   </div>

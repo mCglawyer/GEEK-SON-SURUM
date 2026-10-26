@@ -41,6 +41,22 @@ def sahte_get(yol, **p):
     if yol == 'OfferAPI/GetProducts':
         return [{'ProductID': 1, 'Name': 'Latte', 'Code': 'A1', 'GroupName': 'KAHVE', 'Price': 100},
                 {'ProductID': 2, 'Name': 'Mocha', 'Code': 'A2', 'GroupName': 'KAHVE', 'Price': 120}]
+    if yol == 'StaffAPI/Get':
+        return [{'StaffID': 11, 'Name': 'Ahmet', 'Surname': 'Yılmaz'}, {'StaffID': 12, 'Name': 'Elif', 'Surname': 'Demir'}]
+    if yol == 'ReportAPI/GetAllOrders':
+        if cid == 1:
+            return [{'OrderTime': '2026-10-14T12:00:00', 'ProductName': 'Latte', 'Quantity': 1, 'TotalPrice': 100,
+                      'TableName': 'Masa 3', 'StaffID': 11, 'Description': 'Sadık müşteriye ikram', 'Gifted': True},
+                     {'OrderTime': '2026-10-14T13:00:00', 'ProductName': 'Mocha', 'Quantity': 1, 'TotalPrice': 120,
+                      'TableName': 'Kasa', 'StaffID': 12, 'Description': 'Yanlış girildi', 'Cancelled': True}]
+        if cid == 2:
+            return [{'OrderTime': '2026-10-14T14:00:00', 'ProductName': 'Latte', 'Quantity': 1, 'TotalPrice': 100,
+                      'TableName': 'Masa 1', 'StaffID': 11, 'Description': 'Müşteri iade istedi', 'Returned': True}]
+        return []
+    if yol == 'ReportAPI/GetSalesChart':
+        return [{'BusinessDate': '2026-10-14T00:00:00', 'TotalPrice': {100: 1000, 1: 400, 2: 600}[cid]}]
+    if yol == 'ReportAPI/GetSessionPriceTimePoint':
+        return [{'SessionTime': 12, 'SessionRegisterPrice': 60, 'SessionPackagePrice': 40, 'PointName': 'Salon', 'SessionTotalPrice': 100}]
     raise AssertionError(yol)
 
 
@@ -290,3 +306,47 @@ class SatisEkranTest(_Taban):
         r = self.client.get('/satis/?donem=ay')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'GEEK-2 (OSMANGAZİ)'); self.assertContains(r, 'Tüm şubeler')
+
+    def test_ikram_iptal_fonksiyonu_ayikliyor(self):
+        adlar = {1: 'GEEK-1 (NACİ TOPÇUOĞLU)', 2: 'GEEK-2 (OSMANGAZİ)'}
+        sonuc = mx.ikram_iptal([1, 2], datetime.date(2026, 10, 14), datetime.date(2026, 10, 14), adlar)
+        self.assertEqual(len(sonuc['ikram']), 1); self.assertEqual(len(sonuc['iptal']), 1); self.assertEqual(len(sonuc['iade']), 1)
+        self.assertEqual(sonuc['ikram'][0]['urun'], 'Latte')
+        self.assertEqual(sonuc['ikram'][0]['personel'], 'Ahmet Yılmaz')
+        self.assertEqual(sonuc['ikram'][0]['aciklama'], 'Sadık müşteriye ikram')
+        self.assertEqual(sonuc['iade'][0]['sube'], 'GEEK-2 (OSMANGAZİ)')
+
+    def test_ikram_iptal_sayfasi(self):
+        self.giris(Rol.GENEL_MUDUR)
+        r = self.client.get('/satis/ikram-iptal/?sube=tum&donem=ozel&bas=2026-10-14&bit=2026-10-14&sekme=ikram')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Sadık müşteriye ikram')
+        r2 = self.client.get('/satis/ikram-iptal/?sube=tum&donem=ozel&bas=2026-10-14&bit=2026-10-14&sekme=iptal')
+        self.assertContains(r2, 'Yanlış girildi')
+
+    def test_ikram_iptal_yetkisiz(self):
+        self.giris(Rol.PERSONEL, self.s1)
+        self.assertEqual(self.client.get('/satis/ikram-iptal/').status_code, 302)
+
+    def test_ozet_verisi_fonksiyonu(self):
+        veri = mx.ozet_verisi('tum', datetime.date(2026, 10, 14), datetime.date(2026, 10, 14))
+        self.assertEqual(veri['ozet']['ciro'], 1000)
+        self.assertEqual(veri['grafik'], [('2026-10-14', 1000)])
+        self.assertTrue(veri['saatlik'])
+        self.assertTrue(veri['noktalar'])
+        self.assertEqual(veri['noktalar'][0]['ad'], 'Salon')
+
+    def test_ozet_sayfasi(self):
+        self.giris(Rol.GENEL_MUDUR)
+        r = self.client.get('/satis/ozet/?sube=tum&donem=ozel&bas=2026-10-14&bit=2026-10-14')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Rapor özeti'); self.assertContains(r, 'Salon')
+
+    def test_ozet_yetkisiz(self):
+        self.giris(Rol.PERSONEL, self.s1)
+        self.assertEqual(self.client.get('/satis/ozet/').status_code, 302)
+
+    def test_rapor_sayfasinda_yeni_linkler_var(self):
+        self.giris(Rol.GENEL_MUDUR)
+        r = self.client.get('/satis/')
+        self.assertContains(r, 'Rapor Özeti'); self.assertContains(r, 'İkram')

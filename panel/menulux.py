@@ -550,3 +550,156 @@ def eslestirme_onerisi(panel_subeleri, mx_subeleri):
         if en and skor >= 0.55:
             oneri[s.id] = en['id']
     return oneri
+
+
+# ------------------------------------------------------------------ ikram / iptal / iade detayı
+def personel_is(cid):
+    """Şube personeli: {StaffID: 'Ad Soyad'} (ikram/iptal'ı kimin yaptığını göstermek için).
+    Not: Anahtarlar STRING tutuluyor — JSON önbelleğe yazılıp geri okunduğunda int anahtarlar
+    string'e dönüştüğü için, baştan string olmazsa önbellekten gelen sonuçlarda eşleşme kaybolur."""
+    def al():
+        veri = _get('StaffAPI/Get', customerID=cid)
+        if not isinstance(veri, list):
+            return {}
+        return {str(s['StaffID']): ('%s %s' % (s.get('Name') or '', s.get('Surname') or '')).strip()
+                for s in veri if s.get('StaffID')}
+    return ('personel:%s' % cid, datetime.timedelta(hours=6), al)
+
+
+def siparisler_is(cid, bas, bit):
+    """Bir şubenin seçili aralıktaki TÜM sipariş satırları (ikram/iptal/iade ayıklaması bunlardan yapılır).
+    Not: Bu uç nokta yalnız gerçek şube id'siyle çalışır — merkez (ana) toplam id'siyle boş döner,
+    bu yüzden 'tüm şubeler' seçiminde her şube için ayrı ayrı çağrılması gerekir."""
+    def al():
+        veri = _get('ReportAPI/GetAllOrders', customerID=cid, startDate=_t(bas), endDate=_t(bit, True))
+        return veri if isinstance(veri, list) else []
+    return ('siparis:%s:%s:%s' % (cid, bas, bit), _ttl(bit), al)
+
+
+def _siparisleri_ayikla(ham, personel_adlari, sube_adlari):
+    """ham: [(cid, [sipariş satırları]), ...]. İkram/iptal/iade satırlarını (kime/açıklama/kim ile) çıkarır."""
+    satirlar = []
+    for cid, siparisler in ham:
+        adlar = personel_adlari.get(cid, {})
+        for s in siparisler:
+            if s.get('Gifted'):
+                tur = 'ikram'
+            elif s.get('Cancelled'):
+                tur = 'iptal'
+            elif s.get('Returned'):
+                tur = 'iade'
+            else:
+                continue
+            staff_id = str(s.get('StaffID')) if s.get('StaffID') is not None else None
+            satirlar.append({
+                'tur': tur, 'sube': sube_adlari.get(cid, str(cid)),
+                'urun': (s.get('ProductName') or s.get('Name') or '').strip(),
+                'adet': abs(_f(s.get('Quantity'))), 'tutar': abs(_f(s.get('TotalPrice'))),
+                'zaman': s.get('OrderTime') or '', 'masa': (s.get('TableName') or '').strip(),
+                'aciklama': (s.get('Description') or '').strip(),
+                'personel': adlar.get(staff_id, ''),
+            })
+    satirlar.sort(key=lambda x: x['zaman'], reverse=True)
+    return satirlar
+
+
+def ikram_iptal(idler, bas, bit, adlar):
+    """idler: GERÇEK Menulux şube id'leri (merkez/ana toplam id'si DEĞİL — her şube kendi listesini döner).
+    Döner: {'ikram': [...], 'iptal': [...], 'iade': [...]} (her biri en yeniden eskiye sıralı)."""
+    if not idler:
+        return {'ikram': [], 'iptal': [], 'iade': []}
+    n = len(idler)
+    isler = [siparisler_is(c, bas, bit) for c in idler] + [personel_is(c) for c in idler]
+    sonuc = coklu(isler)
+    ham = list(zip(idler, sonuc[:n]))
+    personel_adlari = dict(zip(idler, sonuc[n:]))
+    satirlar = _siparisleri_ayikla(ham, personel_adlari, adlar)
+    cikti = {'ikram': [], 'iptal': [], 'iade': []}
+    for s in satirlar:
+        cikti[s['tur']].append(s)
+    return cikti
+
+
+# ------------------------------------------------------------------ Rapor Özeti (Menulux'un gösterge paneli)
+def gunluk_grafik_is(cid):
+    """Son günlerin günlük ciro grafiği (Menulux'un kendi varsayılan penceresi, ~son 7 gün)."""
+    def al():
+        veri = _get('ReportAPI/GetSalesChart', customerID=cid, type=0)
+        return veri if isinstance(veri, list) else []
+    return ('grafik:%s' % cid, datetime.timedelta(minutes=30), al)
+
+
+def saatlik_kanal_is(cid, bas, bit):
+    """Saat bazlı kasa/paket kırılımı + satış noktası adı (Rapor Özeti'ndeki 'Kanal Bazlı' ve
+    'Satış Noktaları' grafiklerinin kaynağı)."""
+    def al():
+        veri = _get('ReportAPI/GetSessionPriceTimePoint', customerID=cid, startDate=_t(bas), endDate=_t(bit, True), type=0)
+        return veri if isinstance(veri, list) else []
+    return ('saatlik:%s:%s:%s' % (cid, bas, bit), _ttl(bit), al)
+
+
+def ozet_verisi(kapsam, bas, bit):
+    """'Rapor Özeti' sayfası: rapor()'daki her şey + haftalık grafik + saatlik kanal/nokta kırılımı,
+    TEK coklu() dalgasında (ayrı ayrı çekilseydi sayfa yine yavaşlardı)."""
+    ana = kapsam == 'tum'
+    ana_no = ana_id()
+    idler = [ana_no] if ana else list(kapsam)
+    adlar = {b['id']: b['ad'] for b in subeler()}
+    sube_ids = list(adlar) if ana else idler
+    kirilim_ids = sube_ids if (ana or len(idler) > 1) else []
+    menu_ids = sube_ids if ana else idler
+
+    isler = [ozet_is(c, bas, bit) for c in idler] + [ozet_is(c, bas, bit) for c in kirilim_ids]
+    isler += [kategori_is(c, bas, bit, ana_no) for c in idler]
+    isler += [urun_is(c, bas, bit, ana_no) for c in idler]
+    isler += [menu_is(c) for c in menu_ids]
+    isler += [gunluk_grafik_is(c) for c in idler]
+    isler += [saatlik_kanal_is(c, bas, bit) for c in idler]
+
+    sonuc = coklu(isler)
+    n, k, mn = len(idler), len(kirilim_ids), len(menu_ids)
+    pos = 0
+    ozetler, pos = sonuc[pos:pos + n], pos + n
+    kirilim, pos = sonuc[pos:pos + k], pos + k
+    kategoriler, pos = sonuc[pos:pos + n], pos + n
+    urun_ham, pos = sonuc[pos:pos + n], pos + n
+    menu_ham, pos = sonuc[pos:pos + mn], pos + mn
+    grafik_ham, pos = sonuc[pos:pos + n], pos + n
+    kanal_ham, pos = sonuc[pos:pos + n], pos + n
+
+    veri = {'ana': ana, 'idler': idler}
+    veri['ozet'] = ozetleri_topla([ozet_sadelestir(o) for o in ozetler])
+    veri['ozet']['ort'] = ortalama(veri['ozet'])
+    veri['subeler'] = _kirilimi_adlandir(kirilim_ids, kirilim, adlar)
+    veri['kategoriler'] = kategorileri_birlestir(kategoriler)
+    veri['urunler'] = urunleri_birlestir(urun_ham)
+    try:
+        veri['satilmayan'] = _satilmayanlar_isle(menu_ham, veri['urunler'])
+    except Exception:
+        log.exception('Satılmayan ürün hesabı (özet)')
+        veri['satilmayan'] = []
+
+    toplam = {}
+    for liste in grafik_ham:
+        for g in liste:
+            t = (g.get('BusinessDate') or '')[:10]
+            if t:
+                toplam[t] = toplam.get(t, 0.0) + _f(g.get('TotalPrice'))
+    veri['grafik'] = sorted(toplam.items())
+
+    saat = {h: {'kasa': 0.0, 'paket': 0.0} for h in range(24)}
+    nokta = {}
+    for liste in kanal_ham:
+        for r in liste:
+            try:
+                h = int(r.get('SessionTime') or 0) % 24
+            except (TypeError, ValueError):
+                h = 0
+            saat[h]['kasa'] += _f(r.get('SessionRegisterPrice'))
+            saat[h]['paket'] += _f(r.get('SessionPackagePrice'))
+            ad = (r.get('PointName') or '').strip() or 'Diğer'
+            nokta[ad] = nokta.get(ad, 0.0) + _f(r.get('SessionTotalPrice'))
+    veri['saatlik'] = [{'saat': h, 'kasa': v['kasa'], 'paket': v['paket']} for h, v in sorted(saat.items()) if v['kasa'] or v['paket']]
+    toplam_nokta = sum(nokta.values()) or 1
+    veri['noktalar'] = sorted(({'ad': ad, 'tutar': t, 'pay': t / toplam_nokta * 100} for ad, t in nokta.items()), key=lambda x: -x['tutar'])
+    return veri

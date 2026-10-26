@@ -267,3 +267,60 @@ def satis_eslestirme(request):
     eslesmeyen = [b for b in mx_subeler if b['id'] not in kullanimda]
     return render(request, 'satis_eslestirme.html', {'personel': personel, 'aktif': 'satis', 'satirlar': satirlar,
                                                      'mx_subeler': mx_subeler, 'eslesmeyen': eslesmeyen})
+
+
+def satis_ikram_iptal(request):
+    """İkram / iptal / iade detayı: hangi üründe, kime/ne sebeple, hangi personel tarafından."""
+    personel, git = _hazir(request)
+    if git:
+        return git
+    if not mx.ayarli_mi():
+        return render(request, 'satis_ikram_iptal.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
+    donem = request.GET.get('donem') or 'bugun'
+    bas, bit = donem_oku(donem, _tarih(request.GET.get('bas')), _tarih(request.GET.get('bit')))
+    secenekler, hata = kapsam_secenekleri(personel)
+    secili = next((s for s in secenekler if s[0] == (request.GET.get('sube') or '')), secenekler[0] if secenekler else None)
+    sekme = request.GET.get('sekme') if request.GET.get('sekme') in ('ikram', 'iptal', 'iade') else 'ikram'
+    ctx = {'donemler': DONEMLER, 'donem': donem, 'bas': bas, 'bit': bit, 'secenekler': secenekler, 'secili': secili,
+           'hata': hata, 'personel': personel, 'aktif': 'satis', 'veri': None, 'sekme': sekme,
+           'eslesme_yok': personel.rol in OLCEKLI_ROLLER and not secenekler,
+           'etiket': bas.strftime('%d.%m.%Y') if bas == bit else '%s – %s' % (bas.strftime('%d.%m.%Y'), bit.strftime('%d.%m.%Y'))}
+    if secili and not hata:
+        try:
+            ana = secili[0] == 'tum'
+            adlar = {b['id']: b['ad'] for b in mx.subeler()}
+            idler = list(adlar) if ana else secili[2]
+            ctx['veri'] = mx.ikram_iptal(idler, bas, bit, adlar)
+        except mx.MenuluxHata as e:
+            ctx['hata'] = str(e)
+        except Exception:
+            log.exception('İkram/iptal/iade detayı')
+            ctx['hata'] = 'Detay hazırlanırken beklenmeyen bir hata oluştu.'
+    return render(request, 'satis_ikram_iptal.html', ctx)
+
+
+def satis_ozet(request):
+    """Menulux'un kendi 'Rapor Özeti' (Customer/ReportSummary) sayfasının panele taşınmış hâli:
+    KPI kartları, ödeme/kategori/kanal grafikleri, haftalık ciro grafiği, en çok satan ürünler."""
+    personel, git = _hazir(request)
+    if git:
+        return git
+    if not mx.ayarli_mi():
+        return render(request, 'satis_ozet.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
+    donem = request.GET.get('donem') or 'hafta'
+    bas, bit = donem_oku(donem, _tarih(request.GET.get('bas')), _tarih(request.GET.get('bit')))
+    secenekler, hata = kapsam_secenekleri(personel)
+    secili = next((s for s in secenekler if s[0] == (request.GET.get('sube') or '')), secenekler[0] if secenekler else None)
+    ctx = {'donemler': DONEMLER, 'donem': donem, 'bas': bas, 'bit': bit, 'secenekler': secenekler, 'secili': secili,
+           'hata': hata, 'personel': personel, 'aktif': 'satis', 'veri': None,
+           'eslesme_yok': personel.rol in OLCEKLI_ROLLER and not secenekler,
+           'etiket': bas.strftime('%d.%m.%Y') if bas == bit else '%s – %s' % (bas.strftime('%d.%m.%Y'), bit.strftime('%d.%m.%Y'))}
+    if secili and not hata:
+        try:
+            ctx['veri'] = mx.ozet_verisi(secili[2], bas, bit)
+        except mx.MenuluxHata as e:
+            ctx['hata'] = str(e)
+        except Exception:
+            log.exception('Satış özeti')
+            ctx['hata'] = 'Özet hazırlanırken beklenmeyen bir hata oluştu.'
+    return render(request, 'satis_ozet.html', ctx)

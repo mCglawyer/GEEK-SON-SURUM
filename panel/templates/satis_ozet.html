@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% load satis_filtreleri %}
+{% block title %}Rapor Özeti · Geek Panel{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>Rapor özeti</h2>{% if not kapali %}<span class="plan-aralik">{% if secili %}{{ secili.1 }} · {% endif %}{{ etiket }}</span>{% endif %}</div>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_rapor' %}">Normal görünüme dön</a>
+  </div>
+
+  {% if kapali %}
+  <div class="card sr-uyari">Menulux bağlantısı henüz kurulmadı. Sunucuda <b>MENULUX_USER</b> ve <b>MENULUX_PASS</b> ortam değişkenlerini tanımlayın.</div>
+  {% else %}
+
+  {% if eslesme_yok %}
+  <div class="card sr-uyari">Hesabınıza bağlı şubeler için Menulux eşleştirmesi yapılmamış. Genel Müdür veya Operatör "Şube eşleştirme" ekranından yapabilir.</div>
+  {% else %}
+  <form method="get" class="card sr-filtre">
+    <label>Şube
+      <select name="sube">{% for s in secenekler %}<option value="{{ s.0 }}"{% if secili and s.0 == secili.0 %} selected{% endif %}>{{ s.1 }}</option>{% endfor %}</select>
+    </label>
+    <label>Dönem
+      <select name="donem" id="so-donem">{% for k, ad in donemler %}<option value="{{ k }}"{% if k == donem %} selected{% endif %}>{{ ad }}</option>{% endfor %}</select>
+    </label>
+    <span id="so-ozel" class="sr-filtre" style="padding:0"{% if donem != 'ozel' %} hidden{% endif %}>
+      <label>Başlangıç <input type="date" name="bas" value="{{ bas|date:'Y-m-d' }}"></label>
+      <label>Bitiş <input type="date" name="bit" value="{{ bit|date:'Y-m-d' }}"></label>
+    </span>
+    <button class="btn" type="submit">Göster</button>
+  </form>
+  <script>document.getElementById('so-donem').addEventListener('change',function(){var o=document.getElementById('so-ozel');o.hidden=this.value!=='ozel';if(this.value!=='ozel')this.form.submit();});</script>
+  {% endif %}
+
+  {% if hata %}<div class="sr-hata"><b>Özet alınamadı.</b> {{ hata }}</div>{% endif %}
+
+  {% if veri %}
+  {% with o=veri.ozet %}
+  <div class="sr-kpi">
+    <div class="ana"><b>{{ o.ciro|tlf }}</b><span>Ciro</span></div>
+    <div><b>{{ o.adisyon|adetf }}</b><span>Adisyon</span></div>
+    <div><b>{{ o.kisi|adetf }}</b><span>Kişi</span></div>
+    <div><b>{{ o.ort|tlf }}</b><span>Ort. adisyon</span></div>
+    <div><b>{{ o.indirim|tlf }}</b><span>İndirim</span></div>
+    <div><b>{{ o.ikram|tlf }}</b><span>İkram</span></div>
+    <div><b>{{ o.iptal|tlf }}</b><span>İptal</span></div>
+    <div><b>{{ o.iade|tlf }}</b><span>İade</span></div>
+  </div>
+  {% endwith %}
+
+  <div class="so-grid">
+    {% if veri.grafik %}
+    <div class="card sr-bolum so-grafik"><h3>Günlük ciro</h3><canvas id="so-gunluk" height="90"></canvas></div>
+    {% endif %}
+    {% if veri.ozet.odeme %}
+    <div class="card sr-bolum so-grafik"><h3>Ödeme dağılımı</h3><canvas id="so-odeme" height="90"></canvas></div>
+    {% endif %}
+  </div>
+
+  <div class="so-grid">
+    {% if veri.kategoriler %}
+    <div class="card sr-bolum so-grafik"><h3>Kategori satışları</h3><canvas id="so-kategori" height="110"></canvas></div>
+    {% endif %}
+    {% if veri.saatlik %}
+    <div class="card sr-bolum so-grafik"><h3>Saat bazlı kanal (kasa / paket)</h3><canvas id="so-kanal" height="110"></canvas></div>
+    {% endif %}
+  </div>
+
+  {% if veri.noktalar %}
+  <div class="card sr-bolum"><h3>Satış noktaları</h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Nokta</th><th class="s">Tutar</th><th class="s">Pay</th></tr></thead><tbody>
+      {% for n in veri.noktalar %}<tr><td>{{ n.ad }}</td><td class="s">{{ n.tutar|tlf }}</td><td class="s">%{{ n.pay|floatformat:1 }}</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  {% endif %}
+
+  <div class="card sr-bolum"><h3>En çok satan ürünler</h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Ürün</th><th>Grup</th><th class="s">Adet</th><th class="s">Tutar</th></tr></thead><tbody>
+      {% for u in veri.urunler|slice:":10" %}<tr><td>{{ u.ad }}</td><td>{{ u.grup }}</td><td class="s">{{ u.adet|adetf }}</td><td class="s">{{ u.tutar|tlf }}</td></tr>
+      {% empty %}<tr><td colspan="4">Bu aralıkta satış yok.</td></tr>{% endfor %}
+    </tbody></table></div></div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    function cizgiBoya(gun) {
+      var el = document.getElementById('so-gunluk'); if (!el || !window.Chart) return;
+      new Chart(el, {type: 'bar', data: {labels: gun.map(function(g){return g[0];}),
+        datasets: [{label: 'Ciro', data: gun.map(function(g){return g[1];}), backgroundColor: '#162AA3'}]},
+        options: {plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}}}});
+    }
+    function odemeBoya(odeme) {
+      var el = document.getElementById('so-odeme'); if (!el || !window.Chart) return;
+      new Chart(el, {type: 'doughnut', data: {labels: odeme.map(function(o){return o[0];}),
+        datasets: [{data: odeme.map(function(o){return o[1];}), backgroundColor: ['#162AA3','#2E9E6B','#D97757','#B33A5C','#7C5CBF','#C7A008']}]},
+        options: {plugins: {legend: {position: 'bottom'}}}});
+    }
+    function kategoriBoya(kat) {
+      var el = document.getElementById('so-kategori'); if (!el || !window.Chart) return;
+      new Chart(el, {type: 'bar', data: {labels: kat.map(function(k){return k.ad;}),
+        datasets: [{label: 'Tutar', data: kat.map(function(k){return k.tutar;}), backgroundColor: '#162AA3'}]},
+        options: {indexAxis: 'y', plugins: {legend: {display: false}}, scales: {x: {beginAtZero: true}}}});
+    }
+    function kanalBoya(saat) {
+      var el = document.getElementById('so-kanal'); if (!el || !window.Chart) return;
+      new Chart(el, {type: 'line', data: {labels: saat.map(function(s){return s.saat + ':00';}),
+        datasets: [
+          {label: 'Kasa', data: saat.map(function(s){return s.kasa;}), borderColor: '#162AA3', backgroundColor: 'rgba(22,42,163,.15)', tension: .3, fill: true},
+          {label: 'Paket', data: saat.map(function(s){return s.paket;}), borderColor: '#D97757', backgroundColor: 'rgba(217,119,87,.15)', tension: .3, fill: true}
+        ]}, options: {scales: {y: {beginAtZero: true}}}});
+    }
+    function veri(id) { var el = document.getElementById(id); return el ? JSON.parse(el.textContent) : null; }
+    var gun = veri('so-veri-gunluk'); if (gun) cizgiBoya(gun);
+    var odeme = veri('so-veri-odeme'); if (odeme) odemeBoya(odeme);
+    var kat = veri('so-veri-kategori'); if (kat) kategoriBoya(kat);
+    var saat = veri('so-veri-kanal'); if (saat) kanalBoya(saat);
+  });
+  </script>
+  {% if veri.grafik %}{{ veri.grafik|json_script:"so-veri-gunluk" }}{% endif %}
+  {% if veri.ozet.odeme %}{{ veri.ozet.odeme|json_script:"so-veri-odeme" }}{% endif %}
+  {% if veri.kategoriler %}{{ veri.kategoriler|json_script:"so-veri-kategori" }}{% endif %}
+  {% if veri.saatlik %}{{ veri.saatlik|json_script:"so-veri-kanal" }}{% endif %}
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

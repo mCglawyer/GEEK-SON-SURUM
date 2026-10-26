@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load satis_filtreleri %}
+{% block title %}İkram &amp; İptal Detayı · Geek Panel{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="plan-head">
+    <div><h2>İkram &amp; iptal detayı</h2>{% if not kapali %}<span class="plan-aralik">{% if secili %}{{ secili.1 }} · {% endif %}{{ etiket }}</span>{% endif %}</div>
+    <a class="btn btn-ghost btn-mini" href="{% url 'satis_rapor' %}">Normal görünüme dön</a>
+  </div>
+
+  {% if kapali %}
+  <div class="card sr-uyari">Menulux bağlantısı henüz kurulmadı. Sunucuda <b>MENULUX_USER</b> ve <b>MENULUX_PASS</b> ortam değişkenlerini tanımlayın.</div>
+  {% else %}
+
+  {% if eslesme_yok %}
+  <div class="card sr-uyari">Hesabınıza bağlı şubeler için Menulux eşleştirmesi yapılmamış. Genel Müdür veya Operatör "Şube eşleştirme" ekranından yapabilir.</div>
+  {% else %}
+  <form method="get" class="card sr-filtre">
+    <input type="hidden" name="sekme" value="{{ sekme }}">
+    <label>Şube
+      <select name="sube">{% for s in secenekler %}<option value="{{ s.0 }}"{% if secili and s.0 == secili.0 %} selected{% endif %}>{{ s.1 }}</option>{% endfor %}</select>
+    </label>
+    <label>Dönem
+      <select name="donem" id="ii-donem">{% for k, ad in donemler %}<option value="{{ k }}"{% if k == donem %} selected{% endif %}>{{ ad }}</option>{% endfor %}</select>
+    </label>
+    <span id="ii-ozel" class="sr-filtre" style="padding:0"{% if donem != 'ozel' %} hidden{% endif %}>
+      <label>Başlangıç <input type="date" name="bas" value="{{ bas|date:'Y-m-d' }}"></label>
+      <label>Bitiş <input type="date" name="bit" value="{{ bit|date:'Y-m-d' }}"></label>
+    </span>
+    <button class="btn" type="submit">Getir</button>
+  </form>
+  <script>document.getElementById('ii-donem').addEventListener('change',function(){var o=document.getElementById('ii-ozel');o.hidden=this.value!=='ozel';if(this.value!=='ozel')this.form.submit();});</script>
+  {% endif %}
+
+  {% if hata %}<div class="sr-hata"><b>Detay alınamadı.</b> {{ hata }}</div>{% endif %}
+
+  {% if veri %}
+  <div class="sr-sekme">
+    <a class="{% if sekme == 'ikram' %}akt{% endif %}" href="?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&sekme=ikram">İkramlar <span class="tz-sayac">{{ veri.ikram|length }}</span></a>
+    <a class="{% if sekme == 'iptal' %}akt{% endif %}" href="?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&sekme=iptal">İptaller <span class="tz-sayac">{{ veri.iptal|length }}</span></a>
+    <a class="{% if sekme == 'iade' %}akt{% endif %}" href="?sube={{ secili.0 }}&donem={{ donem }}&bas={{ bas|date:'Y-m-d' }}&bit={{ bit|date:'Y-m-d' }}&sekme=iade">İadeler <span class="tz-sayac">{{ veri.iade|length }}</span></a>
+  </div>
+
+  {% if sekme == 'ikram' %}{% with liste=veri.ikram %}
+  <div class="card sr-bolum"><h3>İkram edilen ürünler</h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Zaman</th>{% if secili.0 == 'tum' %}<th>Şube</th>{% endif %}<th>Ürün</th><th class="s">Adet</th><th class="s">Liste tutarı</th><th>Masa/Kasa</th><th>Personel</th><th>Açıklama (kime/neden)</th></tr></thead><tbody>
+      {% for s in liste %}<tr><td>{% if s.zaman %}{{ s.zaman|slice:":10" }} {{ s.zaman|slice:"11:16" }}{% else %}—{% endif %}</td>{% if secili.0 == 'tum' %}<td>{{ s.sube }}</td>{% endif %}<td>{{ s.urun }}</td><td class="s">{{ s.adet|adetf }}</td><td class="s">{{ s.tutar|tlf }}</td><td>{{ s.masa|default:"—" }}</td><td>{{ s.personel|default:"—" }}</td><td>{{ s.aciklama|default:"—" }}</td></tr>
+      {% empty %}<tr><td colspan="8">Bu aralıkta ikram yok.</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  {% endwith %}{% endif %}
+
+  {% if sekme == 'iptal' %}{% with liste=veri.iptal %}
+  <div class="card sr-bolum"><h3>İptal edilen ürünler</h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Zaman</th>{% if secili.0 == 'tum' %}<th>Şube</th>{% endif %}<th>Ürün</th><th class="s">Adet</th><th class="s">Liste tutarı</th><th>Masa/Kasa</th><th>Personel</th><th>Açıklama (neden)</th></tr></thead><tbody>
+      {% for s in liste %}<tr><td>{% if s.zaman %}{{ s.zaman|slice:":10" }} {{ s.zaman|slice:"11:16" }}{% else %}—{% endif %}</td>{% if secili.0 == 'tum' %}<td>{{ s.sube }}</td>{% endif %}<td>{{ s.urun }}</td><td class="s">{{ s.adet|adetf }}</td><td class="s">{{ s.tutar|tlf }}</td><td>{{ s.masa|default:"—" }}</td><td>{{ s.personel|default:"—" }}</td><td>{{ s.aciklama|default:"—" }}</td></tr>
+      {% empty %}<tr><td colspan="8">Bu aralıkta iptal yok.</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  {% endwith %}{% endif %}
+
+  {% if sekme == 'iade' %}{% with liste=veri.iade %}
+  <div class="card sr-bolum"><h3>İade edilen ürünler</h3>
+    <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Zaman</th>{% if secili.0 == 'tum' %}<th>Şube</th>{% endif %}<th>Ürün</th><th class="s">Adet</th><th class="s">Liste tutarı</th><th>Masa/Kasa</th><th>Personel</th><th>Açıklama (neden)</th></tr></thead><tbody>
+      {% for s in liste %}<tr><td>{% if s.zaman %}{{ s.zaman|slice:":10" }} {{ s.zaman|slice:"11:16" }}{% else %}—{% endif %}</td>{% if secili.0 == 'tum' %}<td>{{ s.sube }}</td>{% endif %}<td>{{ s.urun }}</td><td class="s">{{ s.adet|adetf }}</td><td class="s">{{ s.tutar|tlf }}</td><td>{{ s.masa|default:"—" }}</td><td>{{ s.personel|default:"—" }}</td><td>{{ s.aciklama|default:"—" }}</td></tr>
+      {% empty %}<tr><td colspan="8">Bu aralıkta iade yok.</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  {% endwith %}{% endif %}
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -923,3 +923,7 @@ html[data-theme="dark"] .yapilacak-kart li.acil span { color:#ff8a80; }
 .sr-tablo td.toplam,.sr-tablo th.toplam{font-weight:700;background:#eef1fb}
 .sr-tablo tr.secili td{background:#eef1fb}
 .sr-matris{font-size:.8rem}.sr-matris th,.sr-matris td{white-space:nowrap}
+.so-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+.so-grafik{min-width:0}
+.so-grafik canvas{max-width:100%}
+@media (max-width:860px){.so-grid{grid-template-columns:1fr}}
