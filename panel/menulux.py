@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import threading
+import time
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 
@@ -23,10 +24,29 @@ log = logging.getLogger(__name__)
 PORTAL = 'https://portal.menulux.com'
 API = 'https://menuluxportalapi.azurewebsites.net'
 ZAMAN_ASIMI = 25
+HAVUZ_BOYUTU = 24   # coklu()'daki paralel işçi sayısıyla uyumlu olsun diye (bkz. aşağıdaki HAVUZ_ISCI)
+HAVUZ_ISCI = 24
 _kilit = threading.Lock()
 _yerel = threading.local()   # thread havuzundaki işçiler veritabanına dokunmasın diye işaret
 _oturum = {'authkey': None, 'zaman': 0.0}
 OTURUM_OMRU = 25 * 60   # sn; süre dolmadan yenilenir, 401/403'te de yeniden girilir
+
+
+def _oturum_al():
+    """Tüm _get() çağrılarının paylaştığı, bağlantı havuzlu (keep-alive) requests.Session.
+    Önceden her _get() çağrısı ayrı bir TCP+TLS bağlantısı açıyordu (requests.get modül fonksiyonu);
+    tek sayfa açılışında 20-30 paralel isteğin her biri yeni bağlantı kurduğundan bu, gerçek
+    Menulux gecikmesinin üzerine ciddi ekstra süre (her bağlantı için TLS el sıkışması) biniyordu.
+    Paylaşılan Session + yeterince büyük bağlantı havuzu, aynı anda çalışan thread'lerin bağlantıyı
+    yeniden kullanmasını sağlar."""
+    s = getattr(_oturum_al, '_s', None)
+    if s is None:
+        s = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(pool_connections=HAVUZ_BOYUTU, pool_maxsize=HAVUZ_BOYUTU, max_retries=0)
+        s.mount('https://', adapter)
+        s.mount('http://', adapter)
+        _oturum_al._s = s
+    return s
 
 
 class MenuluxHata(Exception):
@@ -65,7 +85,8 @@ def _parca(r, n=70):
 
 
 def _giris(a):
-    s = requests.Session()
+    t0 = time.monotonic()
+    s = _oturum_al()
     s.headers.update({'User-Agent': TARAYICI, 'Accept-Language': 'tr-TR,tr;q=0.9'})
     try:
         s.get(PORTAL + '/Account/Login', timeout=ZAMAN_ASIMI)      # tarayıcı gibi: önce giriş sayfası (oturum çerezi)
@@ -92,6 +113,7 @@ def _giris(a):
     ak = r.headers.get('AuthKey')
     if not ak:
         raise MenuluxHata('Menulux giriş yanıtında oturum anahtarı yok.')
+    log.info('Menulux girişi %.2fsn sürdü', time.monotonic() - t0)
     return ak
 
 
@@ -118,16 +140,18 @@ def oturumu_sifirla():
     with _kilit:
         _oturum['authkey'] = None
         _oturum['zaman'] = 0.0
+        _oturum_al._s = None
 
 
 def _get(yol, **params):
     a = _ana()
+    t0 = time.monotonic()
     for deneme in (0, 1):
         ak = _authkey(yenile=bool(deneme))
         try:
-            r = requests.get(API + '/api/' + yol, params=params, timeout=ZAMAN_ASIMI,
-                             headers={'AuthKey': ak, 'CustomerID': str(a['ana']), 'Origin': PORTAL, 'Referer': PORTAL + '/', 'User-Agent': TARAYICI,
-                                      'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'})
+            r = _oturum_al().get(API + '/api/' + yol, params=params, timeout=ZAMAN_ASIMI,
+                                 headers={'AuthKey': ak, 'CustomerID': str(a['ana']), 'Origin': PORTAL, 'Referer': PORTAL + '/', 'User-Agent': TARAYICI,
+                                          'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'})
         except requests.RequestException as e:
             raise MenuluxHata('Menulux\'a ulaşılamadı (%s).' % e.__class__.__name__)
         if r.status_code in (401, 403) and deneme == 0:
@@ -135,9 +159,13 @@ def _get(yol, **params):
         if r.status_code != 200:
             raise MenuluxHata('Menulux isteği başarısız (%s, %s).' % (_parca(r, 50), yol.split('?')[0]))
         try:
-            return r.json()
+            veri = r.json()
         except ValueError:
             raise MenuluxHata('Menulux yanıtı okunamadı (%s, %s).' % (_parca(r, 50), yol))
+        sure = time.monotonic() - t0
+        if sure > 1.5:
+            log.warning('Menulux yavaş yanıt: %s %.2fsn', yol.split('?')[0], sure)
+        return veri
     raise MenuluxHata('Menulux oturumu açılamadı.')
 
 
@@ -178,6 +206,7 @@ def onbellekli(anahtar, ttl, fonksiyon):
 def coklu(isler):
     """isler: [(anahtar, ttl, fonksiyon)]. Veritabanına yalnız bu (ana) thread dokunur; eksikler thread havuzunda
     yalnızca HTTP ile çekilir. Sonuçlar giriş sırasında döner."""
+    t0 = time.monotonic()
     sonuc = [None] * len(isler)
     eksik = []
     for i, (anahtar, ttl, fn) in enumerate(isler):
@@ -197,11 +226,13 @@ def coklu(isler):
                     return isler[i][2]()
                 finally:
                     _yerel.havuz = False
-            with ThreadPoolExecutor(max_workers=min(12, len(eksik))) as ex:
+            with ThreadPoolExecutor(max_workers=min(HAVUZ_ISCI, len(eksik))) as ex:
                 cekilen = list(ex.map(calis, eksik))
         for i, veri in zip(eksik, cekilen):
             sonuc[i] = veri
             _yaz(isler[i][0], veri)
+    log.info('Menulux coklu(): %d iş (%d önbellekten, %d HTTP), %.2fsn',
+             len(isler), len(isler) - len(eksik), len(eksik), time.monotonic() - t0)
     return sonuc
 
 

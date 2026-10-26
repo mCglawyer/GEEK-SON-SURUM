@@ -4584,7 +4584,7 @@ def ilginc_haberler(request):
     })
 
 
-def _pdf_sikistir(pdf_bytes, max_kenar=1600, jpeg_kalite=55):
+def _pdf_sikistir(pdf_bytes, max_kenar=2200, jpeg_kalite=82):
     """
     PDF içindeki gömülü görselleri (telefonla taranmış reçete/oryantasyon belgelerinde
     sık görülür) yeniden JPEG olarak sıkıştırır. Piksel boyutu zaten küçük olsa bile

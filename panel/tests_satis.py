@@ -105,29 +105,35 @@ class MenuluxGirisTest(TestCase):
         r = mock.Mock(); r.status_code = status; r.json.return_value = json; r.headers = headers or {}; return r
 
     def test_giris_akisi_ve_yeniden_giris(self):
+        # Giriş ve veri çekme artık aynı paylaşılan (bağlantı havuzlu) Session üzerinden gidiyor,
+        # bu yüzden hepsi tek requests.Session() mock'u üzerinden sırayla düzenleniyor:
+        # [login-get, publickey-get, veri(401), login-get, publickey-get, veri(200)]
         anahtarlar = iter(['K1', 'K2'])
-        with mock.patch('requests.Session') as S, mock.patch('requests.get') as G:
-            S.return_value.get.return_value = self._yanit(json={'PublicKey': 'PK'})
+        pk = self._yanit(json={'PublicKey': 'PK'})
+        with mock.patch('requests.Session') as S:
+            S.return_value.get.side_effect = [pk, pk, self._yanit(401), pk, pk, self._yanit(json=[1])]
             S.return_value.post.side_effect = lambda *a, **k: self._yanit(headers={'AuthKey': next(anahtarlar)})
-            G.side_effect = [self._yanit(401), self._yanit(json=[1])]
             self.assertEqual(mx._get('ReportAPI/X', customerID=1), [1])
         post = S.return_value.post.call_args_list[0]
         self.assertEqual(post.kwargs['headers']['Publickey'], 'PK')
         self.assertEqual(post.kwargs['json']['Password'], 'gizli')
-        self.assertEqual(G.call_args_list[0].kwargs['headers']['AuthKey'], 'K1')
-        self.assertEqual(G.call_args_list[1].kwargs['headers']['AuthKey'], 'K2')      # 401 sonrası yeniden giriş
-        self.assertEqual(G.call_args_list[0].kwargs['headers']['CustomerID'], '100')
+        veri_cagrilari = [c for c in S.return_value.get.call_args_list if 'AuthKey' in c.kwargs.get('headers', {})]
+        self.assertEqual(veri_cagrilari[0].kwargs['headers']['AuthKey'], 'K1')
+        self.assertEqual(veri_cagrilari[1].kwargs['headers']['AuthKey'], 'K2')      # 401 sonrası yeniden giriş
+        self.assertEqual(veri_cagrilari[0].kwargs['headers']['CustomerID'], '100')
 
     def test_authkey_veritabanindan_paylasilir(self):
-        with mock.patch('requests.Session') as S, mock.patch('requests.get') as G:
-            S.return_value.get.return_value = self._yanit(json={'PublicKey': 'PK'})
+        pk = self._yanit(json={'PublicKey': 'PK'})
+        veri = self._yanit(json=[])
+        with mock.patch('requests.Session') as S:
+            S.return_value.get.side_effect = [pk, pk, veri, veri]   # tek giriş (2 GET) + iki veri çağrısı
             S.return_value.post.return_value = self._yanit(headers={'AuthKey': 'PAYLASILAN'})
-            G.return_value = self._yanit(json=[])
             mx._get('A')                                   # ilk işçi girer ve anahtarı veritabanına yazar
             mx._oturum['authkey'] = None                   # ikinci işçi: bellek boş
             mx._get('B')
         self.assertEqual(S.return_value.post.call_count, 1)   # ikinci işçi yeniden giriş yapmadı
-        self.assertEqual(G.call_args_list[1].kwargs['headers']['AuthKey'], 'PAYLASILAN')
+        veri_cagrilari = [c for c in S.return_value.get.call_args_list if 'AuthKey' in c.kwargs.get('headers', {})]
+        self.assertEqual(veri_cagrilari[1].kwargs['headers']['AuthKey'], 'PAYLASILAN')
 
     def test_json_olmayan_yanit_teshis_verir(self):
         with mock.patch('requests.Session') as S:
