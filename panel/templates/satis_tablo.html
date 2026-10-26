@@ -2,10 +2,10 @@
 {% load satis_filtreleri %}
 {% block title %}Satış Tablosu · Geek Panel{% endblock %}
 {% block body %}
+{% include '_satis_panelbar.html' %}
 <div class="container">
   <div class="plan-head">
     <div><h2>Satış tablosu</h2><span class="plan-aralik">{% if secili %}{{ secili.1 }} · {% endif %}{{ donem_etiket }}</span></div>
-    <a class="btn btn-ghost btn-mini" href="{% url 'satis_rapor' %}">Normal görünüme dön</a>
   </div>
 
   {% if kapali %}

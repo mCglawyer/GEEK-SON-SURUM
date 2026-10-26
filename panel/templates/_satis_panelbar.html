@@ -1,0 +1,27 @@
+{% load static %}
+<header class="sr-panelbar">
+  <div class="sr-panelbar-sol">
+    <img class="sr-panelbar-logo" src="{% static 'images/geek_logo_blue.png' %}" alt="Geek">
+    <span class="sr-panelbar-ad">Satış Raporları</span>
+  </div>
+  <button type="button" class="sr-burger" aria-label="Menü" aria-haspopup="true" onclick="document.body.classList.toggle('sr-menu-acik')">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"></path></svg>
+  </button>
+</header>
+<div class="sr-menu-backdrop" onclick="document.body.classList.remove('sr-menu-acik')"></div>
+<nav class="sr-menu">
+  <div class="sr-menu-ust">
+    <span class="sr-menu-baslik">Satış raporları</span>
+    <button type="button" class="sr-menu-kapat" aria-label="Kapat" onclick="document.body.classList.remove('sr-menu-acik')">✕</button>
+  </div>
+  <a href="{% url 'satis_ozet' %}" class="yan-link sr-menu-link{% if sr_aktif == 'ozet' %} akt{% endif %}"><svg viewBox="0 0 24 24" class="yi" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>Rapor Özeti</span></a>
+  <a href="{% url 'satis_tablo' %}" class="yan-link sr-menu-link{% if sr_aktif == 'tablo' %} akt{% endif %}"><svg viewBox="0 0 24 24" class="yi" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg><span>Satış Tablosu</span></a>
+  <a href="{% url 'satis_ikram_iptal' %}" class="yan-link sr-menu-link{% if sr_aktif == 'ikram_iptal' %} akt{% endif %}"><svg viewBox="0 0 24 24" class="yi" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>İkram &amp; İptal Detayı</span></a>
+  <a href="{% url 'satis_rapor' %}" class="yan-link sr-menu-link{% if sr_aktif == 'rapor' %} akt{% endif %}"><svg viewBox="0 0 24 24" class="yi" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg><span>Genel Bakış (eski görünüm)</span></a>
+  {% if eslestirme_gorur %}
+  <a href="{% url 'satis_kategori_gruplari' %}" class="yan-link sr-menu-link{% if sr_aktif == 'kategori' %} akt{% endif %}"><svg viewBox="0 0 24 24" class="yi" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M21 8 12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg><span>Kategori Grupları</span></a>
+  <a href="{% url 'satis_eslestirme' %}" class="yan-link sr-menu-link{% if sr_aktif == 'eslestirme' %} akt{% endif %}"><svg viewBox="0 0 24 24" class="yi" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg><span>Şube Eşleştirme</span></a>
+  {% endif %}
+  <div class="sr-menu-ayrac"></div>
+  <a href="{% url 'ana_sayfa' %}" class="yan-link sr-menu-link sr-menu-cikis"><svg viewBox="0 0 24 24" class="yi" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span>Panele dön</span></a>
+</nav>

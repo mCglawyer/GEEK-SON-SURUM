@@ -21,13 +21,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>try{if(localStorage.getItem('geek_tema')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=79">
-  <link rel="stylesheet" href="{% static 'css/tema.css' %}?v=42">
+  <link rel="stylesheet" href="{% static 'css/tema.css' %}?v=43">
   {% block extra_head %}{% endblock %}
 </head>
-<body{% if personel %} class="app"{% endif %}>
+<body{% if personel %} class="app{% if rapor_panel %} sr-panel{% endif %}"{% endif %}>
   {% block gövde %}
   {% if personel %}
-  {% if acilis_goster %}
+  {% if acilis_goster and not rapor_panel %}
   <div id="acilis-ekrani" class="acilis-ekrani">
     <div class="acilis-icerik">
       <p class="acilis-soz">“Bilim ve onun ürünü olan teknolojiyi üretmeyen toplumlar, bağımsızlıklarını, dolayısıyla mutluluklarını yitirirler.”</p>
@@ -48,8 +48,9 @@
   </script>
   {% endif %}
   <div hidden>{% csrf_token %}</div>
-  {% include '_nav.html' %}
-  <main class="app-main">
+  {% if not rapor_panel %}{% include '_nav.html' %}{% endif %}
+  <main class="app-main{% if rapor_panel %} app-main-tam{% endif %}">
+  {% if not rapor_panel %}
   <div id="bildirim-karti" class="bildirim-karti" hidden>
     <div class="bk-satir">
       <span class="bk-ikon">🔔</span>
@@ -71,6 +72,7 @@
     </div>
   </div>
   {% if kalibrasyon_uyari %}<div class="kalib-uyari">⚠ Kalibrasyon zamanı ({{ kalibrasyon_pencere }}) — <b>{{ kalibrasyon_uyari|join:", " }}</b> şubesi bu pencerede henüz kalibrasyon yapmadı.</div>{% endif %}
+  {% endif %}
   {% endif %}
   {% block body %}{% endblock %}
   <footer class="imza">Crafted by <b>GEEK IT</b></footer>

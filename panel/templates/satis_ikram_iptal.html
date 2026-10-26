@@ -2,10 +2,10 @@
 {% load satis_filtreleri %}
 {% block title %}İkram &amp; İptal Detayı · Geek Panel{% endblock %}
 {% block body %}
+{% include '_satis_panelbar.html' %}
 <div class="container">
   <div class="plan-head">
     <div><h2>İkram &amp; iptal detayı</h2>{% if not kapali %}<span class="plan-aralik">{% if secili %}{{ secili.1 }} · {% endif %}{{ etiket }}</span>{% endif %}</div>
-    <a class="btn btn-ghost btn-mini" href="{% url 'satis_rapor' %}">Normal görünüme dön</a>
   </div>
 
   {% if kapali %}

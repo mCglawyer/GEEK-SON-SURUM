@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% block title %}Menulux şube eşleştirme · Geek Panel{% endblock %}
 {% block body %}
+{% include '_satis_panelbar.html' %}
 <div class="container">
-  <div class="plan-head"><div><h2>Menulux şube eşleştirme</h2><span class="plan-aralik">Bölge müdürü ve şef, yalnızca eşleştirilmiş şubelerin satışını görür</span></div>
-    <a class="btn btn-ghost btn-mini" href="{% url 'satis_rapor' %}">Rapora dön</a></div>
+  <div class="plan-head"><div><h2>Menulux şube eşleştirme</h2><span class="plan-aralik">Bölge müdürü ve şef, yalnızca eşleştirilmiş şubelerin satışını görür</span></div></div>
   <form method="post" class="card">
     {% csrf_token %}
     <div class="sr-kaydir"><table class="sr-tablo"><thead><tr><th>Panel şubesi</th><th>Menulux şubesi</th></tr></thead><tbody>

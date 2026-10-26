@@ -2,16 +2,10 @@
 {% load satis_filtreleri %}
 {% block title %}Satış Raporları · Geek Panel{% endblock %}
 {% block body %}
+{% include '_satis_panelbar.html' %}
 <div class="container">
   <div class="plan-head">
-    <div><h2>Satış raporları</h2>{% if not kapali %}<span class="plan-aralik">{% if secili %}{{ secili.1 }} · {% endif %}{{ etiket }}</span>{% endif %}</div>
-  </div>
-  <div class="sr-toolbar">
-    <a class="btn btn-ghost btn-mini" href="{% url 'satis_ozet' %}">Rapor Özeti</a>
-    <a class="btn btn-ghost btn-mini" href="{% url 'satis_ikram_iptal' %}">İkram &amp; İptal detayı</a>
-    <a class="btn btn-ghost btn-mini" href="{% url 'satis_tablo' %}">Tablo görünümü</a>
-    {% if eslestirme_gorur %}<a class="btn btn-ghost btn-mini" href="{% url 'satis_eslestirme' %}">Şube eşleştirme</a>
-    <a class="btn btn-ghost btn-mini" href="{% url 'satis_kategori_gruplari' %}">Kategori grupları</a>{% endif %}
+    <div><h2>Genel bakış</h2>{% if not kapali %}<span class="plan-aralik">{% if secili %}{{ secili.1 }} · {% endif %}{{ etiket }}</span>{% endif %}</div>
   </div>
 
   {% if kapali %}

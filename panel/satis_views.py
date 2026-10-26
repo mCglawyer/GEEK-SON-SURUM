@@ -19,6 +19,21 @@ OLCEKLI_ROLLER = (Rol.MUDUR, Rol.MAGAZA_MUDURU, Rol.SEF)           # yalnızca e
 RAPOR_ROLLERI = TUM_ROLLER + OLCEKLI_ROLLER
 ESLESTIRME_ROLLERI = (Rol.GENEL_MUDUR, Rol.OPERATOR)
 
+# Satış raporları artık kendi "paneli" gibi: ortak üst çubuk + hamburger menüsüyle geziliyor (bkz. _satis_panelbar.html).
+SR_SAYFA = {'satis_rapor.html': 'rapor', 'satis_ozet.html': 'ozet', 'satis_tablo.html': 'tablo',
+            'satis_ikram_iptal.html': 'ikram_iptal', 'satis_eslestirme.html': 'eslestirme',
+            'satis_kategori_gruplari.html': 'kategori'}
+
+
+def _sr_render(request, template, ctx):
+    """satis_*.html şablonlarını ortak panel çubuğu bağlamıyla (rapor_panel/sr_aktif/eslestirme_gorur) render eder."""
+    ctx = dict(ctx)
+    ctx['rapor_panel'] = True
+    ctx['sr_aktif'] = SR_SAYFA.get(template, '')
+    personel = ctx.get('personel')
+    ctx.setdefault('eslestirme_gorur', bool(personel) and personel.rol in ESLESTIRME_ROLLERI)
+    return render(request, template, ctx)
+
 DONEMLER = [('bugun', 'Bugün'), ('dun', 'Dün'), ('hafta', 'Bu hafta'), ('gecen_hafta', 'Geçen hafta'),
             ('ay', 'Bu ay'), ('gecen_ay', 'Geçen ay'), ('ozel', 'Özel aralık')]
 
@@ -182,12 +197,12 @@ def satis_rapor(request):
     if git:
         return git
     if not mx.ayarli_mi():
-        return render(request, 'satis_rapor.html', {'personel': personel, 'aktif': 'satis', 'kapali': True,
+        return _sr_render(request, 'satis_rapor.html', {'personel': personel, 'aktif': 'satis', 'kapali': True,
                                                     'eslestirme_gorur': personel.rol in ESLESTIRME_ROLLERI})
     ctx = _rapor_verisi(request, personel)
     ctx['eslestirme_gorur'] = personel.rol in ESLESTIRME_ROLLERI
     ctx['eslesme_yok'] = personel.rol in OLCEKLI_ROLLER and not ctx['secenekler']
-    return render(request, 'satis_rapor.html', ctx)
+    return _sr_render(request, 'satis_rapor.html', ctx)
 
 
 def satis_indir(request):
@@ -276,8 +291,8 @@ def satis_tablo(request):
     if git:
         return git
     if not mx.ayarli_mi():
-        return render(request, 'satis_tablo.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
-    return render(request, 'satis_tablo.html', _tablo_ctx(request, personel))
+        return _sr_render(request, 'satis_tablo.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
+    return _sr_render(request, 'satis_tablo.html', _tablo_ctx(request, personel))
 
 
 def satis_tablo_indir(request):
@@ -339,7 +354,7 @@ def satis_eslestirme(request):
     satirlar = [{'sube': s, 'secili': s.menulux_id, 'oneri': oneri.get(s.id)} for s in panel_subeleri]
     kullanimda = {s.menulux_id for s in panel_subeleri if s.menulux_id}
     eslesmeyen = [b for b in mx_subeler if b['id'] not in kullanimda]
-    return render(request, 'satis_eslestirme.html', {'personel': personel, 'aktif': 'satis', 'satirlar': satirlar,
+    return _sr_render(request, 'satis_eslestirme.html', {'personel': personel, 'aktif': 'satis', 'satirlar': satirlar,
                                                      'mx_subeler': mx_subeler, 'eslesmeyen': eslesmeyen})
 
 
@@ -373,8 +388,8 @@ def satis_ikram_iptal(request):
     if git:
         return git
     if not mx.ayarli_mi():
-        return render(request, 'satis_ikram_iptal.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
-    return render(request, 'satis_ikram_iptal.html', _ikram_iptal_ctx(request, personel))
+        return _sr_render(request, 'satis_ikram_iptal.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
+    return _sr_render(request, 'satis_ikram_iptal.html', _ikram_iptal_ctx(request, personel))
 
 
 def satis_ikram_iptal_indir(request):
@@ -430,8 +445,8 @@ def satis_ozet(request):
     if git:
         return git
     if not mx.ayarli_mi():
-        return render(request, 'satis_ozet.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
-    return render(request, 'satis_ozet.html', _ozet_ctx(request, personel))
+        return _sr_render(request, 'satis_ozet.html', {'personel': personel, 'aktif': 'satis', 'kapali': True})
+    return _sr_render(request, 'satis_ozet.html', _ozet_ctx(request, personel))
 
 
 def satis_ozet_indir(request):
@@ -487,6 +502,6 @@ def satis_kategori_gruplari(request):
             ham_kategoriler = sorted({(r.get('Name') or '').strip() for r in ham if r.get('Name')})
         except Exception:
             ham_kategoriler = []
-    return render(request, 'satis_kategori_gruplari.html', {
+    return _sr_render(request, 'satis_kategori_gruplari.html', {
         'personel': personel, 'aktif': 'satis', 'gruplar': gruplar, 'ham_kategoriler': ham_kategoriler,
     })

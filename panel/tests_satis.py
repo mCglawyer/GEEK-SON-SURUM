@@ -295,11 +295,39 @@ class SatisEkranTest(_Taban):
 
     def test_rapor_sayfasinda_tablo_linki_var(self):
         self.giris(Rol.GENEL_MUDUR)
-        self.assertContains(self.client.get('/satis/'), 'Tablo görünümü')
+        self.assertContains(self.client.get('/satis/'), 'Satış Tablosu')
 
     def test_menude_gorunur(self):
         self.giris(Rol.YATIRIMCI)
         self.assertContains(self.client.get('/satis/'), 'Satış Raporları')
+
+    def test_ana_menu_linki_dogrudan_rapor_ozetine_gider(self):
+        from django.urls import reverse
+        self.giris(Rol.GENEL_MUDUR)
+        r = self.client.get(reverse('ana_sayfa'), follow=True)
+        self.assertContains(r, 'href="%s"' % reverse('satis_ozet'))
+        self.assertNotContains(r, 'href="%s"' % reverse('satis_rapor'))
+
+    def test_satis_sayfalari_ayri_panel_gibi_acilir(self):
+        """Ana kenar çubuğu/üst çubuk yerine kendi hamburger menüsü olan, bağımsız bir panel gibi görünür."""
+        self.giris(Rol.GENEL_MUDUR)
+        for url in ('/satis/', '/satis/ozet/', '/satis/tablo/', '/satis/ikram-iptal/', '/satis/eslestirme/', '/satis/kategori-gruplari/'):
+            r = self.client.get(url)
+            self.assertContains(r, 'sr-panel', msg_prefix=url)
+            self.assertContains(r, 'sr-burger', msg_prefix=url)
+            self.assertContains(r, 'class="sr-menu"', msg_prefix=url)
+            self.assertNotContains(r, 'class="sidebar"', msg_prefix=url)
+            self.assertNotContains(r, 'class="mobil-bar"', msg_prefix=url)
+
+    def test_satis_hamburger_menusu_eslestirme_rolune_gore(self):
+        self.giris(Rol.GENEL_MUDUR)
+        r = self.client.get('/satis/ozet/')
+        self.assertContains(r, 'Kategori Grupları')
+        self.assertContains(r, 'Şube Eşleştirme')
+        self.giris(Rol.SEF, self.s1)
+        r = self.client.get('/satis/ozet/')
+        self.assertNotContains(r, 'Kategori Grupları')
+        self.assertNotContains(r, 'Şube Eşleştirme')
 
     def test_satin_alma_tum_subeleri_gorur(self):
         self.giris(Rol.SATIN_ALMA)
