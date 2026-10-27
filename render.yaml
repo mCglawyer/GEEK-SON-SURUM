@@ -3,9 +3,9 @@ services:
     name: geek-panel
     runtime: python
     region: oregon
-    plan: starter
+    plan: standard
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput"
-    startCommand: "gunicorn core.wsgi:application --workers 3 --worker-class gthread --threads 4 --timeout 90"
+    startCommand: "gunicorn core.wsgi:application --workers 4 --worker-class gthread --threads 4 --timeout 90"
     envVars:
       - key: DJANGO_SECRET_KEY
         sync: false
